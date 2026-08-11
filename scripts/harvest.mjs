@@ -107,6 +107,15 @@ async function main() {
     items,
   };
 
+  // Idempotency: if the harvested content is identical to what's already on
+  // disk (everything except the timestamp), keep the previous generatedAt so the
+  // output is byte-for-byte unchanged. Otherwise the hourly sync would commit a
+  // new timestamp every run and spam history with no-op changes.
+  const prev = await readJsonIfExists(path.join(ROOT, "data", "roadmap.json"));
+  if (prev && sameContent(prev, payload)) {
+    payload.generatedAt = prev.generatedAt;
+  }
+
   await mkdir(path.join(ROOT, "data"), { recursive: true });
   await writeFile(
     path.join(ROOT, "data", "roadmap.json"),
@@ -124,6 +133,20 @@ async function main() {
   console.error(
     `\n✓ ${items.length} items from ${sources.length} repos → data/roadmap.json, data/roadmap.js, ROADMAP.md`,
   );
+}
+
+async function readJsonIfExists(file) {
+  try {
+    return JSON.parse(await readFile(file, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+// Compare two payloads ignoring the generatedAt timestamp.
+function sameContent(a, b) {
+  const strip = (p) => JSON.stringify({ ...p, generatedAt: null });
+  return strip(a) === strip(b);
 }
 
 function renderDigest(payload) {
