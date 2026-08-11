@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en" data-theme="auto">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Roadmap — aggregated</title>
+    <meta
+      name="description"
+      content="Aggregated roadmap across the cadence, PIA, and méta-matic repos."
+    />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🗺️%3C/text%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <h1>Roadmap</h1>
+        <p class="sub" id="subtitle">Aggregated across repos · loading…</p>
+      </div>
+      <div class="controls">
+        <input
+          id="search"
+          type="search"
+          placeholder="Search title, body, tag…"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <button id="theme" class="ghost" title="Toggle theme" aria-label="Toggle theme">◐</button>
+      </div>
+    </header>
+
+    <nav class="filters" id="filters" aria-label="Filters">
+      <div class="filter-group" id="repoFilters" aria-label="Repositories"></div>
+      <div class="filter-group" id="tagFilters" aria-label="Tags"></div>
+      <label class="toggle">
+        <input type="checkbox" id="showDone" />
+        <span>Show done</span>
+      </label>
+    </nav>
+
+    <main id="board" class="board" aria-live="polite"></main>
+
+    <footer class="foot">
+      <span id="footmeta"></span>
+      <a href="ROADMAP.md">flat digest</a> ·
+      <a href="data/roadmap.json">roadmap.json</a> ·
+      <a href="https://github.com/tor2dbear/roadmap">source</a>
+    </footer>
+
+    <!-- Generated payload, loaded as a global so the page also works from file://. -->
+    <script src="data/roadmap.js" onerror="window.__ROADMAP_LOAD_ERROR__=true"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,33 @@
+{
+  "$schema": "./scripts/sources.schema.json",
+  "generatedBy": "roadmap aggregator — https://github.com/tor2dbear/roadmap",
+  "defaultBranch": "main",
+  "sources": [
+    {
+      "repo": "tor2dbear/pia-terminal",
+      "name": "PIA",
+      "blurb": "Personal Integrated Applications — a Unix-flavoured terminal in the browser.",
+      "color": "#38bdf8",
+      "adapter": "pucks",
+      "path": "roadmap"
+    },
+    {
+      "repo": "tor2dbear/cadence",
+      "name": "Cadence",
+      "blurb": "A motion *system* designer — tokens for timing & easing, not another easing toy.",
+      "color": "#f472b6",
+      "adapter": "checklist",
+      "path": "NOTES.md",
+      "section": "Roadmap"
+    },
+    {
+      "repo": "tor2dbear/meta-matic",
+      "name": "Méta-Matic",
+      "blurb": "A digital drawing machine after Jean Tinguely — infinite works, never anything new.",
+      "color": "#a78bfa",
+      "adapter": "prose",
+      "path": "README.md",
+      "section": "Vidare"
+    }
+  ]
+}
