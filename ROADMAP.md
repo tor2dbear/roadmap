@@ -4,13 +4,13 @@
      hand: your changes will be overwritten on the next sync. Edit the roadmap in
      the source repo instead. -->
 
-_Generated 2026-08-11 · 59 items across 3 repos._
+_Generated 2026-08-11 · 74 items across 3 repos._
 
 ## Sources
 
 - **[PIA](https://github.com/tor2dbear/pia-terminal)** — 48 items, native pucks. Personal Integrated Applications — a Unix-flavoured terminal in the browser.
 - **[Cadence](https://github.com/tor2dbear/cadence)** — 9 items, adapted (checklist). A motion *system* designer — tokens for timing & easing, not another easing toy.
-- **[Méta-Matic](https://github.com/tor2dbear/meta-matic)** — 2 items, adapted (prose). A digital drawing machine after Jean Tinguely — infinite works, never anything new.
+- **[Méta-Matic](https://github.com/tor2dbear/meta-matic)** — 17 items, adapted (checklist). A digital drawing machine after Jean Tinguely — infinite works, never anything new.
 
 ## Now (2)
 
@@ -26,12 +26,8 @@ _Generated 2026-08-11 · 59 items across 3 repos._
 - **Roller på delade filer (owner/editor/viewer)** — PIA · #collab #permissions #supabase · 2026-08-08  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/shared-file-roles.md
 
-## Later (8)
+## Later (12)
 
-- **En liten backend (Cloudflare Worker + KV / Supabase) som loggar totala antale…** — Méta-Matic · _adapted_  
-  https://github.com/tor2dbear/meta-matic/blob/main/README.md#vidare
-- **Signera med plånbok** — Méta-Matic · _adapted_  
-  https://github.com/tor2dbear/meta-matic/blob/main/README.md#vidare
 - **Custom probes** — Cadence · _adapted_  
   https://github.com/tor2dbear/cadence/blob/main/NOTES.md#roadmap
 - **Optional: import an existing palette of motion (a framework's tokens) and vis…** — Cadence · _adapted_  
@@ -42,6 +38,18 @@ _Generated 2026-08-11 · 59 items across 3 repos._
   https://github.com/tor2dbear/cadence/blob/main/NOTES.md#roadmap
 - **Hosting note** — Cadence · _adapted_  
   https://github.com/tor2dbear/cadence/blob/main/NOTES.md#roadmap
+- **Print-shop (huvudspåret för v2)** — Méta-Matic · _adapted_  
+  https://github.com/tor2dbear/meta-matic/blob/main/NOTES.md#roadmap
+- **v2.0 — "Ladda ner print-fil"** — Méta-Matic · _adapted_  
+  https://github.com/tor2dbear/meta-matic/blob/main/NOTES.md#roadmap
+- **v2.1 — riktig shop** — Méta-Matic · _adapted_  
+  https://github.com/tor2dbear/meta-matic/blob/main/NOTES.md#roadmap
+- **Exakt räknare / skalning** — Méta-Matic · _adapted_  
+  https://github.com/tor2dbear/meta-matic/blob/main/NOTES.md#roadmap
+- **Abuse-skydd på /sign** — Méta-Matic · _adapted_  
+  https://github.com/tor2dbear/meta-matic/blob/main/NOTES.md#roadmap
+- **NFT-mint (on-chain)** — Méta-Matic · _adapted_  
+  https://github.com/tor2dbear/meta-matic/blob/main/NOTES.md#roadmap
 - **Multiplayer — who, msg, gemensamma rum** — PIA · #multiplayer #supabase · 2026-07-17  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/multiplayer-rooms.md
 
@@ -58,20 +66,42 @@ _Generated 2026-08-11 · 59 items across 3 repos._
 - **Paket-roadmap — brew-appar som passar PIA** — PIA · #packages #overview · 2026-07-18  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/package-ideas.md
 
-## Done (42)
+## Done (53)
 
 - **Draggable bézier editor (author curves directly, not just presets).** — Cadence · _adapted_  
   https://github.com/tor2dbear/cadence/blob/main/NOTES.md#roadmap
+- **Latent löpande band, väggklocksdrivet, deterministisk vandring.** — Méta-Matic · _adapted_  
+  https://github.com/tor2dbear/meta-matic/blob/main/NOTES.md#roadmap
 - **nano: multi-buffer** — PIA · #editor · 2026-07-18  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/nano-multibuffer.md
 - **grep: context-flaggor -A/-B/-C** — PIA · #text #commands · 2026-07-17  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/grep-context.md
 - **Editable ladder** — Cadence · _adapted_  
   https://github.com/tor2dbear/cadence/blob/main/NOTES.md#roadmap
+- **Variabelviktad bläck-ribbon (stroke under morf → ribbon vid lås).** — Méta-Matic · _adapted_  
+  https://github.com/tor2dbear/meta-matic/blob/main/NOTES.md#roadmap
+- **Diffusion som Fourier-avslöjning (låg→hög frekvens), inte grain-crossfade.** — Méta-Matic · _adapted_  
+  https://github.com/tor2dbear/meta-matic/blob/main/NOTES.md#roadmap
+- **Framtiden krymper till punkter långt bort (perf + koncept).** — Méta-Matic · _adapted_  
+  https://github.com/tor2dbear/meta-matic/blob/main/NOTES.md#roadmap
 - **Shareable system via URL state (encode the whole token set in the link).** — Cadence · _adapted_  
   https://github.com/tor2dbear/cadence/blob/main/NOTES.md#roadmap
+- **Gummibands-scrub fram/bak med spring-back; bara nuet signerbart.** — Méta-Matic · _adapted_  
+  https://github.com/tor2dbear/meta-matic/blob/main/NOTES.md#roadmap
 - **More export targets** — Cadence · _adapted_  
   https://github.com/tor2dbear/cadence/blob/main/NOTES.md#roadmap
+- **Lås i skärmrymd (sista 22 px in i nuet); focus-ringens snap synkad exakt mot…** — Méta-Matic · _adapted_  
+  https://github.com/tor2dbear/meta-matic/blob/main/NOTES.md#roadmap
+- **"The Space" — kartan över det latenta fältet (delad väg, dina signeringar, ma…** — Méta-Matic · _adapted_  
+  https://github.com/tor2dbear/meta-matic/blob/main/NOTES.md#roadmap
+- **Tally-backend (global summa + per-verk), plånbokssignering (personal_sign).** — Méta-Matic · _adapted_  
+  https://github.com/tor2dbear/meta-matic/blob/main/NOTES.md#roadmap
+- **Inspektera & signera, spara signerat verk som bild.** — Méta-Matic · _adapted_  
+  https://github.com/tor2dbear/meta-matic/blob/main/NOTES.md#roadmap
+- **Reduced-motion-läge (ingen autoplay, hämta stillbild av "nu").** — Méta-Matic · _adapted_  
+  https://github.com/tor2dbear/meta-matic/blob/main/NOTES.md#roadmap
+- **SEO/social: OG-/Twitter-taggar + genererad og.png, robots.txt, sitemap.xml.** — Méta-Matic · _adapted_  
+  https://github.com/tor2dbear/meta-matic/blob/main/NOTES.md#roadmap
 - **påskägg: policy + shortlist** — PIA · #system #packages · 2026-08-08  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/easter-eggs.md
 - **Rättigheter — skrivskyddat systemträd + sudo som escape-hatch** — PIA · #shell #fs #teaching · 2026-08-07  
