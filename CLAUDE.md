@@ -59,6 +59,16 @@ ROADMAP_LOCAL_ROOT=/path/to/checkouts \  # or read from local clones
 python3 -m http.server 4173              # then open the board locally
 ```
 
+## Authoring helper (`scripts/roadmap.mjs`)
+
+Runs inside a source repo, operates on that repo's `roadmap/`, and edits
+frontmatter in place (bumping `updated` on every mutation) so status/date upkeep
+is automatic. `roadmap new "Title"`, `roadmap start|next|later|done <slug>`,
+`roadmap tag`, `roadmap issue`, `roadmap list`, `roadmap install-hook` (a
+pre-commit hook that bumps `updated` on hand edits too). Field edits are
+line-level and format-preserving; `STATUSES`/`slugify` are shared with
+`lib/adapters.mjs`. An agent can call these commands directly.
+
 ## Common tasks
 
 - **Add a repo to the board:** add an entry to `sources.json`. If it follows the

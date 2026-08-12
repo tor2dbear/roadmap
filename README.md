@@ -58,6 +58,31 @@ python3 -m http.server 4173   # → http://localhost:4173
 The page also opens straight from `file://index.html` — it reads
 `data/roadmap.js` (a global), which works without a server.
 
+## Author pucks without touching YAML
+
+`scripts/roadmap.mjs` is a small helper so you never hand-maintain frontmatter.
+It runs **inside a project repo** and writes to that repo's `roadmap/`. Every
+command bumps `updated` for you.
+
+```bash
+# make it a global command (once), from this repo:
+npm link            # → `roadmap` available everywhere
+
+# then, inside any project:
+roadmap new "Multi-buffer i nano" --tags editor   # create a puck (in inbox)
+roadmap start nano-multi-buffer                    # → status: now
+roadmap next|later|done <slug>                     # move it
+roadmap tag <slug> +text -ui                       # edit tags
+roadmap issue <slug> 42                            # link a working issue
+roadmap list [--status now]                        # quick overview
+roadmap install-hook                               # auto-bump `updated` on commit
+```
+
+`install-hook` adds a pre-commit hook to the current repo that refreshes
+`updated` on any puck you edit by hand — so status/date upkeep is automatic
+whether you use the helper or just edit the file. (No global install? Use
+`node /path/to/roadmap/scripts/roadmap.mjs …` or `npm run roadmap -- …`.)
+
 ## Add a project
 
 Edit [`sources.json`](sources.json):

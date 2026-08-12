@@ -122,6 +122,22 @@ status or the content.
 
 ---
 
+## Authoring helper
+
+You never have to write frontmatter by hand. From a project repo:
+
+```bash
+roadmap new "Title" --tags area   # create a puck in inbox
+roadmap start|next|later|done <slug>
+roadmap tag <slug> +add -remove
+roadmap list                       # overview
+roadmap install-hook               # auto-bump `updated` on every commit
+```
+
+Every command sets `updated` for you; the hook keeps it fresh even for hand
+edits. See the aggregator's README for install. Agents can call the same
+commands.
+
 ## For agents
 
 - Working on a specific puck? Open `roadmap/<slug>.md` — everything about it

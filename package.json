@@ -4,9 +4,13 @@
   "private": true,
   "type": "module",
   "description": "Aggregates roadmaps from multiple repos into one visual, greppable board.",
+  "bin": {
+    "roadmap": "scripts/roadmap.mjs"
+  },
   "scripts": {
     "harvest": "node scripts/harvest.mjs",
     "harvest:local": "ROADMAP_LOCAL_ROOT=../ node scripts/harvest.mjs",
+    "roadmap": "node scripts/roadmap.mjs",
     "serve": "node --version >/dev/null && python3 -m http.server 4173"
   },
   "engines": {
