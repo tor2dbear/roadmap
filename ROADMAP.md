@@ -4,11 +4,11 @@
      hand: your changes will be overwritten on the next sync. Edit the roadmap in
      the source repo instead. -->
 
-_Generated 2026-08-12 · 72 items across 3 repos._
+_Generated 2026-08-12 · 74 items across 3 repos._
 
 ## Sources
 
-- **[PIA](https://github.com/tor2dbear/pia-terminal)** — 48 items, native pucks. Personal Integrated Applications — a Unix-flavoured terminal in the browser.
+- **[PIA](https://github.com/tor2dbear/pia-terminal)** — 50 items, native pucks. Personal Integrated Applications — a Unix-flavoured terminal in the browser.
 - **[Cadence](https://github.com/tor2dbear/cadence)** — 9 items, adapted (checklist). A motion *system* designer — tokens for timing & easing, not another easing toy.
 - **[Méta-Matic](https://github.com/tor2dbear/meta-matic)** — 15 items, native pucks. A digital drawing machine after Jean Tinguely — infinite works, never anything new.
 
@@ -51,8 +51,10 @@ _Generated 2026-08-12 · 72 items across 3 repos._
 - **Multiplayer — who, msg, gemensamma rum** — PIA · #multiplayer #supabase · 2026-07-17  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/multiplayer-rooms.md
 
-## Inbox (6)
+## Inbox (7)
 
+- **mount — privata filer från egen server** — PIA · #storage #vfs · 2026-08-12  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/mount-webdav.md
 - **Orphaned certificates** — Méta-Matic · #ownership · 2026-08-12  
   https://github.com/tor2dbear/meta-matic/blob/main/roadmap/orphaned-certificates.md
 - **AI-värd-persona (och ev. ask-kommandot)** — PIA · #persona #ai · 2026-08-08  
@@ -66,7 +68,7 @@ _Generated 2026-08-12 · 72 items across 3 repos._
 - **Paket-roadmap — brew-appar som passar PIA** — PIA · #packages #overview · 2026-07-18  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/package-ideas.md
 
-## Done (51)
+## Done (52)
 
 - **Draggable bézier editor (author curves directly, not just presets).** — Cadence · _adapted_  
   https://github.com/tor2dbear/cadence/blob/main/NOTES.md#roadmap
@@ -92,6 +94,8 @@ _Generated 2026-08-12 · 72 items across 3 repos._
   https://github.com/tor2dbear/meta-matic/blob/main/roadmap/reduced-motion.md
 - **Rubberband scrub + screen-space lock** — Méta-Matic · #interaction · 2026-08-12  
   https://github.com/tor2dbear/meta-matic/blob/main/roadmap/scrub-and-lock.md
+- **sh — kör scriptfiler** — PIA · #shell #terminal · 2026-08-12  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/sh-scripts.md
 - **Social & SEO** — Méta-Matic · #seo · 2026-08-12  
   https://github.com/tor2dbear/meta-matic/blob/main/roadmap/seo-og.md
 - **The Space — the shared map** — Méta-Matic · #map · 2026-08-12  

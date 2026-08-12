@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-12T07:45:43.226Z",
+  "generatedAt": "2026-08-12T08:40:21.574Z",
   "statuses": [
     "now",
     "next",
@@ -11,10 +11,10 @@
     "now": 2,
     "next": 3,
     "later": 10,
-    "inbox": 6,
-    "done": 51
+    "inbox": 7,
+    "done": 52
   },
-  "total": 72,
+  "total": 74,
   "sources": [
     {
       "repo": "tor2dbear/pia-terminal",
@@ -24,7 +24,7 @@
       "url": "https://github.com/tor2dbear/pia-terminal",
       "adapter": "pucks",
       "backend": "fs",
-      "count": 48,
+      "count": 50,
       "native": true,
       "error": null
     },
@@ -360,6 +360,27 @@
       "native": true
     },
     {
+      "id": "pia-terminal/mount-webdav",
+      "repo": "tor2dbear/pia-terminal",
+      "repoName": "PIA",
+      "repoColor": "#38bdf8",
+      "slug": "mount-webdav",
+      "title": "mount — privata filer från egen server",
+      "status": "inbox",
+      "tags": [
+        "storage",
+        "vfs"
+      ],
+      "updated": "2026-08-12",
+      "issue": null,
+      "order": null,
+      "body": "## Mål\n(Research, inte beslutat.) Kunna `mount`:a en mapp från en egen/privat server och\njobba i den från terminalen — så att verkligt privata filer aldrig behöver ligga i\nden delade Supabase-backenden. Idag ligger hela filträdet för en inloggad\nanvändare som en enda `jsonb`-rad per användare i tabellen `filesystems`\n(`src/supabase/storage.ts`); gäster i `localStorage`; `HybridStorageAdapter`\nruttar på auth-läge. Allt eller inget, en backend.\n\n## Idiom\n`mount` är ren Unix — **ingen divergens att flagga**. En privat server-mapp hör\ntill `mount`/`sshfs`/NFS-familjen; namnet ger sig självt. En mount-punkt (t.ex.\n`/mnt/server`) och ett `mount`/`umount`-kommando ligger rätt i idiomet.\n\n## Research\n\n**Arkitektoniskt passar det i `StorageAdapter`-sömmen** — det är precis vad den är\ntill för. Två rimliga former:\n\n- **Ny adapter + mount-begrepp i VFS.** En `WebDavAdapter` / `HttpMountAdapter`\n  plus en *mount-tabell* (path → adapter) i path-resolvern, så läs/skriv under\n  mount-punkten ruttar till en annan backend. Idag laddas trädet som *en* blob —\n  per-subträd-routing är den nya primitiven som saknas.\n- **Lättare variant som återanvänder `shareId`-mönstret — men lättheten är en\n  synvilla.** `shareId` är *inte* en generell per-fil-routing-söm: `linkedContent`/\n  `linkedSave` anropas bara från `nano`/`todo`/`transfer`, medan `cat`, text-utils,\n  `cp` och shell-redirection läser `FileNode.content` (cachen) direkt (`fs.ts` rör\n  bara `shareId` för `@`-dekoration). Generaliserar man mönstret till kataloger utan\n  att flytta routingen *under alla* VFS-ops får man stale reads och lokala-bara\n  skrivningar. Så den här varianten är i praktiken lika stor som \"ny adapter +\n  mount-tabell\" ovan, inte en genväg.\n\n**Sync/async-krocken är den strukturella kärnfrågan.** Hela VFS-API:t är synkront —\n`readFile`/`writeFile`/`list`/`copy`/`move`/`remove`/`mkdir` returnerar värde/`void`\ndirekt (`src/vfs/vfs.ts`), och `StorageAdapter` exponerar bara hel-träds `load`/`save`,\ninte path-nivå-ops. En WebDAV-backend är oundvikligen async. Två utvägar, båda med\nsvans: (a) **propagera async genom alla VFS-konsumenter** (varje kommando som läser/\nskriver blir `await`:at — stor, invasiv refaktor), eller (b) **prefetcha till en cache**\noch servera synkrona läsningar ur den — men då är vi tillbaka i staleness (cachen kan\nligga efter servern) och privatläckan nedan (cachen får inte persistas). Det här, inte\nCSP, är varför en riktig mount är en stor sak snarare än en adapter-swap.\n\n**Privatläckan att designa bort från dag ett:** om en mountad fils innehåll cachas\ni `FileNode.content` (som `shareId`-mönstret gör) läcker de privata bytes till den\ndelade backenden. `linkedSave` (`src/commands/linked.ts`) gör `writeFile` + `persist`,\noch `SupabaseStorageAdapter` skriver *hela trädet* till `filesystems`-raden — dvs det\n\"privata\" innehållet hamnar i Supabase, precis tvärtemot målet. Konsekvens: det\nserialiserade trädet får bära **bara mount-metadata** (path, endpoint, ev. token-ref);\nall filcache måste bo *utanför* det serialiserade trädet (minne/IndexedDB som aldrig\npersistas via storage-adaptern).\n\n**Bromsklossarna sitter i browsersandlådan, inte i PIA-koden:**\n\n- **Ingen rå-fs/SSH/NFS från browsern.** \"Mounta privat server\" betyder i\n  praktiken att servern kör ett HTTP-API browsern når — realistiskt **WebDAV**\n  (Nextcloud, Apache, `rclone serve webdav` talar det) eller ett litet eget API.\n- **CSP är den skarpaste konflikten.** Vi shippar en strikt *statisk* `connect-src`\n  (`vite.config.ts`, byggd vid build-tid) som bara släpper `'self'` + Supabase.\n  Går inte att lägga till en godtycklig användarorigin i runtime. Utvägar: vidga\n  `connect-src` till `https:` (försvagar skyddet — motverkar hela CSP-arbetet),\n  eller proxa via en Cloudflare Worker (men då passerar trafiken ändå oss, vilket\n  motverkar \"privat\").\n- **CORS + HTTPS.** Servern måste skicka CORS-headers för `pia.tor2dbear.com` och\n  köra giltig TLS (mixed-content blockeras). Hemmaservrar med self-signed cert\n  faller på det.\n\n**Alternativ värda att väga mot en riktig mount:**\n\n- **Egen self-hostad Supabase.** Om målet bara är \"mina filer inte på den delade\n  instansen\": peka appen mot egen Supabase (config dynamic-importas redan,\n  `.env.production`). Allt privat, ~noll ny kod. Byter hela backenden, inte en\n  per-mapp-mount — men löser 80 % av behovet billigast.\n- **`File System Access API`** kan mounta en *lokal* katalog utan server alls — men\n  det är lokal disk, inte \"privat server\", och Safari saknar stöd.\n\n## Öppna frågor\n- Vad är det egentliga behovet — \"inte på den delade Supabasen\" (→ egen Supabase,\n  billigt) eller \"genuint mounta en fjärrmapp\" (→ WebDAV-adapter, dyrt)?\n- Hur löser vi CSP för godtycklig origin utan att antingen försvaga den eller proxa\n  genom oss? Kanske: en explicit allowlist användaren själv får bygga in, dvs\n  mount kräver en rebuild/egen deploy? Flagga innan bygge.\n- Async-strategin: gör vi hela VFS async (rent men invasivt — rör varje kommando),\n  eller prefetch-cache med synkrona läsningar (mindre blast-radie men staleness +\n  cachen får inte persistas)? Det här beslutet formar allt annat.\n- Var bor mount-tabellen — i VFS (i minnet) eller i storage-lagret? Lutar åt att\n  hålla VFS rent och lägga routingen i ett lager ovanför adaptrarna.\n- Offline/cache-semantik: ren read-through varje gång, eller en lokal cache — som\n  då måste ligga *utanför* det serialiserade trädet (se privatläckan ovan)? Vad\n  händer när servern är nere mitt i en session?\n- WebDAV-auth i browsern (Basic/Bearer) utan att läcka credentials in i det\n  serialiserade trädet — var lagras token?\n\n_Ligger i `inbox` tills det blivit ett beslut. Befordra till `next/later` då._",
+      "sourcePath": "roadmap/mount-webdav.md",
+      "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/mount-webdav.md",
+      "adapter": "pucks",
+      "native": true
+    },
+    {
       "id": "meta-matic/nft-mint-onchain",
       "repo": "tor2dbear/meta-matic",
       "repoName": "Méta-Matic",
@@ -497,6 +518,27 @@
       "body": "## Goal\nMake a wallet certificate's provenance trustworthy server-side, not just client-side.\n\n## Research\nToday `/claim` stores the address + `personal_sign` signature; the client sends the\nsigned `message` too (`payload.msg`), but the Worker does **not** persist it and D1\nhas no `msg` column — and the attestation message embeds a client timestamp, so the\npreimage can't be reconstructed from the server's own timestamp. So the stored\nsignature is currently unverifiable once the local entry is gone.\n\nTo harden:\n1. Add a `msg` column and persist the exact signed message (or sign a deterministic /\n   server-issued payload with no client timestamp, so it's reconstructable from serial).\n2. In the Worker, recover the address from the signature over that message and assert\n   it matches the claimed address before writing the row. Needs secp256k1 recovery\n   in-Worker (WebCrypto doesn't do it natively — a small lib or manual implementation).\n\n## Open questions\n- Persist the message, or switch to a deterministic (timestamp-free) signed payload?\n- Reject on mismatch, or accept-but-flag?",
       "sourcePath": "roadmap/wallet-sig-verification.md",
       "sourceUrl": "https://github.com/tor2dbear/meta-matic/blob/main/roadmap/wallet-sig-verification.md",
+      "adapter": "pucks",
+      "native": true
+    },
+    {
+      "id": "pia-terminal/sh-scripts",
+      "repo": "tor2dbear/pia-terminal",
+      "repoName": "PIA",
+      "repoColor": "#38bdf8",
+      "slug": "sh-scripts",
+      "title": "sh — kör scriptfiler",
+      "status": "done",
+      "tags": [
+        "shell",
+        "terminal"
+      ],
+      "updated": "2026-08-12",
+      "issue": null,
+      "order": null,
+      "body": "## Mål\n`sh script.sh` läser en fil ur VFS:en och kör den rad för rad genom det\nbefintliga skal-maskineriet — pipes, `;`/`&&`/`||`, redirects och globbing. Gör\nPIA till \"en riktig liten dator\" på skal-nivå: man kan spara en följd av\nkommandon i en fil och köra den. Efterfrågat av tidiga testare (script-filer var\nden enskilt största saknade skal-biten efter kedjning och globbing).\n\n## Research\n- **Alla byggstenar fanns redan.** `command-chaining` och `shell-globbing` är\n  klara, och `CommandContext` exponerar redan `exec?(line): Promise<boolean>` —\n  sömmen `sudo` använder för att köra sin payload genom `runLine → runSequence →\n  executePipeline`. `sh` är i princip \"läs fil → `ctx.exec` per rad\", precis som\n  `sudo` är \"kör payload elevated\". Ingen ny kärn-söm behövdes.\n- **Idiom:** `sh script.sh` och `sh -c \"cmd\"` är rakt av äkta. Ingen divergens.\n- **Ingen exec-bit i VFS.** `FileNode` har bara `name`/`content` (+ `shareId`),\n  ingen `mode`. Så `chmod +x ./script` + shebang-körning (`./script`) kräver att\n  filmodellen och serialiseringen växer ett läges-fält — medvetet **utanför v1**.\n  En shebang-**rad** (`#!/bin/sh`) hanteras ändå gratis: den börjar med `#` och\n  behandlas som en kommentar.\n\n## Levererat (2026-08-12)\n`sh` som ett vanligt `Command` i `src/commands/system.ts`, bredvid `sudo`:\n- **`sh <fil>`** — resolvar mot cwd, läser ur VFS:en, kör varje rad via\n  `ctx.exec`. Tomma rader och kommentarer (`#…`, inklusive en `#!`-shebang på\n  rad 1) hoppas över.\n- **`sh -c \"<kommando>\"`** — kör en kommandosträng direkt.\n- **`cmd | sh` / `cat script | sh`** — utan filargument körs *stdin* som script,\n  så en pipe eller heredoc-lik ström funkar.\n- **Fortsätter vid fel** (inget `set -e`): en rad som failar stoppar inte\n  scriptet. Skalets slut-status = sista körda kommandots, propagerad via\n  `ctx.fail?.()` (ingen dubbel-utskrift — payload-fel skrivs redan av\n  maskineriet) så `sh a.sh && echo ok` beter sig rätt.\n- **Ctrl-C** avbryter mellan rader (kollar `ctx.signal`), som resten av skalet.\n\n## Härdning efter review (2026-08-12)\n- **Hemligheter i history.** Skalets `histIgnore`-traversering recursar nu in i\n  `sh -c` / `bash -c`-payloaden (som den redan gjorde för `at`/`sudo`) och in i en\n  *literal* `echo`/`printf` som matar en stdin-`sh`/`bash` (`echo \"passwd pw\" | sh`)\n  — så en typad hemlighet fångas på de direkta vägarna.\n- **Känd gräns (maintainer-beslut):** att spåra en hemlighet genom *godtyckliga*\n  pipe-transformationer in i ett stdin-skal (`echo … | cat | sh`, `… | rev | sh`,\n  `base64 -d | sh`, alias-kedjor) är obestämbart i allmänhet. Vi jagar inte varje\n  forwarder och gör *inte* den konservativa \"scrub varje `… | sh`\" (den skulle\n  döda legitima `cat deploy.sh | sh` ur history). De direkta/vanliga vägarna är\n  täckta; den konstruerade multi-hop-läckan är medvetet utanför scope. Notera:\n  ingen sätter lösenord via `echo \"passwd x\" | cat | sh`.\n- **Cwd + konto.** Ett script kör som en subprocess: script-lokala `cd` kastas när\n  scriptet är klart (skalet återgår). Men ett kontobyte (`login`/`usermod`/\n  `logout`) är *globalt* för denna en-användarmaskin, inte subprocess-lokalt — det\n  behålls, och skalet landar i det nya kontots hem (inte i en subdir en efterföljande\n  `cd` råkade lämna det i).\n\n## Öppna frågor / uppföljning\n- **`chmod +x` + shebang-körning (`./script`)** — kräver ett läges-/exec-fält på\n  `FileNode` + serialisering. Egen puck när behovet finns.\n- **Positionsargument (`$1`, `$@`) och `$?`** — väntar på variabel-expansion\n  (samma uppföljning som `command-chaining` noterade). `sh script.sh a b` tar\n  emot extra args men ignorerar dem tills expansion finns.\n- **Pipa `sh`:s aggregerade stdout** (`sh f.sh | grep x`) — inre rad-utskrift går\n  till skärmen, inte in i pipen (samma klass av begränsning som `sudo`). Att\n  fånga payload-stdout kräver att `exec`-sömmen returnerar utdata. Uppföljning.\n- **`source` / `.`** (kör i nuvarande skal istället för sub-skal) — meningsfullt\n  först när det finns skal-lokalt tillstånd (variabler) att dela.",
+      "sourcePath": "roadmap/sh-scripts.md",
+      "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/sh-scripts.md",
       "adapter": "pucks",
       "native": true
     },
