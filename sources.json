@@ -25,9 +25,8 @@
       "name": "Méta-Matic",
       "blurb": "A digital drawing machine after Jean Tinguely — infinite works, never anything new.",
       "color": "#a78bfa",
-      "adapter": "checklist",
-      "path": "NOTES.md",
-      "section": "Roadmap"
+      "adapter": "pucks",
+      "path": "roadmap"
     }
   ]
 }
