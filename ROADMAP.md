@@ -4,13 +4,13 @@
      hand: your changes will be overwritten on the next sync. Edit the roadmap in
      the source repo instead. -->
 
-_Generated 2026-08-11 · 74 items across 3 repos._
+_Generated 2026-08-12 · 72 items across 3 repos._
 
 ## Sources
 
 - **[PIA](https://github.com/tor2dbear/pia-terminal)** — 48 items, native pucks. Personal Integrated Applications — a Unix-flavoured terminal in the browser.
 - **[Cadence](https://github.com/tor2dbear/cadence)** — 9 items, adapted (checklist). A motion *system* designer — tokens for timing & easing, not another easing toy.
-- **[Méta-Matic](https://github.com/tor2dbear/meta-matic)** — 17 items, adapted (checklist). A digital drawing machine after Jean Tinguely — infinite works, never anything new.
+- **[Méta-Matic](https://github.com/tor2dbear/meta-matic)** — 15 items, native pucks. A digital drawing machine after Jean Tinguely — infinite works, never anything new.
 
 ## Now (2)
 
@@ -19,14 +19,16 @@ _Generated 2026-08-11 · 74 items across 3 repos._
 - **brew install: ärlig installationsceremoni** — PIA · #packages #system · 2026-08-08  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/brew-install-progress.md
 
-## Next (2)
+## Next (3)
 
 - **Lazy email verification (gate claim, not signup)** — PIA · #auth #share · 2026-08-08  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/email-verification-lazy.md
+- **Print shop** — Méta-Matic · #commerce · 2026-08-12  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/print-shop.md
 - **Roller på delade filer (owner/editor/viewer)** — PIA · #collab #permissions #supabase · 2026-08-08  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/shared-file-roles.md
 
-## Later (12)
+## Later (10)
 
 - **Custom probes** — Cadence · _adapted_  
   https://github.com/tor2dbear/cadence/blob/main/NOTES.md#roadmap
@@ -38,23 +40,21 @@ _Generated 2026-08-11 · 74 items across 3 repos._
   https://github.com/tor2dbear/cadence/blob/main/NOTES.md#roadmap
 - **Hosting note** — Cadence · _adapted_  
   https://github.com/tor2dbear/cadence/blob/main/NOTES.md#roadmap
-- **Print-shop (huvudspåret för v2)** — Méta-Matic · _adapted_  
-  https://github.com/tor2dbear/meta-matic/blob/main/NOTES.md#roadmap
-- **v2.0 — "Ladda ner print-fil"** — Méta-Matic · _adapted_  
-  https://github.com/tor2dbear/meta-matic/blob/main/NOTES.md#roadmap
-- **v2.1 — riktig shop** — Méta-Matic · _adapted_  
-  https://github.com/tor2dbear/meta-matic/blob/main/NOTES.md#roadmap
-- **Exakt räknare / skalning** — Méta-Matic · _adapted_  
-  https://github.com/tor2dbear/meta-matic/blob/main/NOTES.md#roadmap
-- **Abuse-skydd på /sign** — Méta-Matic · _adapted_  
-  https://github.com/tor2dbear/meta-matic/blob/main/NOTES.md#roadmap
-- **NFT-mint (on-chain)** — Méta-Matic · _adapted_  
-  https://github.com/tor2dbear/meta-matic/blob/main/NOTES.md#roadmap
+- **On-chain NFT mint** — Méta-Matic · #wallet · 2026-08-12  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/nft-mint-onchain.md
+- **Rate-limit /claim** — Méta-Matic · #backend · 2026-08-12  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/claim-rate-limit.md
+- **Server-side wallet signature check** — Méta-Matic · #backend #wallet · 2026-08-12  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/wallet-sig-verification.md
+- **WalletConnect for mobile Safari** — Méta-Matic · #wallet · 2026-08-12  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/walletconnect-mobile.md
 - **Multiplayer — who, msg, gemensamma rum** — PIA · #multiplayer #supabase · 2026-07-17  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/multiplayer-rooms.md
 
-## Inbox (5)
+## Inbox (6)
 
+- **Orphaned certificates** — Méta-Matic · #ownership · 2026-08-12  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/orphaned-certificates.md
 - **AI-värd-persona (och ev. ask-kommandot)** — PIA · #persona #ai · 2026-08-08  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/ai-host-persona.md
 - **paket: pv — pipe viewer (ärlig mätare)** — PIA · #packages · 2026-08-08  
@@ -66,42 +66,38 @@ _Generated 2026-08-11 · 74 items across 3 repos._
 - **Paket-roadmap — brew-appar som passar PIA** — PIA · #packages #overview · 2026-07-18  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/package-ideas.md
 
-## Done (53)
+## Done (51)
 
 - **Draggable bézier editor (author curves directly, not just presets).** — Cadence · _adapted_  
   https://github.com/tor2dbear/cadence/blob/main/NOTES.md#roadmap
-- **Latent löpande band, väggklocksdrivet, deterministisk vandring.** — Méta-Matic · _adapted_  
-  https://github.com/tor2dbear/meta-matic/blob/main/NOTES.md#roadmap
 - **nano: multi-buffer** — PIA · #editor · 2026-07-18  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/nano-multibuffer.md
 - **grep: context-flaggor -A/-B/-C** — PIA · #text #commands · 2026-07-17  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/grep-context.md
 - **Editable ladder** — Cadence · _adapted_  
   https://github.com/tor2dbear/cadence/blob/main/NOTES.md#roadmap
-- **Variabelviktad bläck-ribbon (stroke under morf → ribbon vid lås).** — Méta-Matic · _adapted_  
-  https://github.com/tor2dbear/meta-matic/blob/main/NOTES.md#roadmap
-- **Diffusion som Fourier-avslöjning (låg→hög frekvens), inte grain-crossfade.** — Méta-Matic · _adapted_  
-  https://github.com/tor2dbear/meta-matic/blob/main/NOTES.md#roadmap
-- **Framtiden krymper till punkter långt bort (perf + koncept).** — Méta-Matic · _adapted_  
-  https://github.com/tor2dbear/meta-matic/blob/main/NOTES.md#roadmap
 - **Shareable system via URL state (encode the whole token set in the link).** — Cadence · _adapted_  
   https://github.com/tor2dbear/cadence/blob/main/NOTES.md#roadmap
-- **Gummibands-scrub fram/bak med spring-back; bara nuet signerbart.** — Méta-Matic · _adapted_  
-  https://github.com/tor2dbear/meta-matic/blob/main/NOTES.md#roadmap
 - **More export targets** — Cadence · _adapted_  
   https://github.com/tor2dbear/cadence/blob/main/NOTES.md#roadmap
-- **Lås i skärmrymd (sista 22 px in i nuet); focus-ringens snap synkad exakt mot…** — Méta-Matic · _adapted_  
-  https://github.com/tor2dbear/meta-matic/blob/main/NOTES.md#roadmap
-- **"The Space" — kartan över det latenta fältet (delad väg, dina signeringar, ma…** — Méta-Matic · _adapted_  
-  https://github.com/tor2dbear/meta-matic/blob/main/NOTES.md#roadmap
-- **Tally-backend (global summa + per-verk), plånbokssignering (personal_sign).** — Méta-Matic · _adapted_  
-  https://github.com/tor2dbear/meta-matic/blob/main/NOTES.md#roadmap
-- **Inspektera & signera, spara signerat verk som bild.** — Méta-Matic · _adapted_  
-  https://github.com/tor2dbear/meta-matic/blob/main/NOTES.md#roadmap
-- **Reduced-motion-läge (ingen autoplay, hämta stillbild av "nu").** — Méta-Matic · _adapted_  
-  https://github.com/tor2dbear/meta-matic/blob/main/NOTES.md#roadmap
-- **SEO/social: OG-/Twitter-taggar + genererad og.png, robots.txt, sitemap.xml.** — Méta-Matic · _adapted_  
-  https://github.com/tor2dbear/meta-matic/blob/main/NOTES.md#roadmap
+- **Diffusion as a Fourier reveal** — Méta-Matic · #diffusion · 2026-08-12  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/diffusion-reveal.md
+- **Exclusive certificates** — Méta-Matic · #backend #ownership · 2026-08-12 · issue #17  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/exclusive-certificates.md
+- **Inspect & certify, save image** — Méta-Matic · #ownership · 2026-08-12  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/inspect-and-certify.md
+- **Latent conveyor belt** — Méta-Matic · #belt · 2026-08-12  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/latent-belt.md
+- **Reduced-motion mode** — Méta-Matic · #a11y · 2026-08-12  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/reduced-motion.md
+- **Rubberband scrub + screen-space lock** — Méta-Matic · #interaction · 2026-08-12  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/scrub-and-lock.md
+- **Social & SEO** — Méta-Matic · #seo · 2026-08-12  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/seo-og.md
+- **The Space — the shared map** — Méta-Matic · #map · 2026-08-12  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/the-space-map.md
+- **Variable-weight ink ribbon** — Méta-Matic · #render · 2026-08-12  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/ink-ribbon.md
 - **påskägg: policy + shortlist** — PIA · #system #packages · 2026-08-08  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/easter-eggs.md
 - **Rättigheter — skrivskyddat systemträd + sudo som escape-hatch** — PIA · #shell #fs #teaching · 2026-08-07  
