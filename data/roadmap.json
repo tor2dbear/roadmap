@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-12T08:40:21.574Z",
+  "generatedAt": "2026-08-12T11:59:47.071Z",
   "statuses": [
     "now",
     "next",
@@ -8,13 +8,13 @@
     "done"
   ],
   "counts": {
-    "now": 2,
+    "now": 3,
     "next": 3,
     "later": 10,
     "inbox": 7,
     "done": 52
   },
-  "total": 74,
+  "total": 75,
   "sources": [
     {
       "repo": "tor2dbear/pia-terminal",
@@ -24,7 +24,7 @@
       "url": "https://github.com/tor2dbear/pia-terminal",
       "adapter": "pucks",
       "backend": "fs",
-      "count": 50,
+      "count": 51,
       "native": true,
       "error": null
     },
@@ -437,6 +437,28 @@
       "body": "## Goal\nLet a collector order their certified work as a physical print — the ultimate \"pay\nto own something that was never original.\"\n\n## Research\nThe art is already vector-like canvas, so any work renders at 300 dpi for free — the\nhard part is commerce, not the image. Stage it:\n\n- **v2.0 — download a print file.** 300 dpi PNG/PDF of a certified work. Nearly free,\n  no payment flow; ~90% of the experience, good demand signal.\n- **v2.1 — real shop.** Print-on-demand via Gelato/Prodigi (poster/canvas, dropship,\n  no inventory) + Stripe Checkout. Their API takes an image URL + product and handles\n  print & shipping. A couple of days' work, mostly around payment / fulfilment /\n  shipping edge cases.\n\n## Open questions\n- Gate print behind an owned certificate, or let anyone print any work?\n- Ship v2.0 (download) first to validate demand before wiring payments?",
       "sourcePath": "roadmap/print-shop.md",
       "sourceUrl": "https://github.com/tor2dbear/meta-matic/blob/main/roadmap/print-shop.md",
+      "adapter": "pucks",
+      "native": true
+    },
+    {
+      "id": "pia-terminal/python-sandbox-csp-fix",
+      "repo": "tor2dbear/pia-terminal",
+      "repoName": "PIA",
+      "repoColor": "#38bdf8",
+      "slug": "python-sandbox-csp-fix",
+      "title": "python i prod — sandbox-CSP tappas av Cloudflare clean-URL",
+      "status": "now",
+      "tags": [
+        "wasm",
+        "deploy",
+        "bugfix"
+      ],
+      "updated": "2026-08-12",
+      "issue": null,
+      "order": null,
+      "body": "## Mål\n`python` (Pyodide) fungerar lokalt men **hänger tyst i produktion** på\n`pia.tor2dbear.com` — man kan `brew install python` men inte köra något. Fixa så\ndet kör i prod, och så att ett framtida fel *syns* istället för att hänga.\n\n## Rotorsak (verifierad mot live-prod 2026-08-12)\n1. Bryggan laddar sandbox-iframen från **`/python-sandbox.html`**.\n2. Cloudflare Pages \"clean URLs\" gör en **308-redirect** `/python-sandbox.html`\n   → **`/python-sandbox`** (strippar `.html`).\n3. Den looser CSP:n (som ger Pyodide `wasm-unsafe-eval` + `worker-src blob:`)\n   emitteras i `dist/_headers` **bara för `/python-sandbox.html`**. `_headers`\n   matchar den *serverade* sökvägen → `/python-sandbox` matchar inte → faller\n   igenom till `/*` = **appens strikta CSP** (ingen `wasm-unsafe-eval`).\n4. Pyodide får inte kompilera sin WASM → `loadPyodide()` kastar inuti iframen.\n5. Sandboxens message-handler saknade `.catch`, och bryggan saknade timeout → \n   inget svar postas tillbaka → **`python` hänger för evigt utan felmeddelande**.\n\nVerifierat live: `curl` visar `/pyodide/*.js/.wasm` = 200 (assets finns), men\n`/python-sandbox.html` → 308 → `/python-sandbox` serveras med den **strikta**\nCSP:n (`script-src 'self' https://static.cloudflareinsights.com`, ingen\n`wasm-unsafe-eval`).\n\n## Djupare orsak (upptäckt vid preview-verifiering)\nAtt bara lägga till en `/python-sandbox`-regel räckte **inte**: Cloudflare Pages\n`_headers` **lägger till** headers från *varje* matchande regel — en specifik regel\n*ersätter* inte `/*`, och `! Header`-detach tar **inte** bort ett ärvt värde (båda\nverifierade mot en preview-deploy: sandboxen fick 2 CSP + 2 XFO). Webbläsaren\ntvingar snittet av flera CSP-headers → den strikta vinner → WASM blockeras ändå.\n\nSlutsats: den strikta CSP:n får **inte** bo på `/*`, eftersom sandbox-sidan också\nmatchar `/*`.\n\n## Fix\n- **(A) Flytta den strikta CSP:n från `/*` till appens dokument-sökvägar** (`/`\n  och `/adventure/*`), som *inte* matchar sandbox-sökvägen. `/*` bär bara de\n  icke-CSP-headrarna (XFO DENY m.fl.). Då får sandboxen **bara** sin looser CSP.\n  Huvudappens skydd är oförändrat: `/`:s `<meta>`-CSP är identisk (minus den\n  header-only `frame-ancestors 'none'`, som täcks av `X-Frame-Options: DENY`).\n  Två sandbox-rader (`/python-sandbox.html` + `/python-sandbox`) för dev/preview\n  respektive prods redirectade sökväg.\n- **(B) Sandboxen postar tillbaka ett fel** om Pyodide-init misslyckas\n  (`public/python-sandbox.js` — `.catch` runt körningen, nollställ\n  `pyodidePromise` så nästa `python` gör ett nytt försök).\n- **(C) Bryggan får en timeout** (`bridge.ts`) på iframe-uppstarten och\n  nollställer `ready`/`frame` vid fel så nästa körning kan återförsöka — så en\n  framtida regression *syns* som ett fel istället för en tyst hang.\n\n## Verifiering\n- Lokalt: `npm run build` → `dist/_headers` innehåller `/python-sandbox`-regeln.\n- WASM/redirect kan **inte** reproduceras i vitest/`vite preview` (bara\n  Cloudflare gör 308:an) → slutverifiering mot **PR-previewens** Cloudflare-URL:\n  `curl` att `/python-sandbox` nu har looser CSP, och kör `python -c` i headless\n  Chromium mot previewen.\n\n## Öppna frågor\n- Alternativ till (A): peka iframen på `/python-sandbox` (utan `.html`) och\n  slippa redirecten — men det bryter `vite dev`/`preview` där filen bara finns\n  som `/python-sandbox.html`. Header-fixen är därför den robusta vägen.",
+      "sourcePath": "roadmap/python-sandbox-csp-fix.md",
+      "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/python-sandbox-csp-fix.md",
       "adapter": "pucks",
       "native": true
     },

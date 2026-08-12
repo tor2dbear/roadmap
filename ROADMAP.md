@@ -4,16 +4,18 @@
      hand: your changes will be overwritten on the next sync. Edit the roadmap in
      the source repo instead. -->
 
-_Generated 2026-08-12 · 74 items across 3 repos._
+_Generated 2026-08-12 · 75 items across 3 repos._
 
 ## Sources
 
-- **[PIA](https://github.com/tor2dbear/pia-terminal)** — 50 items, native pucks. Personal Integrated Applications — a Unix-flavoured terminal in the browser.
+- **[PIA](https://github.com/tor2dbear/pia-terminal)** — 51 items, native pucks. Personal Integrated Applications — a Unix-flavoured terminal in the browser.
 - **[Cadence](https://github.com/tor2dbear/cadence)** — 9 items, adapted (checklist). A motion *system* designer — tokens for timing & easing, not another easing toy.
 - **[Méta-Matic](https://github.com/tor2dbear/meta-matic)** — 15 items, native pucks. A digital drawing machine after Jean Tinguely — infinite works, never anything new.
 
-## Now (2)
+## Now (3)
 
+- **python i prod — sandbox-CSP tappas av Cloudflare clean-URL** — PIA · #wasm #deploy #bugfix · 2026-08-12  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/python-sandbox-csp-fix.md
 - **AI-kontext via MCP-connector** — PIA · #mcp #ai · 2026-08-09  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/ai-mcp-context.md
 - **brew install: ärlig installationsceremoni** — PIA · #packages #system · 2026-08-08  
