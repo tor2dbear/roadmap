@@ -12,8 +12,10 @@ _Generated 2026-08-12 · 75 items across 3 repos._
 - **[Cadence](https://github.com/tor2dbear/cadence)** — 9 items, adapted (checklist). A motion *system* designer — tokens for timing & easing, not another easing toy.
 - **[Méta-Matic](https://github.com/tor2dbear/meta-matic)** — 15 items, native pucks. A digital drawing machine after Jean Tinguely — infinite works, never anything new.
 
-## Now (3)
+## Now (4)
 
+- **Print shop** — Méta-Matic · #commerce · 2026-08-12  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/print-shop.md
 - **python i prod — sandbox-CSP tappas av Cloudflare clean-URL** — PIA · #wasm #deploy #bugfix · 2026-08-12  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/python-sandbox-csp-fix.md
 - **AI-kontext via MCP-connector** — PIA · #mcp #ai · 2026-08-09  
@@ -21,12 +23,10 @@ _Generated 2026-08-12 · 75 items across 3 repos._
 - **brew install: ärlig installationsceremoni** — PIA · #packages #system · 2026-08-08  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/brew-install-progress.md
 
-## Next (3)
+## Next (2)
 
 - **Lazy email verification (gate claim, not signup)** — PIA · #auth #share · 2026-08-08  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/email-verification-lazy.md
-- **Print shop** — Méta-Matic · #commerce · 2026-08-12  
-  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/print-shop.md
 - **Roller på delade filer (owner/editor/viewer)** — PIA · #collab #permissions #supabase · 2026-08-08  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/shared-file-roles.md
 
