@@ -4,18 +4,16 @@
      hand: your changes will be overwritten on the next sync. Edit the roadmap in
      the source repo instead. -->
 
-_Generated 2026-08-12 · 75 items across 3 repos._
+_Generated 2026-08-13 · 78 items across 3 repos._
 
 ## Sources
 
 - **[PIA](https://github.com/tor2dbear/pia-terminal)** — 51 items, native pucks. Personal Integrated Applications — a Unix-flavoured terminal in the browser.
 - **[Cadence](https://github.com/tor2dbear/cadence)** — 9 items, adapted (checklist). A motion *system* designer — tokens for timing & easing, not another easing toy.
-- **[Méta-Matic](https://github.com/tor2dbear/meta-matic)** — 15 items, native pucks. A digital drawing machine after Jean Tinguely — infinite works, never anything new.
+- **[Méta-Matic](https://github.com/tor2dbear/meta-matic)** — 18 items, native pucks. A digital drawing machine after Jean Tinguely — infinite works, never anything new.
 
-## Now (4)
+## Now (3)
 
-- **Print shop** — Méta-Matic · #commerce · 2026-08-12  
-  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/print-shop.md
 - **python i prod — sandbox-CSP tappas av Cloudflare clean-URL** — PIA · #wasm #deploy #bugfix · 2026-08-12  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/python-sandbox-csp-fix.md
 - **AI-kontext via MCP-connector** — PIA · #mcp #ai · 2026-08-09  
@@ -23,14 +21,18 @@ _Generated 2026-08-12 · 75 items across 3 repos._
 - **brew install: ärlig installationsceremoni** — PIA · #packages #system · 2026-08-08  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/brew-install-progress.md
 
-## Next (2)
+## Next (4)
 
 - **Lazy email verification (gate claim, not signup)** — PIA · #auth #share · 2026-08-08  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/email-verification-lazy.md
+- **Parallel sandbox/staging environment for the print shop** — Méta-Matic · #devops #print · 2026-08-13  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/sandbox-staging.md
+- **Seller notification on new print order** — Méta-Matic · #commerce #ops · 2026-08-13  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/seller-order-notifications.md
 - **Roller på delade filer (owner/editor/viewer)** — PIA · #collab #permissions #supabase · 2026-08-08  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/shared-file-roles.md
 
-## Later (10)
+## Later (11)
 
 - **Custom probes** — Cadence · _adapted_  
   https://github.com/tor2dbear/cadence/blob/main/NOTES.md#roadmap
@@ -42,6 +44,8 @@ _Generated 2026-08-12 · 75 items across 3 repos._
   https://github.com/tor2dbear/cadence/blob/main/NOTES.md#roadmap
 - **Hosting note** — Cadence · _adapted_  
   https://github.com/tor2dbear/cadence/blob/main/NOTES.md#roadmap
+- **On-chain attestation (optional, satire) — mint the joke** — Méta-Matic · #wallet #onchain #satire · 2026-08-13  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/onchain-attestation.md
 - **On-chain NFT mint** — Méta-Matic · #wallet · 2026-08-12  
   https://github.com/tor2dbear/meta-matic/blob/main/roadmap/nft-mint-onchain.md
 - **Rate-limit /claim** — Méta-Matic · #backend · 2026-08-12  
@@ -70,7 +74,7 @@ _Generated 2026-08-12 · 75 items across 3 repos._
 - **Paket-roadmap — brew-appar som passar PIA** — PIA · #packages #overview · 2026-07-18  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/package-ideas.md
 
-## Done (52)
+## Done (53)
 
 - **Draggable bézier editor (author curves directly, not just presets).** — Cadence · _adapted_  
   https://github.com/tor2dbear/cadence/blob/main/NOTES.md#roadmap
@@ -84,6 +88,8 @@ _Generated 2026-08-12 · 75 items across 3 repos._
   https://github.com/tor2dbear/cadence/blob/main/NOTES.md#roadmap
 - **More export targets** — Cadence · _adapted_  
   https://github.com/tor2dbear/cadence/blob/main/NOTES.md#roadmap
+- **Print shop — order a physical giclée** — Méta-Matic · #commerce #print · 2026-08-13  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/print-shop.md
 - **Diffusion as a Fourier reveal** — Méta-Matic · #diffusion · 2026-08-12  
   https://github.com/tor2dbear/meta-matic/blob/main/roadmap/diffusion-reveal.md
 - **Exclusive certificates** — Méta-Matic · #backend #ownership · 2026-08-12 · issue #17  

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-12T21:04:52.330Z",
+  "generatedAt": "2026-08-13T17:15:21.947Z",
   "statuses": [
     "now",
     "next",
@@ -8,13 +8,13 @@
     "done"
   ],
   "counts": {
-    "now": 4,
-    "next": 2,
-    "later": 10,
+    "now": 3,
+    "next": 4,
+    "later": 11,
     "inbox": 7,
-    "done": 52
+    "done": 53
   },
-  "total": 75,
+  "total": 78,
   "sources": [
     {
       "repo": "tor2dbear/pia-terminal",
@@ -48,7 +48,7 @@
       "url": "https://github.com/tor2dbear/meta-matic",
       "adapter": "pucks",
       "backend": "fs",
-      "count": 15,
+      "count": 18,
       "native": true,
       "error": null
     }
@@ -279,6 +279,91 @@
       "native": false
     },
     {
+      "id": "meta-matic/onchain-attestation",
+      "repo": "tor2dbear/meta-matic",
+      "repoName": "Méta-Matic",
+      "repoColor": "#a78bfa",
+      "slug": "onchain-attestation",
+      "title": "On-chain attestation (optional, satire) — mint the joke",
+      "status": "later",
+      "tags": [
+        "wallet",
+        "onchain",
+        "satire"
+      ],
+      "updated": "2026-08-13",
+      "issue": null,
+      "order": null,
+      "body": "## Goal\nAn OPTIONAL third certify path that writes the attestation to a public blockchain, so the\njoke — \"I certify authorship of a work that was never original\" — lives permanently and\npublicly on-chain. Coexists with (never replaces) the free off-chain `personal_sign` and\nthe browser-certify path.\n\n## Approach (deliberately cheap + low-maintenance)\n- **Chain:** an L2 (Base / Optimism) where gas is cents, not L1 where it's dollars.\n- **No custom contract:** use **EAS (Ethereum Attestation Service)**, already deployed on\n  Base/Optimism. Register one small schema (serial, coordinate, fingerprint, generator,\n  time) once — cents, no contract to write/deploy/audit. On-brand: it's literally an\n  \"attestation\".\n- **Who pays: the signer (user-pays).** They send the attestation tx from their own wallet\n  and pay the few cents of L2 gas. The seller pays ~nothing ongoing (only the one-time\n  schema registration). No sponsored/gasless mint (that would put gas cost on the seller).\n- **Frontend:** reuse the same `window.ethereum` provider as wallet-sign, so on-chain only\n  appears where a wallet is connected (desktop extension or in-app wallet browser — same\n  reach as wallet-sign). Build + send the EAS attestation tx, then store the tx hash /\n  attestation UID next to the ledger entry and link to the explorer / EAS scan. Optionally\n  show an on-chain badge in the ledger and on the exported print.\n\n## Explicitly out of scope (keep it small)\n- Not a replacement for off-chain sign or browser-certify — a third, optional method.\n- No sponsored/gasless mint (would make the seller pay gas + add infra).\n- No NFT/ERC-721 (heavier than an EAS attestation, and less on-theme).\n- Same wallet-provider requirement as wallet-sign (so it won't help bare iOS Safari; that's\n  the separate WalletConnect track).\n\n## Open questions\n- Base vs Optimism (Base = cheapest + most reach)?\n- Surface the on-chain link/badge in the ledger and/or the exported print file?\n- Copy that keeps the satire (\"mint a certificate of authenticity for something that was\n  never new — for a few cents of gas\").",
+      "sourcePath": "roadmap/onchain-attestation.md",
+      "sourceUrl": "https://github.com/tor2dbear/meta-matic/blob/main/roadmap/onchain-attestation.md",
+      "adapter": "pucks",
+      "native": true
+    },
+    {
+      "id": "meta-matic/sandbox-staging",
+      "repo": "tor2dbear/meta-matic",
+      "repoName": "Méta-Matic",
+      "repoColor": "#a78bfa",
+      "slug": "sandbox-staging",
+      "title": "Parallel sandbox/staging environment for the print shop",
+      "status": "next",
+      "tags": [
+        "devops",
+        "print"
+      ],
+      "updated": "2026-08-13",
+      "issue": null,
+      "order": null,
+      "body": "## Goal\nBe able to run and test the full order pipeline against the **sandbox** Stripe + Prodigi\nin parallel with production, so future changes (pricing, sizes, webhook logic) can be\nverified end-to-end without touching live money or live orders.\n\n## Today\nThere is one worker with live secrets and `PRODIGI_BASE = https://api.prodigi.com`.\nGoing live was a one-way flip of the base URL + swapping secrets; there's no way to\nexercise the real flow in sandbox afterwards without disrupting production.\n\n## Approach\nUse a second Wrangler **environment** (e.g. `[env.sandbox]`) that deploys a separate\nworker (its own route/subdomain, e.g. `api-sandbox.…`) with:\n- sandbox `PRODIGI_BASE`, sandbox Prodigi key, test Stripe keys, and a **test-mode**\n  Stripe webhook pointing at the sandbox worker's `/stripe-webhook`;\n- its own D1 + R2 bindings (or clearly namespaced) so test orders never mix with live;\n- a staging copy of the site (or a `?env=sandbox` switch) pointing `API` at the sandbox\n  worker.\n\nThen: develop → deploy to `sandbox` → test with Stripe test cards + Prodigi sandbox →\npromote the same code to production with `wrangler deploy`. Secrets differ per env;\n`wrangler.toml` vars can be overridden per `[env.*]`.\n\n## Open questions\n- Separate D1/R2 per env vs shared with a prefix?\n- Staging site as a distinct Pages project, or a runtime `API` toggle on the same site?\n- Worth a tiny \"env banner\" on the sandbox site so it's never mistaken for live.",
+      "sourcePath": "roadmap/sandbox-staging.md",
+      "sourceUrl": "https://github.com/tor2dbear/meta-matic/blob/main/roadmap/sandbox-staging.md",
+      "adapter": "pucks",
+      "native": true
+    },
+    {
+      "id": "meta-matic/print-shop",
+      "repo": "tor2dbear/meta-matic",
+      "repoName": "Méta-Matic",
+      "repoColor": "#a78bfa",
+      "slug": "print-shop",
+      "title": "Print shop — order a physical giclée",
+      "status": "done",
+      "tags": [
+        "commerce",
+        "print"
+      ],
+      "updated": "2026-08-13",
+      "issue": null,
+      "order": null,
+      "body": "## Goal\nLet a holder of a certified work order a real fine-art print of it, priced live per\ncountry, with the seller never out of pocket and payment/fulfilment fully automated.\n\n## Delivered\nEnd-to-end shop on a Cloudflare Worker + D1 + R2, fronted by the single-page site:\n\n- **Flow:** certify → \"Order a print\" → 6000 px render uploaded to R2 → Stripe Checkout\n  (hosted) → on paid webhook, a Prodigi order is created against the shipping address.\n  Exactly-once fulfilment via a D1 `print_orders` row + Prodigi `Idempotency-Key`, so a\n  Stripe retry or a mid-flight crash never double-orders or strands a paid order.\n- **Pricing (never out of pocket), modelled for a Swedish VAT-registered B2C seller:**\n  `charge = ((base + margin)·(1 + vat) + fixed)/(1 − pct) + buffer`. `base` = Prodigi\n  items + shipping (ex-VAT; input VAT is reclaimed). `vat` = output VAT the seller\n  remits — home rate on EU sales, 0 % on non-EU exports. All levers in `wrangler.toml`\n  (`PRICE_*`, `PRICE_VAT_RATE`, `PRICE_VAT_RATES`).\n- **Two sizes:** 20×20″ and 12×12″, config-driven (`PRINT_SIZES`), each quoted, charged\n  and ordered on its own SKU. Order dialog shows a live price per size for the chosen\n  country via a session-free `/print-quote`.\n- **Return-from-Stripe confirmation:** returning to `/?print=ok` shows a clear\n  \"✓ Print ordered\" modal (replaced the easy-to-miss banner; no email promised that we\n  don't send).\n- **Export fixes:** wordmark matches the site (bold sans, ∞ in signal), uniform margins,\n  and the ribbon's joint-fills wound to match the strokes (killed the dashed/stitched\n  look at print resolution).\n- **Live:** Prodigi production API, live Stripe keys + live webhook, Budget shipping.\n\n## Notes / possible follow-ups\n- VAT rate defaults to 25 %; confirm the art rate (Sweden's 12 % can apply to an\n  artist's own work) and the EU OSS threshold with an accountant — both tunable via env.\n- Drop the temporary D1 `webhook_debug` table (left behind after the signature-mismatch\n  debugging; nothing writes to it now).",
+      "sourcePath": "roadmap/print-shop.md",
+      "sourceUrl": "https://github.com/tor2dbear/meta-matic/blob/main/roadmap/print-shop.md",
+      "adapter": "pucks",
+      "native": true
+    },
+    {
+      "id": "meta-matic/seller-order-notifications",
+      "repo": "tor2dbear/meta-matic",
+      "repoName": "Méta-Matic",
+      "repoColor": "#a78bfa",
+      "slug": "seller-order-notifications",
+      "title": "Seller notification on new print order",
+      "status": "next",
+      "tags": [
+        "commerce",
+        "ops"
+      ],
+      "updated": "2026-08-13",
+      "issue": null,
+      "order": null,
+      "body": "## Goal\nNotify the seller the moment a print order is paid and fulfilled, with everything needed\nto recognise it at a glance — serial, size, destination country, buyer name/email — so a\nsale is never missed and can be reconciled against Stripe + Prodigi.\n\n## Today\nNothing is sent to the seller from our own code. The buyer sees the on-site confirmation\nmodal; awareness of a sale relies on Stripe's owner emails / mobile app and Prodigi's\ndashboard + order emails (both should be enabled in their respective settings).\n\n## Approach\nSend a \"new order\" email from the Stripe webhook right after Prodigi confirms the order\n(the point where we already have serial, size, country, buyer). Resend is the connected\noption — needs a `RESEND_API_KEY` secret and a verified sender domain. Keep it best-effort\n(never fail fulfilment if the email send fails). A Slack/webhook variant is an easy\nalternative to email.\n\n## Open questions\n- Email vs Slack vs both?\n- Include the R2 image link / a thumbnail?\n- Also send the buyer a branded receipt, or leave that to Stripe's receipt emails?",
+      "sourcePath": "roadmap/seller-order-notifications.md",
+      "sourceUrl": "https://github.com/tor2dbear/meta-matic/blob/main/roadmap/seller-order-notifications.md",
+      "adapter": "pucks",
+      "native": true
+    },
+    {
       "id": "meta-matic/diffusion-reveal",
       "repo": "tor2dbear/meta-matic",
       "repoName": "Méta-Matic",
@@ -417,26 +502,6 @@
       "body": "## Goal\nDecide what happens when a browser-id owner clears their cache: their certificate is\ngone, but the work stays locked forever by a \"ghost.\"\n\n## Research\nA cost of exclusivity backed by a weak (losable) identity. It's slow, and arguably\nthematic (\"you lost the proof — it's gone, like the works you didn't save\"). If it\never sterilises the space, the fix is wallet-only exclusivity (a portable identity),\nwith browser-id demoted to a non-exclusive keepsake.\n\n## Open questions\n- Leave it (thematic), or move exclusivity to wallet-only?",
       "sourcePath": "roadmap/orphaned-certificates.md",
       "sourceUrl": "https://github.com/tor2dbear/meta-matic/blob/main/roadmap/orphaned-certificates.md",
-      "adapter": "pucks",
-      "native": true
-    },
-    {
-      "id": "meta-matic/print-shop",
-      "repo": "tor2dbear/meta-matic",
-      "repoName": "Méta-Matic",
-      "repoColor": "#a78bfa",
-      "slug": "print-shop",
-      "title": "Print shop",
-      "status": "now",
-      "tags": [
-        "commerce"
-      ],
-      "updated": "2026-08-12",
-      "issue": null,
-      "order": null,
-      "body": "## Goal\nLet a collector order their certified work as a physical print — the ultimate \"pay\nto own something that was never original.\" Constraint: **zero fixed cost.** No\nsubscription; every cost (print + shipping + payment fee) is covered per-order by the\ncustomer. Expected volume is ~0, so idle cost must be $0.\n\n## Delivered — v2.0 (download a print file)\nA \"↓ Print · 300 dpi\" button on each of your certificates (\"Certified · you\"),\nalongside \"Save image\". Renders the work at **3600×3600 px (12 in @ 300 dpi)** and\ndownloads it — print-ready at any framer. Gated to your own certificates (the drawer\nonly lists yours). Reuses `exportCanvas(entry, S)` (text/margins scale with size).\nNearly free, no payment flow; ~90% of the experience and a demand signal.\n\n## Research — v2.1 (a real shop)\n\n### Providers (all confirmed no-subscription, pay-per-order)\n- **Prodigi** — *recommended.* No setup fee, no monthly fee, no subscription; you pay\n  only when an order goes to print (base product + shipping). Full **print API** for\n  automated fulfilment + a **sandbox** for testing. Fine Art Trade Guild-approved →\n  museum-quality giclée. API access has no extra monthly fee. Best fit for an art piece.\n- **Gelato** — also free / pay-per-order, but *API-level integration* skews toward the\n  paid Platinum tier; Gelato+ is $29.99/mo. Weaker fit given the no-subscription rule.\n- **Payment: Stripe** — no monthly fee, per-transaction only (~2.9% + fixed). Checkout\n  is free, hosted, collects the shipping address and can compute shipping. `$0` idle.\n\n### Zero-fixed-cost architecture (fully automated)\nEverything is pay-per-use, so idle cost is `$0`:\n1. Customer clicks \"Order print\" on a certified work.\n2. Client renders the 3600px PNG (v2.0's `exportCanvas`) and uploads it to the Worker\n   → **R2** (free tier, no egress) → a fetchable image URL.\n3. Worker fetches a live **Prodigi quote** (product + shipping to the destination),\n   adds the Stripe fee + a small buffer, and opens a **Stripe Checkout Session** at\n   that price → the customer covers 100% of cost. Collect the address in Checkout.\n4. Stripe webhook → Worker → create the **Prodigi order** (SKU + R2 image URL +\n   address). Prodigi prints & ships; customer gets tracking.\n- Backend = the existing Cloudflare Worker + Stripe webhook + R2. Secrets (Stripe +\n  Prodigi keys) via `wrangler secret`. No new vendor, no subscription.\n\n### Leaner alternative (matches \"~0 orders\" honestly)\n- **v2.1a — manual fulfilment.** \"Order print\" → a **Stripe Payment Link** (fixed price\n  set to cover worst-case product + shipping + fee) or a short form. When an order comes\n  in, place it by hand in Prodigi's dashboard (upload the PNG, enter the address). Zero\n  pipeline to build/maintain, `$0` idle. Best first step at 0 expected orders; upgrade to\n  the automated flow only if orders actually materialise.\n\n## Delivered — v2.1b (built, sandbox-first)\nDecision: **worldwide, automated, live-priced** (not the manual v2.1a). Built in\n`api/src/printshop.js` + the frontend \"🖼 Order print\" flow:\n\n- Client renders the 300 dpi PNG → `/print-image` (R2) → `/print-checkout` (live\n  **Prodigi quote** for the chosen country → **Stripe Checkout**) → `/stripe-webhook`\n  (signature-verified) → **Prodigi order**. Dependency-free (fetch + WebCrypto).\n- Priced so the customer covers 100% of cost, per destination — never out of pocket,\n  `$0` idle. The button only appears once the backend reports it's configured.\n\n**Left to go live (all on the owner):** create Stripe + Prodigi accounts, pick the\nProdigi SKU + currency, `wrangler r2 bucket create meta-matic-prints`, set the three\nsecrets, add the Stripe webhook, test in sandbox (test card 4242…), then flip\n`PRODIGI_BASE` + live keys. Full checklist in `api/README.md`.\n\n## Open questions\n- Which exact Prodigi SKU / size(s)? (One square fine-art print to start; could offer\n  a size picker later.)\n- International VAT/duties: leave to the recipient (current), or add Stripe Tax later?\n\n## Resolved\n- **Idempotency (was a webhook double-order risk).** Now enforced by D1: the webhook\n  claims the Stripe `session.id` in a `print_orders` PRIMARY KEY before ordering, so a\n  Stripe retry can't create a second seller-charged order; `merchantReference = session.id`\n  is a Prodigi-side backstop. Ships in `schema.sql`.\n- **Webhook-secret rotation.** `verifyStripe` now accepts any of the multiple `v1`\n  signatures Stripe sends during a secret rotation, so valid webhooks aren't rejected.",
-      "sourcePath": "roadmap/print-shop.md",
-      "sourceUrl": "https://github.com/tor2dbear/meta-matic/blob/main/roadmap/print-shop.md",
       "adapter": "pucks",
       "native": true
     },
