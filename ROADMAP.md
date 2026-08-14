@@ -4,7 +4,7 @@
      hand: your changes will be overwritten on the next sync. Edit the roadmap in
      the source repo instead. -->
 
-_Generated 2026-08-13 · 78 items across 3 repos._
+_Generated 2026-08-14 · 78 items across 3 repos._
 
 ## Sources
 
