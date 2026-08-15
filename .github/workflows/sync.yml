@@ -1,10 +1,15 @@
 name: Sync roadmap
 
-# Harvests every source repo's roadmap into data/roadmap.json + the board, then
-# deploys to GitHub Pages. Runs on a schedule (keeps the board in sync without
-# touching the source repos), on manual dispatch, and when the aggregator's own
-# code changes. It does NOT run on changes to the generated data, so the commit
-# it makes below cannot retrigger it.
+# Harvests every source repo's roadmap into data/roadmap.json + the board and
+# commits the refreshed data back to main. Deployment is handled by Cloudflare
+# Workers Builds (connected to this repo, see wrangler.jsonc): every push to main
+# — including the data commit below — triggers a production deploy, so the board
+# at roadmap.tor2dbear.com stays fresh without a manual step.
+#
+# Runs on a schedule (keeps the board in sync without touching the source repos),
+# on manual dispatch, and when the aggregator's own code changes. The data commit
+# is [skip ci] so it does not retrigger this workflow (it still triggers the
+# Cloudflare build, which is the point).
 
 on:
   schedule:
@@ -22,19 +27,14 @@ on:
 
 permissions:
   contents: write # commit refreshed data back to the repo
-  pages: write
-  id-token: write
 
 concurrency:
   group: roadmap-sync
   cancel-in-progress: true
 
 jobs:
-  build-deploy:
+  harvest:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - name: Checkout aggregator
         uses: actions/checkout@v4
@@ -70,20 +70,8 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/roadmap.json data/roadmap.js ROADMAP.md
           if git diff --cached --quiet; then
-            echo "No roadmap changes."
+            echo "No roadmap changes — nothing to deploy."
           else
             git commit -m "chore: sync roadmap data [skip ci]"
             git push
           fi
-
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload site artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: .
-
-      - name: Deploy to GitHub Pages
-        id: deploy
-        uses: actions/deploy-pages@v4

@@ -80,10 +80,18 @@ line-level and format-preserving; `STATUSES`/`slugify` are shared with
 - **Change how a status/column behaves:** `STATUSES` in `lib/adapters.mjs`
   (order = column order) and `STATUS_LABEL` in both `harvest.mjs` and `app.js`.
 
-## Sync
+## Sync & deploy
 
 `.github/workflows/sync.yml` runs hourly + on manual dispatch + when the
-aggregator's own code changes. It clones the sources, harvests, commits changed
-data back (so the in-repo JSON/digest stay current for humans and agents), and
-deploys the board to GitHub Pages. Changes to generated data do **not** retrigger
-the workflow.
+aggregator's own code changes. It clones the sources, harvests, and commits
+changed data back to `main` (so the in-repo JSON/digest stay current for humans
+and agents). The data commit is `[skip ci]` so it does not retrigger the
+workflow — but it **does** push to `main`.
+
+**Deployment is Cloudflare Workers Builds**, connected to this repo (Pattern B in
+`tor2dbear.com/CONVENTIONS.md`; config in `wrangler.jsonc`, served at
+`roadmap.tor2dbear.com`). Every push to `main` — including the hourly data
+commit — triggers a production deploy, so the board refreshes automatically;
+non-`main` branches get preview URLs. There is no build step: the repo root is
+the served bundle and `.assetsignore` keeps `scripts/`, config and docs out of
+it. (GitHub Pages was the old host — now retired.)

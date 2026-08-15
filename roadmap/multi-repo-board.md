@@ -13,5 +13,6 @@ Samla roadmaps från flera repon till ett bräde + en maskinläsbar aggregat, i 
 Harvester (`scripts/harvest.mjs` + `lib/`) med fs/GitHub-backends och adaptrar
 (pucks/checklist/prose). Genererar `data/roadmap.json` (för AI), `data/roadmap.js`
 (file://-tavla) och `ROADMAP.md`. Statisk kanban-vy (`index.html`/`app.js`), och en
-GitHub Action som skördar per timme + vid push och deployar till GitHub Pages.
-Idempotent — committar bara vid faktisk ändring. Live på tor2dbear.github.io/roadmap.
+GitHub Action som skördar per timme + vid push och committar färsk data.
+Idempotent — committar bara vid faktisk ändring. Deploy via Cloudflare
+(se `align-with-fleet-cloudflare`); board på roadmap.tor2dbear.com.

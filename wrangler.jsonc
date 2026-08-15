@@ -1,0 +1,27 @@
+{
+  // Static-assets Worker for the roadmap board at https://roadmap.tor2dbear.com.
+  // Pattern B (committed deploy config) per tor2dbear.com/CONVENTIONS.md — the
+  // fleet default. Like the workshop itself there is NO build step: the board
+  // (index.html + app.js + styles.css + the generated data/) is served straight
+  // from the repo root, and .assetsignore keeps the harvester code and config
+  // out of the served bundle.
+  //
+  // Content freshness: scripts/harvest.mjs runs in GitHub Actions (hourly + on
+  // push), clones the source repos, and commits changed data/ back to main. Each
+  // such push to main triggers a Workers Build, so the deployed board refreshes
+  // without a manual step — while code changes still get preview URLs and the
+  // merge-to-main flow.
+  //
+  // `routes` with custom_domain claims roadmap.tor2dbear.com and lets wrangler
+  // create it and its DNS record on the tor2dbear.com zone at first deploy. An
+  // existing A/AAAA/CNAME on that name blocks it; a TXT does not.
+  "name": "roadmap",
+  "compatibility_date": "2026-08-15",
+  "preview_urls": true,
+  "assets": {
+    "directory": ".",
+  },
+  "routes": [
+    { "pattern": "roadmap.tor2dbear.com", "custom_domain": true },
+  ],
+}

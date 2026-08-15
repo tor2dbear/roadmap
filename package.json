@@ -11,9 +11,15 @@
     "harvest": "node scripts/harvest.mjs",
     "harvest:local": "ROADMAP_LOCAL_ROOT=../ node scripts/harvest.mjs",
     "roadmap": "node scripts/roadmap.mjs",
-    "serve": "node --version >/dev/null && python3 -m http.server 4173"
+    "serve": "node --version >/dev/null && python3 -m http.server 4173",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "versions:upload": "wrangler versions upload"
   },
   "engines": {
     "node": ">=20"
+  },
+  "devDependencies": {
+    "wrangler": "^4.30.0"
   }
 }

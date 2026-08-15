@@ -39,7 +39,7 @@ each source repo (roadmap/*.md, or a checklist/prose section)
 data/roadmap.json  ·  data/roadmap.js  ·  ROADMAP.md   (generated)
         │
         ▼
-index.html + app.js + styles.css   → the board (GitHub Pages)
+index.html + app.js + styles.css   → the board (Cloudflare Worker)
 ```
 
 ## Local use
@@ -101,10 +101,22 @@ Edit [`sources.json`](sources.json):
 
 ## Deploy
 
-The [`Sync roadmap`](.github/workflows/sync.yml) workflow builds and deploys to
-GitHub Pages. **One-time setup:** repo *Settings → Pages → Source: GitHub
-Actions*. After that it runs hourly and on demand (*Actions → Sync roadmap → Run
-workflow*).
+Hosting follows the fleet convention ([`tor2dbear.com/CONVENTIONS.md`](https://github.com/tor2dbear/tor2dbear.com/blob/main/CONVENTIONS.md)):
+a static-assets **Cloudflare Worker** (Pattern B, config in [`wrangler.jsonc`](wrangler.jsonc)),
+served at **`roadmap.tor2dbear.com`**. No build step — the repo root is the
+bundle; [`.assetsignore`](.assetsignore) keeps `scripts/`, config and docs out.
+
+- **Content freshness:** the [`Sync roadmap`](.github/workflows/sync.yml) Action
+  harvests hourly (+ on demand / on code push) and commits changed `data/` to
+  `main`. Every push to `main` triggers a Workers Build, so the board redeploys
+  with fresh data automatically. Code changes get preview URLs and the
+  merge-to-`main` flow.
+- **One-time setup (Cloudflare dashboard):** *Workers & Pages → Create
+  application → Import a repository* → `tor2dbear/roadmap`. Project name
+  `roadmap` (must equal `name` in `wrangler.jsonc`), production branch `main`,
+  build command empty, deploy command `npx wrangler deploy`, branch builds on.
+  The first deploy claims `roadmap.tor2dbear.com` and its DNS record from
+  `routes` (an existing `A`/`AAAA`/`CNAME` on that name would block it).
 
 ## Layout
 
@@ -117,3 +129,5 @@ workflow*).
 | `templates/` | Drop-in `roadmap/README.md` + `puck.md` for a project. |
 | `index.html`, `app.js`, `styles.css` | The board UI. |
 | `data/`, `ROADMAP.md` | **Generated** — do not hand-edit. |
+| `wrangler.jsonc`, `.assetsignore` | Cloudflare Worker deploy config. |
+| `roadmap/` | This repo's own roadmap pucks (it's a source too). |
