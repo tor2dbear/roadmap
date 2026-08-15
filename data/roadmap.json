@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-15T10:35:35.733Z",
+  "generatedAt": "2026-08-15T16:49:20.037Z",
   "statuses": [
     "now",
     "next",
@@ -8,14 +8,26 @@
     "done"
   ],
   "counts": {
-    "now": 3,
-    "next": 4,
-    "later": 11,
-    "inbox": 7,
-    "done": 54
+    "now": 4,
+    "next": 6,
+    "later": 12,
+    "inbox": 8,
+    "done": 56
   },
-  "total": 79,
+  "total": 86,
   "sources": [
+    {
+      "repo": "tor2dbear/roadmap",
+      "name": "Roadmap",
+      "blurb": "This board's own backlog — the aggregator tracking itself.",
+      "color": "#94a3b8",
+      "url": "https://github.com/tor2dbear/roadmap",
+      "adapter": "pucks",
+      "backend": "fs",
+      "count": 7,
+      "native": true,
+      "error": null
+    },
     {
       "repo": "tor2dbear/pia-terminal",
       "name": "PIA",
@@ -106,6 +118,67 @@
       "native": true
     },
     {
+      "id": "roadmap/auto-status-from-reality",
+      "repo": "tor2dbear/roadmap",
+      "repoName": "Roadmap",
+      "repoColor": "#94a3b8",
+      "slug": "auto-status-from-reality",
+      "title": "Auto-status från verkligheten",
+      "status": "next",
+      "tags": [
+        "core",
+        "sync"
+      ],
+      "updated": "2026-08-15",
+      "issue": null,
+      "order": 10,
+      "body": "## Mål\nTa bort resten av status-adminet: härled status/färskhet från riktiga signaler i\nstället för självrapportering.\n\n## Research\n- `done` automatiskt när kopplat `issue:` stängs (eller en PR som nämner pucken mergas).\n- Flagga en `now`-puck som \"kanske vilande\" om inga commits rört området på X dagar.\n- Kräver att harvestern läser issue/PR-status + senaste commit-datum per puck/område.\n  Enklast via GitHub API i harvest-steget (token finns i CI).\n\n## Öppna frågor\n- Hur koppla puck → kodområde? Via `tags`, en sökväg i frontmatter, eller `issue:`?\n- Auto-ändra status, eller bara *flagga* avvikelser och låta människan bekräfta?",
+      "sourcePath": "roadmap/auto-status-from-reality.md",
+      "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/auto-status-from-reality.md",
+      "adapter": "pucks",
+      "native": true
+    },
+    {
+      "id": "roadmap/add-portfolio-source",
+      "repo": "tor2dbear/roadmap",
+      "repoName": "Roadmap",
+      "repoColor": "#94a3b8",
+      "slug": "add-portfolio-source",
+      "title": "Lägg till portfolio (tor2dbear.com) på tavlan",
+      "status": "now",
+      "tags": [
+        "sources"
+      ],
+      "updated": "2026-08-15",
+      "issue": null,
+      "order": 10,
+      "body": "## Mål\nFå med portfolio-sajten på brädet.\n\n## Research\nHugo-sajt utan ren roadmap-sektion; planer ligger i `REDESIGN_PLAN.md` + `docs/*plan*`.\nAdapter blir rörig → bäst att skapa native `roadmap/`-pucks där. Kräver push-access\ntill portfolio + beslut om vad som destilleras in som pucks.\n\n## Öppna frågor\n- Bootstrappa 2–3 startpucks ur befintliga planer, eller seeda själv med CLI:t?",
+      "sourcePath": "roadmap/add-portfolio-source.md",
+      "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/add-portfolio-source.md",
+      "adapter": "pucks",
+      "native": true
+    },
+    {
+      "id": "roadmap/multi-repo-board",
+      "repo": "tor2dbear/roadmap",
+      "repoName": "Roadmap",
+      "repoColor": "#94a3b8",
+      "slug": "multi-repo-board",
+      "title": "Multi-repo roadmap-aggregator + tavla",
+      "status": "done",
+      "tags": [
+        "core"
+      ],
+      "updated": "2026-08-15",
+      "issue": null,
+      "order": 10,
+      "body": "## Mål\nSamla roadmaps från flera repon till ett bräde + en maskinläsbar aggregat, i synk.\n\n## Levererat\nHarvester (`scripts/harvest.mjs` + `lib/`) med fs/GitHub-backends och adaptrar\n(pucks/checklist/prose). Genererar `data/roadmap.json` (för AI), `data/roadmap.js`\n(file://-tavla) och `ROADMAP.md`. Statisk kanban-vy (`index.html`/`app.js`), och en\nGitHub Action som skördar per timme + vid push och deployar till GitHub Pages.\nIdempotent — committar bara vid faktisk ändring. Live på tor2dbear.github.io/roadmap.",
+      "sourcePath": "roadmap/multi-repo-board.md",
+      "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/multi-repo-board.md",
+      "adapter": "pucks",
+      "native": true
+    },
+    {
       "id": "pia-terminal/nano-multibuffer",
       "repo": "tor2dbear/pia-terminal",
       "repoName": "PIA",
@@ -163,6 +236,46 @@
       "sourceUrl": "https://github.com/tor2dbear/cadence/blob/main/NOTES.md#roadmap",
       "adapter": "checklist",
       "native": false
+    },
+    {
+      "id": "roadmap/cadence-to-native-pucks",
+      "repo": "tor2dbear/roadmap",
+      "repoName": "Roadmap",
+      "repoColor": "#94a3b8",
+      "slug": "cadence-to-native-pucks",
+      "title": "Migrera Cadence till native pucks",
+      "status": "next",
+      "tags": [
+        "sources"
+      ],
+      "updated": "2026-08-15",
+      "issue": null,
+      "order": 20,
+      "body": "## Mål\nSista \"adapted\"-källan → native. Cadence läses idag ur en checklista i `NOTES.md`.\n\n## Research\nSkapa `roadmap/` i cadence med `roadmap new`, mappa `✅`→`done`, öppna→`later/next`,\nbyt dess rad i `sources.json` till `pucks`. Korten flippar från adapted → native\nautomatiskt vid nästa skörd.",
+      "sourcePath": "roadmap/cadence-to-native-pucks.md",
+      "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/cadence-to-native-pucks.md",
+      "adapter": "pucks",
+      "native": true
+    },
+    {
+      "id": "roadmap/authoring-cli",
+      "repo": "tor2dbear/roadmap",
+      "repoName": "Roadmap",
+      "repoColor": "#94a3b8",
+      "slug": "authoring-cli",
+      "title": "roadmap-CLI — skapa/förädla pucks",
+      "status": "done",
+      "tags": [
+        "dx"
+      ],
+      "updated": "2026-08-15",
+      "issue": null,
+      "order": 20,
+      "body": "## Mål\nGöra det trivialt att skapa och flytta pucks utan att röra YAML, och slippa\nsköta `updated` för hand.\n\n## Levererat\n`scripts/roadmap.mjs`: `new/start/next/later/done/status/tag/issue/touch/list` +\n`install-hook`. Varje mutation bumpar `updated`; git-hooken bumpar även vid\nhandredigering. Formatbevarande radredigering; exponerad som npm-bin (`roadmap`).",
+      "sourcePath": "roadmap/authoring-cli.md",
+      "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/authoring-cli.md",
+      "adapter": "pucks",
+      "native": true
     },
     {
       "id": "cadence/custom-probes",
@@ -289,6 +402,46 @@
       "sourceUrl": "https://github.com/tor2dbear/cadence/blob/main/NOTES.md#roadmap",
       "adapter": "checklist",
       "native": false
+    },
+    {
+      "id": "roadmap/archive-done-column",
+      "repo": "tor2dbear/roadmap",
+      "repoName": "Roadmap",
+      "repoColor": "#94a3b8",
+      "slug": "archive-done-column",
+      "title": "Arkivera gamla \"done\" på tavlan",
+      "status": "later",
+      "tags": [
+        "ui"
+      ],
+      "updated": "2026-08-15",
+      "issue": null,
+      "order": null,
+      "body": "## Mål\nHindra att `done` växer sig plottrig över tid utan att radera historik.\n\n## Research\nBehåll filerna (konventionen säger radera aldrig), men fäll ihop/dölj `done` äldre\nän N dagar i vyn, med en \"visa arkiv\"-knapp. Rent UI-jobb i `app.js`.",
+      "sourcePath": "roadmap/archive-done-column.md",
+      "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/archive-done-column.md",
+      "adapter": "pucks",
+      "native": true
+    },
+    {
+      "id": "roadmap/portability-for-others",
+      "repo": "tor2dbear/roadmap",
+      "repoName": "Roadmap",
+      "repoColor": "#94a3b8",
+      "slug": "portability-for-others",
+      "title": "Fungera utanför mina egna repon",
+      "status": "inbox",
+      "tags": [
+        "product"
+      ],
+      "updated": "2026-08-15",
+      "issue": null,
+      "order": null,
+      "body": "## Mål\nOm verktyget ska visas/delas: göra det användbart för andra, inte bara min setup.\n\n## Research\n- Stöd för privata repon / token per användare.\n- Enkel installation utan att handredigera `sources.json`.\n- Konventionen paketerad som en standard/produkt.\nTa först när det bevisat sig för mig själv.",
+      "sourcePath": "roadmap/portability-for-others.md",
+      "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/portability-for-others.md",
+      "adapter": "pucks",
+      "native": true
     },
     {
       "id": "tor2dbear.com/www-redirect",
