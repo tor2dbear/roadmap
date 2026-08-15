@@ -24,9 +24,8 @@
       "name": "Cadence",
       "blurb": "A motion *system* designer — tokens for timing & easing, not another easing toy.",
       "color": "#f472b6",
-      "adapter": "checklist",
-      "path": "NOTES.md",
-      "section": "Roadmap"
+      "adapter": "pucks",
+      "path": "roadmap"
     },
     {
       "repo": "tor2dbear/meta-matic",
