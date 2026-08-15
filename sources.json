@@ -4,6 +4,14 @@
   "defaultBranch": "main",
   "sources": [
     {
+      "repo": "tor2dbear/roadmap",
+      "name": "Roadmap",
+      "blurb": "This board's own backlog — the aggregator tracking itself.",
+      "color": "#94a3b8",
+      "adapter": "pucks",
+      "path": "roadmap"
+    },
+    {
       "repo": "tor2dbear/pia-terminal",
       "name": "PIA",
       "blurb": "Personal Integrated Applications — a Unix-flavoured terminal in the browser.",
