@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-14T06:44:07.854Z",
+  "generatedAt": "2026-08-15T10:35:35.733Z",
   "statuses": [
     "now",
     "next",
@@ -12,9 +12,9 @@
     "next": 4,
     "later": 11,
     "inbox": 7,
-    "done": 53
+    "done": 54
   },
-  "total": 78,
+  "total": 79,
   "sources": [
     {
       "repo": "tor2dbear/pia-terminal",
@@ -49,6 +49,18 @@
       "adapter": "pucks",
       "backend": "fs",
       "count": 18,
+      "native": true,
+      "error": null
+    },
+    {
+      "repo": "tor2dbear/tor2dbear.com",
+      "name": "Workshop",
+      "blurb": "The apex site and the rule book for the fleet.",
+      "color": "#34d399",
+      "url": "https://github.com/tor2dbear/tor2dbear.com",
+      "adapter": "pucks",
+      "backend": "fs",
+      "count": 1,
       "native": true,
       "error": null
     }
@@ -277,6 +289,26 @@
       "sourceUrl": "https://github.com/tor2dbear/cadence/blob/main/NOTES.md#roadmap",
       "adapter": "checklist",
       "native": false
+    },
+    {
+      "id": "tor2dbear.com/www-redirect",
+      "repo": "tor2dbear/tor2dbear.com",
+      "repoName": "Workshop",
+      "repoColor": "#34d399",
+      "slug": "www-redirect",
+      "title": "Redirect www to the apex",
+      "status": "done",
+      "tags": [
+        "infra"
+      ],
+      "updated": "2026-08-15",
+      "issue": null,
+      "order": null,
+      "body": "## Goal\n`www.tor2dbear.com` resolves to nothing. Anyone who types the habitual `www.` in\nfront of the workshop gets a dead page instead of the front door.\n\n## Research\n\nThe zone has no `www` record at all — Cloudflare's own DNS panel flags it:\n*\"Visitors cannot reach www.tor2dbear.com.\"* Two ways to fix it:\n\n**A second custom domain on the Worker.** Add `www.tor2dbear.com` to `routes` in\n`wrangler.jsonc` next to the apex. One line, deploys itself. But it *serves* the\nsite at both hostnames rather than redirecting, so the same page lives at two\nURLs — split search ranking, two canonical candidates, and every project link on\nthe page would have to be host-relative to stay consistent. Rejected.\n\n**A Redirect Rule.** `www` sends a 301 to the apex, one canonical hostname, no\ncode and no deploy. This is the way, and it is what the portfolio should use for\nits own `www` too if it ever moves off Netlify.\n\nIt needs a DNS record to fire against: Cloudflare only runs rules on hostnames it\nproxies, so `www` needs a **proxied** record even though nothing is behind it.\nThe idiomatic placeholder is `AAAA www → 100::` (the discard prefix), which is\nexactly what `api.tor2dbear.com` already uses in this zone.\n\nSteps, all in the dashboard:\n\n1. **DNS → Add record** — type `AAAA`, name `www`, address `100::`, proxy **on**.\n2. **Rules → Redirect Rules → Create rule → *Redirect from WWW to root*.** The\n   template needs no edits: it matches the wildcard `https://www.*` and redirects\n   to `https://${1}`, so the captured host and path carry over. Status **301**.\n   Check *Preserve query string* is on — it sits below the fold on a phone.\n\n   A custom filter expression (`hostname eq \"www.tor2dbear.com\"` with a\n   `concat()` target) does the same thing with more handling, and only for this\n   one host. The wildcard covers any future `www.` in the zone. Use the template.\n3. Check `curl -sSI https://www.tor2dbear.com` returns `301` with the right\n   `location`, and that the apex itself still answers `200`.\n\n## Delivered\n\nBoth steps, in the dashboard. `AAAA www → 100::` proxied, then the *Redirect\nfrom WWW to root* template deployed unmodified.\n\nVerified from outside:\n\n| | |\n| --- | --- |\n| `www.tor2dbear.com` | 301 → `https://tor2dbear.com/` |\n| Path | `/projects.json` carried over |\n| Query | `?utm_source=test&x=1` intact |\n| Following the redirect | 200 on the target |\n| Apex direct | 200, unaffected |\n\nOne thing worth remembering: between the two steps `www` answered **522**. That\nis the expected intermediate state, not a fault — the record resolves, so\nCloudflare tries to proxy to `100::`, which discards it. Once the rule is live\nthe edge answers 301 before it ever reaches for an origin. Anyone adding a\nproxied placeholder record without a rule behind it will see the same.\n\nThe wildcard template beat the hand-written filter expression: it needed no\nedits and covers any future `www.` host in the zone rather than one name.\n\n## Open questions\n- Should the same rule exist for every project subdomain (`www.pia.…`)? The\n  wildcard already covers them if they ever get a proxied record — nothing more\n  to do unless one is added.\n- If the portfolio moves to Cloudflare, does `tor-bjorn.com` want the inverse\n  (apex → `www`, which is where it lives today)? That reverses the canonical\n  direction and should be decided once, for both domains.",
+      "sourcePath": "roadmap/www-redirect.md",
+      "sourceUrl": "https://github.com/tor2dbear/tor2dbear.com/blob/main/roadmap/www-redirect.md",
+      "adapter": "pucks",
+      "native": true
     },
     {
       "id": "meta-matic/onchain-attestation",

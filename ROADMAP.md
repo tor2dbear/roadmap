@@ -4,13 +4,14 @@
      hand: your changes will be overwritten on the next sync. Edit the roadmap in
      the source repo instead. -->
 
-_Generated 2026-08-14 · 78 items across 3 repos._
+_Generated 2026-08-15 · 79 items across 4 repos._
 
 ## Sources
 
 - **[PIA](https://github.com/tor2dbear/pia-terminal)** — 51 items, native pucks. Personal Integrated Applications — a Unix-flavoured terminal in the browser.
 - **[Cadence](https://github.com/tor2dbear/cadence)** — 9 items, adapted (checklist). A motion *system* designer — tokens for timing & easing, not another easing toy.
 - **[Méta-Matic](https://github.com/tor2dbear/meta-matic)** — 18 items, native pucks. A digital drawing machine after Jean Tinguely — infinite works, never anything new.
+- **[Workshop](https://github.com/tor2dbear/tor2dbear.com)** — 1 items, native pucks. The apex site and the rule book for the fleet.
 
 ## Now (3)
 
@@ -74,7 +75,7 @@ _Generated 2026-08-14 · 78 items across 3 repos._
 - **Paket-roadmap — brew-appar som passar PIA** — PIA · #packages #overview · 2026-07-18  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/package-ideas.md
 
-## Done (53)
+## Done (54)
 
 - **Draggable bézier editor (author curves directly, not just presets).** — Cadence · _adapted_  
   https://github.com/tor2dbear/cadence/blob/main/NOTES.md#roadmap
@@ -88,6 +89,8 @@ _Generated 2026-08-14 · 78 items across 3 repos._
   https://github.com/tor2dbear/cadence/blob/main/NOTES.md#roadmap
 - **More export targets** — Cadence · _adapted_  
   https://github.com/tor2dbear/cadence/blob/main/NOTES.md#roadmap
+- **Redirect www to the apex** — Workshop · #infra · 2026-08-15  
+  https://github.com/tor2dbear/tor2dbear.com/blob/main/roadmap/www-redirect.md
 - **Print shop — order a physical giclée** — Méta-Matic · #commerce #print · 2026-08-13  
   https://github.com/tor2dbear/meta-matic/blob/main/roadmap/print-shop.md
 - **Diffusion as a Fourier reveal** — Méta-Matic · #diffusion · 2026-08-12  
