@@ -27,6 +27,14 @@
       "color": "#a78bfa",
       "adapter": "pucks",
       "path": "roadmap"
+    },
+    {
+      "repo": "tor2dbear/tor2dbear.com",
+      "name": "Workshop",
+      "blurb": "The apex site and the rule book for the fleet.",
+      "color": "#34d399",
+      "adapter": "pucks",
+      "path": "roadmap"
     }
   ]
 }
