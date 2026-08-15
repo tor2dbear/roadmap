@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-15T16:49:20.037Z",
+  "generatedAt": "2026-08-15T17:07:55.576Z",
   "statuses": [
     "now",
     "next",
@@ -9,12 +9,12 @@
   ],
   "counts": {
     "now": 4,
-    "next": 6,
-    "later": 12,
-    "inbox": 8,
-    "done": 56
+    "next": 7,
+    "later": 10,
+    "inbox": 9,
+    "done": 57
   },
-  "total": 86,
+  "total": 87,
   "sources": [
     {
       "repo": "tor2dbear/roadmap",
@@ -46,10 +46,10 @@
       "blurb": "A motion *system* designer — tokens for timing & easing, not another easing toy.",
       "color": "#f472b6",
       "url": "https://github.com/tor2dbear/cadence",
-      "adapter": "checklist",
+      "adapter": "pucks",
       "backend": "fs",
-      "count": 9,
-      "native": false,
+      "count": 10,
+      "native": true,
       "error": null
     },
     {
@@ -78,24 +78,6 @@
     }
   ],
   "items": [
-    {
-      "id": "cadence/draggable-bezier-editor-author-curves-directly-not-just-pres",
-      "repo": "tor2dbear/cadence",
-      "repoName": "Cadence",
-      "repoColor": "#f472b6",
-      "slug": "draggable-bezier-editor-author-curves-directly-not-just-pres",
-      "title": "Draggable bézier editor (author curves directly, not just presets).",
-      "status": "done",
-      "tags": [],
-      "updated": "",
-      "issue": null,
-      "order": 0,
-      "body": "Draggable bézier editor (author curves directly, not just presets).",
-      "sourcePath": "NOTES.md",
-      "sourceUrl": "https://github.com/tor2dbear/cadence/blob/main/NOTES.md#roadmap",
-      "adapter": "checklist",
-      "native": false
-    },
     {
       "id": "pia-terminal/email-verification-lazy",
       "repo": "tor2dbear/pia-terminal",
@@ -139,6 +121,46 @@
       "native": true
     },
     {
+      "id": "cadence/bring-your-own-markup",
+      "repo": "tor2dbear/cadence",
+      "repoName": "Cadence",
+      "repoColor": "#f472b6",
+      "slug": "bring-your-own-markup",
+      "title": "Custom probes: bring your own markup",
+      "status": "next",
+      "tags": [
+        "bench"
+      ],
+      "updated": "2026-08-15",
+      "issue": null,
+      "order": 10,
+      "body": "## Mål\nLåta användaren peka benchen mot sin *egen* markup, inte bara de abstrakta instrumenten.\n\n## Research\nDelvis där redan: en utbytbar uppsättning abstrakta instrument i benchen + en full\n`demo.html`-yta med riktiga komponenter. Det som återstår är \"bring your **own**\nmarkup\" — att koppla in godtycklig HTML som en probe.",
+      "sourcePath": "roadmap/bring-your-own-markup.md",
+      "sourceUrl": "https://github.com/tor2dbear/cadence/blob/main/roadmap/bring-your-own-markup.md",
+      "adapter": "pucks",
+      "native": true
+    },
+    {
+      "id": "cadence/draggable-bezier-editor",
+      "repo": "tor2dbear/cadence",
+      "repoName": "Cadence",
+      "repoColor": "#f472b6",
+      "slug": "draggable-bezier-editor",
+      "title": "Draggbar bézier-editor",
+      "status": "done",
+      "tags": [
+        "editor"
+      ],
+      "updated": "2026-08-15",
+      "issue": null,
+      "order": 10,
+      "body": "## Mål\nFörfatta easing-kurvor direkt genom att dra, inte bara välja bland presets.\n\n## Levererat\nEn draggbar bézier-editor i benchen — kurvorna är redigerbara handtag, inte fasta val.",
+      "sourcePath": "roadmap/draggable-bezier-editor.md",
+      "sourceUrl": "https://github.com/tor2dbear/cadence/blob/main/roadmap/draggable-bezier-editor.md",
+      "adapter": "pucks",
+      "native": true
+    },
+    {
       "id": "roadmap/add-portfolio-source",
       "repo": "tor2dbear/roadmap",
       "repoName": "Roadmap",
@@ -175,6 +197,26 @@
       "body": "## Mål\nSamla roadmaps från flera repon till ett bräde + en maskinläsbar aggregat, i synk.\n\n## Levererat\nHarvester (`scripts/harvest.mjs` + `lib/`) med fs/GitHub-backends och adaptrar\n(pucks/checklist/prose). Genererar `data/roadmap.json` (för AI), `data/roadmap.js`\n(file://-tavla) och `ROADMAP.md`. Statisk kanban-vy (`index.html`/`app.js`), och en\nGitHub Action som skördar per timme + vid push och deployar till GitHub Pages.\nIdempotent — committar bara vid faktisk ändring. Live på tor2dbear.github.io/roadmap.",
       "sourcePath": "roadmap/multi-repo-board.md",
       "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/multi-repo-board.md",
+      "adapter": "pucks",
+      "native": true
+    },
+    {
+      "id": "cadence/opinion-layer-service",
+      "repo": "tor2dbear/cadence",
+      "repoName": "Cadence",
+      "repoColor": "#f472b6",
+      "slug": "opinion-layer-service",
+      "title": "Opinion-lagret som tjänst (Worker + MCP)",
+      "status": "later",
+      "tags": [
+        "backend"
+      ],
+      "updated": "2026-08-15",
+      "issue": null,
+      "order": 10,
+      "body": "## Mål\nGöra system-read-kritiken anropbar från CI eller en agent — \"blocka bygget om exit är\nlångsammare än enter\".\n\n## Research\nExtrahera den *rena* logiken (resolve + system-read-checkarna) ur `cadence.js` till en\nhuvudlös modul (`tokens.js`, ingen DOM), exponera som en serverless-endpoint. Given\nstacken (Cloudflare framför Pages) är en **Cloudflare Worker** den naturliga värden\n(gratisnivå ~100k req/dag) framför Netlify Functions. En **MCP-wrapper** över samma\nfunktion gör kritiken anropbar från editor/agent — den enda genuint agent-formade delen\nav Cadence.\n\n## Öppna frågor\n- Bryter \"plain static site, no build\"-regeln — medvetet sidospår, inte default-scope.",
+      "sourcePath": "roadmap/opinion-layer-service.md",
+      "sourceUrl": "https://github.com/tor2dbear/cadence/blob/main/roadmap/opinion-layer-service.md",
       "adapter": "pucks",
       "native": true
     },
@@ -220,24 +262,6 @@
       "native": true
     },
     {
-      "id": "cadence/editable-ladder",
-      "repo": "tor2dbear/cadence",
-      "repoName": "Cadence",
-      "repoColor": "#f472b6",
-      "slug": "editable-ladder",
-      "title": "Editable ladder",
-      "status": "done",
-      "tags": [],
-      "updated": "",
-      "issue": null,
-      "order": 10,
-      "body": "Editable ladder — add/remove/rename duration steps and easings.",
-      "sourcePath": "NOTES.md",
-      "sourceUrl": "https://github.com/tor2dbear/cadence/blob/main/NOTES.md#roadmap",
-      "adapter": "checklist",
-      "native": false
-    },
-    {
       "id": "roadmap/cadence-to-native-pucks",
       "repo": "tor2dbear/roadmap",
       "repoName": "Roadmap",
@@ -254,6 +278,26 @@
       "body": "## Mål\nSista \"adapted\"-källan → native. Cadence läses idag ur en checklista i `NOTES.md`.\n\n## Research\nSkapa `roadmap/` i cadence med `roadmap new`, mappa `✅`→`done`, öppna→`later/next`,\nbyt dess rad i `sources.json` till `pucks`. Korten flippar från adapted → native\nautomatiskt vid nästa skörd.",
       "sourcePath": "roadmap/cadence-to-native-pucks.md",
       "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/cadence-to-native-pucks.md",
+      "adapter": "pucks",
+      "native": true
+    },
+    {
+      "id": "cadence/editable-ladder",
+      "repo": "tor2dbear/cadence",
+      "repoName": "Cadence",
+      "repoColor": "#f472b6",
+      "slug": "editable-ladder",
+      "title": "Redigerbar ladder",
+      "status": "done",
+      "tags": [
+        "tokens"
+      ],
+      "updated": "2026-08-15",
+      "issue": null,
+      "order": 20,
+      "body": "## Mål\nLägga till, ta bort och byta namn på duration-steg och easings.\n\n## Levererat\nLadder-primitiven är fullt redigerbar (lägg till/ta bort/döp om steg och easings).",
+      "sourcePath": "roadmap/editable-ladder.md",
+      "sourceUrl": "https://github.com/tor2dbear/cadence/blob/main/roadmap/editable-ladder.md",
       "adapter": "pucks",
       "native": true
     },
@@ -278,130 +322,85 @@
       "native": true
     },
     {
-      "id": "cadence/custom-probes",
+      "id": "cadence/security-headers",
       "repo": "tor2dbear/cadence",
       "repoName": "Cadence",
       "repoColor": "#f472b6",
-      "slug": "custom-probes",
-      "title": "Custom probes",
+      "slug": "security-headers",
+      "title": "Security-header-härdning",
       "status": "later",
-      "tags": [],
-      "updated": "",
+      "tags": [
+        "backend",
+        "config"
+      ],
+      "updated": "2026-08-15",
       "issue": null,
       "order": 20,
-      "body": "Custom probes — \"bring your own component\" into the bench. *(Partly there: a swappable set of abstract instruments in the bench + a full `demo.html` surface of real components; \"bring your **own** markup\" is still open.)*",
-      "sourcePath": "NOTES.md",
-      "sourceUrl": "https://github.com/tor2dbear/cadence/blob/main/NOTES.md#roadmap",
-      "adapter": "checklist",
-      "native": false
+      "body": "## Mål\nCSP + `frame-ancestors 'self'` på `demo.html` (så ingen annan kan iframe:a demon),\nstriktare `Cache-Control`.\n\n## Research\nBilligt, rör inte appen — sätts på Cloudflare-lagret (Pages kan inte skicka egna\nheaders). Egentligen en config-uppgift, parkerad här så den inte glöms.",
+      "sourcePath": "roadmap/security-headers.md",
+      "sourceUrl": "https://github.com/tor2dbear/cadence/blob/main/roadmap/security-headers.md",
+      "adapter": "pucks",
+      "native": true
     },
     {
-      "id": "cadence/shareable-system-via-url-state-encode-the-whole-token-set-in",
+      "id": "cadence/shareable-url-state",
       "repo": "tor2dbear/cadence",
       "repoName": "Cadence",
       "repoColor": "#f472b6",
-      "slug": "shareable-system-via-url-state-encode-the-whole-token-set-in",
-      "title": "Shareable system via URL state (encode the whole token set in the link).",
+      "slug": "shareable-url-state",
+      "title": "Delbart system via URL-state",
       "status": "done",
-      "tags": [],
-      "updated": "",
+      "tags": [
+        "share"
+      ],
+      "updated": "2026-08-15",
       "issue": null,
       "order": 30,
-      "body": "Shareable system via URL state (encode the whole token set in the link).",
-      "sourcePath": "NOTES.md",
-      "sourceUrl": "https://github.com/tor2dbear/cadence/blob/main/NOTES.md#roadmap",
-      "adapter": "checklist",
-      "native": false
+      "body": "## Mål\nDela ett helt token-system genom en länk.\n\n## Levererat\nHela token-uppsättningen kodas i URL:en → systemet är delbart och återskapas från länken.",
+      "sourcePath": "roadmap/shareable-url-state.md",
+      "sourceUrl": "https://github.com/tor2dbear/cadence/blob/main/roadmap/shareable-url-state.md",
+      "adapter": "pucks",
+      "native": true
     },
     {
-      "id": "cadence/more-export-targets",
+      "id": "cadence/export-targets",
       "repo": "tor2dbear/cadence",
       "repoName": "Cadence",
       "repoColor": "#f472b6",
-      "slug": "more-export-targets",
-      "title": "More export targets",
+      "slug": "export-targets",
+      "title": "Fler export-mål",
       "status": "done",
-      "tags": [],
-      "updated": "",
+      "tags": [
+        "export"
+      ],
+      "updated": "2026-08-15",
       "issue": null,
       "order": 40,
-      "body": "More export targets: Tailwind config, Style Dictionary, JS/TS objects.",
-      "sourcePath": "NOTES.md",
-      "sourceUrl": "https://github.com/tor2dbear/cadence/blob/main/NOTES.md#roadmap",
-      "adapter": "checklist",
-      "native": false
+      "body": "## Mål\nExportera systemet till fler format än ren CSS.\n\n## Levererat\nExport till Tailwind-config, Style Dictionary och JS/TS-objekt (utöver CSS custom properties).",
+      "sourcePath": "roadmap/export-targets.md",
+      "sourceUrl": "https://github.com/tor2dbear/cadence/blob/main/roadmap/export-targets.md",
+      "adapter": "pucks",
+      "native": true
     },
     {
-      "id": "cadence/optional-import-an-existing-palette-of-motion-a-framework-s-",
+      "id": "cadence/shipped-extras",
       "repo": "tor2dbear/cadence",
       "repoName": "Cadence",
       "repoColor": "#f472b6",
-      "slug": "optional-import-an-existing-palette-of-motion-a-framework-s-",
-      "title": "Optional: import an existing palette of motion (a framework's tokens) and vis…",
-      "status": "later",
-      "tags": [],
-      "updated": "",
+      "slug": "shipped-extras",
+      "title": "Levererat utöver ursprunglig plan",
+      "status": "done",
+      "tags": [
+        "core"
+      ],
+      "updated": "2026-08-15",
       "issue": null,
       "order": 50,
-      "body": "Optional: import an existing palette of motion (a framework's tokens) and visualize/critique it — the \"reverse-engineer the art direction\" angle.",
-      "sourcePath": "NOTES.md",
-      "sourceUrl": "https://github.com/tor2dbear/cadence/blob/main/NOTES.md#roadmap",
-      "adapter": "checklist",
-      "native": false
-    },
-    {
-      "id": "cadence/opinion-layer-as-a-service",
-      "repo": "tor2dbear/cadence",
-      "repoName": "Cadence",
-      "repoColor": "#f472b6",
-      "slug": "opinion-layer-as-a-service",
-      "title": "Opinion layer as a service",
-      "status": "later",
-      "tags": [],
-      "updated": "",
-      "issue": null,
-      "order": 60,
-      "body": "**Opinion layer as a service.** Extract the *pure* logic (resolve + the system-read checks) from `cadence.js` into a headless module (`tokens.js`, no DOM), then expose it as a serverless endpoint so a CI step or an agent can POST a motion system and get its warnings back — \"block the build if exit is slower than enter.\" Given the current stack (Cloudflare in front of Pages), a **Cloudflare Worker** is the natural host (free tier ~100k req/day, separate bucket) rather than Netlify Functions (which now draw from the same 300-credit pot). An **MCP wrapper** over the same function makes the critique callable from an editor/agent — the one genuinely agent-shaped part of Cadence.",
-      "sourcePath": "NOTES.md",
-      "sourceUrl": "https://github.com/tor2dbear/cadence/blob/main/NOTES.md#roadmap",
-      "adapter": "checklist",
-      "native": false
-    },
-    {
-      "id": "cadence/security-header-hardening",
-      "repo": "tor2dbear/cadence",
-      "repoName": "Cadence",
-      "repoColor": "#f472b6",
-      "slug": "security-header-hardening",
-      "title": "Security-header hardening",
-      "status": "later",
-      "tags": [],
-      "updated": "",
-      "issue": null,
-      "order": 70,
-      "body": "**Security-header hardening.** CSP + `frame-ancestors 'self'` on `demo.html` (so nobody else can iframe the demo), stricter `Cache-Control`. Cheap, doesn't touch the app — set at the Cloudflare layer, since Pages can't send custom headers. Really a config task, parked here so it isn't forgotten.",
-      "sourcePath": "NOTES.md",
-      "sourceUrl": "https://github.com/tor2dbear/cadence/blob/main/NOTES.md#roadmap",
-      "adapter": "checklist",
-      "native": false
-    },
-    {
-      "id": "cadence/hosting-note",
-      "repo": "tor2dbear/cadence",
-      "repoName": "Cadence",
-      "repoColor": "#f472b6",
-      "slug": "hosting-note",
-      "title": "Hosting note",
-      "status": "later",
-      "tags": [],
-      "updated": "",
-      "issue": null,
-      "order": 80,
-      "body": "**Hosting note:** per-branch deploy previews are the one concrete reason to consider Netlify; everything else Pages + Cloudflare already covers. See the static-vs-backend tradeoff before moving the whole site.",
-      "sourcePath": "NOTES.md",
-      "sourceUrl": "https://github.com/tor2dbear/cadence/blob/main/NOTES.md#roadmap",
-      "adapter": "checklist",
-      "native": false
+      "body": "## Levererat\nUtöver punkterna ovan har följande skeppats, ej ursprungligen listat:\nsprings → CSS `linear()`, motion-mode-axel, stagger + cascade-lins, property-axel,\ndistance/travel-primitiv + velocity-check, tempo, reduced-motion, en live demo-yta,\noch \"Load a system\".",
+      "sourcePath": "roadmap/shipped-extras.md",
+      "sourceUrl": "https://github.com/tor2dbear/cadence/blob/main/roadmap/shipped-extras.md",
+      "adapter": "pucks",
+      "native": true
     },
     {
       "id": "roadmap/archive-done-column",
@@ -440,6 +439,47 @@
       "body": "## Mål\nOm verktyget ska visas/delas: göra det användbart för andra, inte bara min setup.\n\n## Research\n- Stöd för privata repon / token per användare.\n- Enkel installation utan att handredigera `sources.json`.\n- Konventionen paketerad som en standard/produkt.\nTa först när det bevisat sig för mig själv.",
       "sourcePath": "roadmap/portability-for-others.md",
       "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/portability-for-others.md",
+      "adapter": "pucks",
+      "native": true
+    },
+    {
+      "id": "cadence/import-motion-palette",
+      "repo": "tor2dbear/cadence",
+      "repoName": "Cadence",
+      "repoColor": "#f472b6",
+      "slug": "import-motion-palette",
+      "title": "Importera & kritisera en befintlig motion-palett",
+      "status": "later",
+      "tags": [
+        "export",
+        "opinion"
+      ],
+      "updated": "2026-08-15",
+      "issue": null,
+      "order": null,
+      "body": "## Mål\nLäsa in ett ramverks motion-tokens och visualisera/kritisera dem — \"reverse-engineer\nthe art direction\".\n\n## Research\nMotsatsen till export: ta en extern palett av rörelse och kör den genom system-read.\nAngeläget som portfolio-vinkel (visar omdömet, inte bara generering).",
+      "sourcePath": "roadmap/import-motion-palette.md",
+      "sourceUrl": "https://github.com/tor2dbear/cadence/blob/main/roadmap/import-motion-palette.md",
+      "adapter": "pucks",
+      "native": true
+    },
+    {
+      "id": "cadence/deploy-previews",
+      "repo": "tor2dbear/cadence",
+      "repoName": "Cadence",
+      "repoColor": "#f472b6",
+      "slug": "deploy-previews",
+      "title": "Per-branch deploy previews (Netlify?)",
+      "status": "inbox",
+      "tags": [
+        "backend"
+      ],
+      "updated": "2026-08-15",
+      "issue": null,
+      "order": null,
+      "body": "## Mål\nÖverväga per-branch deploy-previews.\n\n## Research\nDet enda konkreta skälet att överväga Netlify; allt annat täcker Pages + Cloudflare redan.\nVäg mot static-vs-backend-tradeoffen innan hela sajten flyttas.",
+      "sourcePath": "roadmap/deploy-previews.md",
+      "sourceUrl": "https://github.com/tor2dbear/cadence/blob/main/roadmap/deploy-previews.md",
       "adapter": "pucks",
       "native": true
     },
