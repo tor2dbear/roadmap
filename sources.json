@@ -42,6 +42,15 @@
       "color": "#34d399",
       "adapter": "pucks",
       "path": "roadmap"
+    },
+    {
+      "repo": "tor2dbear/portfolio",
+      "name": "tor-björn.com",
+      "blurb": "Personal Hugo site — design system, typography, terminal, header/footer redesign.",
+      "color": "#fb923c",
+      "adapter": "pucks",
+      "path": "roadmap",
+      "branch": "master"
     }
   ]
 }

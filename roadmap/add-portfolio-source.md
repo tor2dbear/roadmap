@@ -1,6 +1,6 @@
 ---
-title: Lägg till portfolio (tor2dbear.com) på tavlan
-status: now
+title: Lägg till portfolio (tor-björn.com) på tavlan
+status: done
 tags: [sources]
 updated: 2026-08-15
 order: 10
@@ -9,10 +9,8 @@ order: 10
 ## Mål
 Få med portfolio-sajten på brädet.
 
-## Research
-Hugo-sajt utan ren roadmap-sektion; planer ligger i `REDESIGN_PLAN.md` + `docs/*plan*`.
-Adapter blir rörig → bäst att skapa native `roadmap/`-pucks där. Kräver push-access
-till portfolio + beslut om vad som destilleras in som pucks.
-
-## Öppna frågor
-- Bootstrappa 2–3 startpucks ur befintliga planer, eller seeda själv med CLI:t?
+## Levererat
+Portfolio (`tor-björn.com`) har nu en native `roadmap/` (PR #295) och är tillagd
+som källa i `sources.json` (adapter `pucks`, `branch: master`). Cadence migrerades
+samtidigt till native pucks (PR #61), så alla källor är nu native — inga adaptrar
+kvar. tor2dbear.com ("Workshop") finns som separat källa.
