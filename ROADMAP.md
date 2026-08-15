@@ -15,10 +15,8 @@ _Generated 2026-08-15 · 97 items across 6 repos._
 - **[Workshop](https://github.com/tor2dbear/tor2dbear.com)** — 1 items, native pucks. The apex site and the rule book for the fleet.
 - **[tor-björn.com](https://github.com/tor2dbear/portfolio)** — 9 items, native pucks. Personal Hugo site — design system, typography, terminal, header/footer redesign.
 
-## Now (5)
+## Now (4)
 
-- **Linjera med fleet-konventionen (Cloudflare + roadmap.tor2dbear.com)** — Roadmap · #hosting #ops · 2026-08-15  
-  https://github.com/tor2dbear/roadmap/blob/main/roadmap/align-with-fleet-cloudflare.md
 - **UI-library-implementation** — tor-björn.com · #components · 2026-08-15  
   https://github.com/tor2dbear/portfolio/blob/master/roadmap/ui-library.md
 - **python i prod — sandbox-CSP tappas av Cloudflare clean-URL** — PIA · #wasm #deploy #bugfix · 2026-08-12  
@@ -28,12 +26,10 @@ _Generated 2026-08-15 · 97 items across 6 repos._
 - **brew install: ärlig installationsceremoni** — PIA · #packages #system · 2026-08-08  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/brew-install-progress.md
 
-## Next (9)
+## Next (8)
 
 - **Lazy email verification (gate claim, not signup)** — PIA · #auth #share · 2026-08-08  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/email-verification-lazy.md
-- **Auto-status från verkligheten** — Roadmap · #core #sync · 2026-08-15  
-  https://github.com/tor2dbear/roadmap/blob/main/roadmap/auto-status-from-reality.md
 - **Custom probes: bring your own markup** — Cadence · #bench · 2026-08-15  
   https://github.com/tor2dbear/cadence/blob/main/roadmap/bring-your-own-markup.md
 - **Migrera Cadence till native pucks** — Roadmap · #sources · 2026-08-15  
@@ -97,8 +93,12 @@ _Generated 2026-08-15 · 97 items across 6 repos._
 - **Paket-roadmap — brew-appar som passar PIA** — PIA · #packages #overview · 2026-07-18  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/package-ideas.md
 
-## Done (62)
+## Done (64)
 
+- **Linjera med fleet-konventionen (Cloudflare + roadmap.tor2dbear.com)** — Roadmap · #hosting #ops · 2026-08-15  
+  https://github.com/tor2dbear/roadmap/blob/main/roadmap/align-with-fleet-cloudflare.md
+- **Auto-status från verkligheten** — Roadmap · #core #sync · 2026-08-15  
+  https://github.com/tor2dbear/roadmap/blob/main/roadmap/auto-status-from-reality.md
 - **Draggbar bézier-editor** — Cadence · #editor · 2026-08-15  
   https://github.com/tor2dbear/cadence/blob/main/roadmap/draggable-bezier-editor.md
 - **Lägg till portfolio (tor-björn.com) på tavlan** — Roadmap · #sources · 2026-08-15  
