@@ -1,6 +1,6 @@
 ---
 title: Linjera med fleet-konventionen (Cloudflare + roadmap.tor2dbear.com)
-status: now
+status: next
 tags: [hosting, ops]
 updated: 2026-08-15
 order: 5
@@ -18,10 +18,9 @@ Flytta roadmap från GitHub Pages till Cloudflare enligt `tor2dbear.com/CONVENTI
 - Workflowen deployar inte längre till Pages — den skördar och committar data till
   `main`; varje push till `main` (inkl. datacommits) triggar en Workers Build.
 - `.nojekyll` borttagen; docs uppdaterade.
+- **Workers Build importerad i dashboarden; `roadmap.tor2dbear.com` live och
+  serverar färsk data.** ✅
 
-## Kvar (kräver dashboard — kan inte automatiseras headless)
-- Cloudflare → Workers & Pages → Create → **Import a repository** → `tor2dbear/roadmap`.
-  Projektnamn `roadmap`, prod-branch `main`, tom build, deploy `npx wrangler deploy`,
-  branch builds på. Första deployen skapar custom domain + DNS ur `routes`.
-- Verifiera att `roadmap.tor2dbear.com` svarar, sen avveckla GitHub Pages.
+## Kvar
+- Avveckla GitHub Pages (Settings → Pages → None).
 - Uppdatera fleet-tabellen i `tor2dbear.com/CONVENTIONS.md` (Roadmap-raden → CF).
