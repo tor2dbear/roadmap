@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-15T17:07:55.576Z",
+  "generatedAt": "2026-08-15T17:14:15.418Z",
   "statuses": [
     "now",
     "next",
@@ -9,12 +9,12 @@
   ],
   "counts": {
     "now": 4,
-    "next": 7,
-    "later": 10,
-    "inbox": 9,
-    "done": 57
+    "next": 9,
+    "later": 11,
+    "inbox": 10,
+    "done": 62
   },
-  "total": 87,
+  "total": 96,
   "sources": [
     {
       "repo": "tor2dbear/roadmap",
@@ -73,6 +73,18 @@
       "adapter": "pucks",
       "backend": "fs",
       "count": 1,
+      "native": true,
+      "error": null
+    },
+    {
+      "repo": "tor2dbear/portfolio",
+      "name": "tor-björn.com",
+      "blurb": "Personal Hugo site — design system, typography, terminal, header/footer redesign.",
+      "color": "#fb923c",
+      "url": "https://github.com/tor2dbear/portfolio",
+      "adapter": "pucks",
+      "backend": "fs",
+      "count": 9,
       "native": true,
       "error": null
     }
@@ -166,15 +178,15 @@
       "repoName": "Roadmap",
       "repoColor": "#94a3b8",
       "slug": "add-portfolio-source",
-      "title": "Lägg till portfolio (tor2dbear.com) på tavlan",
-      "status": "now",
+      "title": "Lägg till portfolio (tor-björn.com) på tavlan",
+      "status": "done",
       "tags": [
         "sources"
       ],
       "updated": "2026-08-15",
       "issue": null,
       "order": 10,
-      "body": "## Mål\nFå med portfolio-sajten på brädet.\n\n## Research\nHugo-sajt utan ren roadmap-sektion; planer ligger i `REDESIGN_PLAN.md` + `docs/*plan*`.\nAdapter blir rörig → bäst att skapa native `roadmap/`-pucks där. Kräver push-access\ntill portfolio + beslut om vad som destilleras in som pucks.\n\n## Öppna frågor\n- Bootstrappa 2–3 startpucks ur befintliga planer, eller seeda själv med CLI:t?",
+      "body": "## Mål\nFå med portfolio-sajten på brädet.\n\n## Levererat\nPortfolio (`tor-björn.com`) har nu en native `roadmap/` (PR #295) och är tillagd\nsom källa i `sources.json` (adapter `pucks`, `branch: master`). Cadence migrerades\nsamtidigt till native pucks (PR #61), så alla källor är nu native — inga adaptrar\nkvar. tor2dbear.com (\"Workshop\") finns som separat källa.",
       "sourcePath": "roadmap/add-portfolio-source.md",
       "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/add-portfolio-source.md",
       "adapter": "pucks",
@@ -217,6 +229,27 @@
       "body": "## Mål\nGöra system-read-kritiken anropbar från CI eller en agent — \"blocka bygget om exit är\nlångsammare än enter\".\n\n## Research\nExtrahera den *rena* logiken (resolve + system-read-checkarna) ur `cadence.js` till en\nhuvudlös modul (`tokens.js`, ingen DOM), exponera som en serverless-endpoint. Given\nstacken (Cloudflare framför Pages) är en **Cloudflare Worker** den naturliga värden\n(gratisnivå ~100k req/dag) framför Netlify Functions. En **MCP-wrapper** över samma\nfunktion gör kritiken anropbar från editor/agent — den enda genuint agent-formade delen\nav Cadence.\n\n## Öppna frågor\n- Bryter \"plain static site, no build\"-regeln — medvetet sidospår, inte default-scope.",
       "sourcePath": "roadmap/opinion-layer-service.md",
       "sourceUrl": "https://github.com/tor2dbear/cadence/blob/main/roadmap/opinion-layer-service.md",
+      "adapter": "pucks",
+      "native": true
+    },
+    {
+      "id": "portfolio/redesign-header-footer",
+      "repo": "tor2dbear/portfolio",
+      "repoName": "tor-björn.com",
+      "repoColor": "#fb923c",
+      "slug": "redesign-header-footer",
+      "title": "Redesign — header/footer-navigation",
+      "status": "done",
+      "tags": [
+        "design",
+        "layout"
+      ],
+      "updated": "2026-08-15",
+      "issue": null,
+      "order": 10,
+      "body": "## Mål\nFlytta navigeringen från sidomeny till header + footer, bättre på små skärmar,\nmed startsidan som huvudsaklig innehållspunkt.\n\n## Levererat\nTheme- och språk-dropdowns (mobil bottom sheet), sidomeny borttagen och arkiverad,\nhamburgare borttagen, footer i 4-kolumns layout. Detaljer i `REDESIGN_PLAN.md`.\n\nKvarvarande fas 5 (startsida-ombyggnad) spåras i `homepage-rebuild.md`.",
+      "sourcePath": "roadmap/redesign-header-footer.md",
+      "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/redesign-header-footer.md",
       "adapter": "pucks",
       "native": true
     },
@@ -343,6 +376,26 @@
       "native": true
     },
     {
+      "id": "portfolio/homepage-rebuild",
+      "repo": "tor2dbear/portfolio",
+      "repoName": "tor-björn.com",
+      "repoColor": "#fb923c",
+      "slug": "homepage-rebuild",
+      "title": "Startsida-ombyggnad (Fas 5)",
+      "status": "next",
+      "tags": [
+        "design"
+      ],
+      "updated": "2026-08-15",
+      "issue": null,
+      "order": 20,
+      "body": "## Mål\nBygga om startsidan som huvudsaklig innehållspunkt enligt redesign-planen.\n\n## Research\nSista fasen i header/footer-redesignen. Detaljer i `REDESIGN_PLAN.md` (Fas 5).",
+      "sourcePath": "roadmap/homepage-rebuild.md",
+      "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/homepage-rebuild.md",
+      "adapter": "pucks",
+      "native": true
+    },
+    {
       "id": "cadence/shareable-url-state",
       "repo": "tor2dbear/cadence",
       "repoName": "Cadence",
@@ -464,6 +517,47 @@
       "native": true
     },
     {
+      "id": "portfolio/seed-remaining-plans",
+      "repo": "tor2dbear/portfolio",
+      "repoName": "tor-björn.com",
+      "repoColor": "#fb923c",
+      "slug": "seed-remaining-plans",
+      "title": "Migrera övriga docs/-planer till pucks",
+      "status": "inbox",
+      "tags": [
+        "roadmap"
+      ],
+      "updated": "2026-08-15",
+      "issue": null,
+      "order": null,
+      "body": "## Mål\nStartpunkt: resten av `docs/features/` och `docs/migrations/` bör bli egna pucks\nnär de aktualiseras.\n\n## Research\nKvar att förädla till pucks: schema-org, breakpoints-update, footer-restructure,\nbrand-mark-morph, dependency-refresh, gallery-shortcode (TODO), hero-seo-title\n(Fas A klar), project-info-block (klar), token_plan, content-markdown-cleanup.\nSkapa med `roadmap new` när de blir aktuella.",
+      "sourcePath": "roadmap/seed-remaining-plans.md",
+      "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/seed-remaining-plans.md",
+      "adapter": "pucks",
+      "native": true
+    },
+    {
+      "id": "portfolio/pantone-css-refactor",
+      "repo": "tor2dbear/portfolio",
+      "repoName": "tor-björn.com",
+      "repoColor": "#fb923c",
+      "slug": "pantone-css-refactor",
+      "title": "Pantone/palett — CSS-driven refactor",
+      "status": "later",
+      "tags": [
+        "css",
+        "tokens"
+      ],
+      "updated": "2026-08-15",
+      "issue": null,
+      "order": null,
+      "body": "## Mål\nFlytta palett/pantone-hanteringen till en CSS-driven modell.\n\n## Research\nPlan, ej påbörjad. Ingår: `docs/migrations/pantone-css-driven-refactor.md`,\n`palette-override-audit-*` och `pantone-lab-separation-*`.",
+      "sourcePath": "roadmap/pantone-css-refactor.md",
+      "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/pantone-css-refactor.md",
+      "adapter": "pucks",
+      "native": true
+    },
+    {
       "id": "cadence/deploy-previews",
       "repo": "tor2dbear/cadence",
       "repoName": "Cadence",
@@ -500,6 +594,108 @@
       "body": "## Goal\n`www.tor2dbear.com` resolves to nothing. Anyone who types the habitual `www.` in\nfront of the workshop gets a dead page instead of the front door.\n\n## Research\n\nThe zone has no `www` record at all — Cloudflare's own DNS panel flags it:\n*\"Visitors cannot reach www.tor2dbear.com.\"* Two ways to fix it:\n\n**A second custom domain on the Worker.** Add `www.tor2dbear.com` to `routes` in\n`wrangler.jsonc` next to the apex. One line, deploys itself. But it *serves* the\nsite at both hostnames rather than redirecting, so the same page lives at two\nURLs — split search ranking, two canonical candidates, and every project link on\nthe page would have to be host-relative to stay consistent. Rejected.\n\n**A Redirect Rule.** `www` sends a 301 to the apex, one canonical hostname, no\ncode and no deploy. This is the way, and it is what the portfolio should use for\nits own `www` too if it ever moves off Netlify.\n\nIt needs a DNS record to fire against: Cloudflare only runs rules on hostnames it\nproxies, so `www` needs a **proxied** record even though nothing is behind it.\nThe idiomatic placeholder is `AAAA www → 100::` (the discard prefix), which is\nexactly what `api.tor2dbear.com` already uses in this zone.\n\nSteps, all in the dashboard:\n\n1. **DNS → Add record** — type `AAAA`, name `www`, address `100::`, proxy **on**.\n2. **Rules → Redirect Rules → Create rule → *Redirect from WWW to root*.** The\n   template needs no edits: it matches the wildcard `https://www.*` and redirects\n   to `https://${1}`, so the captured host and path carry over. Status **301**.\n   Check *Preserve query string* is on — it sits below the fold on a phone.\n\n   A custom filter expression (`hostname eq \"www.tor2dbear.com\"` with a\n   `concat()` target) does the same thing with more handling, and only for this\n   one host. The wildcard covers any future `www.` in the zone. Use the template.\n3. Check `curl -sSI https://www.tor2dbear.com` returns `301` with the right\n   `location`, and that the apex itself still answers `200`.\n\n## Delivered\n\nBoth steps, in the dashboard. `AAAA www → 100::` proxied, then the *Redirect\nfrom WWW to root* template deployed unmodified.\n\nVerified from outside:\n\n| | |\n| --- | --- |\n| `www.tor2dbear.com` | 301 → `https://tor2dbear.com/` |\n| Path | `/projects.json` carried over |\n| Query | `?utm_source=test&x=1` intact |\n| Following the redirect | 200 on the target |\n| Apex direct | 200, unaffected |\n\nOne thing worth remembering: between the two steps `www` answered **522**. That\nis the expected intermediate state, not a fault — the record resolves, so\nCloudflare tries to proxy to `100::`, which discards it. Once the rule is live\nthe edge answers 301 before it ever reaches for an origin. Anyone adding a\nproxied placeholder record without a rule behind it will see the same.\n\nThe wildcard template beat the hand-written filter expression: it needed no\nedits and covers any future `www.` host in the zone rather than one name.\n\n## Open questions\n- Should the same rule exist for every project subdomain (`www.pia.…`)? The\n  wildcard already covers them if they ever get a proxied record — nothing more\n  to do unless one is added.\n- If the portfolio moves to Cloudflare, does `tor-bjorn.com` want the inverse\n  (apex → `www`, which is where it lives today)? That reverses the canonical\n  direction and should be decided once, for both domains.",
       "sourcePath": "roadmap/www-redirect.md",
       "sourceUrl": "https://github.com/tor2dbear/tor2dbear.com/blob/main/roadmap/www-redirect.md",
+      "adapter": "pucks",
+      "native": true
+    },
+    {
+      "id": "portfolio/subgrid-migration",
+      "repo": "tor2dbear/portfolio",
+      "repoName": "tor-björn.com",
+      "repoColor": "#fb923c",
+      "slug": "subgrid-migration",
+      "title": "Subgrid-migration",
+      "status": "done",
+      "tags": [
+        "css",
+        "layout"
+      ],
+      "updated": "2026-08-15",
+      "issue": null,
+      "order": null,
+      "body": "## Mål\nMigrera relevanta layouter till CSS subgrid.\n\n## Levererat\n12-kolumners subgrid-systemet är infört och används genomgående (t.ex.\n`assets/css/utilities/grid.css`, `.use-subgrid` i article-card/gallery); inga\nlegacy `.grid-1`–`.grid-6`-användningar kvar.",
+      "sourcePath": "roadmap/subgrid-migration.md",
+      "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/subgrid-migration.md",
+      "adapter": "pucks",
+      "native": true
+    },
+    {
+      "id": "portfolio/terminal-followups",
+      "repo": "tor2dbear/portfolio",
+      "repoName": "tor-björn.com",
+      "repoColor": "#fb923c",
+      "slug": "terminal-followups",
+      "title": "Terminal — uppföljningar",
+      "status": "done",
+      "tags": [
+        "terminal"
+      ],
+      "updated": "2026-08-15",
+      "issue": null,
+      "order": null,
+      "body": "## Mål\nTvå uppskjutna terminal-spår: mobil key bar och in-place-navigation.\n\n## Levererat\nBåda är ✅ shipped enligt `docs/features/terminal-followups-plan.md`\n(mobil key bar + SPA-style typed-only navigation). Bredare terminal-riktningar\nlever vidare i `terminal-structure-strategy.md`.",
+      "sourcePath": "roadmap/terminal-followups.md",
+      "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/terminal-followups.md",
+      "adapter": "pucks",
+      "native": true
+    },
+    {
+      "id": "portfolio/typography",
+      "repo": "tor2dbear/portfolio",
+      "repoName": "tor-björn.com",
+      "repoColor": "#fb923c",
+      "slug": "typography",
+      "title": "Typografi — plan & skala",
+      "status": "done",
+      "tags": [
+        "typography"
+      ],
+      "updated": "2026-08-15",
+      "issue": null,
+      "order": null,
+      "body": "## Mål\nFörbättra typografisk skala och prosa.\n\n## Levererat\nPlanen i `docs/features/typography-plan.md` är genomförd: `--text-1-5xl` (32px),\n`.prose` med vertikal rytm, `.type-preamble` / `.type-display` / `.type-lead`,\nclamp-sizing och justerad headline-skala.\n\n## Öppna frågor\n- `.type-headline-3` tillbaka på 24px (`--text-2xl`) eller behåll 32px?",
+      "sourcePath": "roadmap/typography.md",
+      "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/typography.md",
+      "adapter": "pucks",
+      "native": true
+    },
+    {
+      "id": "portfolio/ui-library",
+      "repo": "tor2dbear/portfolio",
+      "repoName": "tor-björn.com",
+      "repoColor": "#fb923c",
+      "slug": "ui-library",
+      "title": "UI-library-implementation",
+      "status": "now",
+      "tags": [
+        "components"
+      ],
+      "updated": "2026-08-15",
+      "issue": null,
+      "order": null,
+      "body": "## Mål\nBygga ut ett återanvändbart UI-bibliotek.\n\n## Research\nPågår. Delsteg och beslut i `docs/features/ui-library-implementation.md`.",
+      "sourcePath": "roadmap/ui-library.md",
+      "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/ui-library.md",
+      "adapter": "pucks",
+      "native": true
+    },
+    {
+      "id": "portfolio/utility-class-cleanup",
+      "repo": "tor2dbear/portfolio",
+      "repoName": "tor-björn.com",
+      "repoColor": "#fb923c",
+      "slug": "utility-class-cleanup",
+      "title": "Utility-class-cleanup",
+      "status": "next",
+      "tags": [
+        "css",
+        "refactor"
+      ],
+      "updated": "2026-08-15",
+      "issue": null,
+      "order": null,
+      "body": "## Mål\nStäda utility-klasser i faser och minska utility-användningen.\n\n## Levererat\nMigrationen är genomförd — inga kvarvarande typography-utilities i `layouts/`\n(undantag UI-library och `_deprecated`); sista utility flyttad till komponent-CSS.\nDetaljer i `docs/migrations/utility-class-cleanup.md`.\n\n## Kvar\n- Post-migration-validering: visuell test på breakpoints, inga regressioner,\n  Lighthouse/a11y oförändrad.\n- Cleanup 2–4 veckor efter deploy: räkna och överväg borttagning av oanvända\n  utilities (< 5 användningar).",
+      "sourcePath": "roadmap/utility-class-cleanup.md",
+      "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/utility-class-cleanup.md",
       "adapter": "pucks",
       "native": true
     },
