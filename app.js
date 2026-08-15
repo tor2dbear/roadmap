@@ -20,7 +20,33 @@
     tags: new Set(), // empty = all
     query: "",
     showDone: false,
+    attention: false,
   };
+
+  // ── auto-status: derive real-world signals so status upkeep isn't manual ──
+  // Staleness is computed live here (from `updated` + today) so it needs no data
+  // change; issue drift uses `issueState`, which the harvester reconciles.
+  var STALE_DAYS = { now: 21, next: 60 };
+  function daysSince(dateStr) {
+    if (!dateStr) return null;
+    var t = Date.parse(dateStr + "T00:00:00Z");
+    if (isNaN(t)) return null;
+    return Math.floor((Date.now() - t) / 86400000);
+  }
+  function signalsFor(item) {
+    var out = [];
+    var ds = daysSince(item.updated);
+    if ((item.status === "now" || item.status === "next") && ds != null && ds > STALE_DAYS[item.status]) {
+      out.push(STATUS_LABEL[item.status] + " sedan " + ds + " dagar utan uppdatering — fortfarande aktiv?");
+    }
+    if (item.issueState === "closed" && item.status !== "done") {
+      out.push("Issue #" + item.issue + " är stängd — markera done?");
+    }
+    if (item.issueState === "open" && item.status === "done") {
+      out.push("Markerad done men issue #" + item.issue + " är fortfarande öppen.");
+    }
+    return out;
+  }
 
   // ── tiny, safe markdown (escape first, then a whitelist of inline + block bits) ──
   function esc(s) {
@@ -74,7 +100,9 @@
   }
 
   function matches(item) {
-    if (!state.showDone && item.status === "done") return false;
+    if (state.attention && signalsFor(item).length === 0) return false;
+    // In attention mode, flagged done items should surface even if "show done" is off.
+    if (!state.attention && !state.showDone && item.status === "done") return false;
     if (state.repos.size && !state.repos.has(item.repo)) return false;
     if (state.tags.size) {
       var hit = item.tags.some(function (t) { return state.tags.has(t); });
@@ -96,7 +124,8 @@
   }
 
   function card(item) {
-    var c = el("div", "card" + (item.native ? "" : " adapted"));
+    var sig = signalsFor(item);
+    var c = el("div", "card" + (item.native ? "" : " adapted") + (sig.length ? " flagged" : ""));
     c.style.setProperty("--repo", item.repoColor);
 
     var top = el("div", "card-top");
@@ -105,10 +134,21 @@
     c.appendChild(top);
 
     var meta = el("div", "card-meta");
+    if (sig.length) {
+      var warn = el("span", "warn-badge", "⚠");
+      warn.title = sig.join("\n");
+      meta.appendChild(warn);
+    }
     item.tags.forEach(function (t) { meta.appendChild(el("span", "tagpill", "#" + t)); });
     if (!item.native) meta.appendChild(el("span", "adapted-badge", "adapted"));
     if (item.updated) meta.appendChild(el("span", "updated", item.updated));
     c.appendChild(meta);
+
+    if (sig.length) {
+      var flags = el("div", "card-flags");
+      sig.forEach(function (m) { flags.appendChild(el("div", "flag", "⚠ " + m)); });
+      c.appendChild(flags);
+    }
 
     var body = el("div", "card-body");
     body.innerHTML = renderMd(item.body || "_No details._");
@@ -138,7 +178,9 @@
   function renderBoard() {
     board.innerHTML = "";
     var visible = DATA.items.filter(matches);
-    var statuses = DATA.statuses.filter(function (s) { return s !== "done" || state.showDone; });
+    var statuses = DATA.statuses.filter(function (s) {
+      return s !== "done" || state.showDone || state.attention;
+    });
 
     statuses.forEach(function (status) {
       var group = visible.filter(function (it) { return it.status === status; });
@@ -209,6 +251,23 @@
     else { set.add(key); chip.setAttribute("aria-pressed", "true"); }
   }
 
+  // "Needs attention" filter — only shown when something is actually flagged.
+  function buildAttentionChip() {
+    var flagged = DATA.items.filter(function (it) { return signalsFor(it).length > 0; }).length;
+    if (!flagged) return;
+    var chip = el("button", "chip attention");
+    chip.setAttribute("aria-pressed", "false");
+    chip.appendChild(document.createTextNode("⚠ Needs attention"));
+    chip.appendChild(el("span", "n", String(flagged)));
+    chip.title = "Pucks whose declared status disagrees with reality — a linked issue's state, or a now/next puck gone quiet.";
+    chip.addEventListener("click", function () {
+      state.attention = !state.attention;
+      chip.setAttribute("aria-pressed", state.attention ? "true" : "false");
+      renderBoard();
+    });
+    document.getElementById("filters").insertBefore(chip, document.querySelector("#filters .toggle"));
+  }
+
   // ── theme ──
   var root = document.documentElement;
   var themeBtn = document.getElementById("theme");
@@ -238,5 +297,6 @@
     " · " + active + " active, " + DATA.counts.done + " done";
   buildRepoChips();
   buildTagChips();
+  buildAttentionChip();
   renderBoard();
 })();

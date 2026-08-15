@@ -20,8 +20,9 @@ generated files below does nothing lasting; the next sync overwrites them.
 - `data/roadmap.json` — canonical machine-readable aggregate (read this to reason
   about the roadmap programmatically). Shape: `{ generatedAt, statuses, counts,
   total, sources[], items[] }`. Each item: `{ id, repo, repoName, repoColor,
-  slug, title, status, tags[], updated, issue, order, body, sourcePath,
-  sourceUrl, adapter, native }`.
+  slug, title, status, tags[], updated, issue, issueState, order, body,
+  sourcePath, sourceUrl, adapter, native }`. `issueState` is `"open"`/`"closed"`
+  (or `null`) — the real state of the linked `issue`, reconciled at harvest.
 - `data/roadmap.js` — the same payload as `window.__ROADMAP__`, so `index.html`
   renders from `file://` with no server.
 - `ROADMAP.md` — a flat, greppable digest grouped by status.
@@ -79,6 +80,23 @@ line-level and format-preserving; `STATUSES`/`slugify` are shared with
   switch its `sources.json` entry to `pucks`).
 - **Change how a status/column behaves:** `STATUSES` in `lib/adapters.mjs`
   (order = column order) and `STATUS_LABEL` in both `harvest.mjs` and `app.js`.
+
+## Auto-status signals
+
+So status upkeep isn't purely self-reported, the board flags pucks whose declared
+status disagrees with reality (it never rewrites the source — truth stays in the
+puck; drift is surfaced so a human fixes it with the `roadmap` CLI):
+
+- **Issue drift** — `harvest.mjs` reconciles each puck's `issue:` against its real
+  GitHub state into `issueState`. `app.js` flags `closed` + not `done` ("mark
+  done?") and `open` + `done` ("issue still open"). `issueState` is discrete, so
+  it only changes the data when an issue actually flips — idempotency holds.
+- **Staleness** — computed live in `app.js` from `updated` vs today (no data
+  change): a `now` puck untouched > 21 days, or `next` > 60, is flagged "still
+  active?". Thresholds: `STALE_DAYS` in `app.js`.
+
+Flagged cards get a ⚠ badge + note; a "⚠ Needs attention" filter shows only them
+(including flagged `done` items). The digest marks issue drift inline.
 
 ## Sync & deploy
 

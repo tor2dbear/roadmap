@@ -16,6 +16,26 @@ import { harvestSource, STATUSES, slugify } from "./lib/adapters.mjs";
 
 const ROOT = path.resolve(fileURLToPath(import.meta.url), "../..");
 const BUILT_AT = process.env.ROADMAP_BUILT_AT || new Date().toISOString();
+const TOKEN = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || "";
+
+// Real-world signal for auto-status: the open/closed state of a puck's linked
+// issue (or PR — the issues endpoint covers both). Returns "open"/"closed", or
+// null when there's no signal (unlinked, network down, deleted). Kept discrete
+// on purpose: the payload changes only when an issue actually flips state, so it
+// doesn't defeat the harvester's idempotency. The board derives the human-facing
+// flags (including date-relative staleness) live from this + `updated`.
+async function fetchIssueState(repo, issue) {
+  try {
+    const headers = { "User-Agent": "roadmap-aggregator", Accept: "application/vnd.github+json" };
+    if (TOKEN) headers.Authorization = `Bearer ${TOKEN}`;
+    const res = await fetch(`https://api.github.com/repos/${repo}/issues/${issue}`, { headers });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.state === "closed" ? "closed" : "open";
+  } catch {
+    return null;
+  }
+}
 
 const STATUS_LABEL = {
   now: "Now",
@@ -60,6 +80,7 @@ async function main() {
         repo: source.repo,
         repoName: source.name || short,
         repoColor: source.color || "#888888",
+        issueState: null,
         ...it,
       });
     }
@@ -91,6 +112,18 @@ async function main() {
         config.sources.length +
         " configured sources — refusing to overwrite existing data. See errors above.",
     );
+  }
+
+  // Reconcile pucks that link an issue against its real GitHub state.
+  const linked = items.filter((it) => it.issue != null);
+  if (linked.length) {
+    await Promise.all(
+      linked.map(async (it) => {
+        it.issueState = await fetchIssueState(it.repo, it.issue);
+      }),
+    );
+    const known = linked.filter((it) => it.issueState).length;
+    console.error(`  · reconciled ${known}/${linked.length} linked issue(s)`);
   }
 
   items.sort(sortItems);
@@ -177,7 +210,12 @@ function renderDigest(payload) {
       const meta = [it.repoName];
       if (it.tags.length) meta.push(it.tags.map((t) => `#${t}`).join(" "));
       if (it.updated) meta.push(it.updated);
-      if (it.issue) meta.push(`issue #${it.issue}`);
+      if (it.issue) {
+        // Flag issue/status drift (discrete, so the digest stays idempotent).
+        if (it.issueState === "closed" && it.status !== "done") meta.push(`⚠ issue #${it.issue} closed`);
+        else if (it.issueState === "open" && it.status === "done") meta.push(`⚠ issue #${it.issue} still open`);
+        else meta.push(`issue #${it.issue}`);
+      }
       if (!it.native) meta.push("_adapted_");
       lines.push(`- **${it.title}** — ${meta.join(" · ")}  `);
       lines.push(`  ${it.sourceUrl}`);
