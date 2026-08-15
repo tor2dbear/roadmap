@@ -4,19 +4,21 @@
      hand: your changes will be overwritten on the next sync. Edit the roadmap in
      the source repo instead. -->
 
-_Generated 2026-08-15 · 96 items across 6 repos._
+_Generated 2026-08-15 · 97 items across 6 repos._
 
 ## Sources
 
-- **[Roadmap](https://github.com/tor2dbear/roadmap)** — 7 items, native pucks. This board's own backlog — the aggregator tracking itself.
+- **[Roadmap](https://github.com/tor2dbear/roadmap)** — 8 items, native pucks. This board's own backlog — the aggregator tracking itself.
 - **[PIA](https://github.com/tor2dbear/pia-terminal)** — 51 items, native pucks. Personal Integrated Applications — a Unix-flavoured terminal in the browser.
 - **[Cadence](https://github.com/tor2dbear/cadence)** — 10 items, native pucks. A motion *system* designer — tokens for timing & easing, not another easing toy.
 - **[Méta-Matic](https://github.com/tor2dbear/meta-matic)** — 18 items, native pucks. A digital drawing machine after Jean Tinguely — infinite works, never anything new.
 - **[Workshop](https://github.com/tor2dbear/tor2dbear.com)** — 1 items, native pucks. The apex site and the rule book for the fleet.
 - **[tor-björn.com](https://github.com/tor2dbear/portfolio)** — 9 items, native pucks. Personal Hugo site — design system, typography, terminal, header/footer redesign.
 
-## Now (4)
+## Now (5)
 
+- **Linjera med fleet-konventionen (Cloudflare + roadmap.tor2dbear.com)** — Roadmap · #hosting #ops · 2026-08-15  
+  https://github.com/tor2dbear/roadmap/blob/main/roadmap/align-with-fleet-cloudflare.md
 - **UI-library-implementation** — tor-björn.com · #components · 2026-08-15  
   https://github.com/tor2dbear/portfolio/blob/master/roadmap/ui-library.md
 - **python i prod — sandbox-CSP tappas av Cloudflare clean-URL** — PIA · #wasm #deploy #bugfix · 2026-08-12  

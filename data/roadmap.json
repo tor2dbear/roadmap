@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-15T17:14:15.418Z",
+  "generatedAt": "2026-08-15T17:38:26.380Z",
   "statuses": [
     "now",
     "next",
@@ -8,13 +8,13 @@
     "done"
   ],
   "counts": {
-    "now": 4,
+    "now": 5,
     "next": 9,
     "later": 11,
     "inbox": 10,
     "done": 62
   },
-  "total": 96,
+  "total": 97,
   "sources": [
     {
       "repo": "tor2dbear/roadmap",
@@ -24,7 +24,7 @@
       "url": "https://github.com/tor2dbear/roadmap",
       "adapter": "pucks",
       "backend": "fs",
-      "count": 7,
+      "count": 8,
       "native": true,
       "error": null
     },
@@ -90,6 +90,27 @@
     }
   ],
   "items": [
+    {
+      "id": "roadmap/align-with-fleet-cloudflare",
+      "repo": "tor2dbear/roadmap",
+      "repoName": "Roadmap",
+      "repoColor": "#94a3b8",
+      "slug": "align-with-fleet-cloudflare",
+      "title": "Linjera med fleet-konventionen (Cloudflare + roadmap.tor2dbear.com)",
+      "status": "now",
+      "tags": [
+        "hosting",
+        "ops"
+      ],
+      "updated": "2026-08-15",
+      "issue": null,
+      "order": 5,
+      "body": "## Mål\nFlytta roadmap från GitHub Pages till Cloudflare enligt `tor2dbear.com/CONVENTIONS.md`\n(Cloudflare är house-standard; roadmap var listad som \"to move to CF\").\n\n## Levererat\n- `wrangler.jsonc` (Pattern B, static-assets Worker, ingen build) som claimar\n  `roadmap.tor2dbear.com` via `routes`.\n- `.assetsignore` som håller `scripts/`, config och docs ur bundeln.\n- `wrangler` pinnad i `package.json` + `dev`/`deploy`/`versions:upload`-scripts.\n- Workflowen deployar inte längre till Pages — den skördar och committar data till\n  `main`; varje push till `main` (inkl. datacommits) triggar en Workers Build.\n- `.nojekyll` borttagen; docs uppdaterade.\n\n## Kvar (kräver dashboard — kan inte automatiseras headless)\n- Cloudflare → Workers & Pages → Create → **Import a repository** → `tor2dbear/roadmap`.\n  Projektnamn `roadmap`, prod-branch `main`, tom build, deploy `npx wrangler deploy`,\n  branch builds på. Första deployen skapar custom domain + DNS ur `routes`.\n- Verifiera att `roadmap.tor2dbear.com` svarar, sen avveckla GitHub Pages.\n- Uppdatera fleet-tabellen i `tor2dbear.com/CONVENTIONS.md` (Roadmap-raden → CF).",
+      "sourcePath": "roadmap/align-with-fleet-cloudflare.md",
+      "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/align-with-fleet-cloudflare.md",
+      "adapter": "pucks",
+      "native": true
+    },
     {
       "id": "pia-terminal/email-verification-lazy",
       "repo": "tor2dbear/pia-terminal",
@@ -206,7 +227,7 @@
       "updated": "2026-08-15",
       "issue": null,
       "order": 10,
-      "body": "## Mål\nSamla roadmaps från flera repon till ett bräde + en maskinläsbar aggregat, i synk.\n\n## Levererat\nHarvester (`scripts/harvest.mjs` + `lib/`) med fs/GitHub-backends och adaptrar\n(pucks/checklist/prose). Genererar `data/roadmap.json` (för AI), `data/roadmap.js`\n(file://-tavla) och `ROADMAP.md`. Statisk kanban-vy (`index.html`/`app.js`), och en\nGitHub Action som skördar per timme + vid push och deployar till GitHub Pages.\nIdempotent — committar bara vid faktisk ändring. Live på tor2dbear.github.io/roadmap.",
+      "body": "## Mål\nSamla roadmaps från flera repon till ett bräde + en maskinläsbar aggregat, i synk.\n\n## Levererat\nHarvester (`scripts/harvest.mjs` + `lib/`) med fs/GitHub-backends och adaptrar\n(pucks/checklist/prose). Genererar `data/roadmap.json` (för AI), `data/roadmap.js`\n(file://-tavla) och `ROADMAP.md`. Statisk kanban-vy (`index.html`/`app.js`), och en\nGitHub Action som skördar per timme + vid push och committar färsk data.\nIdempotent — committar bara vid faktisk ändring. Deploy via Cloudflare\n(se `align-with-fleet-cloudflare`); board på roadmap.tor2dbear.com.",
       "sourcePath": "roadmap/multi-repo-board.md",
       "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/multi-repo-board.md",
       "adapter": "pucks",
