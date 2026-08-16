@@ -8,7 +8,7 @@ _Generated 2026-08-16 · 117 items across 6 repos._
 
 ## Sources
 
-- **[Roadmap](https://github.com/tor2dbear/roadmap)** — 18 items, native pucks. This board's own backlog — the aggregator tracking itself.
+- **[Etapp](https://github.com/tor2dbear/roadmap)** — 18 items, native pucks. The Etapp tool's own roadmap — the aggregator tracking itself.
 - **[PIA](https://github.com/tor2dbear/pia-terminal)** — 51 items, native pucks. Personal Integrated Applications — a Unix-flavoured terminal in the browser.
 - **[Cadence](https://github.com/tor2dbear/cadence)** — 10 items, native pucks. A motion *system* designer — tokens for timing & easing, not another easing toy.
 - **[Méta-Matic](https://github.com/tor2dbear/meta-matic)** — 18 items, native pucks. A digital drawing machine after Jean Tinguely — infinite works, never anything new.
@@ -43,9 +43,9 @@ _Generated 2026-08-16 · 117 items across 6 repos._
   https://github.com/tor2dbear/cadence/blob/main/roadmap/opinion-layer-service.md
 - **Security-header-härdning** — Cadence · #backend #config · 2026-08-15  
   https://github.com/tor2dbear/cadence/blob/main/roadmap/security-headers.md
-- **Sluta committa genererad data + slå ihop skörd/deploy** — Roadmap · #ops #dx · 2026-08-16  
+- **Sluta committa genererad data + slå ihop skörd/deploy** — Etapp · #ops #dx · 2026-08-16  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/deploy-simplification.md
-- **Redigera pucks direkt i GUI:t** — Roadmap · #ui #api #editing · 2026-08-16 · ⛔ blocked by deploy-simplification  
+- **Redigera pucks direkt i GUI:t** — Etapp · #ui #api #editing · 2026-08-16 · ⛔ blocked by deploy-simplification  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/gui-editing.md
 - **Breakpoints-uppdatering** — tor-bjorn.com · #css #layout · 2026-08-16  
   https://github.com/tor2dbear/portfolio/blob/master/roadmap/breakpoints-update.md
@@ -53,7 +53,7 @@ _Generated 2026-08-16 · 117 items across 6 repos._
   https://github.com/tor2dbear/portfolio/blob/master/roadmap/color-token-restructure.md
 - **Content markdown-cleanup** — tor-bjorn.com · #content · 2026-08-16  
   https://github.com/tor2dbear/portfolio/blob/master/roadmap/content-markdown-cleanup.md
-- **Arkivera gamla "done" på tavlan** — Roadmap · #ui · 2026-08-15  
+- **Arkivera gamla "done" på tavlan** — Etapp · #ui · 2026-08-15  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/archive-done-column.md
 - **Importera & kritisera en befintlig motion-palett** — Cadence · #export #opinion · 2026-08-15  
   https://github.com/tor2dbear/cadence/blob/main/roadmap/import-motion-palette.md
@@ -91,21 +91,21 @@ _Generated 2026-08-16 · 117 items across 6 repos._
 
 ## Done (86)
 
-- **Brand it + split product / instance** — Roadmap · #product · 2026-08-16  
+- **Brand it + split product / instance** — Etapp · #product · 2026-08-16  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/productize.md
-- **Fungera utanför mina egna repon** — Roadmap · #product · 2026-08-16  
+- **Fungera utanför mina egna repon** — Etapp · #product · 2026-08-16  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/portability-for-others.md
-- **Linjera med fleet-konventionen (Cloudflare + roadmap.tor2dbear.com)** — Roadmap · #hosting #ops · 2026-08-15  
+- **Linjera med fleet-konventionen (Cloudflare + roadmap.tor2dbear.com)** — Etapp · #hosting #ops · 2026-08-15  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/align-with-fleet-cloudflare.md
-- **Agent-kontrakt (+ ev. MCP)** — Roadmap · #product #ai · 2026-08-16  
+- **Agent-kontrakt (+ ev. MCP)** — Etapp · #product #ai · 2026-08-16  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/agent-native-contract.md
-- **Auto-status från verkligheten** — Roadmap · #core #sync · 2026-08-15  
+- **Auto-status från verkligheten** — Etapp · #core #sync · 2026-08-15  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/auto-status-from-reality.md
 - **Draggbar bézier-editor** — Cadence · #editor · 2026-08-15  
   https://github.com/tor2dbear/cadence/blob/main/roadmap/draggable-bezier-editor.md
-- **Lägg till portfolio (tor-bjorn.com) på tavlan** — Roadmap · #sources · 2026-08-15  
+- **Lägg till portfolio (tor-bjorn.com) på tavlan** — Etapp · #sources · 2026-08-15  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/add-portfolio-source.md
-- **Multi-repo roadmap-aggregator + tavla** — Roadmap · #core · 2026-08-15  
+- **Multi-repo roadmap-aggregator + tavla** — Etapp · #core · 2026-08-15  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/multi-repo-board.md
 - **Redesign — header/footer-navigation** — tor-bjorn.com · #design #layout · 2026-08-15  
   https://github.com/tor2dbear/portfolio/blob/master/roadmap/redesign-header-footer.md
@@ -113,31 +113,31 @@ _Generated 2026-08-16 · 117 items across 6 repos._
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/nano-multibuffer.md
 - **grep: context-flaggor -A/-B/-C** — PIA · #text #commands · 2026-07-17  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/grep-context.md
-- **Tunn collaboration via GitHub-primitiver** — Roadmap · #product · 2026-08-16  
+- **Tunn collaboration via GitHub-primitiver** — Etapp · #product · 2026-08-16  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/collaboration-via-github.md
-- **Migrera Cadence till native pucks** — Roadmap · #sources · 2026-08-16  
+- **Migrera Cadence till native pucks** — Etapp · #sources · 2026-08-16  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/cadence-to-native-pucks.md
 - **Startsida-ombyggnad (Fas 5)** — tor-bjorn.com · #design · 2026-08-16  
   https://github.com/tor2dbear/portfolio/blob/master/roadmap/homepage-rebuild.md
 - **Redigerbar ladder** — Cadence · #tokens · 2026-08-15  
   https://github.com/tor2dbear/cadence/blob/main/roadmap/editable-ladder.md
-- **roadmap-CLI — skapa/förädla pucks** — Roadmap · #dx · 2026-08-15  
+- **roadmap-CLI — skapa/förädla pucks** — Etapp · #dx · 2026-08-15  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/authoring-cli.md
 - **Delbart system via URL-state** — Cadence · #share · 2026-08-15  
   https://github.com/tor2dbear/cadence/blob/main/roadmap/shareable-url-state.md
-- **Beroenden mellan pucks (blocked-by)** — Roadmap · #core #product #ai · 2026-08-16  
+- **Beroenden mellan pucks (blocked-by)** — Etapp · #core #product #ai · 2026-08-16  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/puck-dependencies.md
-- **Listvy-läge (alternativ till kanban)** — Roadmap · #ui · 2026-08-16  
+- **Listvy-läge (alternativ till kanban)** — Etapp · #ui · 2026-08-16  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/list-view.md
 - **Fler export-mål** — Cadence · #export · 2026-08-15  
   https://github.com/tor2dbear/cadence/blob/main/roadmap/export-targets.md
-- **Sökförslag / autocomplete** — Roadmap · #ui · 2026-08-16  
+- **Sökförslag / autocomplete** — Etapp · #ui · 2026-08-16  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/search-suggestions.md
 - **Levererat utöver ursprunglig plan** — Cadence · #core · 2026-08-15  
   https://github.com/tor2dbear/cadence/blob/main/roadmap/shipped-extras.md
-- **Sortering + skapad-datum** — Roadmap · #ui · 2026-08-16  
+- **Sortering + skapad-datum** — Etapp · #ui · 2026-08-16  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/sort-and-created.md
-- **Dela-länk till en puck** — Roadmap · #ui · 2026-08-16  
+- **Dela-länk till en puck** — Etapp · #ui · 2026-08-16  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/share-link.md
 - **Dependency-refresh** — tor-bjorn.com · #tooling · 2026-08-16  
   https://github.com/tor2dbear/portfolio/blob/master/roadmap/dependency-refresh.md
