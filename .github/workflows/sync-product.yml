@@ -1,0 +1,104 @@
+name: Mirror tool → etapp / demo
+
+# When the tool changes here (the dev lab / instance), regenerate the product
+# repo tor2dbear/etapp and refresh the demo board in tor2dbear/etapp-site — so the
+# "generated mirror" stays fresh with zero manual steps.
+#
+# Requires a SYNC_TOKEN secret: a fine-grained PAT with Contents: read & write on
+# tor2dbear/etapp AND tor2dbear/etapp-site. Without it the job runs green and skips.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/harvest.mjs"
+      - "scripts/roadmap.mjs"
+      - "scripts/lib/**"
+      - "scripts/sources.schema.json"
+      - "scripts/export-product.mjs"
+      - "index.html"
+      - "app.js"
+      - "styles.css"
+      - "CONVENTION.md"
+      - "AGENTS.md"
+      - "templates/**"
+      - ".assetsignore"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mirror-product
+  cancel-in-progress: true
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Gate on SYNC_TOKEN
+        id: gate
+        env:
+          TOKEN: ${{ secrets.SYNC_TOKEN }}
+        run: |
+          if [ -n "$TOKEN" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::SYNC_TOKEN not set — skipping mirror. Add a fine-grained PAT (Contents: write on tor2dbear/etapp and tor2dbear/etapp-site) as the SYNC_TOKEN secret to enable."
+          fi
+
+      - name: Checkout
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Mirror the product → tor2dbear/etapp
+        if: steps.gate.outputs.run == 'true'
+        env:
+          TOKEN: ${{ secrets.SYNC_TOKEN }}
+        run: |
+          set -euo pipefail
+          node scripts/export-product.mjs "$RUNNER_TEMP/etapp-new"
+          git clone --depth 1 "https://x-access-token:${TOKEN}@github.com/tor2dbear/etapp.git" "$RUNNER_TEMP/etapp"
+          # keep the product repo's own sources.json / board.config.json (a live
+          # instance may have customised them) — mirror only the engine, UI, docs.
+          rsync -a --delete --exclude='.git' \
+            --exclude='sources.json' --exclude='board.config.json' --exclude='wrangler.jsonc' \
+            "$RUNNER_TEMP/etapp-new/" "$RUNNER_TEMP/etapp/"
+          cd "$RUNNER_TEMP/etapp"
+          git config user.name "roadmap-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "etapp already up to date."
+          else
+            git commit -q -m "chore: sync tool from instance [auto]"
+            git push
+          fi
+
+      - name: Refresh demo board → tor2dbear/etapp-site
+        if: steps.gate.outputs.run == 'true'
+        env:
+          TOKEN: ${{ secrets.SYNC_TOKEN }}
+        run: |
+          set -euo pipefail
+          git clone --depth 1 "https://x-access-token:${TOKEN}@github.com/tor2dbear/etapp-site.git" "$RUNNER_TEMP/site"
+          # the demo board's index.html carries its own ribbon — only refresh the
+          # logic/styles so tool improvements reach the demo without clobbering it.
+          cp app.js styles.css "$RUNNER_TEMP/site/demo/"
+          cd "$RUNNER_TEMP/site"
+          git config user.name "roadmap-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "demo board already up to date."
+          else
+            git commit -q -m "chore: refresh demo board from tool [auto]"
+            git push
+          fi
