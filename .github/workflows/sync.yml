@@ -4,7 +4,7 @@ name: Sync roadmap
 # commits the refreshed data back to main. Deployment is handled by Cloudflare
 # Workers Builds (connected to this repo, see wrangler.jsonc): every push to main
 # — including the data commit below — triggers a production deploy, so the board
-# at roadmap.tor2dbear.com stays fresh without a manual step.
+# stays fresh without a manual step.
 #
 # Runs on a schedule (keeps the board in sync without touching the source repos),
 # on manual dispatch, and when the aggregator's own code changes. The data commit

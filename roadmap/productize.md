@@ -26,13 +26,11 @@ becomes **my instance** (my sources, my pucks, my domain); a **new repo** holds 
   codebases; the product repo is a derived artifact.
 - Publish the `roadmap` CLI to npm so authoring works anywhere without cloning.
 
-## Name (English) — to finalize
-Lean on the project's own word, **puck**, kept as the *unit* regardless of product
-name (like Trello/cards).
-- **Cairn** ⭐ — trail markers on the way to a destination; each marker a puck.
-  Short, brandable, unmistakably English.
-- **Puck** — perfectly coherent (product = pucks) and already ours.
-- **Puckboard** — more descriptive if "Puck" reads too bare.
+## Name — decided: **Vantage**
+A vantage point = one overview across all repos, which is exactly what the board
+is. Tagline: *"git-native roadmap-as-code."* The unit stays **puck** (like
+Trello/cards). Known namesake to note: `vantage.sh` (cloud-cost, different
+category). Product lives at `tor2dbear/vantage`; this repo stays my instance.
 
 ## Ready-made content
 The Linear/Projects comparison and the "close gaps, keep the USP" strategy are

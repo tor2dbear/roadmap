@@ -12,8 +12,8 @@ the visual board. No lock-in — it is just files.
 > them, so keep them **exactly** as specified and in English. The body text you
 > write freely, in any language.
 
-PIA (`tor2dbear/pia-terminal`) is the **reference implementation** — look there
-for 40+ real examples.
+See [`templates/`](templates/) for a drop-in `roadmap/README.md` + `puck.md`, and
+any repo already using `pucks` for real examples.
 
 ---
 
