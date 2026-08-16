@@ -325,10 +325,11 @@ body.modal-open { overflow: hidden; }
 @media (max-width: 600px) {
   .modal-backdrop { padding: 0; }
   .modal { max-width: none; max-height: 100vh; height: 100%; border-radius: 0; border: none; border-left: none; }
-  /* Fullscreen modal butts against the status bar / notch — give the title real
-     breathing room up top, and keep the ✕ clear of the safe-area inset. */
-  .modal-content { padding-top: calc(env(safe-area-inset-top, 0px) + 34px); }
-  .modal-close { top: calc(env(safe-area-inset-top, 0px) + 16px); }
+  /* Fullscreen modal butts against the top edge — give the title real breathing
+     room. Fixed value (not env safe-area, which is 0 without viewport-fit=cover)
+     so the margin is deterministic; Safari already insets below the status bar. */
+  .modal-content { padding-top: 52px; }
+  .modal-close { top: 20px; }
   /* Chip groups become single swipeable rows so the expanded filters stay compact.
      min-width:0 is load-bearing: without it the nowrap row grows past the viewport
      and scrolls the whole page instead of scrolling inside the row. The negative
