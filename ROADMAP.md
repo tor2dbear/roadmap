@@ -70,10 +70,8 @@ _Generated 2026-08-16 · 110 items across 6 repos._
 - **Multiplayer — who, msg, gemensamma rum** — PIA · #multiplayer #supabase · 2026-07-17  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/multiplayer-rooms.md
 
-## Inbox (10)
+## Inbox (9)
 
-- **Sökförslag / autocomplete** — Roadmap · #ui · 2026-08-16  
-  https://github.com/tor2dbear/roadmap/blob/main/roadmap/search-suggestions.md
 - **Fungera utanför mina egna repon** — Roadmap · #product · 2026-08-15  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/portability-for-others.md
 - **Per-branch deploy previews (Netlify?)** — Cadence · #backend · 2026-08-15  
@@ -93,7 +91,7 @@ _Generated 2026-08-16 · 110 items across 6 repos._
 - **Paket-roadmap — brew-appar som passar PIA** — PIA · #packages #overview · 2026-07-18  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/package-ideas.md
 
-## Done (77)
+## Done (78)
 
 - **Linjera med fleet-konventionen (Cloudflare + roadmap.tor2dbear.com)** — Roadmap · #hosting #ops · 2026-08-15  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/align-with-fleet-cloudflare.md
@@ -123,6 +121,8 @@ _Generated 2026-08-16 · 110 items across 6 repos._
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/list-view.md
 - **Fler export-mål** — Cadence · #export · 2026-08-15  
   https://github.com/tor2dbear/cadence/blob/main/roadmap/export-targets.md
+- **Sökförslag / autocomplete** — Roadmap · #ui · 2026-08-16  
+  https://github.com/tor2dbear/roadmap/blob/main/roadmap/search-suggestions.md
 - **Levererat utöver ursprunglig plan** — Cadence · #core · 2026-08-15  
   https://github.com/tor2dbear/cadence/blob/main/roadmap/shipped-extras.md
 - **Dependency-refresh** — tor-bjorn.com · #tooling · 2026-08-16  

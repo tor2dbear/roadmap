@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-16T07:05:37.076Z",
+  "generatedAt": "2026-08-16T07:48:21.682Z",
   "statuses": [
     "now",
     "next",
@@ -11,8 +11,8 @@
     "now": 3,
     "next": 6,
     "later": 14,
-    "inbox": 10,
-    "done": 77
+    "inbox": 9,
+    "done": 78
   },
   "total": 110,
   "sources": [
@@ -592,14 +592,14 @@
       "issueState": null,
       "slug": "search-suggestions",
       "title": "Sökförslag / autocomplete",
-      "status": "inbox",
+      "status": "done",
       "tags": [
         "ui"
       ],
       "updated": "2026-08-16",
       "issue": null,
       "order": 50,
-      "body": "## Mål\nFörslag medan man skriver i sökrutan. All data ligger redan i webbläsaren, så\nsökningen är redan instant — värdet är **upptäckbarhet** (vad kan jag söka på?)\noch att **hoppa direkt** till rätt kort.\n\n## Alternativ\n1. **Native `<datalist>`** — ~10 rader, noll JS, men kan inte tema-stylas och är\n   klumpig på iOS. Billig men trubbig.\n2. **Egen dropdown (rekommenderad)** — visar matchande **korttitlar** (klick öppnar\n   kortets modal direkt) och ev. **taggar/repos** (klick sätter filtret). Full\n   styling-kontroll, störst nytta. ~60–80 rader + tangentbordsnav (↑↓ Enter Esc)\n   och klick-utanför-stäng.\n3. **Fuzzy-sök** — typo-tolerant, men overkill för ~100 kort. Inte i första versionen.\n\n## Beslut\nBygg #2 avskalat: mest **titel-förslag → öppna kort**. Taggar/repos finns redan som\nfilter-chips, så förslag där är delvis redundant. Inte fuzzy till att börja med.\n\n## Beroende / ordning\nÖverlappar `list-view` — sökresultat-listan kan återanvända list-renderingen. Ta\nlistvyn först om båda ska byggas.",
+      "body": "## Levererat\nEgen dropdown under sökrutan (alternativ #2): matchande **korttitlar** →\nklick/Enter öppnar kortet direkt. startsWith rankas över mid-sträng, max 8,\nspänner alla kort (även dolda/done) med repo-prick + status-pill. Tangentbord\n↑↓/Enter/Esc, `pointerdown` så valet landar innan blur, stängs vid tapp utanför.\n`computeSuggestions`/`renderSuggestions` i `app.js`, `.suggest` i `styles.css`.\nInte fuzzy (nästa steg vid behov).\n\n## Mål\nFörslag medan man skriver i sökrutan. All data ligger redan i webbläsaren, så\nsökningen är redan instant — värdet är **upptäckbarhet** (vad kan jag söka på?)\noch att **hoppa direkt** till rätt kort.\n\n## Alternativ\n1. **Native `<datalist>`** — ~10 rader, noll JS, men kan inte tema-stylas och är\n   klumpig på iOS. Billig men trubbig.\n2. **Egen dropdown (rekommenderad)** — visar matchande **korttitlar** (klick öppnar\n   kortets modal direkt) och ev. **taggar/repos** (klick sätter filtret). Full\n   styling-kontroll, störst nytta. ~60–80 rader + tangentbordsnav (↑↓ Enter Esc)\n   och klick-utanför-stäng.\n3. **Fuzzy-sök** — typo-tolerant, men overkill för ~100 kort. Inte i första versionen.\n\n## Beslut\nBygg #2 avskalat: mest **titel-förslag → öppna kort**. Taggar/repos finns redan som\nfilter-chips, så förslag där är delvis redundant. Inte fuzzy till att börja med.\n\n## Beroende / ordning\nÖverlappar `list-view` — sökresultat-listan kan återanvända list-renderingen. Ta\nlistvyn först om båda ska byggas.",
       "sourcePath": "roadmap/search-suggestions.md",
       "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/search-suggestions.md",
       "adapter": "pucks",
