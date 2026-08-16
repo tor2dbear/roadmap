@@ -1,10 +1,19 @@
 ---
 title: Tunn collaboration via GitHub-primitiver
-status: inbox
+status: done
 tags: [product]
 updated: 2026-08-16
+owner: tor2dbear
 order: 12
 ---
+
+## Levererat
+- **`owner:`-fält** (GitHub-handle) → avatar på kortet, `@handle` + profil-länk i
+  modalen. Ett fält, ingen assignee-databas. (Den här pucken dog-food:ar det.)
+- **Diskussion = den länkade issuen** och **behörighet = git/PR-review** fanns
+  redan; dokumenterat i AGENTS.md ("closing gaps the right way").
+Så den tunna samarbetsytan är på plats — helt via GitHub-primitiver, ingen andra
+sanning. Realtid/notiser/aktivitetsflöde förblir medvetet utanför scope.
 
 ## Mål
 Precis så mycket samarbete som behövs — utan att bygga ett kommentars-/notis-system

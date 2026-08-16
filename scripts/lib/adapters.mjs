@@ -81,6 +81,8 @@ async function pucksAdapter(repo, branch, source) {
       depends: Array.isArray(data.depends)
         ? data.depends.map(String)
         : data.depends ? [String(data.depends)] : [],
+      // GitHub handle of the owner (thin collaboration — a field, not a store).
+      owner: data.owner ? String(data.owner).replace(/^@/, "") : null,
       body,
       sourcePath: relPath,
       sourceUrl: blobUrl(repo.repo, branch, relPath),
@@ -192,6 +194,7 @@ async function checklistAdapter(repo, branch, source) {
       updated: "",
       created: null,
       depends: [],
+      owner: null,
       issue: null,
       order: i * 10,
       body,
@@ -220,6 +223,7 @@ async function proseAdapter(repo, branch, source) {
       updated: "",
       created: null,
       depends: [],
+      owner: null,
       issue: null,
       order: i * 10,
       body,

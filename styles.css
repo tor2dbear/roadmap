@@ -315,6 +315,10 @@ body {
 .adapted-badge { font-size: 10px; color: var(--ink-3); border: 1px dashed var(--line); border-radius: 5px; padding: 0 5px; }
 .warn-badge { color: var(--later); font-size: 13px; line-height: 1; cursor: help; flex: none; }
 .block-badge { font-size: 13px; line-height: 1; cursor: help; flex: none; }
+.owner { display: inline-flex; align-items: center; gap: 5px; flex: none; text-decoration: none; color: var(--ink-2); }
+.owner-avatar { width: 16px; height: 16px; border-radius: 50%; flex: none; background: var(--panel-2); object-fit: cover; }
+.owner-name { font-weight: 600; }
+@media (hover: hover) { a.owner:hover .owner-name { text-decoration: underline; } }
 .card.flagged { border-left-color: var(--later); }
 .card-flags { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
 .flag {

@@ -75,6 +75,7 @@ order: 10
 | `issue`   | no       | The working issue number in the repo, when the puck is in progress. |
 | `order`   | no       | Manual order **within** a status column (lower = higher up). Falls back to `updated`. |
 | `depends` | no       | Inline array of same-repo puck slugs this one is blocked by, e.g. `[deploy-simplification]`. The board shows ⛔ until every listed puck is `done`. |
+| `owner`   | no       | GitHub handle of the owner, e.g. `octocat`. Renders as an avatar on the card and a profile link in the modal. A field, not an assignee database. |
 
 ---
 

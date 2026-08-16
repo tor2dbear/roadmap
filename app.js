@@ -163,6 +163,24 @@
     return d;
   }
 
+  // Owner: a GitHub avatar (loaded from github.com/<handle>.png, hidden if it
+  // fails). opts.name adds "@handle"; opts.link wraps it in a profile link.
+  function ownerEl(handle, opts) {
+    opts = opts || {};
+    var wrap = el(opts.link ? "a" : "span", "owner");
+    if (opts.link) { wrap.href = "https://github.com/" + handle; wrap.target = "_blank"; wrap.rel = "noopener"; }
+    wrap.title = "@" + handle;
+    var img = document.createElement("img");
+    img.className = "owner-avatar";
+    img.src = "https://github.com/" + encodeURIComponent(handle) + ".png?size=40";
+    img.alt = "@" + handle;
+    img.loading = "lazy";
+    img.addEventListener("error", function () { img.style.display = "none"; });
+    wrap.appendChild(img);
+    if (opts.name) wrap.appendChild(el("span", "owner-name", "@" + handle));
+    return wrap;
+  }
+
   // ⛔ badge for a puck waiting on unfinished dependencies (tooltip lists them).
   function blockBadge(item) {
     var b = el("span", "block-badge", "⛔");
@@ -196,6 +214,7 @@
       meta.appendChild(warn);
     }
     if ((item.blockedBy || []).length) meta.appendChild(blockBadge(item));
+    if (item.owner) meta.appendChild(ownerEl(item.owner));
     if (item.updated) meta.appendChild(dateEl(item.updated));
     c.appendChild(meta);
 
@@ -289,6 +308,7 @@
     repo.appendChild(document.createTextNode(item.repoName));
     idrow.appendChild(repo);
     idrow.appendChild(el("span", "status-pill status-" + item.status, STATUS_LABEL[item.status] || item.status));
+    if (item.owner) idrow.appendChild(ownerEl(item.owner, { name: true, link: true }));
     meta.appendChild(idrow);
 
     if (item.created || item.updated) {
