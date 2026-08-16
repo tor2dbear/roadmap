@@ -412,22 +412,25 @@
     var next = cur === "dark" ? "light" : cur === "light" ? "auto" : "dark";
     root.setAttribute("data-theme", next);
     try { localStorage.setItem("roadmap-theme", next); } catch (e) {}
+    themeBtn.blur();
   });
 
   // ── view toggle (board ⇄ list, remembered) ──
   var viewBtn = document.getElementById("viewToggle");
   function updateViewButton() {
-    var toList = state.view === "board";
-    viewBtn.textContent = toList ? "☰" : "▦";
-    viewBtn.title = toList ? "Byt till listvy" : "Byt till brädvy";
+    var isList = state.view === "list";
+    // Icon = the current view (no persistent .active highlight — it read as a
+    // stuck focus ring); the title says what a tap does.
+    viewBtn.textContent = isList ? "☰" : "▦";
+    viewBtn.title = isList ? "Byt till brädvy" : "Byt till listvy";
     viewBtn.setAttribute("aria-label", viewBtn.title);
-    viewBtn.classList.toggle("active", state.view === "list");
   }
   viewBtn.addEventListener("click", function () {
     state.view = state.view === "board" ? "list" : "board";
     try { localStorage.setItem("roadmap-view", state.view); } catch (e) {}
     updateViewButton();
     renderBoard();
+    viewBtn.blur(); // drop focus so no ring lingers after the tap
   });
 
   var searchInput = document.getElementById("search");

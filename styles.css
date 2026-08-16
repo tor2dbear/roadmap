@@ -93,7 +93,11 @@ body {
   cursor: pointer;
   font-size: 15px;
 }
-.ghost:hover { border-color: var(--accent); }
+/* Hover only on real-pointer devices: on iOS :hover sticks after a tap until you
+   tap elsewhere, which read as a stuck focus/highlight on the toggle. */
+@media (hover: hover) { .ghost:hover { border-color: var(--accent); } }
+/* Mouse/touch taps shouldn't leave a focus ring; keyboard focus still shows one. */
+.ghost:focus:not(:focus-visible) { outline: none; }
 
 .filters {
   display: flex;
@@ -190,7 +194,7 @@ body {
   border-left: 2px solid var(--repo, var(--line));
   cursor: pointer;
 }
-.list-row:hover { background: var(--panel-2); }
+@media (hover: hover) { .list-row:hover { background: var(--panel-2); } }
 .list-row.flagged { border-left-color: var(--later); }
 .list-row .repo-dot { align-self: center; }
 .list-title { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; color: var(--ink); line-height: 1.35; }
@@ -205,7 +209,7 @@ body {
   cursor: pointer;
   transition: border-color 0.12s ease, transform 0.06s ease;
 }
-.card:hover { border-color: var(--accent); }
+@media (hover: hover) { .card:hover { border-color: var(--accent); } }
 .card:active { transform: translatey(1px); }
 .card.adapted { border-left-style: dashed; }
 .card-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
