@@ -340,7 +340,8 @@ body {
 .card-body a { color: var(--accent); }
 .card-links { margin-top: 10px; display: flex; gap: 12px; font-size: 12px; }
 .card-links a { color: var(--accent); text-decoration: none; }
-.card-links a:hover { text-decoration: underline; }
+.card-links .linklike { background: none; border: 0; padding: 0; margin: 0; font: inherit; color: var(--accent); cursor: pointer; }
+@media (hover: hover) { .card-links a:hover, .card-links .linklike:hover { text-decoration: underline; } }
 
 /* ── detail modal ── */
 .modal-backdrop {

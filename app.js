@@ -200,6 +200,34 @@
     return a;
   }
 
+  // ── deep links: #<item.id> opens that puck's modal ──
+  function setHash(id) {
+    var base = location.pathname + location.search;
+    try { history.replaceState(null, "", id ? base + "#" + id : base); } catch (e) {}
+  }
+  function itemFromHash() {
+    var h = decodeURIComponent(location.hash.replace(/^#/, ""));
+    if (!h) return null;
+    for (var i = 0; i < DATA.items.length; i++) if (DATA.items[i].id === h) return DATA.items[i];
+    return null;
+  }
+  function copyText(text, onDone) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(onDone, function () { legacyCopy(text); onDone(); });
+    } else { legacyCopy(text); onDone(); }
+  }
+  function legacyCopy(text) {
+    try {
+      var ta = document.createElement("textarea");
+      ta.value = text; ta.setAttribute("readonly", "");
+      ta.style.position = "absolute"; ta.style.left = "-9999px";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    } catch (e) {}
+  }
+
   // ── detail modal ──
   var modalBackdrop, modalContent, modalPanel;
   function buildModal() {
@@ -285,15 +313,27 @@
     if (item.issue) {
       links.appendChild(linkEl("issue #" + item.issue, "https://github.com/" + item.repo + "/issues/" + item.issue));
     }
+    var copyBtn = el("button", "linklike", "🔗 Kopiera länk");
+    copyBtn.type = "button";
+    copyBtn.addEventListener("click", function () {
+      var url = location.origin + location.pathname + "#" + item.id;
+      copyText(url, function () {
+        copyBtn.textContent = "✓ Kopierad";
+        setTimeout(function () { copyBtn.textContent = "🔗 Kopiera länk"; }, 1500);
+      });
+    });
+    links.appendChild(copyBtn);
     modalContent.appendChild(links);
 
     modalBackdrop.hidden = false;
     document.body.classList.add("modal-open");
     modalContent.scrollTop = 0;
+    setHash(item.id); // reflect the open puck in the URL so it can be copied/shared
   }
 
   function closeModal() {
     if (!modalBackdrop) return;
+    if (location.hash) setHash(null);
     modalBackdrop.hidden = true;
     document.body.classList.remove("modal-open");
   }
@@ -693,4 +733,14 @@
   updateViewButton();
   setFilters(window.matchMedia("(min-width: 601px)").matches);
   renderBoard();
+
+  // Deep link: open the puck named in the URL hash on load, and react to the
+  // hash changing (pasted link in the same tab, or Back after opening a modal).
+  var deepItem = itemFromHash();
+  if (deepItem) openModal(deepItem);
+  window.addEventListener("hashchange", function () {
+    var it = itemFromHash();
+    if (it) openModal(it);
+    else closeModal();
+  });
 })();
