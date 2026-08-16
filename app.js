@@ -142,21 +142,32 @@
     var c = el("div", "card" + (item.native ? "" : " adapted") + (sig.length ? " flagged" : ""));
     c.style.setProperty("--repo", item.repoColor);
 
-    var top = el("div", "card-top");
-    top.appendChild(el("h3", null, item.title));
-    top.appendChild(el("span", "repo-name", item.repoName));
-    c.appendChild(top);
+    // Row 1: title.
+    c.appendChild(el("h3", "card-title", item.title));
 
+    // Row 2: repo (colored dot + name) on the left, ⚠ and date on the right.
     var meta = el("div", "card-meta");
+    var repo = el("span", "card-repo");
+    var dot = el("span", "repo-dot");
+    dot.style.background = item.repoColor;
+    repo.appendChild(dot);
+    repo.appendChild(document.createTextNode(item.repoName));
+    meta.appendChild(repo);
     if (sig.length) {
       var warn = el("span", "warn-badge", "⚠");
       warn.title = sig.join("\n");
       meta.appendChild(warn);
     }
-    item.tags.forEach(function (t) { meta.appendChild(el("span", "tagpill", "#" + t)); });
-    if (!item.native) meta.appendChild(el("span", "adapted-badge", "adapted"));
-    if (item.updated) meta.appendChild(el("span", "updated", item.updated));
+    if (item.updated) meta.appendChild(el("span", "card-date", item.updated));
     c.appendChild(meta);
+
+    // Row 3: tags (static badges).
+    if (item.tags.length || !item.native) {
+      var tags = el("div", "card-tags");
+      item.tags.forEach(function (t) { tags.appendChild(el("span", "tagpill", "#" + t)); });
+      if (!item.native) tags.appendChild(el("span", "adapted-badge", "adapted"));
+      c.appendChild(tags);
+    }
 
     c.addEventListener("click", function () { openModal(item); });
     return c;

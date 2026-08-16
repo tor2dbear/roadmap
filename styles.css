@@ -173,8 +173,15 @@ body {
 .card-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .card h3 { margin: 0; font-size: 14.5px; line-height: 1.35; font-weight: 600; }
 .repo-name { font-size: 11px; color: var(--repo, var(--ink-3)); font-weight: 600; white-space: nowrap; }
-.card-meta { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
-.tagpill { font-size: 11px; color: var(--ink-2); background: var(--panel-2); border-radius: 5px; padding: 1px 6px; }
+/* Row 2 — repo (colored dot + name) left, ⚠/date right. */
+.card-meta { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 11.5px; color: var(--ink-3); }
+.card-repo { display: inline-flex; align-items: center; gap: 5px; color: var(--ink-2); font-weight: 600; white-space: nowrap; }
+.repo-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.card-date { margin-left: auto; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* Row 3 — tags. Badges are STATIC (flat, rounded-rect, no border, default cursor);
+   the round bordered pills in the filter bar (.chip) are the CLICKABLE ones. */
+.card-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.tagpill { font-size: 11px; color: var(--ink-3); background: var(--panel-2); border-radius: 5px; padding: 1px 7px; cursor: default; }
 .updated { font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; margin-left: auto; }
 .adapted-badge { font-size: 10px; color: var(--ink-3); border: 1px dashed var(--line); border-radius: 5px; padding: 0 5px; }
 .warn-badge { color: var(--later); font-size: 13px; line-height: 1; cursor: help; flex: none; }
