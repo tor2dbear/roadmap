@@ -433,19 +433,107 @@
     viewBtn.blur(); // drop focus so no ring lingers after the tap
   });
 
+  // ── search + title suggestions ──
   var searchInput = document.getElementById("search");
+  var suggestEl = document.getElementById("searchSuggest");
+  var suggestItems = []; // items currently offered
+  var suggestIndex = -1; // highlighted row (-1 = none)
+
+  // Title matches only (v1): startsWith ranks above a mid-string hit. Suggestions
+  // span all items — clicking jumps to any card, even one the board is hiding.
+  function computeSuggestions(q) {
+    q = q.toLowerCase();
+    if (!q) return [];
+    var starts = [], contains = [];
+    DATA.items.forEach(function (it) {
+      var i = it.title.toLowerCase().indexOf(q);
+      if (i === 0) starts.push(it);
+      else if (i > 0) contains.push(it);
+    });
+    return starts.concat(contains).slice(0, 8);
+  }
+
+  function renderSuggestions() {
+    suggestEl.innerHTML = "";
+    if (!suggestItems.length) {
+      suggestEl.hidden = true;
+      searchInput.setAttribute("aria-expanded", "false");
+      return;
+    }
+    suggestItems.forEach(function (it, idx) {
+      var li = el("li", "suggest-item");
+      li.setAttribute("role", "option");
+      li.setAttribute("aria-selected", idx === suggestIndex ? "true" : "false");
+      var dot = el("span", "suggest-dot");
+      dot.style.background = it.repoColor;
+      li.appendChild(dot);
+      li.appendChild(el("span", "suggest-title", it.title));
+      li.appendChild(el("span", "status-pill status-" + it.status, STATUS_LABEL[it.status] || it.status));
+      // pointerdown (not click): fires before blur and preventDefault keeps the
+      // input focused, so the selection lands instead of the dropdown vanishing.
+      li.addEventListener("pointerdown", function (e) {
+        e.preventDefault();
+        chooseSuggestion(it);
+      });
+      suggestEl.appendChild(li);
+    });
+    suggestEl.hidden = false;
+    searchInput.setAttribute("aria-expanded", "true");
+  }
+
+  function updateSuggestions() {
+    suggestItems = computeSuggestions(state.query);
+    suggestIndex = -1;
+    renderSuggestions();
+  }
+
+  function hideSuggestions() {
+    suggestItems = [];
+    suggestIndex = -1;
+    suggestEl.hidden = true;
+    searchInput.setAttribute("aria-expanded", "false");
+  }
+
+  function chooseSuggestion(it) {
+    hideSuggestions();
+    searchInput.blur();
+    openModal(it);
+  }
+
   searchInput.addEventListener("input", function (e) {
     state.query = e.target.value.trim();
     renderBoard();
+    updateSuggestions();
   });
-  // iOS keeps the keyboard up until something explicitly blurs the field — a tap
-  // on a card or empty space doesn't. Dismiss on Enter and on any tap outside the
-  // input so focus never feels stuck.
+  searchInput.addEventListener("focus", function () {
+    if (state.query) updateSuggestions();
+  });
   searchInput.addEventListener("keydown", function (e) {
-    if (e.key === "Enter") searchInput.blur();
+    var n = suggestItems.length;
+    if (e.key === "ArrowDown" && n) {
+      e.preventDefault();
+      suggestIndex = (suggestIndex + 1) % n;
+      renderSuggestions();
+    } else if (e.key === "ArrowUp" && n) {
+      e.preventDefault();
+      suggestIndex = (suggestIndex - 1 + n) % n;
+      renderSuggestions();
+    } else if (e.key === "Enter") {
+      if (n) { e.preventDefault(); chooseSuggestion(suggestItems[suggestIndex >= 0 ? suggestIndex : 0]); }
+      else searchInput.blur();
+    } else if (e.key === "Escape") {
+      if (n) hideSuggestions();
+      else searchInput.blur();
+    }
   });
+  // iOS keeps the keyboard up until the field is explicitly blurred — a tap on a
+  // card or empty space doesn't. Blur on any tap outside the input (but not on the
+  // dropdown, whose own pointerdown handles the pick).
+  searchInput.addEventListener("blur", hideSuggestions);
   document.addEventListener("touchstart", function (e) {
-    if (document.activeElement === searchInput && e.target !== searchInput) searchInput.blur();
+    if (document.activeElement === searchInput && e.target !== searchInput && !suggestEl.contains(e.target)) {
+      searchInput.blur();
+    }
   }, { passive: true });
   document.getElementById("showDone").addEventListener("change", function (e) {
     state.showDone = e.target.checked;

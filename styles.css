@@ -74,16 +74,56 @@ body {
 .brand h1 { margin: 0; font-size: 22px; letter-spacing: -0.02em; }
 .brand .sub { margin: 2px 0 0; color: var(--ink-2); font-size: 13px; }
 .controls { display: flex; gap: 8px; align-items: center; }
+.search-wrap { position: relative; min-width: 220px; }
 #search {
+  width: 100%;
   background: var(--panel);
   border: 1px solid var(--line);
   color: var(--ink);
   border-radius: 8px;
   padding: 8px 12px;
   font-size: 14px;
-  min-width: 220px;
 }
 #search:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+/* ── search suggestions dropdown ── */
+.suggest {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  max-height: 320px;
+  overflow-y: auto;
+}
+.suggest[hidden] { display: none; }
+.suggest-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.suggest-item[aria-selected="true"] { background: var(--panel-2); }
+@media (hover: hover) { .suggest-item:hover { background: var(--panel-2); } }
+.suggest-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.suggest-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .ghost {
   background: var(--panel);
   border: 1px solid var(--line);
@@ -346,7 +386,9 @@ body.modal-open { overflow: hidden; }
      gets clipped past the edge. 16px min also kills iOS Safari's zoom-on-focus
      (it zooms any input under 16px); desktop keeps the tighter 14px. */
   .controls { flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-end; }
-  #search { min-width: 0; flex: 1 1 100%; font-size: 16px; }
+  .search-wrap { flex: 1 1 100%; min-width: 0; }
+  /* 16px kills iOS Safari's zoom-on-focus (it zooms inputs under 16px). */
+  #search { font-size: 16px; }
 }
 
 .empty { color: var(--ink-3); font-size: 13px; padding: 8px 2px; }

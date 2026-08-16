@@ -1,10 +1,18 @@
 ---
 title: Sökförslag / autocomplete
-status: inbox
+status: done
 tags: [ui]
 updated: 2026-08-16
 order: 50
 ---
+
+## Levererat
+Egen dropdown under sökrutan (alternativ #2): matchande **korttitlar** →
+klick/Enter öppnar kortet direkt. startsWith rankas över mid-sträng, max 8,
+spänner alla kort (även dolda/done) med repo-prick + status-pill. Tangentbord
+↑↓/Enter/Esc, `pointerdown` så valet landar innan blur, stängs vid tapp utanför.
+`computeSuggestions`/`renderSuggestions` i `app.js`, `.suggest` i `styles.css`.
+Inte fuzzy (nästa steg vid behov).
 
 ## Mål
 Förslag medan man skriver i sökrutan. All data ligger redan i webbläsaren, så
