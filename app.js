@@ -22,10 +22,13 @@
     showDone: false,
     attention: false,
     view: "board", // "board" (kanban columns) | "list" (one column, grouped by status)
+    sort: "default", // "default" (order → newest) | "updated-asc" | "title"
   };
   try {
     var savedView = localStorage.getItem("roadmap-view");
     if (savedView === "list" || savedView === "board") state.view = savedView;
+    var savedSort = localStorage.getItem("roadmap-sort");
+    if (savedSort === "default" || savedSort === "updated-asc" || savedSort === "title") state.sort = savedSort;
   } catch (e) {}
 
   // ── auto-status ──
@@ -163,7 +166,12 @@
       warn.title = sig.join("\n");
       meta.appendChild(warn);
     }
-    if (item.updated) meta.appendChild(el("span", "card-date", item.updated));
+    if (item.updated) {
+      var cdate = el("span", "card-date", item.updated);
+      cdate.title = "Senast uppdaterad";
+      cdate.setAttribute("aria-label", "Senast uppdaterad " + item.updated);
+      meta.appendChild(cdate);
+    }
     c.appendChild(meta);
 
     // Row 3: tags (static badges).
@@ -226,7 +234,13 @@
     repo.appendChild(document.createTextNode(item.repoName));
     meta.appendChild(repo);
     meta.appendChild(el("span", "status-pill status-" + item.status, STATUS_LABEL[item.status] || item.status));
-    if (item.updated) meta.appendChild(el("span", "card-date", item.updated));
+    if (item.updated) {
+      // Spelled out here (unlike the compact cards) so the detail view is
+      // unambiguous — this is the last-updated date, not a creation date.
+      var mdate = el("span", "card-date", "Uppdaterad " + item.updated);
+      mdate.title = "Senast uppdaterad";
+      meta.appendChild(mdate);
+    }
     modalContent.appendChild(meta);
 
     // Tags on their own row (static badges).
@@ -281,7 +295,12 @@
       warn.title = sig.join("\n");
       r.appendChild(warn);
     }
-    if (item.updated) r.appendChild(el("span", "list-date", item.updated));
+    if (item.updated) {
+      var ldate = el("span", "list-date", item.updated);
+      ldate.title = "Senast uppdaterad";
+      ldate.setAttribute("aria-label", "Senast uppdaterad " + item.updated);
+      r.appendChild(ldate);
+    }
     r.addEventListener("click", function () { openModal(item); });
     return r;
   }
@@ -321,10 +340,30 @@
     });
   }
 
+  // Client-side sort. "default" mirrors the harvester (manual `order` first, then
+  // freshest `updated`, then title) so the board looks the same until you pick
+  // another mode; the explicit modes drop `order` since the choice is deliberate.
+  function sortComparator() {
+    if (state.sort === "updated-asc") {
+      return function (a, b) {
+        return (a.updated || "").localeCompare(b.updated || "") || a.title.localeCompare(b.title);
+      };
+    }
+    if (state.sort === "title") {
+      return function (a, b) { return a.title.localeCompare(b.title); };
+    }
+    return function (a, b) {
+      var ao = a.order == null ? Infinity : a.order;
+      var bo = b.order == null ? Infinity : b.order;
+      if (ao !== bo) return ao - bo;
+      return (b.updated || "").localeCompare(a.updated || "") || a.title.localeCompare(b.title);
+    };
+  }
+
   function renderBoard() {
     board.innerHTML = "";
     board.classList.toggle("as-list", state.view === "list");
-    var visible = DATA.items.filter(matches);
+    var visible = DATA.items.filter(matches).sort(sortComparator());
     var statuses = DATA.statuses.filter(function (s) {
       return s !== "done" || state.showDone || state.attention;
     });
@@ -431,6 +470,15 @@
     updateViewButton();
     renderBoard();
     viewBtn.blur(); // drop focus so no ring lingers after the tap
+  });
+
+  // ── sort (in the filter panel, remembered) ──
+  var sortSelect = document.getElementById("sortSelect");
+  sortSelect.value = state.sort;
+  sortSelect.addEventListener("change", function () {
+    state.sort = sortSelect.value;
+    try { localStorage.setItem("roadmap-sort", state.sort); } catch (e) {}
+    renderBoard();
   });
 
   // ── search + title suggestions ──

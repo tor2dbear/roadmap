@@ -40,6 +40,14 @@
 
     <nav class="filters" id="filters" aria-label="Filters">
       <div class="filter-chips" id="filterChips" hidden>
+        <div class="filter-sort">
+          <label for="sortSelect">Sortera</label>
+          <select id="sortSelect">
+            <option value="default">Senast uppdaterad</option>
+            <option value="updated-asc">Äldst först</option>
+            <option value="title">Titel A–Ö</option>
+          </select>
+        </div>
         <div class="filter-group" id="repoFilters" aria-label="Repositories"></div>
         <div class="filter-group" id="tagFilters" aria-label="Tags"></div>
       </div>
