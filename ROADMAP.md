@@ -4,11 +4,11 @@
      hand: your changes will be overwritten on the next sync. Edit the roadmap in
      the source repo instead. -->
 
-_Generated 2026-08-16 · 112 items across 6 repos._
+_Generated 2026-08-16 · 116 items across 6 repos._
 
 ## Sources
 
-- **[Roadmap](https://github.com/tor2dbear/roadmap)** — 13 items, native pucks. This board's own backlog — the aggregator tracking itself.
+- **[Roadmap](https://github.com/tor2dbear/roadmap)** — 17 items, native pucks. This board's own backlog — the aggregator tracking itself.
 - **[PIA](https://github.com/tor2dbear/pia-terminal)** — 51 items, native pucks. Personal Integrated Applications — a Unix-flavoured terminal in the browser.
 - **[Cadence](https://github.com/tor2dbear/cadence)** — 10 items, native pucks. A motion *system* designer — tokens for timing & easing, not another easing toy.
 - **[Méta-Matic](https://github.com/tor2dbear/meta-matic)** — 18 items, native pucks. A digital drawing machine after Jean Tinguely — infinite works, never anything new.
@@ -24,14 +24,16 @@ _Generated 2026-08-16 · 112 items across 6 repos._
 - **brew install: ärlig installationsceremoni** — PIA · #packages #system · 2026-08-08  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/brew-install-progress.md
 
-## Next (6)
+## Next (7)
 
+- **Fungera utanför mina egna repon** — Roadmap · #product · 2026-08-16  
+  https://github.com/tor2dbear/roadmap/blob/main/roadmap/portability-for-others.md
 - **Lazy email verification (gate claim, not signup)** — PIA · #auth #share · 2026-08-08  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/email-verification-lazy.md
+- **Agent-kontrakt (+ ev. MCP)** — Roadmap · #product #ai · 2026-08-16  
+  https://github.com/tor2dbear/roadmap/blob/main/roadmap/agent-native-contract.md
 - **Custom probes: bring your own markup** — Cadence · #bench · 2026-08-15  
   https://github.com/tor2dbear/cadence/blob/main/roadmap/bring-your-own-markup.md
-- **Migrera Cadence till native pucks** — Roadmap · #sources · 2026-08-15  
-  https://github.com/tor2dbear/roadmap/blob/main/roadmap/cadence-to-native-pucks.md
 - **Parallel sandbox/staging environment for the print shop** — Méta-Matic · #devops #print · 2026-08-13  
   https://github.com/tor2dbear/meta-matic/blob/main/roadmap/sandbox-staging.md
 - **Seller notification on new print order** — Méta-Matic · #commerce #ops · 2026-08-13  
@@ -39,14 +41,18 @@ _Generated 2026-08-16 · 112 items across 6 repos._
 - **Roller på delade filer (owner/editor/viewer)** — PIA · #collab #permissions #supabase · 2026-08-08  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/shared-file-roles.md
 
-## Later (14)
+## Later (16)
 
 - **Opinion-lagret som tjänst (Worker + MCP)** — Cadence · #backend · 2026-08-15  
   https://github.com/tor2dbear/cadence/blob/main/roadmap/opinion-layer-service.md
 - **Security-header-härdning** — Cadence · #backend #config · 2026-08-15  
   https://github.com/tor2dbear/cadence/blob/main/roadmap/security-headers.md
+- **Sluta committa genererad data + slå ihop skörd/deploy** — Roadmap · #ops #dx · 2026-08-16  
+  https://github.com/tor2dbear/roadmap/blob/main/roadmap/deploy-simplification.md
 - **Redigera pucks direkt i GUI:t** — Roadmap · #ui #api #editing · 2026-08-16  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/gui-editing.md
+- **Beroenden mellan pucks (blocked-by)** — Roadmap · #core #product #ai · 2026-08-16  
+  https://github.com/tor2dbear/roadmap/blob/main/roadmap/puck-dependencies.md
 - **Breakpoints-uppdatering** — tor-bjorn.com · #css #layout · 2026-08-16  
   https://github.com/tor2dbear/portfolio/blob/master/roadmap/breakpoints-update.md
 - **Färgtoken-omstrukturering** — tor-bjorn.com · #css #tokens · 2026-08-16  
@@ -72,8 +78,8 @@ _Generated 2026-08-16 · 112 items across 6 repos._
 
 ## Inbox (9)
 
-- **Fungera utanför mina egna repon** — Roadmap · #product · 2026-08-15  
-  https://github.com/tor2dbear/roadmap/blob/main/roadmap/portability-for-others.md
+- **Tunn collaboration via GitHub-primitiver** — Roadmap · #product · 2026-08-16  
+  https://github.com/tor2dbear/roadmap/blob/main/roadmap/collaboration-via-github.md
 - **Per-branch deploy previews (Netlify?)** — Cadence · #backend · 2026-08-15  
   https://github.com/tor2dbear/cadence/blob/main/roadmap/deploy-previews.md
 - **mount — privata filer från egen server** — PIA · #storage #vfs · 2026-08-12  
@@ -91,7 +97,7 @@ _Generated 2026-08-16 · 112 items across 6 repos._
 - **Paket-roadmap — brew-appar som passar PIA** — PIA · #packages #overview · 2026-07-18  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/package-ideas.md
 
-## Done (80)
+## Done (81)
 
 - **Linjera med fleet-konventionen (Cloudflare + roadmap.tor2dbear.com)** — Roadmap · #hosting #ops · 2026-08-15  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/align-with-fleet-cloudflare.md
@@ -109,6 +115,8 @@ _Generated 2026-08-16 · 112 items across 6 repos._
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/nano-multibuffer.md
 - **grep: context-flaggor -A/-B/-C** — PIA · #text #commands · 2026-07-17  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/grep-context.md
+- **Migrera Cadence till native pucks** — Roadmap · #sources · 2026-08-16  
+  https://github.com/tor2dbear/roadmap/blob/main/roadmap/cadence-to-native-pucks.md
 - **Startsida-ombyggnad (Fas 5)** — tor-bjorn.com · #design · 2026-08-16  
   https://github.com/tor2dbear/portfolio/blob/master/roadmap/homepage-rebuild.md
 - **Redigerbar ladder** — Cadence · #tokens · 2026-08-15  

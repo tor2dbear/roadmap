@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-16T11:01:38.086Z",
+  "generatedAt": "2026-08-16T11:35:28.006Z",
   "statuses": [
     "now",
     "next",
@@ -9,12 +9,12 @@
   ],
   "counts": {
     "now": 3,
-    "next": 6,
-    "later": 14,
+    "next": 7,
+    "later": 16,
     "inbox": 9,
-    "done": 80
+    "done": 81
   },
-  "total": 112,
+  "total": 116,
   "sources": [
     {
       "repo": "tor2dbear/roadmap",
@@ -24,7 +24,7 @@
       "url": "https://github.com/tor2dbear/roadmap",
       "adapter": "pucks",
       "backend": "fs",
-      "count": 13,
+      "count": 17,
       "native": true,
       "error": null
     },
@@ -91,6 +91,29 @@
   ],
   "items": [
     {
+      "id": "roadmap/portability-for-others",
+      "repo": "tor2dbear/roadmap",
+      "repoName": "Roadmap",
+      "repoColor": "#94a3b8",
+      "issueState": null,
+      "slug": "portability-for-others",
+      "title": "Fungera utanför mina egna repon",
+      "status": "next",
+      "tags": [
+        "product"
+      ],
+      "updated": "2026-08-16",
+      "created": "2026-08-15",
+      "issue": null,
+      "order": 5,
+      "body": "## Mål\nGöra det trivialt för någon annan att peka verktyget på *sina* repon och få ett\nbräde — utan att handpyssla kod. Nordstjärnan för \"utanför bubblan\": det som gör\ndet från personligt verktyg till något andra kan använda.\n\n## Första snittet (MVP)\n- **Config-drivet:** allt repo-/färg-/namn-specifikt bort ur koden och in i\n  `sources.json` (redan mestadels där) + en liten `board.config.json` för titel,\n  domän och tema. Inga hårdkodade \"tor2dbear\"-antaganden kvar.\n- **Deploya-dina-egna:** kort guide (fork → redigera `sources.json` → koppla\n  Cloudflare → klar på ~10 min). Ev. ett `template`-repo att \"Use this template\" på.\n- **Privata repon:** dokumentera `GITHUB_TOKEN`-vägen (finns i backenden redan);\n  funkar för publika och privata utan kodändring.\n\n## Utanför MVP\nHostad multi-tenant-tjänst, konton, \"lägg till repo\"-GUI. Det vore en annan produkt\n(och en backend = risk mot USP:n). Håll det som \"kör din egen\".\n\n## Varför först\nLägst risk, ren USP-expansion (fler kör den git-nativa modellen), och breddar basen\ninnan skriv-vägen (GUI) läggs ovanpå.",
+      "sourcePath": "roadmap/portability-for-others.md",
+      "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/portability-for-others.md",
+      "adapter": "pucks",
+      "native": true,
+      "signals": []
+    },
+    {
       "id": "roadmap/align-with-fleet-cloudflare",
       "repo": "tor2dbear/roadmap",
       "repoName": "Roadmap",
@@ -134,6 +157,30 @@
       "body": "## Mål\nBehåll den friktionsfria terminal-signup:en (`useradd` loggar in direkt, inget\nmejlhopp) **och** stäng invite-kapningshålet: en delning adresserad till en\ne-post ska bara kunna accepteras av någon som bevisligen kontrollerar den\ninkorgen. Vi verifierar **lat** — exakt när det först spelar roll (att claima en\ndelning), aldrig i förväg.\n\n## Bakgrund / varför\nSupabase-projektet har **\"Confirm email\" AV** (medvetet — se\n`shared-file-roles.md` och signup-UX:en). Effekten: `signUp` ger session direkt\noch `email_confirmed_at` sätts alltid → adressen är i praktiken **overifierad**.\nHela delningsmodellen litar dock på just e-posten:\n\n```sql\n-- claim_invites():\nv_email := lower(auth.jwt() ->> 'email');\n-- ... gör om alla shared_list_invites med den e-posten till medlemskap\n```\n\nHål: registrerar någon `victim@x` (utan att äga adressen) och en ägare kör\n`todo share lista victim@x`, så claimar spoofaren delningen vid nästa boot.\n\n**Nyckelinsikt:** verifiering behöver *inte* gate:a inloggning eller personligt\nbruk — bara **claim** (och ev. att bjuda in). Därför kan friktionsfriheten vara\nkvar överallt annars. Supabases inbyggda confirm förblir **AV** (den skulle\nblockera sessionen igen); vi lägger ett eget, lat lager ovanpå.\n\n## Hur det funkar\n\n### Signup — oförändrat\n`useradd piaowner … pw` → konto skapat, inloggad direkt. Enda tillägget en dim\nrad:\n```\naccount created — logged in as piaowner\ntip: run `verify` to confirm your email (needed to accept lists shared with you)\n```\n\n### Invite — två fall\n- **A. Inbjuden klickar den brandade länken (tänkta flödet):** oförändrat.\n  Länksessionen bevisar inkontroll → markeras **auto-verifierad** vid boot →\n  inviten auto-claimas → listan dyker upp. Noll extra steg.\n- **B. Har redan ett lösenordskonto på adressen, klickade aldrig länken:** vid\n  `shared`/reload ser de nudgen istället för tyst claim:\n  ```\n  1 list was shared with pia-viewer-durable@… — run `verify` to accept it\n  ```\n  `verify` → brandad engångskod → `verify <kod>` bevisar inkontroll → nästa\n  claim går igenom. Den lilla friktionen **är** säkerhetsgränsen, och drabbar\n  bara den som inte kom via länken.\n\n## Implementation\n\n### 1. Supabase-migration (`supabase/email_verification.sql`)\nServer-betrodd flagga som användaren **inte** kan sätta själv (därför inte\n`user_metadata`, som är användar-skrivbar):\n\n```sql\ncreate table if not exists public.email_verifications (\n  user_id     uuid primary key references auth.users(id) on delete cascade,\n  verified_at timestamptz not null default now()\n);\nalter table public.email_verifications enable row level security;\n-- Läs egen rad (klienten visar verifierad-status). Ingen write-policy = inga\n-- direkta skrivningar; bara definer-funktionen nedan skriver.\ncreate policy \"read own verification\" on public.email_verifications\n  for select using (user_id = auth.uid());\n\n-- Bevis = NUVARANDE session föddes ur ett mejlat länk/kod (amr), inte bara\n-- lösenord. amr-form bekräftad mot en riktig JWT:\n--   [{\"method\":\"password\",\"timestamp\":1786172313}]\n-- OTP/magic-link-sessioner bär method 'otp' (äldre builds: 'magiclink') — vi\n-- accepterar en mängd för att inte vara sköra på exakt sträng.\ncreate or replace function public.confirm_email_control()\nreturns void language plpgsql security definer set search_path = '' as $$\nbegin\n  if auth.uid() is null then raise exception 'not authenticated'; end if;\n  if not exists (\n    select 1 from jsonb_array_elements(coalesce(auth.jwt() -> 'amr', '[]'::jsonb)) e\n    where e ->> 'method' in ('otp','magiclink','email','email_otp')\n  ) then\n    raise exception 'email control not proven — sign in via the emailed link/code';\n  end if;\n  insert into public.email_verifications (user_id)\n    values (auth.uid()) on conflict (user_id) do nothing;\nend $$;\nrevoke execute on function public.confirm_email_control() from public, anon;\ngrant execute on function public.confirm_email_control() to authenticated;\n\n-- Grandfathera befintliga konton så de inte plötsligt låses ute från claim.\ninsert into public.email_verifications (user_id)\n  select id from auth.users on conflict (user_id) do nothing;\n```\n\nOch **en enda guard** överst i `claim_invites()` (resten av kroppen orörd):\n```sql\n  if v_uid is null or v_email is null then return 0; end if;\n  -- NY: overifierad e-post claimar ingenting (delnings-trust-roten).\n  if not exists (select 1 from public.email_verifications where user_id = v_uid)\n  then return 0; end if;\n```\n\n### 2. Auth-adapter (`src/supabase/auth.ts`)\n- `register()` fortsätter returnera session (confirm av).\n- `sendEmailCheck()` → `signInWithOtp({ email, options:{ shouldCreateUser:false }})`\n  (brandad kod, samma SMTP som invite).\n- `submitEmailCheck(code)` → `verifyOtp({ email, token:code, type:'email' })`\n  → sen `rpc('confirm_email_control')`.\n- `isEmailVerified()` → `select` mot `email_verifications`.\n- Vid boot efter en OTP-landning: best-effort `confirm_email_control()`\n  **före** `claim` (auto-verifierar fall A).\n\n### 3. Kommando (`src/commands/auth.ts`)\nNytt `verify` (alias `confirm`): `verify` skickar kod, `verify <kod>` löser in →\n\"email verified ✓\". `useradd`-hinten ovan. **Idiom-not:** `verify` saknar\nUnix-motsvarighet — accepterad web-auth-divergens, samma familj som\nemail+password+bekräftelse-flödet. Flagga i `CLAUDE.md`.\n\n### 4. Boot (`src/main.ts`)\nI claim-blocket: kör `confirm_email_control()` först (fångar länk-landningar);\nfinns pending invites för min e-post men jag är overifierad → skriv nudgen\nistället för tyst claim.\n\n### 5. UI-bonus\nVisa verifierad-status i `whoami` och `todo members` (gör medlemslistan mer\ntrovärdig).\n\n## Risker / avvägningar\n- **Fler rörliga delar** (tabell + RLS + 2 definer-funktioner + kommando + boot +\n  tester + tour) mot dagens \"av, klart\".\n- **`amr`-beroendet.** Vi litar på GoTrues amr-claim. Struktur + `password`-label\n  bekräftade live; **exakt OTP-sträng kvar att pinna mot en riktig OTP-JWT**\n  (blockerades i testsessionen av AgentMail-approval). Whitelist-mängden mildrar,\n  men kör en gång: `signInWithOtp` → `verifyOtp` → dumpa `jwt.amr`.\n  *Alternativ som slipper amr helt:* per-invite-token (slumptoken i invite-raden\n  + i länken, claim kräver token) — men mer plumbing i mejl/redirect och täcker\n  bara invite-hålet, inte en återanvändbar verifierad-status.\n- **Ett extra steg för lösenordskonto-som-bjuds-in** (oftast osynligt — de kommer\n  via länken ändå).\n- **Mejlleverans blir bärande för en säkerhetsväg** (SMTP-avbrott = kan inte\n  verifiera = kan inte claima). Custom SMTP testad OK.\n- **Grandfathering får inte glömmas** (backfill-raden).\n- **Två \"confirmed\"-sanningar**: Supabases `email_confirmed_at` (alltid satt,\n  meningslös här) vs vår `email_verifications`. Dokumenteras.\n\n## Vad vi vinner / missar\n**Vinner:** stänger spoof-/invite-kapningshålet där det spelar roll; friktionsfri\nsignup + solo-bruk 100 % kvar; lat verifiering; primära invite-vägen känns\noförändrad; en riktig verifierad-status att visa. **Missar (medvetet):** inte\n\"verifierad vid signup\" — ett konto kan köra med en adress det inte äger, det kan\nbara inte *ta emot delningar* dit. Vill man blockera själva registreringen krävs\nconfirm-vid-signup (det hårda stoppet vi undviker). Roller/read-only berörs inte\n(sitter på `user_id` + RLS, redan solida) — scope hålls smalt.\n\n## Öppna frågor\n- Ska `invite_to_list` kräva att **avsändaren** är verifierad? (v1: nej — delning\n  gate:as redan av list-ägarskap; verifiering gate:ar mottagarsidan/claim.)\n- `verify` via **kod** (`verify 483920`, stannar i prompten — mest terminal-nativt)\n  vs **länk** (klick lämnar terminalen men auto-verifierar). Luta åt kod.\n- Pinna exakt `amr`-method-sträng för OTP mot v2.195 GoTrue innan release.\n- Ev. utgångstid på verifiering (om man vill kunna av-verifiera vid e-postbyte).",
       "sourcePath": "roadmap/email-verification-lazy.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/email-verification-lazy.md",
+      "adapter": "pucks",
+      "native": true,
+      "signals": []
+    },
+    {
+      "id": "roadmap/agent-native-contract",
+      "repo": "tor2dbear/roadmap",
+      "repoName": "Roadmap",
+      "repoColor": "#94a3b8",
+      "issueState": null,
+      "slug": "agent-native-contract",
+      "title": "Agent-kontrakt (+ ev. MCP)",
+      "status": "next",
+      "tags": [
+        "product",
+        "ai"
+      ],
+      "updated": "2026-08-16",
+      "created": "2026-08-16",
+      "issue": null,
+      "order": 8,
+      "body": "## Mål\nGöra roadmapen till något en AI-agent opererar *nativt* — läser för att veta vad\nsom ska göras, skriver för att markera klart — utan API-nycklar eller\ntredjepartsintegration. Moaten: det Linear/Projects inte kan kopiera utan att\növerge sin egen modell.\n\n## Vad som redan finns\n`data/roadmap.json` (maskinläsbart, med `signals[]` för drift), per-puck markdown,\noch `roadmap`-CLI:t som en agent kan anropa direkt i repot. Grunden finns — det\nsom saknas är *paketering* och *upptäckbarhet*.\n\n## Snitt\n- **Dokumenterat agent-kontrakt:** en kort, stabil spec (\"så här läser/skriver en\n  agent roadmapen\") i repot. Delvis i CLAUDE.md/CONVENTION.md idag — lyft till ett\n  tydligt kontrakt en främmande agent kan följa.\n- **MCP-server (ev.):** en liten MCP som exponerar `list / read / update puck`, så\n  agenter i andra verktyg (inte bara i repo-checkouten) kan operera roadmapen.\n  Skriver via samma git-väg — ingen andra sanning.\n- **Läsbarhet:** säkerställ att `roadmap.json` + `signals[]` räcker för att resonera\n  om drift och prio utan att gissa.\n\n## Princip\nSkriv alltid tillbaka till git/markdown. Kontraktet/MCP:n är en penna, inte ett lager.\n\n## Varför tidigt\nLåg insats (datan är redan läsbar — mest paketering) men hög differentiering. Billig\natt claima, och det är det som faktiskt är unikt.",
+      "sourcePath": "roadmap/agent-native-contract.md",
+      "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/agent-native-contract.md",
       "adapter": "pucks",
       "native": true,
       "signals": []
@@ -349,6 +396,52 @@
       "signals": []
     },
     {
+      "id": "roadmap/collaboration-via-github",
+      "repo": "tor2dbear/roadmap",
+      "repoName": "Roadmap",
+      "repoColor": "#94a3b8",
+      "issueState": null,
+      "slug": "collaboration-via-github",
+      "title": "Tunn collaboration via GitHub-primitiver",
+      "status": "inbox",
+      "tags": [
+        "product"
+      ],
+      "updated": "2026-08-16",
+      "created": "2026-08-16",
+      "issue": null,
+      "order": 12,
+      "body": "## Mål\nPrecis så mycket samarbete som behövs — utan att bygga ett kommentars-/notis-system\n(det vore en sämre Linear och en andra sanning).\n\n## Snitt\n- **Diskussion = den länkade issuen.** Pucken pekar redan på `issue:`; luta på\n  GitHubs kommentarer/notiser istället för egna.\n- **Ägare:** ett `owner:`-fält i frontmatter (GitHub-handle), renderas som\n  namn/avatar på kortet. Ren markdown, ingen databas.\n- **Behörighet:** git/GitHub styr redan vem som får skriva (PR-review, branch\n  protection). Skrivning = commit.\n\n## Utanför scope (medvetet avstått — Linears mark)\nRealtids-samredigering, push-notiser, aktivitetsflöde.",
+      "sourcePath": "roadmap/collaboration-via-github.md",
+      "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/collaboration-via-github.md",
+      "adapter": "pucks",
+      "native": true,
+      "signals": []
+    },
+    {
+      "id": "roadmap/cadence-to-native-pucks",
+      "repo": "tor2dbear/roadmap",
+      "repoName": "Roadmap",
+      "repoColor": "#94a3b8",
+      "issueState": null,
+      "slug": "cadence-to-native-pucks",
+      "title": "Migrera Cadence till native pucks",
+      "status": "done",
+      "tags": [
+        "sources"
+      ],
+      "updated": "2026-08-16",
+      "created": "2026-08-15",
+      "issue": null,
+      "order": 20,
+      "body": "## Mål\nSista \"adapted\"-källan → native. Cadence lästes tidigare ur en checklista i `NOTES.md`.\n\n## Levererat\nCadence har en native `roadmap/` och dess rad i `sources.json` är `adapter: pucks`.\nAlla sex källor är nu native — inga adaptrar kvar. (Pucken låg kvar som `next` efter\nmigreringen; städad till `done`.)",
+      "sourcePath": "roadmap/cadence-to-native-pucks.md",
+      "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/cadence-to-native-pucks.md",
+      "adapter": "pucks",
+      "native": true,
+      "signals": []
+    },
+    {
       "id": "portfolio/homepage-rebuild",
       "repo": "tor2dbear/portfolio",
       "repoName": "tor-bjorn.com",
@@ -367,29 +460,6 @@
       "body": "## Mål\nBygga om startsidan som huvudsaklig innehållspunkt enligt redesign-planen.\n\n## Levererat\nFas 5 klar — startsidan ombyggd. Detaljer i `REDESIGN_PLAN.md` (Fas 5).",
       "sourcePath": "roadmap/homepage-rebuild.md",
       "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/homepage-rebuild.md",
-      "adapter": "pucks",
-      "native": true,
-      "signals": []
-    },
-    {
-      "id": "roadmap/cadence-to-native-pucks",
-      "repo": "tor2dbear/roadmap",
-      "repoName": "Roadmap",
-      "repoColor": "#94a3b8",
-      "issueState": null,
-      "slug": "cadence-to-native-pucks",
-      "title": "Migrera Cadence till native pucks",
-      "status": "next",
-      "tags": [
-        "sources"
-      ],
-      "updated": "2026-08-15",
-      "created": "2026-08-15",
-      "issue": null,
-      "order": 20,
-      "body": "## Mål\nSista \"adapted\"-källan → native. Cadence läses idag ur en checklista i `NOTES.md`.\n\n## Research\nSkapa `roadmap/` i cadence med `roadmap new`, mappa `✅`→`done`, öppna→`later/next`,\nbyt dess rad i `sources.json` till `pucks`. Korten flippar från adapted → native\nautomatiskt vid nästa skörd.",
-      "sourcePath": "roadmap/cadence-to-native-pucks.md",
-      "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/cadence-to-native-pucks.md",
       "adapter": "pucks",
       "native": true,
       "signals": []
@@ -465,6 +535,30 @@
       "signals": []
     },
     {
+      "id": "roadmap/deploy-simplification",
+      "repo": "tor2dbear/roadmap",
+      "repoName": "Roadmap",
+      "repoColor": "#94a3b8",
+      "issueState": null,
+      "slug": "deploy-simplification",
+      "title": "Sluta committa genererad data + slå ihop skörd/deploy",
+      "status": "later",
+      "tags": [
+        "ops",
+        "dx"
+      ],
+      "updated": "2026-08-16",
+      "created": "2026-08-16",
+      "issue": null,
+      "order": 28,
+      "body": "## Mål\nTa bort ett par lager komplexitet: idag committas `data/*` + `ROADMAP.md` tillbaka\ntill repot av synken, med idempotens-logik för att inte spamma historiken. Slås\nskörd + deploy ihop till ett steg (`wrangler deploy` med färsk data byggd i CI)\nförsvinner flera saker på en gång — inga genererade filer i git, ingen idempotens,\ningen data-commit (och därmed inga `[skip ci]`-fällor).\n\n## Skiss\n- CI: skörda → `wrangler deploy` direkt (data byggs vid deploy, checkas aldrig in).\n- Kräver `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` som GitHub-secrets, och\n  att Workerns Git-build kopplas bort (annars dubbla deploys).\n\n## Avvägning\n`data/roadmap.json` i repot är bekvämt för människor/agenter att greppa. Om den\ninte längre committas: agenter kan läsa den **deployade** `roadmap.json`-URL:en, och\nden *primära* sanningen är ändå per-puck-markdown i källrepona (inte aggregatet).\nSå förlusten är liten — men värd att vara medveten om (kopplar till agent-kontraktet).\n\n## Beroende\nEnablar GUI-skriv-vägen (tavlan blir en app med en `api/`-Worker). Kräver två\nmanuella steg av mig (secrets + koppla bort Git-build), därför `later` tills de görs.",
+      "sourcePath": "roadmap/deploy-simplification.md",
+      "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/deploy-simplification.md",
+      "adapter": "pucks",
+      "native": true,
+      "signals": []
+    },
+    {
       "id": "roadmap/gui-editing",
       "repo": "tor2dbear/roadmap",
       "repoName": "Roadmap",
@@ -508,6 +602,31 @@
       "body": "## Mål\nDela ett helt token-system genom en länk.\n\n## Levererat\nHela token-uppsättningen kodas i URL:en → systemet är delbart och återskapas från länken.",
       "sourcePath": "roadmap/shareable-url-state.md",
       "sourceUrl": "https://github.com/tor2dbear/cadence/blob/main/roadmap/shareable-url-state.md",
+      "adapter": "pucks",
+      "native": true,
+      "signals": []
+    },
+    {
+      "id": "roadmap/puck-dependencies",
+      "repo": "tor2dbear/roadmap",
+      "repoName": "Roadmap",
+      "repoColor": "#94a3b8",
+      "issueState": null,
+      "slug": "puck-dependencies",
+      "title": "Beroenden mellan pucks (blocked-by)",
+      "status": "later",
+      "tags": [
+        "core",
+        "product",
+        "ai"
+      ],
+      "updated": "2026-08-16",
+      "created": "2026-08-16",
+      "issue": null,
+      "order": 36,
+      "body": "## Mål\nGöra beroenden maskinläsbara istället för fri prosa. När strategin specades blev\ndet tydligt: flera pucks *enablar/blockerar* varandra (deploy-förenkling → GUI,\nportabilitet → GUI), men det syns bara i brödtexten. Verktyget kan inte visa\n\"blockerad\", sekvensera efter beroende, eller svara på *\"vad är redo att ta nu\"*.\n\n## Snitt\n- **`depends: [slug, …]`** i frontmatter — pucks den är blockerad av (samma repo\n  som MVP; cross-repo via fullt id senare). Ren markdown, ingen andra sanning.\n- **Beräknat i harvestern:** en puck är *blockerad* om något beroende inte är\n  `done`. Läggs som en signal (`blocked`) — exakt samma mönster som auto-status\n  och `signals[]`, så payloaden ändras bara när det flippar (idempotens håller).\n- **Tavlan:** \"⛔ blockerad av X\"-badge; ev. filter \"visa bara redo/oblockerade\".\n- **Agent-nytta:** \"redo att ta\" = now/next som *inte* är blockerade. Kompletterar\n  agent-kontraktet direkt — en agent ser vad den kan börja på utan att gissa.\n\n## Passar USP:n\nFält i markdown + beräkning i harvestern, inget nytt lager. Stärker agent-vinkeln.\n\n## Avgränsning (medvetet EJ)\n- Ingen separat prio-nivå (P0/P1) — `status` + `order` uttrycker prio; severity-\n  nivåer drar mot PM-tool-bloat (cede-listan).\n- Ingen \"refinement\"-status — `inbox → later/next`-livscykeln täcker det redan.",
+      "sourcePath": "roadmap/puck-dependencies.md",
+      "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/puck-dependencies.md",
       "adapter": "pucks",
       "native": true,
       "signals": []
@@ -996,29 +1115,6 @@
       "body": "## Mål\nHindra att `done` växer sig plottrig över tid utan att radera historik.\n\n## Research\nBehåll filerna (konventionen säger radera aldrig), men fäll ihop/dölj `done` äldre\nän N dagar i vyn, med en \"visa arkiv\"-knapp. Rent UI-jobb i `app.js`.",
       "sourcePath": "roadmap/archive-done-column.md",
       "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/archive-done-column.md",
-      "adapter": "pucks",
-      "native": true,
-      "signals": []
-    },
-    {
-      "id": "roadmap/portability-for-others",
-      "repo": "tor2dbear/roadmap",
-      "repoName": "Roadmap",
-      "repoColor": "#94a3b8",
-      "issueState": null,
-      "slug": "portability-for-others",
-      "title": "Fungera utanför mina egna repon",
-      "status": "inbox",
-      "tags": [
-        "product"
-      ],
-      "updated": "2026-08-15",
-      "created": "2026-08-15",
-      "issue": null,
-      "order": null,
-      "body": "## Mål\nOm verktyget ska visas/delas: göra det användbart för andra, inte bara min setup.\n\n## Research\n- Stöd för privata repon / token per användare.\n- Enkel installation utan att handredigera `sources.json`.\n- Konventionen paketerad som en standard/produkt.\nTa först när det bevisat sig för mig själv.",
-      "sourcePath": "roadmap/portability-for-others.md",
-      "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/portability-for-others.md",
       "adapter": "pucks",
       "native": true,
       "signals": []
