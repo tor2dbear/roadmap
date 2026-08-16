@@ -1,10 +1,19 @@
 ---
 title: Sluta committa genererad data + slå ihop skörd/deploy
-status: later
+status: done
 tags: [ops, dx]
 updated: 2026-08-16
 order: 28
 ---
+
+## Levererat
+`sync.yml` gör nu allt i **ett jobb**: skördar färsk `data/` i CI och deployar
+direkt med `wrangler deploy`. Ingen data-commit, ingen idempotens-dans i git,
+inga `[skip ci]`-fällor. Kräver secrets `CLOUDFLARE_API_TOKEN` +
+`CLOUDFLARE_ACCOUNT_ID` (satta) och att Workerns Git-build är bortkopplad (gjort).
+Idempotens-logiken i `harvest.mjs` lever kvar men är nu bara en optimering:
+oförändrat innehåll → samma `generatedAt` → `wrangler` hoppar över uppladdning.
+Enablar nu **gui-editing** (ingen blockering kvar).
 
 ## Mål
 Ta bort ett par lager komplexitet: idag committas `data/*` + `ROADMAP.md` tillbaka
