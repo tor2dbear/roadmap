@@ -210,19 +210,27 @@
     modalContent.innerHTML = "";
     modalPanel.style.setProperty("--repo", item.repoColor);
 
-    var head = el("div", "modal-head");
-    head.appendChild(el("h2", "modal-title", item.title));
-    var repo = el("span", "repo-name", item.repoName);
-    repo.style.setProperty("--repo", item.repoColor);
-    head.appendChild(repo);
-    modalContent.appendChild(head);
+    modalContent.appendChild(el("h2", "modal-title", item.title));
 
+    // Meta row: repo (dot + name) + status pill on the left, date on the right.
     var meta = el("div", "modal-meta");
+    var repo = el("span", "card-repo");
+    var dot = el("span", "repo-dot");
+    dot.style.background = item.repoColor;
+    repo.appendChild(dot);
+    repo.appendChild(document.createTextNode(item.repoName));
+    meta.appendChild(repo);
     meta.appendChild(el("span", "status-pill status-" + item.status, STATUS_LABEL[item.status] || item.status));
-    item.tags.forEach(function (t) { meta.appendChild(el("span", "tagpill", "#" + t)); });
-    if (!item.native) meta.appendChild(el("span", "adapted-badge", "adapted"));
-    if (item.updated) meta.appendChild(el("span", "updated", item.updated));
+    if (item.updated) meta.appendChild(el("span", "card-date", item.updated));
     modalContent.appendChild(meta);
+
+    // Tags on their own row (static badges).
+    if (item.tags.length || !item.native) {
+      var tags = el("div", "card-tags");
+      item.tags.forEach(function (t) { tags.appendChild(el("span", "tagpill", "#" + t)); });
+      if (!item.native) tags.appendChild(el("span", "adapted-badge", "adapted"));
+      modalContent.appendChild(tags);
+    }
 
     var sig = signalMessages(item);
     if (sig.length) {

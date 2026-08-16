@@ -241,26 +241,33 @@ body {
   overflow: hidden;
   border-left: 3px solid var(--repo, var(--line));
 }
+/* Absolute inside .modal (not .modal-content) so it stays put while the body
+   scrolls. Round and generously sized so it reads as a real button, not a
+   cramped glyph. */
 .modal-close {
   position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 32px;
-  height: 32px;
+  top: 14px;
+  right: 16px;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: var(--panel-2);
   border: 1px solid var(--line);
   color: var(--ink-2);
-  border-radius: 8px;
-  font-size: 15px;
+  border-radius: 50%;
+  font-size: 17px;
   line-height: 1;
   cursor: pointer;
   z-index: 1;
 }
 .modal-close:hover { color: var(--ink); border-color: var(--accent); }
-.modal-content { overflow-y: auto; padding: 20px 22px; -webkit-overflow-scrolling: touch; }
-.modal-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-right: 34px; }
-.modal-title { margin: 0; font-size: 18px; line-height: 1.3; letter-spacing: -0.01em; }
-.modal-meta { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+.modal-content { overflow-y: auto; padding: 22px; -webkit-overflow-scrolling: touch; }
+/* Title reserves room on the right so long titles don't run under the ✕. */
+.modal-title { margin: 0; padding-right: 40px; font-size: 18px; line-height: 1.3; letter-spacing: -0.01em; }
+/* Meta row mirrors the card: repo + status on the left, date pushed right. */
+.modal-meta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; font-size: 11.5px; color: var(--ink-3); }
 .status-pill { font-size: 11px; border-radius: 999px; padding: 1px 9px; border: 1px solid currentColor; text-transform: uppercase; letter-spacing: 0.04em; }
 .status-pill.status-now { color: var(--now); }
 .status-pill.status-next { color: var(--next); }
