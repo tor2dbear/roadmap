@@ -231,30 +231,35 @@
 
     modalContent.appendChild(el("h2", "modal-title", item.title));
 
-    // Meta row: repo (dot + name) + status pill on the left, date on the right.
+    // Metadata section: an identity line (repo + status), then both dates
+    // together on one muted line so the section reads as a tidy block.
     var meta = el("div", "modal-meta");
+    var idrow = el("div", "modal-idrow");
     var repo = el("span", "card-repo");
     var dot = el("span", "repo-dot");
     dot.style.background = item.repoColor;
     repo.appendChild(dot);
     repo.appendChild(document.createTextNode(item.repoName));
-    meta.appendChild(repo);
-    meta.appendChild(el("span", "status-pill status-" + item.status, STATUS_LABEL[item.status] || item.status));
-    if (item.updated) {
-      // Spelled out here (unlike the compact cards) so the detail view is
-      // unambiguous about which date is which.
-      var mdate = el("span", "card-date", "Uppdaterad " + item.updated);
-      mdate.title = "Senast uppdaterad";
-      meta.appendChild(mdate);
+    idrow.appendChild(repo);
+    idrow.appendChild(el("span", "status-pill status-" + item.status, STATUS_LABEL[item.status] || item.status));
+    meta.appendChild(idrow);
+
+    if (item.created || item.updated) {
+      var dates = el("div", "modal-dates");
+      if (item.created) {
+        var cs = el("span", null, "Skapad " + item.created);
+        cs.title = "Skapad (första commit)";
+        dates.appendChild(cs);
+      }
+      if (item.created && item.updated) dates.appendChild(el("span", "modal-dates-sep", "·"));
+      if (item.updated) {
+        var us = el("span", null, "Uppdaterad " + item.updated);
+        us.title = "Senast uppdaterad";
+        dates.appendChild(us);
+      }
+      meta.appendChild(dates);
     }
     modalContent.appendChild(meta);
-
-    // Created date on its own muted line (derived from git, may be absent).
-    if (item.created) {
-      var created = el("div", "modal-created", "Skapad " + item.created);
-      created.title = "Skapad (första commit)";
-      modalContent.appendChild(created);
-    }
 
     // Tags on their own row (static badges).
     if (item.tags.length || !item.native) {
