@@ -1,15 +1,29 @@
 ---
 title: Fungera utanför mina egna repon
-status: inbox
+status: next
 tags: [product]
-updated: 2026-08-15
+updated: 2026-08-16
+order: 5
 ---
 
 ## Mål
-Om verktyget ska visas/delas: göra det användbart för andra, inte bara min setup.
+Göra det trivialt för någon annan att peka verktyget på *sina* repon och få ett
+bräde — utan att handpyssla kod. Nordstjärnan för "utanför bubblan": det som gör
+det från personligt verktyg till något andra kan använda.
 
-## Research
-- Stöd för privata repon / token per användare.
-- Enkel installation utan att handredigera `sources.json`.
-- Konventionen paketerad som en standard/produkt.
-Ta först när det bevisat sig för mig själv.
+## Första snittet (MVP)
+- **Config-drivet:** allt repo-/färg-/namn-specifikt bort ur koden och in i
+  `sources.json` (redan mestadels där) + en liten `board.config.json` för titel,
+  domän och tema. Inga hårdkodade "tor2dbear"-antaganden kvar.
+- **Deploya-dina-egna:** kort guide (fork → redigera `sources.json` → koppla
+  Cloudflare → klar på ~10 min). Ev. ett `template`-repo att "Use this template" på.
+- **Privata repon:** dokumentera `GITHUB_TOKEN`-vägen (finns i backenden redan);
+  funkar för publika och privata utan kodändring.
+
+## Utanför MVP
+Hostad multi-tenant-tjänst, konton, "lägg till repo"-GUI. Det vore en annan produkt
+(och en backend = risk mot USP:n). Håll det som "kör din egen".
+
+## Varför först
+Lägst risk, ren USP-expansion (fler kör den git-nativa modellen), och breddar basen
+innan skriv-vägen (GUI) läggs ovanpå.

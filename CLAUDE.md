@@ -15,6 +15,29 @@ source repo**, never here.
 To change a roadmap item, edit it **in the source repo** — not here. Editing the
 generated files below does nothing lasting; the next sync overwrites them.
 
+## Product direction — keep the USP intact
+
+The USP is **roadmap-as-code**: truth lives in each repo as plain-markdown pucks
+that both humans and AI agents read and write; the board is a zero-backend
+aggregator. When closing gaps against tools like Linear / GitHub Projects, one
+rule preserves that:
+
+> **Write through to git/markdown (or lean on GitHub primitives). Never introduce
+> a second source of truth.**
+
+- **Close the git-native way:** GUI editing writes back `roadmap/<slug>.md` via a
+  thin `api/`-Worker (a pen, not a store); portability = config-driven,
+  deploy-your-own; agent-nativeness = the moat, double down.
+- **Close thin, via GitHub:** discussion = the linked `issue`; ownership = an
+  `owner:` frontmatter field; permissions = git/PR review.
+- **Deliberately cede (Linear's turf):** real-time co-editing, push notifications,
+  sprints/story points, a rich comment/activity feed. Building these makes a worse
+  Linear and erodes the USP.
+
+Test for any new feature: if it needs a second database (comments, assignees,
+realtime state), it's the wrong shape for this product. The self-roadmap pucks
+tagged `product` track this direction.
+
 ## Generated artifacts — do NOT hand-edit
 
 - `data/roadmap.json` — canonical machine-readable aggregate (read this to reason
