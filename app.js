@@ -43,6 +43,15 @@
     return Math.floor((Date.now() - t) / 86400000);
   }
   function isFlagged(item) { return (item.signals || []).length > 0; }
+  // Resolve an item's blockedBy slugs to the actual (same-repo) puck objects.
+  function blockerItems(item) {
+    return (item.blockedBy || []).map(function (slug) {
+      for (var i = 0; i < DATA.items.length; i++) {
+        if (DATA.items[i].repo === item.repo && DATA.items[i].slug === slug) return DATA.items[i];
+      }
+      return null;
+    }).filter(Boolean);
+  }
   function signalMessages(item) {
     return (item.signals || []).map(function (s) {
       if (s.type === "stale") {
@@ -154,6 +163,15 @@
     return d;
   }
 
+  // ⛔ badge for a puck waiting on unfinished dependencies (tooltip lists them).
+  function blockBadge(item) {
+    var b = el("span", "block-badge", "⛔");
+    var names = blockerItems(item).map(function (x) { return x.title; });
+    b.title = "Blockerad av: " + (names.join(", ") || item.blockedBy.join(", "));
+    b.setAttribute("aria-label", b.title);
+    return b;
+  }
+
   // A card is a compact summary; tapping it opens the full detail in a modal
   // (fullscreen on mobile) so long bodies don't blow up the column height.
   function card(item) {
@@ -177,6 +195,7 @@
       warn.title = sig.join("\n");
       meta.appendChild(warn);
     }
+    if ((item.blockedBy || []).length) meta.appendChild(blockBadge(item));
     if (item.updated) meta.appendChild(dateEl(item.updated));
     c.appendChild(meta);
 
@@ -304,6 +323,25 @@
       modalContent.appendChild(flags);
     }
 
+    // Blocked-by: list the unfinished dependencies; each opens that puck.
+    if ((item.blockedBy || []).length) {
+      var blk = el("div", "modal-blocked");
+      blk.appendChild(document.createTextNode("⛔ Blockerad av: "));
+      var blockers = blockerItems(item);
+      if (blockers.length) {
+        blockers.forEach(function (b, i) {
+          var a = el("a", "blocker-link", b.title);
+          a.href = "#" + b.id;
+          a.addEventListener("click", function (e) { e.preventDefault(); openModal(b); });
+          blk.appendChild(a);
+          if (i < blockers.length - 1) blk.appendChild(document.createTextNode(", "));
+        });
+      } else {
+        blk.appendChild(document.createTextNode(item.blockedBy.join(", ")));
+      }
+      modalContent.appendChild(blk);
+    }
+
     var body = el("div", "modal-body");
     body.innerHTML = renderMd(item.body || "(inga detaljer)");
     modalContent.appendChild(body);
@@ -357,6 +395,7 @@
       warn.title = sig.join("\n");
       meta.appendChild(warn);
     }
+    if ((item.blockedBy || []).length) meta.appendChild(blockBadge(item));
     if (item.updated) meta.appendChild(dateEl(item.updated, "list-date"));
     body.appendChild(meta);
     r.appendChild(body);

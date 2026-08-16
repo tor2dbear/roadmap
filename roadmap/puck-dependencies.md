@@ -1,10 +1,18 @@
 ---
 title: Beroenden mellan pucks (blocked-by)
-status: later
+status: done
 tags: [core, product, ai]
 updated: 2026-08-16
 order: 36
 ---
+
+## Levererat
+`depends: [slug]` i frontmatter → harvestern resolver `blockedBy[]` (samma-repo
+beroenden som inte är `done`). Tavlan visar ⛔-badge på kort/listrader, modalen en
+"Blockerad av"-rad med klickbara länkar till blockerarna, och digesten en
+`⛔ blocked by`-rad. `blockedBy` ligger i payloaden så agenter kan läsa "redo att
+ta" = oblockerade now/next. Ingen andra sanning — fält + beräkning, som auto-status.
+Dog-food: `gui-editing` deklarerar `depends: [deploy-simplification]`.
 
 ## Mål
 Göra beroenden maskinläsbara istället för fri prosa. När strategin specades blev

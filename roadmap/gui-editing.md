@@ -4,6 +4,7 @@ status: later
 tags: [ui, api, editing]
 updated: 2026-08-16
 order: 30
+depends: [deploy-simplification]
 ---
 
 ## Mål

@@ -74,6 +74,7 @@ order: 10
 | `tags`    | no       | Areas, e.g. `[editor]`, `[auth]`. Inline array. Used for filtering. |
 | `issue`   | no       | The working issue number in the repo, when the puck is in progress. |
 | `order`   | no       | Manual order **within** a status column (lower = higher up). Falls back to `updated`. |
+| `depends` | no       | Inline array of same-repo puck slugs this one is blocked by, e.g. `[deploy-simplification]`. The board shows ⛔ until every listed puck is `done`. |
 
 ---
 

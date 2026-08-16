@@ -43,8 +43,11 @@ tagged `product` track this direction.
 - `data/roadmap.json` — canonical machine-readable aggregate (read this to reason
   about the roadmap programmatically). Shape: `{ generatedAt, statuses, counts,
   total, sources[], items[] }`. Each item: `{ id, repo, repoName, repoColor,
-  slug, title, status, tags[], updated, created, issue, issueState, order, body,
-  sourcePath, sourceUrl, adapter, native, signals[] }`. `issueState` is
+  slug, title, status, tags[], updated, created, issue, issueState, order,
+  depends[], blockedBy[], body, sourcePath, sourceUrl, adapter, native,
+  signals[] }`. `depends[]` are the same-repo slugs a puck declares it's blocked
+  by; `blockedBy[]` is the harvester-resolved subset of those that aren't `done`
+  yet (empty = ready). Read `blockedBy` to find what's actually startable. `issueState` is
   `"open"`/`"closed"` (or `null`) — the real state of the linked `issue`,
   reconciled at harvest. `created` is `YYYY-MM-DD` (or `null`) — the puck's
   first-commit date, derived from git at harvest (a `created:` frontmatter field

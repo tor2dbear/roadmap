@@ -77,6 +77,10 @@ async function pucksAdapter(repo, branch, source) {
       created: created || null,
       issue: data.issue != null && data.issue !== "" ? Number(data.issue) : null,
       order: data.order != null && data.order !== "" ? Number(data.order) : null,
+      // Same-repo slugs this puck is blocked by; the harvester resolves them.
+      depends: Array.isArray(data.depends)
+        ? data.depends.map(String)
+        : data.depends ? [String(data.depends)] : [],
       body,
       sourcePath: relPath,
       sourceUrl: blobUrl(repo.repo, branch, relPath),
@@ -187,6 +191,7 @@ async function checklistAdapter(repo, branch, source) {
       tags,
       updated: "",
       created: null,
+      depends: [],
       issue: null,
       order: i * 10,
       body,
@@ -214,6 +219,7 @@ async function proseAdapter(repo, branch, source) {
       tags: [],
       updated: "",
       created: null,
+      depends: [],
       issue: null,
       order: i * 10,
       body,
