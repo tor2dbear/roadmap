@@ -5,9 +5,9 @@
   "sources": [
     {
       "repo": "tor2dbear/roadmap",
-      "name": "Roadmap",
-      "blurb": "This board's own backlog — the aggregator tracking itself.",
-      "color": "#94a3b8",
+      "name": "Etapp",
+      "blurb": "The Etapp tool's own roadmap — the aggregator tracking itself.",
+      "color": "#cf551b",
       "adapter": "pucks",
       "path": "roadmap"
     },
