@@ -67,14 +67,25 @@
     var lines = esc(src).split("\n");
     var inList = false;
     var para = []; // buffer of wrapped lines that form one paragraph
+    var inCode = false;
+    var code = []; // buffer of lines inside a ``` fence
     function flushPara() {
       if (para.length) { out.push("<p>" + mdInline(para.join(" ")) + "</p>"); para = []; }
     }
     function closeList() {
       if (inList) { out.push("</ul>"); inList = false; }
     }
+    function flushCode() {
+      if (code.length) { out.push("<pre><code>" + code.join("\n") + "</code></pre>"); code = []; }
+    }
     for (var i = 0; i < lines.length; i++) {
       var line = lines[i];
+      if (/^\s*```/.test(line)) {
+        if (inCode) { flushCode(); inCode = false; }
+        else { flushPara(); closeList(); inCode = true; }
+        continue;
+      }
+      if (inCode) { code.push(line); continue; }
       var h = /^(#{2,4})\s+(.*)$/.exec(line);
       var li = /^\s*[-*]\s+(.*)$/.exec(line);
       if (h) {
@@ -96,6 +107,7 @@
     }
     flushPara();
     closeList();
+    if (inCode) flushCode();
     return out.join("\n");
   }
 
@@ -123,6 +135,8 @@
     return e;
   }
 
+  // A card is a compact summary; tapping it opens the full detail in a modal
+  // (fullscreen on mobile) so long bodies don't blow up the column height.
   function card(item) {
     var sig = signalMessages(item);
     var c = el("div", "card" + (item.native ? "" : " adapted") + (sig.length ? " flagged" : ""));
@@ -144,35 +158,88 @@
     if (item.updated) meta.appendChild(el("span", "updated", item.updated));
     c.appendChild(meta);
 
+    c.addEventListener("click", function () { openModal(item); });
+    return c;
+  }
+
+  function linkEl(text, href) {
+    var a = el("a", null, text);
+    a.href = href;
+    a.target = "_blank";
+    a.rel = "noopener";
+    return a;
+  }
+
+  // ── detail modal ──
+  var modalBackdrop, modalContent, modalPanel;
+  function buildModal() {
+    modalBackdrop = el("div", "modal-backdrop");
+    modalBackdrop.hidden = true;
+    var panel = el("div", "modal");
+    modalPanel = panel;
+    panel.setAttribute("role", "dialog");
+    panel.setAttribute("aria-modal", "true");
+    var close = el("button", "modal-close", "✕");
+    close.setAttribute("aria-label", "Stäng");
+    close.addEventListener("click", closeModal);
+    modalContent = el("div", "modal-content");
+    panel.appendChild(close);
+    panel.appendChild(modalContent);
+    modalBackdrop.appendChild(panel);
+    modalBackdrop.addEventListener("click", function (e) {
+      if (e.target === modalBackdrop) closeModal();
+    });
+    document.body.appendChild(modalBackdrop);
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") closeModal();
+    });
+  }
+
+  function openModal(item) {
+    modalContent.innerHTML = "";
+    modalPanel.style.setProperty("--repo", item.repoColor);
+
+    var head = el("div", "modal-head");
+    head.appendChild(el("h2", "modal-title", item.title));
+    var repo = el("span", "repo-name", item.repoName);
+    repo.style.setProperty("--repo", item.repoColor);
+    head.appendChild(repo);
+    modalContent.appendChild(head);
+
+    var meta = el("div", "modal-meta");
+    meta.appendChild(el("span", "status-pill status-" + item.status, STATUS_LABEL[item.status] || item.status));
+    item.tags.forEach(function (t) { meta.appendChild(el("span", "tagpill", "#" + t)); });
+    if (!item.native) meta.appendChild(el("span", "adapted-badge", "adapted"));
+    if (item.updated) meta.appendChild(el("span", "updated", item.updated));
+    modalContent.appendChild(meta);
+
+    var sig = signalMessages(item);
     if (sig.length) {
       var flags = el("div", "card-flags");
       sig.forEach(function (m) { flags.appendChild(el("div", "flag", "⚠ " + m)); });
-      c.appendChild(flags);
+      modalContent.appendChild(flags);
     }
 
-    var body = el("div", "card-body");
-    body.innerHTML = renderMd(item.body || "_No details._");
-    c.appendChild(body);
+    var body = el("div", "modal-body");
+    body.innerHTML = renderMd(item.body || "(inga detaljer)");
+    modalContent.appendChild(body);
 
     var links = el("div", "card-links");
-    var src = el("a", null, "source ↗");
-    src.href = item.sourceUrl;
-    src.target = "_blank";
-    src.rel = "noopener";
-    src.addEventListener("click", function (e) { e.stopPropagation(); });
-    links.appendChild(src);
+    links.appendChild(linkEl("source ↗", item.sourceUrl));
     if (item.issue) {
-      var iss = el("a", null, "issue #" + item.issue);
-      iss.href = "https://github.com/" + item.repo + "/issues/" + item.issue;
-      iss.target = "_blank";
-      iss.rel = "noopener";
-      iss.addEventListener("click", function (e) { e.stopPropagation(); });
-      links.appendChild(iss);
+      links.appendChild(linkEl("issue #" + item.issue, "https://github.com/" + item.repo + "/issues/" + item.issue));
     }
-    c.appendChild(links);
+    modalContent.appendChild(links);
 
-    c.addEventListener("click", function () { c.classList.toggle("open"); });
-    return c;
+    modalBackdrop.hidden = false;
+    document.body.classList.add("modal-open");
+    modalContent.scrollTop = 0;
+  }
+
+  function closeModal() {
+    if (!modalBackdrop) return;
+    modalBackdrop.hidden = true;
+    document.body.classList.remove("modal-open");
   }
 
   function renderBoard() {
@@ -295,6 +362,7 @@
   document.getElementById("subtitle").textContent =
     DATA.sources.map(function (s) { return s.name; }).join(" · ") +
     " · " + active + " active, " + DATA.counts.done + " done";
+  buildModal();
   buildRepoChips();
   buildTagChips();
   buildAttentionChip();
