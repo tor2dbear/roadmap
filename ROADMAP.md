@@ -24,12 +24,10 @@ _Generated 2026-08-16 · 116 items across 6 repos._
 - **brew install: ärlig installationsceremoni** — PIA · #packages #system · 2026-08-08  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/brew-install-progress.md
 
-## Next (6)
+## Next (5)
 
 - **Lazy email verification (gate claim, not signup)** — PIA · #auth #share · 2026-08-08  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/email-verification-lazy.md
-- **Agent-kontrakt (+ ev. MCP)** — Roadmap · #product #ai · 2026-08-16  
-  https://github.com/tor2dbear/roadmap/blob/main/roadmap/agent-native-contract.md
 - **Custom probes: bring your own markup** — Cadence · #bench · 2026-08-15  
   https://github.com/tor2dbear/cadence/blob/main/roadmap/bring-your-own-markup.md
 - **Parallel sandbox/staging environment for the print shop** — Méta-Matic · #devops #print · 2026-08-13  
@@ -72,10 +70,8 @@ _Generated 2026-08-16 · 116 items across 6 repos._
 - **Multiplayer — who, msg, gemensamma rum** — PIA · #multiplayer #supabase · 2026-07-17  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/multiplayer-rooms.md
 
-## Inbox (9)
+## Inbox (8)
 
-- **Tunn collaboration via GitHub-primitiver** — Roadmap · #product · 2026-08-16  
-  https://github.com/tor2dbear/roadmap/blob/main/roadmap/collaboration-via-github.md
 - **Per-branch deploy previews (Netlify?)** — Cadence · #backend · 2026-08-15  
   https://github.com/tor2dbear/cadence/blob/main/roadmap/deploy-previews.md
 - **mount — privata filer från egen server** — PIA · #storage #vfs · 2026-08-12  
@@ -93,12 +89,14 @@ _Generated 2026-08-16 · 116 items across 6 repos._
 - **Paket-roadmap — brew-appar som passar PIA** — PIA · #packages #overview · 2026-07-18  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/package-ideas.md
 
-## Done (83)
+## Done (85)
 
 - **Fungera utanför mina egna repon** — Roadmap · #product · 2026-08-16  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/portability-for-others.md
 - **Linjera med fleet-konventionen (Cloudflare + roadmap.tor2dbear.com)** — Roadmap · #hosting #ops · 2026-08-15  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/align-with-fleet-cloudflare.md
+- **Agent-kontrakt (+ ev. MCP)** — Roadmap · #product #ai · 2026-08-16  
+  https://github.com/tor2dbear/roadmap/blob/main/roadmap/agent-native-contract.md
 - **Auto-status från verkligheten** — Roadmap · #core #sync · 2026-08-15  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/auto-status-from-reality.md
 - **Draggbar bézier-editor** — Cadence · #editor · 2026-08-15  
@@ -113,6 +111,8 @@ _Generated 2026-08-16 · 116 items across 6 repos._
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/nano-multibuffer.md
 - **grep: context-flaggor -A/-B/-C** — PIA · #text #commands · 2026-07-17  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/grep-context.md
+- **Tunn collaboration via GitHub-primitiver** — Roadmap · #product · 2026-08-16  
+  https://github.com/tor2dbear/roadmap/blob/main/roadmap/collaboration-via-github.md
 - **Migrera Cadence till native pucks** — Roadmap · #sources · 2026-08-16  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/cadence-to-native-pucks.md
 - **Startsida-ombyggnad (Fas 5)** — tor-bjorn.com · #design · 2026-08-16  
