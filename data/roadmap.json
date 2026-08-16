@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-16T03:48:24.326Z",
+  "generatedAt": "2026-08-16T05:29:41.662Z",
   "statuses": [
     "now",
     "next",
@@ -10,11 +10,11 @@
   "counts": {
     "now": 4,
     "next": 8,
-    "later": 11,
+    "later": 12,
     "inbox": 10,
     "done": 64
   },
-  "total": 97,
+  "total": 98,
   "sources": [
     {
       "repo": "tor2dbear/roadmap",
@@ -24,7 +24,7 @@
       "url": "https://github.com/tor2dbear/roadmap",
       "adapter": "pucks",
       "backend": "fs",
-      "count": 8,
+      "count": 9,
       "native": true,
       "error": null
     },
@@ -78,7 +78,7 @@
     },
     {
       "repo": "tor2dbear/portfolio",
-      "name": "tor-björn.com",
+      "name": "tor-bjorn.com",
       "blurb": "Personal Hugo site — design system, typography, terminal, header/footer redesign.",
       "color": "#fb923c",
       "url": "https://github.com/tor2dbear/portfolio",
@@ -272,7 +272,7 @@
     {
       "id": "portfolio/redesign-header-footer",
       "repo": "tor2dbear/portfolio",
-      "repoName": "tor-björn.com",
+      "repoName": "tor-bjorn.com",
       "repoColor": "#fb923c",
       "issueState": null,
       "slug": "redesign-header-footer",
@@ -429,7 +429,7 @@
     {
       "id": "portfolio/homepage-rebuild",
       "repo": "tor2dbear/portfolio",
-      "repoName": "tor-björn.com",
+      "repoName": "tor-bjorn.com",
       "repoColor": "#fb923c",
       "issueState": null,
       "slug": "homepage-rebuild",
@@ -444,6 +444,30 @@
       "body": "## Mål\nBygga om startsidan som huvudsaklig innehållspunkt enligt redesign-planen.\n\n## Research\nSista fasen i header/footer-redesignen. Detaljer i `REDESIGN_PLAN.md` (Fas 5).",
       "sourcePath": "roadmap/homepage-rebuild.md",
       "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/homepage-rebuild.md",
+      "adapter": "pucks",
+      "native": true,
+      "signals": []
+    },
+    {
+      "id": "roadmap/gui-editing",
+      "repo": "tor2dbear/roadmap",
+      "repoName": "Roadmap",
+      "repoColor": "#94a3b8",
+      "issueState": null,
+      "slug": "gui-editing",
+      "title": "Redigera pucks direkt i GUI:t",
+      "status": "later",
+      "tags": [
+        "ui",
+        "api",
+        "editing"
+      ],
+      "updated": "2026-08-16",
+      "issue": null,
+      "order": 30,
+      "body": "## Mål\nKunna skapa nya pucks och flippa status direkt från tavlan — särskilt från mobilen,\nnär man inte står i ett repo-checkout. CLI:t täcker \"i repot\"; GUI:t täcker \"på språng\".\n\n## Beslut\n- **Sanningen stannar i källrepona.** GUI:t skriver tillbaka `roadmap/<slug>.md` via\n  GitHub — det gör bara det CLI:t gör, fast från webben. Ingen separat \"edit-databas\"\n  (det vore en andra sanning — samma anti-mönster vi undvek i auto-status).\n- **Skriv-vägen kräver en liten inloggad backend** — en statisk sida kan inte skriva\n  till GitHub själv. Lös med en `api/`-Worker (Cloudflare) med en GitHub-token som\n  hemlighet — exakt meta-matics mönster (sajt + `api/`-Worker).\n\n## MVP-omfattning\n- Status-knappar på varje kort: start / next / later / done.\n- \"＋ Ny puck\": välj projekt, titel, status, taggar.\n- Redigeringsläge som bara syns för mig; alla andra ser läsläge.\n- **Utanför MVP:** dra-och-släpp, redigera brödtext, koppla issue i efterhand.\n\n## Arkitektur\n```\nTavla (publik, läs) ──klick──▶ /api/*  (Worker, skyddad, har GitHub-token)\n                                  └─▶ commit roadmap/<slug>.md i rätt repo\n                                        └─▶ (valfritt) trigga ny skörd → färsk ~1 min\n```\n- **Endpoints:** `POST /api/status {repo,slug,status}` (byt `status:`-raden, bumpa\n  `updated:`), `POST /api/puck {repo,title,status,tags}` (skapa fil ur mallen). Via\n  GitHubs Contents-API; skriver till varje repos default-branch (portfolio = `master`).\n- **Säkerhet:** token som Worker-hemlighet (aldrig i webbläsaren); `/api/*` bakom\n  Cloudflare Access (mejl-gated till mig). Läs-tavlan förblir publik.\n- **Fördröjning:** optimistisk UI (kortet ändras direkt vid lyckad skrivning) + valfri\n  re-skörd-trigger så den riktiga datan hinner ikapp.\n\n## Förarbete (manuellt, kan ej automatiseras)\n- Fin-grained GitHub-token med `contents:write` på de sex repona → `wrangler secret`.\n- Cloudflare Access på `/api/*`.\n\n## Beroende / ordning\nRider på deploy-förenklingen (\"sluta committa data + slå ihop skörd/deploy\") — den gör\ntavlan till en app med en `api/`-Worker, vilket skriv-vägen står på. Ta den förenklingen\nförst, sen den här ovanpå.\n\n## Öppna frågor\n- GitHub-app i stället för PAT om det ska skala till fler/andras repon?\n- Räcker Cloudflare Access, eller vill vi ha en enklare lösenfras som fallback?",
+      "sourcePath": "roadmap/gui-editing.md",
+      "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/gui-editing.md",
       "adapter": "pucks",
       "native": true,
       "signals": []
@@ -584,7 +608,7 @@
     {
       "id": "portfolio/seed-remaining-plans",
       "repo": "tor2dbear/portfolio",
-      "repoName": "tor-björn.com",
+      "repoName": "tor-bjorn.com",
       "repoColor": "#fb923c",
       "issueState": null,
       "slug": "seed-remaining-plans",
@@ -606,7 +630,7 @@
     {
       "id": "portfolio/pantone-css-refactor",
       "repo": "tor2dbear/portfolio",
-      "repoName": "tor-björn.com",
+      "repoName": "tor-bjorn.com",
       "repoColor": "#fb923c",
       "issueState": null,
       "slug": "pantone-css-refactor",
@@ -673,7 +697,7 @@
     {
       "id": "portfolio/subgrid-migration",
       "repo": "tor2dbear/portfolio",
-      "repoName": "tor-björn.com",
+      "repoName": "tor-bjorn.com",
       "repoColor": "#fb923c",
       "issueState": null,
       "slug": "subgrid-migration",
@@ -696,7 +720,7 @@
     {
       "id": "portfolio/terminal-followups",
       "repo": "tor2dbear/portfolio",
-      "repoName": "tor-björn.com",
+      "repoName": "tor-bjorn.com",
       "repoColor": "#fb923c",
       "issueState": null,
       "slug": "terminal-followups",
@@ -718,7 +742,7 @@
     {
       "id": "portfolio/typography",
       "repo": "tor2dbear/portfolio",
-      "repoName": "tor-björn.com",
+      "repoName": "tor-bjorn.com",
       "repoColor": "#fb923c",
       "issueState": null,
       "slug": "typography",
@@ -740,7 +764,7 @@
     {
       "id": "portfolio/ui-library",
       "repo": "tor2dbear/portfolio",
-      "repoName": "tor-björn.com",
+      "repoName": "tor-bjorn.com",
       "repoColor": "#fb923c",
       "issueState": null,
       "slug": "ui-library",
@@ -762,7 +786,7 @@
     {
       "id": "portfolio/utility-class-cleanup",
       "repo": "tor2dbear/portfolio",
-      "repoName": "tor-björn.com",
+      "repoName": "tor-bjorn.com",
       "repoColor": "#fb923c",
       "issueState": null,
       "slug": "utility-class-cleanup",
