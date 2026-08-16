@@ -336,10 +336,12 @@ body.modal-open { overflow: hidden; }
      short of the screen edge by the filter bar's padding. */
   .filter-group { flex-wrap: nowrap; overflow-x: auto; min-width: 0; margin: 0 -24px; padding: 0 24px 4px; scrollbar-width: none; }
   .filter-group::-webkit-scrollbar { display: none; }
-  /* 16px min kills iOS Safari's auto-zoom-on-focus (it zooms any input with
-     text < 16px). Desktop keeps the tighter 14px from the base rule. */
-  #search { min-width: 0; flex: 1; font-size: 16px; }
-  .controls { flex: 1; }
+  /* Four controls (search + Filter + view + theme) overflow one mobile row, so
+     let the search take a full-width row and the buttons wrap below it — nothing
+     gets clipped past the edge. 16px min also kills iOS Safari's zoom-on-focus
+     (it zooms any input under 16px); desktop keeps the tighter 14px. */
+  .controls { flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-end; }
+  #search { min-width: 0; flex: 1 1 100%; font-size: 16px; }
 }
 
 .empty { color: var(--ink-3); font-size: 13px; padding: 8px 2px; }
