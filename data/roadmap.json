@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-15T18:42:15.557Z",
+  "generatedAt": "2026-08-16T03:48:24.326Z",
   "statuses": [
     "now",
     "next",
@@ -110,7 +110,8 @@
       "sourcePath": "roadmap/align-with-fleet-cloudflare.md",
       "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/align-with-fleet-cloudflare.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/email-verification-lazy",
@@ -132,7 +133,8 @@
       "sourcePath": "roadmap/email-verification-lazy.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/email-verification-lazy.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "roadmap/auto-status-from-reality",
@@ -154,7 +156,8 @@
       "sourcePath": "roadmap/auto-status-from-reality.md",
       "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/auto-status-from-reality.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "cadence/bring-your-own-markup",
@@ -175,7 +178,8 @@
       "sourcePath": "roadmap/bring-your-own-markup.md",
       "sourceUrl": "https://github.com/tor2dbear/cadence/blob/main/roadmap/bring-your-own-markup.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "cadence/draggable-bezier-editor",
@@ -196,7 +200,8 @@
       "sourcePath": "roadmap/draggable-bezier-editor.md",
       "sourceUrl": "https://github.com/tor2dbear/cadence/blob/main/roadmap/draggable-bezier-editor.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "roadmap/add-portfolio-source",
@@ -217,7 +222,8 @@
       "sourcePath": "roadmap/add-portfolio-source.md",
       "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/add-portfolio-source.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "roadmap/multi-repo-board",
@@ -238,7 +244,8 @@
       "sourcePath": "roadmap/multi-repo-board.md",
       "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/multi-repo-board.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "cadence/opinion-layer-service",
@@ -259,7 +266,8 @@
       "sourcePath": "roadmap/opinion-layer-service.md",
       "sourceUrl": "https://github.com/tor2dbear/cadence/blob/main/roadmap/opinion-layer-service.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "portfolio/redesign-header-footer",
@@ -281,7 +289,8 @@
       "sourcePath": "roadmap/redesign-header-footer.md",
       "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/redesign-header-footer.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/nano-multibuffer",
@@ -302,7 +311,8 @@
       "sourcePath": "roadmap/nano-multibuffer.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/nano-multibuffer.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/grep-context",
@@ -324,7 +334,8 @@
       "sourcePath": "roadmap/grep-context.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/grep-context.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "roadmap/cadence-to-native-pucks",
@@ -345,7 +356,8 @@
       "sourcePath": "roadmap/cadence-to-native-pucks.md",
       "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/cadence-to-native-pucks.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "cadence/editable-ladder",
@@ -366,7 +378,8 @@
       "sourcePath": "roadmap/editable-ladder.md",
       "sourceUrl": "https://github.com/tor2dbear/cadence/blob/main/roadmap/editable-ladder.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "roadmap/authoring-cli",
@@ -387,7 +400,8 @@
       "sourcePath": "roadmap/authoring-cli.md",
       "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/authoring-cli.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "cadence/security-headers",
@@ -409,7 +423,8 @@
       "sourcePath": "roadmap/security-headers.md",
       "sourceUrl": "https://github.com/tor2dbear/cadence/blob/main/roadmap/security-headers.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "portfolio/homepage-rebuild",
@@ -430,7 +445,8 @@
       "sourcePath": "roadmap/homepage-rebuild.md",
       "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/homepage-rebuild.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "cadence/shareable-url-state",
@@ -451,7 +467,8 @@
       "sourcePath": "roadmap/shareable-url-state.md",
       "sourceUrl": "https://github.com/tor2dbear/cadence/blob/main/roadmap/shareable-url-state.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "cadence/export-targets",
@@ -472,7 +489,8 @@
       "sourcePath": "roadmap/export-targets.md",
       "sourceUrl": "https://github.com/tor2dbear/cadence/blob/main/roadmap/export-targets.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "cadence/shipped-extras",
@@ -493,7 +511,8 @@
       "sourcePath": "roadmap/shipped-extras.md",
       "sourceUrl": "https://github.com/tor2dbear/cadence/blob/main/roadmap/shipped-extras.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "roadmap/archive-done-column",
@@ -514,7 +533,8 @@
       "sourcePath": "roadmap/archive-done-column.md",
       "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/archive-done-column.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "roadmap/portability-for-others",
@@ -535,7 +555,8 @@
       "sourcePath": "roadmap/portability-for-others.md",
       "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/portability-for-others.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "cadence/import-motion-palette",
@@ -557,7 +578,8 @@
       "sourcePath": "roadmap/import-motion-palette.md",
       "sourceUrl": "https://github.com/tor2dbear/cadence/blob/main/roadmap/import-motion-palette.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "portfolio/seed-remaining-plans",
@@ -578,7 +600,8 @@
       "sourcePath": "roadmap/seed-remaining-plans.md",
       "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/seed-remaining-plans.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "portfolio/pantone-css-refactor",
@@ -600,7 +623,8 @@
       "sourcePath": "roadmap/pantone-css-refactor.md",
       "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/pantone-css-refactor.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "cadence/deploy-previews",
@@ -621,7 +645,8 @@
       "sourcePath": "roadmap/deploy-previews.md",
       "sourceUrl": "https://github.com/tor2dbear/cadence/blob/main/roadmap/deploy-previews.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "tor2dbear.com/www-redirect",
@@ -642,7 +667,8 @@
       "sourcePath": "roadmap/www-redirect.md",
       "sourceUrl": "https://github.com/tor2dbear/tor2dbear.com/blob/main/roadmap/www-redirect.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "portfolio/subgrid-migration",
@@ -664,7 +690,8 @@
       "sourcePath": "roadmap/subgrid-migration.md",
       "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/subgrid-migration.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "portfolio/terminal-followups",
@@ -685,7 +712,8 @@
       "sourcePath": "roadmap/terminal-followups.md",
       "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/terminal-followups.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "portfolio/typography",
@@ -706,7 +734,8 @@
       "sourcePath": "roadmap/typography.md",
       "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/typography.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "portfolio/ui-library",
@@ -727,7 +756,8 @@
       "sourcePath": "roadmap/ui-library.md",
       "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/ui-library.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "portfolio/utility-class-cleanup",
@@ -749,7 +779,8 @@
       "sourcePath": "roadmap/utility-class-cleanup.md",
       "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/utility-class-cleanup.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "meta-matic/onchain-attestation",
@@ -772,7 +803,8 @@
       "sourcePath": "roadmap/onchain-attestation.md",
       "sourceUrl": "https://github.com/tor2dbear/meta-matic/blob/main/roadmap/onchain-attestation.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "meta-matic/sandbox-staging",
@@ -794,7 +826,8 @@
       "sourcePath": "roadmap/sandbox-staging.md",
       "sourceUrl": "https://github.com/tor2dbear/meta-matic/blob/main/roadmap/sandbox-staging.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "meta-matic/print-shop",
@@ -816,7 +849,8 @@
       "sourcePath": "roadmap/print-shop.md",
       "sourceUrl": "https://github.com/tor2dbear/meta-matic/blob/main/roadmap/print-shop.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "meta-matic/seller-order-notifications",
@@ -838,7 +872,8 @@
       "sourcePath": "roadmap/seller-order-notifications.md",
       "sourceUrl": "https://github.com/tor2dbear/meta-matic/blob/main/roadmap/seller-order-notifications.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "meta-matic/diffusion-reveal",
@@ -859,7 +894,8 @@
       "sourcePath": "roadmap/diffusion-reveal.md",
       "sourceUrl": "https://github.com/tor2dbear/meta-matic/blob/main/roadmap/diffusion-reveal.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "meta-matic/exclusive-certificates",
@@ -881,7 +917,8 @@
       "sourcePath": "roadmap/exclusive-certificates.md",
       "sourceUrl": "https://github.com/tor2dbear/meta-matic/blob/main/roadmap/exclusive-certificates.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "meta-matic/inspect-and-certify",
@@ -902,7 +939,8 @@
       "sourcePath": "roadmap/inspect-and-certify.md",
       "sourceUrl": "https://github.com/tor2dbear/meta-matic/blob/main/roadmap/inspect-and-certify.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "meta-matic/latent-belt",
@@ -923,7 +961,8 @@
       "sourcePath": "roadmap/latent-belt.md",
       "sourceUrl": "https://github.com/tor2dbear/meta-matic/blob/main/roadmap/latent-belt.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/mount-webdav",
@@ -945,7 +984,8 @@
       "sourcePath": "roadmap/mount-webdav.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/mount-webdav.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "meta-matic/nft-mint-onchain",
@@ -966,7 +1006,8 @@
       "sourcePath": "roadmap/nft-mint-onchain.md",
       "sourceUrl": "https://github.com/tor2dbear/meta-matic/blob/main/roadmap/nft-mint-onchain.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "meta-matic/orphaned-certificates",
@@ -987,7 +1028,8 @@
       "sourcePath": "roadmap/orphaned-certificates.md",
       "sourceUrl": "https://github.com/tor2dbear/meta-matic/blob/main/roadmap/orphaned-certificates.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/python-sandbox-csp-fix",
@@ -1010,7 +1052,8 @@
       "sourcePath": "roadmap/python-sandbox-csp-fix.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/python-sandbox-csp-fix.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "meta-matic/claim-rate-limit",
@@ -1031,7 +1074,8 @@
       "sourcePath": "roadmap/claim-rate-limit.md",
       "sourceUrl": "https://github.com/tor2dbear/meta-matic/blob/main/roadmap/claim-rate-limit.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "meta-matic/reduced-motion",
@@ -1052,7 +1096,8 @@
       "sourcePath": "roadmap/reduced-motion.md",
       "sourceUrl": "https://github.com/tor2dbear/meta-matic/blob/main/roadmap/reduced-motion.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "meta-matic/scrub-and-lock",
@@ -1073,7 +1118,8 @@
       "sourcePath": "roadmap/scrub-and-lock.md",
       "sourceUrl": "https://github.com/tor2dbear/meta-matic/blob/main/roadmap/scrub-and-lock.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "meta-matic/wallet-sig-verification",
@@ -1095,7 +1141,8 @@
       "sourcePath": "roadmap/wallet-sig-verification.md",
       "sourceUrl": "https://github.com/tor2dbear/meta-matic/blob/main/roadmap/wallet-sig-verification.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/sh-scripts",
@@ -1117,7 +1164,8 @@
       "sourcePath": "roadmap/sh-scripts.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/sh-scripts.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "meta-matic/seo-og",
@@ -1138,7 +1186,8 @@
       "sourcePath": "roadmap/seo-og.md",
       "sourceUrl": "https://github.com/tor2dbear/meta-matic/blob/main/roadmap/seo-og.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "meta-matic/the-space-map",
@@ -1159,7 +1208,8 @@
       "sourcePath": "roadmap/the-space-map.md",
       "sourceUrl": "https://github.com/tor2dbear/meta-matic/blob/main/roadmap/the-space-map.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "meta-matic/ink-ribbon",
@@ -1180,7 +1230,8 @@
       "sourcePath": "roadmap/ink-ribbon.md",
       "sourceUrl": "https://github.com/tor2dbear/meta-matic/blob/main/roadmap/ink-ribbon.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "meta-matic/walletconnect-mobile",
@@ -1201,7 +1252,8 @@
       "sourcePath": "roadmap/walletconnect-mobile.md",
       "sourceUrl": "https://github.com/tor2dbear/meta-matic/blob/main/roadmap/walletconnect-mobile.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/ai-mcp-context",
@@ -1223,7 +1275,8 @@
       "sourcePath": "roadmap/ai-mcp-context.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/ai-mcp-context.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/ai-host-persona",
@@ -1245,7 +1298,8 @@
       "sourcePath": "roadmap/ai-host-persona.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/ai-host-persona.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/brew-install-progress",
@@ -1267,7 +1321,8 @@
       "sourcePath": "roadmap/brew-install-progress.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/brew-install-progress.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/pkg-pv",
@@ -1288,7 +1343,8 @@
       "sourcePath": "roadmap/pkg-pv.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/pkg-pv.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/easter-eggs",
@@ -1310,7 +1366,8 @@
       "sourcePath": "roadmap/easter-eggs.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/easter-eggs.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/publish-garden",
@@ -1332,7 +1389,8 @@
       "sourcePath": "roadmap/publish-garden.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/publish-garden.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/shared-file-roles",
@@ -1355,7 +1413,8 @@
       "sourcePath": "roadmap/shared-file-roles.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/shared-file-roles.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/live-output-line",
@@ -1377,7 +1436,8 @@
       "sourcePath": "roadmap/live-output-line.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/live-output-line.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/permissions",
@@ -1400,7 +1460,8 @@
       "sourcePath": "roadmap/permissions.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/permissions.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/window-tabs",
@@ -1422,7 +1483,8 @@
       "sourcePath": "roadmap/window-tabs.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/window-tabs.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/history-persistence",
@@ -1444,7 +1506,8 @@
       "sourcePath": "roadmap/history-persistence.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/history-persistence.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/todo-list-notifications",
@@ -1466,7 +1529,8 @@
       "sourcePath": "roadmap/todo-list-notifications.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/todo-list-notifications.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/boot-bios",
@@ -1488,7 +1552,8 @@
       "sourcePath": "roadmap/boot-bios.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/boot-bios.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/crt-retro-mode",
@@ -1510,7 +1575,8 @@
       "sourcePath": "roadmap/crt-retro-mode.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/crt-retro-mode.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/cloud-sync-conflicts",
@@ -1532,7 +1598,8 @@
       "sourcePath": "roadmap/cloud-sync-conflicts.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/cloud-sync-conflicts.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/notify-command",
@@ -1554,7 +1621,8 @@
       "sourcePath": "roadmap/notify-command.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/notify-command.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/pkg-figlet",
@@ -1576,7 +1644,8 @@
       "sourcePath": "roadmap/pkg-figlet.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/pkg-figlet.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/pkg-piano",
@@ -1599,7 +1668,8 @@
       "sourcePath": "roadmap/pkg-piano.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/pkg-piano.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/pkg-wordle",
@@ -1621,7 +1691,8 @@
       "sourcePath": "roadmap/pkg-wordle.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/pkg-wordle.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/reminder-push",
@@ -1644,7 +1715,8 @@
       "sourcePath": "roadmap/reminder-push.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/reminder-push.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/at-cron-scheduling",
@@ -1666,7 +1738,8 @@
       "sourcePath": "roadmap/at-cron-scheduling.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/at-cron-scheduling.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/brew-packages",
@@ -1688,7 +1761,8 @@
       "sourcePath": "roadmap/brew-packages.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/brew-packages.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/terminal-engine-package",
@@ -1710,7 +1784,8 @@
       "sourcePath": "roadmap/terminal-engine-package.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/terminal-engine-package.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/package-ideas",
@@ -1732,7 +1807,8 @@
       "sourcePath": "roadmap/package-ideas.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/package-ideas.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/pkg-bc",
@@ -1753,7 +1829,8 @@
       "sourcePath": "roadmap/pkg-bc.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/pkg-bc.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/pkg-cal",
@@ -1774,7 +1851,8 @@
       "sourcePath": "roadmap/pkg-cal.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/pkg-cal.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/pkg-cmatrix",
@@ -1796,7 +1874,8 @@
       "sourcePath": "roadmap/pkg-cmatrix.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/pkg-cmatrix.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/pkg-fortune",
@@ -1817,7 +1896,8 @@
       "sourcePath": "roadmap/pkg-fortune.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/pkg-fortune.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/pkg-life",
@@ -1839,7 +1919,8 @@
       "sourcePath": "roadmap/pkg-life.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/pkg-life.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/pkg-qr",
@@ -1860,7 +1941,8 @@
       "sourcePath": "roadmap/pkg-qr.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/pkg-qr.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/pkg-sl",
@@ -1882,7 +1964,8 @@
       "sourcePath": "roadmap/pkg-sl.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/pkg-sl.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/pkg-tetris",
@@ -1904,7 +1987,8 @@
       "sourcePath": "roadmap/pkg-tetris.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/pkg-tetris.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/pkg-tutor",
@@ -1926,7 +2010,8 @@
       "sourcePath": "roadmap/pkg-tutor.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/pkg-tutor.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/publish-folder",
@@ -1948,7 +2033,8 @@
       "sourcePath": "roadmap/publish-folder.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/publish-folder.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/python-wasm",
@@ -1970,7 +2056,8 @@
       "sourcePath": "roadmap/python-wasm.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/python-wasm.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/settings-appearance",
@@ -1992,7 +2079,8 @@
       "sourcePath": "roadmap/settings-appearance.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/settings-appearance.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/fs-cp",
@@ -2014,7 +2102,8 @@
       "sourcePath": "roadmap/fs-cp.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/fs-cp.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/date-command",
@@ -2036,7 +2125,8 @@
       "sourcePath": "roadmap/date-command.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/date-command.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/shell-globbing",
@@ -2058,7 +2148,8 @@
       "sourcePath": "roadmap/shell-globbing.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/shell-globbing.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/head-tail",
@@ -2080,7 +2171,8 @@
       "sourcePath": "roadmap/head-tail.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/head-tail.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/history-command",
@@ -2102,7 +2194,8 @@
       "sourcePath": "roadmap/history-command.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/history-command.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/command-chaining",
@@ -2124,7 +2217,8 @@
       "sourcePath": "roadmap/command-chaining.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/command-chaining.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/pager-less",
@@ -2146,7 +2240,8 @@
       "sourcePath": "roadmap/pager-less.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/pager-less.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/multiplayer-rooms",
@@ -2168,7 +2263,8 @@
       "sourcePath": "roadmap/multiplayer-rooms.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/multiplayer-rooms.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     },
     {
       "id": "pia-terminal/text-coreutils",
@@ -2190,7 +2286,8 @@
       "sourcePath": "roadmap/text-coreutils.md",
       "sourceUrl": "https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/text-coreutils.md",
       "adapter": "pucks",
-      "native": true
+      "native": true,
+      "signals": []
     }
   ]
 }
