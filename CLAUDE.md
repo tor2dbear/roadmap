@@ -4,6 +4,10 @@ This repo is a **read-only aggregator**. It collects the roadmaps that live in
 several source repos and renders one board. The source of truth is **in each
 source repo**, never here.
 
+**Operating the roadmap as an agent:** [`AGENTS.md`](AGENTS.md) is the
+agent-agnostic read/write contract (find what's ready via `blockedBy`, update
+pucks via the CLI). This file adds Claude-Code-specific detail on top.
+
 ## Where truth lives
 
 - **Per-project roadmap** → in that project's own repo, following

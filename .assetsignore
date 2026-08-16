@@ -9,6 +9,7 @@ package-lock.json
 README.md
 CLAUDE.md
 CONVENTION.md
+AGENTS.md
 sources.json
 board.config.json
 roadmap

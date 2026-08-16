@@ -15,7 +15,9 @@ visual board — kept in sync automatically.
   back to its source file.
 - **For agents** — `data/roadmap.json` is a machine-readable aggregate and
   `ROADMAP.md` a greppable digest, so an AI can reason about the whole roadmap in
-  one read.
+  one read. **[`AGENTS.md`](AGENTS.md)** is the read/write contract: how to find
+  what's ready (`blockedBy` empty) and update pucks via the CLI — no backend, no
+  keys.
 - **In sync** — a scheduled GitHub Action re-harvests the sources and redeploys;
   no manual copying, no drift, source repos untouched.
 

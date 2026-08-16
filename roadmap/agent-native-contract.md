@@ -1,10 +1,21 @@
 ---
 title: Agent-kontrakt (+ ev. MCP)
-status: next
+status: done
 tags: [product, ai]
 updated: 2026-08-16
 order: 8
 ---
+
+## Levererat
+**`AGENTS.md`** — en stabil, agent-agnostisk spec: hur en agent *läser*
+(`data/roadmap.json`, `signals[]`, `blockedBy[]`) och *skriver* (CLI:t / redigera
+markdown), plus "redo att ta"-recept (oblockerade now/next) och invarianterna
+(aldrig en andra sanning). Länkad från README + CLAUDE.md. Datan var redan
+agent-läsbar; det här paketerar och gör det upptäckbart.
+
+## Kvar (valfritt — var "ev." från början)
+En MCP-server som exponerar `list/read/update puck` för agenter *utanför* repo-
+checkouten. Egen puck om/när det behövs; skriver via samma git-väg.
 
 ## Mål
 Göra roadmapen till något en AI-agent opererar *nativt* — läser för att veta vad
