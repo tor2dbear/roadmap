@@ -1,6 +1,6 @@
 ---
 title: Fungera utanför mina egna repon
-status: next
+status: done
 tags: [product]
 updated: 2026-08-16
 order: 5
@@ -10,6 +10,20 @@ order: 5
 Göra det trivialt för någon annan att peka verktyget på *sina* repon och få ett
 bräde — utan att handpyssla kod. Nordstjärnan för "utanför bubblan": det som gör
 det från personligt verktyg till något andra kan använda.
+
+## Levererat (första snittet)
+- **`board.config.json`** — titel, beskrivning och source-länk ut ur koden och in
+  i config; harvestern bäddar in den i payloaden, `app.js` applicerar (titel/h1/
+  meta/source), digesten använder titeln. Inget "tor2dbear"-antagande kvar i den
+  serverade koden.
+- **"Deploy your own"-guide** i README (fork → `sources.json` + `board.config.json`
+  → `wrangler.jsonc` → Cloudflare). Privata repon täckta via `GITHUB_TOKEN`.
+- `board.config.json` triggar synken och hålls ur den serverade bundlen.
+
+## Kvar (valfria följdsteg, ej detta snitt)
+Ett `template`-repo ("Use this template"), och att faktiskt validera med en
+främmande fork. Hostad multi-tenant förblir uttryckligen utanför scope (backend =
+risk mot USP:n).
 
 ## Första snittet (MVP)
 - **Config-drivet:** allt repo-/färg-/namn-specifikt bort ur koden och in i

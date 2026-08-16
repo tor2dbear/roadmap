@@ -6,10 +6,11 @@
     <!-- Browser UI (status bar) color; app.js keeps it in sync with the active
          theme, including the in-app light/dark toggle. -->
     <meta name="theme-color" content="#f6f7f9" />
-    <title>Roadmap — aggregated</title>
+    <!-- title / description are defaults; app.js overrides them from board.config.json -->
+    <title>Roadmap</title>
     <meta
       name="description"
-      content="Aggregated roadmap across the cadence, PIA, and méta-matic repos."
+      content="An aggregated roadmap across repos — truth in git, one board."
     />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🗺️%3C/text%3E%3C/svg%3E" />
     <link rel="stylesheet" href="styles.css" />
@@ -69,7 +70,7 @@
       <span id="footmeta"></span>
       <a href="ROADMAP.md">flat digest</a> ·
       <a href="data/roadmap.json">roadmap.json</a> ·
-      <a href="https://github.com/tor2dbear/roadmap">source</a>
+      <a id="sourceLink" href="#">source</a>
     </footer>
 
     <!-- Generated payload, loaded as a global so the page also works from file://. -->

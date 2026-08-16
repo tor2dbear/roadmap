@@ -30,6 +30,26 @@ A repo that hasn't adopted the convention yet is still included — the aggregat
 **adapts** its existing `## Roadmap` checklist or "future" prose section, and
 marks those cards `adapted` until the repo migrates to native pucks.
 
+## Deploy your own
+
+The board is **config-driven** — point it at your repos, no code changes:
+
+1. **Fork** this repo.
+2. **[`sources.json`](sources.json)** — list your repos (`repo`, `name`, `color`,
+   `adapter`). See *Add a project* below. Private repos work too — add a
+   `GITHUB_TOKEN` secret.
+3. **[`board.config.json`](board.config.json)** — set `title`, `description`, and
+   `repoUrl` (link back to your fork). Everything owner-specific lives here, not in
+   the code.
+4. **[`wrangler.jsonc`](wrangler.jsonc)** — set `name` (your Worker) and, for a
+   custom domain, `routes`.
+5. **Cloudflare** — Workers & Pages → *Import a repository* → your fork, deploy
+   command `npx wrangler deploy`, production branch `main` (exact settings under
+   *Deploy*).
+
+That's it — the hourly Sync Action harvests your repos and redeploys. No backend,
+nothing to run.
+
 ## How it fits together
 
 ```
@@ -123,6 +143,7 @@ bundle; [`.assetsignore`](.assetsignore) keeps `scripts/`, config and docs out.
 | Path | What |
 |------|------|
 | `sources.json` | Which repos to harvest and how. |
+| `board.config.json` | Board title, description, and source link (deploy-your-own). |
 | `scripts/harvest.mjs` | The harvester (entry point). |
 | `scripts/lib/` | `repo.mjs` (backends), `adapters.mjs`, `frontmatter.mjs`. |
 | `CONVENTION.md` | The cross-repo roadmap standard. |

@@ -21,6 +21,7 @@ on:
     branches: [main]
     paths:
       - "sources.json"
+      - "board.config.json"
       - "scripts/**"
       - "index.html"
       - "app.js"

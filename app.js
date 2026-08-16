@@ -762,6 +762,25 @@
   }
 
   // ── boot ──
+  // Deploy-your-own config: title/description/source link come from
+  // board.config.json (embedded in the payload), so nothing here is hardcoded
+  // to one owner. Falls back to the static HTML defaults when absent.
+  var CFG = DATA.config || {};
+  if (CFG.title) {
+    document.title = CFG.title;
+    var h1 = document.querySelector(".brand h1");
+    if (h1) h1.textContent = CFG.title;
+  }
+  if (CFG.description) {
+    var descMeta = document.querySelector('meta[name="description"]');
+    if (descMeta) descMeta.setAttribute("content", CFG.description);
+  }
+  var sourceLink = document.getElementById("sourceLink");
+  if (sourceLink) {
+    if (CFG.repoUrl) sourceLink.href = CFG.repoUrl;
+    else sourceLink.style.display = "none"; // no repo configured → hide the dead link
+  }
+
   var active = DATA.counts.now + DATA.counts.next + DATA.counts.later;
   document.getElementById("subtitle").textContent =
     active + " active · " + DATA.counts.done + " done · " + DATA.sources.length + " repos";
