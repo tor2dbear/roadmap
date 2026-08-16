@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-16T08:34:25.748Z",
+  "generatedAt": "2026-08-16T09:43:36.238Z",
   "statuses": [
     "now",
     "next",
@@ -1242,7 +1242,7 @@
       "repo": "tor2dbear/meta-matic",
       "repoName": "Méta-Matic",
       "repoColor": "#a78bfa",
-      "issueState": "closed",
+      "issueState": null,
       "slug": "exclusive-certificates",
       "title": "Exclusive certificates",
       "status": "done",
