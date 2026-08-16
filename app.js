@@ -144,13 +144,11 @@
     return e;
   }
 
-  // Compact last-updated stamp for cards/list rows: a muted "Uppd." label makes
-  // clear which date this is (there's only one, and it's the last-updated one)
-  // without spelling it out full-width like the modal does.
+  // Compact last-updated stamp for cards/list rows. Just the date — there's only
+  // one on a card, and the modal + sort menu spell out which it is; a "Uppd."
+  // label would only add clutter. The tooltip/aria keep it explicit.
   function dateEl(date, cls) {
-    var d = el("span", cls || "card-date");
-    d.appendChild(el("span", "date-label", "Uppd."));
-    d.appendChild(document.createTextNode(" " + date));
+    var d = el("span", cls || "card-date", date);
     d.title = "Senast uppdaterad";
     d.setAttribute("aria-label", "Senast uppdaterad " + date);
     return d;
@@ -304,13 +302,19 @@
     var dot = el("span", "repo-dot");
     dot.style.background = item.repoColor;
     r.appendChild(dot);
-    r.appendChild(el("span", "list-title", item.title));
+    // title + meta share a wrapping row: inline (date right) on desktop, stacked
+    // (date on its own line below the title) on mobile.
+    var body = el("div", "list-body");
+    body.appendChild(el("span", "list-title", item.title));
+    var meta = el("div", "list-meta");
     if (sig.length) {
       var warn = el("span", "warn-badge", "⚠");
       warn.title = sig.join("\n");
-      r.appendChild(warn);
+      meta.appendChild(warn);
     }
-    if (item.updated) r.appendChild(dateEl(item.updated, "list-date"));
+    if (item.updated) meta.appendChild(dateEl(item.updated, "list-date"));
+    body.appendChild(meta);
+    r.appendChild(body);
     r.addEventListener("click", function () { openModal(item); });
     return r;
   }
