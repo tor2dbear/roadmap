@@ -70,6 +70,7 @@ order: 10
 | `title`   | yes      | Short heading for the board. Quote it if it contains a `:`. |
 | `status`  | yes      | One of `inbox`, `now`, `next`, `later`, `done`. See lifecycle. |
 | `updated` | yes      | `YYYY-MM-DD`, last touched. The aggregator sorts and shows freshness on it. |
+| `created` | no       | `YYYY-MM-DD`. Usually omit — the aggregator derives it from the file's first commit. `roadmap new` stamps it for you. Set it by hand only to override that. |
 | `tags`    | no       | Areas, e.g. `[editor]`, `[auth]`. Inline array. Used for filtering. |
 | `issue`   | no       | The working issue number in the repo, when the puck is in progress. |
 | `order`   | no       | Manual order **within** a status column (lower = higher up). Falls back to `updated`. |

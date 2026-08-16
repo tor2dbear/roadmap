@@ -130,6 +130,7 @@ async function cmdNew() {
     `status: ${status}`,
     ...(tags.length ? [`tags: [${tags.join(", ")}]`] : []),
     `updated: ${TODAY}`,
+    `created: ${TODAY}`,
     "---",
     "",
     "## Mål",

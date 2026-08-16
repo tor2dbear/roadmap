@@ -5,8 +5,11 @@
 // The fs backend wins whenever the checkout exists; otherwise it falls back to http.
 
 import { readFile, readdir, stat } from "node:fs/promises";
+import { execFile } from "node:child_process";
 import path from "node:path";
+import { promisify } from "node:util";
 
+const execFileP = promisify(execFile);
 const LOCAL_ROOT = process.env.ROADMAP_LOCAL_ROOT || "";
 const TOKEN = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || "";
 
@@ -88,6 +91,29 @@ export async function openRepo(repo, branch) {
       );
       if (!Array.isArray(json)) return [];
       return json.map((e) => ({ name: e.name, type: e.type === "dir" ? "dir" : "file" }));
+    },
+
+    /**
+     * Creation date (YYYY-MM-DD) of a file — the first commit that touched it.
+     * Derived from git so it needs no hand-maintained field. Best-effort: null on
+     * the http backend, or when history is unavailable (e.g. a shallow clone).
+     */
+    async firstCommitDate(relPath) {
+      if (backend !== "fs") return null;
+      try {
+        // Newest commit that *added* the path — for a puck added once (then only
+        // edited) that's its creation. `-1` stops early, so this stays cheap even
+        // over full history.
+        const { stdout } = await execFileP(
+          "git",
+          ["-C", dir, "log", "-1", "--diff-filter=A", "--format=%as", "--", relPath],
+          { maxBuffer: 1 << 20 },
+        );
+        const date = stdout.trim();
+        return date || null;
+      } catch {
+        return null;
+      }
     },
   };
 }

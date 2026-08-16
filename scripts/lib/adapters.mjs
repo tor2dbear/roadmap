@@ -1,6 +1,6 @@
 // Adapters turn a source repo's roadmap — however it is written — into a flat
 // list of normalized items. Each item:
-//   { slug, title, status, tags, updated, issue, order, body,
+//   { slug, title, status, tags, updated, created, issue, order, body,
 //     sourcePath, sourceUrl, adapter, native }
 //
 // `native: true`  → a real puck authored in the convention (source of truth).
@@ -64,12 +64,17 @@ async function pucksAdapter(repo, branch, source) {
     if (text == null) continue;
     const { data, body } = parseFrontmatter(text);
 
+    // Creation date: an explicit `created:` wins; otherwise derive it from git
+    // (first commit that added the file) so it needs no hand upkeep.
+    const created = data.created ? String(data.created) : await repo.firstCommitDate(relPath);
+
     items.push({
       slug,
       title: data.title ? String(data.title) : slug,
       status: normalizeStatus(data.status, "inbox"),
       tags: Array.isArray(data.tags) ? data.tags : data.tags ? [String(data.tags)] : [],
       updated: data.updated ? String(data.updated) : "",
+      created: created || null,
       issue: data.issue != null && data.issue !== "" ? Number(data.issue) : null,
       order: data.order != null && data.order !== "" ? Number(data.order) : null,
       body,
@@ -181,6 +186,7 @@ async function checklistAdapter(repo, branch, source) {
       status: done ? "done" : "later",
       tags,
       updated: "",
+      created: null,
       issue: null,
       order: i * 10,
       body,
@@ -207,6 +213,7 @@ async function proseAdapter(repo, branch, source) {
       status: "later", // future/"sharp version" ideas — explicitly not committed
       tags: [],
       updated: "",
+      created: null,
       issue: null,
       order: i * 10,
       body,

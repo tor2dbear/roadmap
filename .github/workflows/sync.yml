@@ -43,7 +43,7 @@ jobs:
         with:
           node-version: 20
 
-      - name: Clone source repos (shallow, read-only)
+      - name: Clone source repos (treeless, read-only)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -53,9 +53,12 @@ jobs:
           while read -r repo branch; do
             [ -z "$repo" ] && continue
             echo "Cloning $repo@$branch"
-            git clone --depth 1 --branch "$branch" \
+            # --filter=blob:none keeps full commit history (needed to derive each
+            # puck's creation date) while fetching file contents on demand, so it
+            # stays nearly as light as a shallow clone.
+            git clone --filter=blob:none --branch "$branch" \
               "https://github.com/$repo" "$RUNNER_TEMP/sources/$repo" \
-              || git clone --depth 1 "https://github.com/$repo" "$RUNNER_TEMP/sources/$repo"
+              || git clone --filter=blob:none "https://github.com/$repo" "$RUNNER_TEMP/sources/$repo"
           done <<< "$repos"
 
       - name: Harvest

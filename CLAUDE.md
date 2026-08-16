@@ -20,10 +20,12 @@ generated files below does nothing lasting; the next sync overwrites them.
 - `data/roadmap.json` — canonical machine-readable aggregate (read this to reason
   about the roadmap programmatically). Shape: `{ generatedAt, statuses, counts,
   total, sources[], items[] }`. Each item: `{ id, repo, repoName, repoColor,
-  slug, title, status, tags[], updated, issue, issueState, order, body,
+  slug, title, status, tags[], updated, created, issue, issueState, order, body,
   sourcePath, sourceUrl, adapter, native, signals[] }`. `issueState` is
   `"open"`/`"closed"` (or `null`) — the real state of the linked `issue`,
-  reconciled at harvest. `signals[]` are the drift flags (`{ type }`, discrete:
+  reconciled at harvest. `created` is `YYYY-MM-DD` (or `null`) — the puck's
+  first-commit date, derived from git at harvest (a `created:` frontmatter field
+  overrides it); needs full clone history, so the sync clones treeless. `signals[]` are the drift flags (`{ type }`, discrete:
   `stale` / `issue-closed` / `issue-open`) — read these to spot cards whose
   declared status disagrees with reality.
 - `data/roadmap.js` — the same payload as `window.__ROADMAP__`, so `index.html`

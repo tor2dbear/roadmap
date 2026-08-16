@@ -243,12 +243,19 @@
     meta.appendChild(el("span", "status-pill status-" + item.status, STATUS_LABEL[item.status] || item.status));
     if (item.updated) {
       // Spelled out here (unlike the compact cards) so the detail view is
-      // unambiguous — this is the last-updated date, not a creation date.
+      // unambiguous about which date is which.
       var mdate = el("span", "card-date", "Uppdaterad " + item.updated);
       mdate.title = "Senast uppdaterad";
       meta.appendChild(mdate);
     }
     modalContent.appendChild(meta);
+
+    // Created date on its own muted line (derived from git, may be absent).
+    if (item.created) {
+      var created = el("div", "modal-created", "Skapad " + item.created);
+      created.title = "Skapad (första commit)";
+      modalContent.appendChild(created);
+    }
 
     // Tags on their own row (static badges).
     if (item.tags.length || !item.native) {

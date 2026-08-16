@@ -367,6 +367,7 @@ body {
 .status-pill.status-later { color: var(--later); }
 .status-pill.status-inbox { color: var(--inbox); }
 .status-pill.status-done { color: var(--done); }
+.modal-created { margin-top: 6px; font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .modal-body { margin-top: 14px; font-size: 14px; color: var(--ink-2); overflow-wrap: anywhere; }
 .modal-body :is(h2, h3, h4) { font-size: 14px; margin: 16px 0 6px; color: var(--ink); }
 .modal-body :is(h2, h3, h4):first-child { margin-top: 0; }
