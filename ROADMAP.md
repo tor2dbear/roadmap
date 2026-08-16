@@ -41,7 +41,7 @@ _Generated 2026-08-16 · 116 items across 6 repos._
 - **Roller på delade filer (owner/editor/viewer)** — PIA · #collab #permissions #supabase · 2026-08-08  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/shared-file-roles.md
 
-## Later (16)
+## Later (15)
 
 - **Opinion-lagret som tjänst (Worker + MCP)** — Cadence · #backend · 2026-08-15  
   https://github.com/tor2dbear/cadence/blob/main/roadmap/opinion-layer-service.md
@@ -49,10 +49,8 @@ _Generated 2026-08-16 · 116 items across 6 repos._
   https://github.com/tor2dbear/cadence/blob/main/roadmap/security-headers.md
 - **Sluta committa genererad data + slå ihop skörd/deploy** — Roadmap · #ops #dx · 2026-08-16  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/deploy-simplification.md
-- **Redigera pucks direkt i GUI:t** — Roadmap · #ui #api #editing · 2026-08-16  
+- **Redigera pucks direkt i GUI:t** — Roadmap · #ui #api #editing · 2026-08-16 · ⛔ blocked by deploy-simplification  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/gui-editing.md
-- **Beroenden mellan pucks (blocked-by)** — Roadmap · #core #product #ai · 2026-08-16  
-  https://github.com/tor2dbear/roadmap/blob/main/roadmap/puck-dependencies.md
 - **Breakpoints-uppdatering** — tor-bjorn.com · #css #layout · 2026-08-16  
   https://github.com/tor2dbear/portfolio/blob/master/roadmap/breakpoints-update.md
 - **Färgtoken-omstrukturering** — tor-bjorn.com · #css #tokens · 2026-08-16  
@@ -97,7 +95,7 @@ _Generated 2026-08-16 · 116 items across 6 repos._
 - **Paket-roadmap — brew-appar som passar PIA** — PIA · #packages #overview · 2026-07-18  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/package-ideas.md
 
-## Done (81)
+## Done (82)
 
 - **Linjera med fleet-konventionen (Cloudflare + roadmap.tor2dbear.com)** — Roadmap · #hosting #ops · 2026-08-15  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/align-with-fleet-cloudflare.md
@@ -125,6 +123,8 @@ _Generated 2026-08-16 · 116 items across 6 repos._
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/authoring-cli.md
 - **Delbart system via URL-state** — Cadence · #share · 2026-08-15  
   https://github.com/tor2dbear/cadence/blob/main/roadmap/shareable-url-state.md
+- **Beroenden mellan pucks (blocked-by)** — Roadmap · #core #product #ai · 2026-08-16  
+  https://github.com/tor2dbear/roadmap/blob/main/roadmap/puck-dependencies.md
 - **Listvy-läge (alternativ till kanban)** — Roadmap · #ui · 2026-08-16  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/list-view.md
 - **Fler export-mål** — Cadence · #export · 2026-08-15  
