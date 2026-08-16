@@ -475,6 +475,15 @@
   var saved = null;
   try { saved = localStorage.getItem("roadmap-theme"); } catch (e) {}
   if (saved) root.setAttribute("data-theme", saved);
+
+  // Keep the browser status-bar color matched to the actual page background, so
+  // it tracks both the system scheme and the in-app toggle (not just dark).
+  var themeColorMeta = document.querySelector('meta[name="theme-color"]');
+  function applyThemeColor() {
+    if (!themeColorMeta) return;
+    var bg = getComputedStyle(document.body).backgroundColor;
+    if (bg) themeColorMeta.setAttribute("content", bg);
+  }
   // True light⇄dark toggle: flip whatever is currently showing. (A three-state
   // dark→light→auto cycle was confusing because "auto" looks identical to dark on
   // a dark-set device, so getting back to dark took two presses.)
@@ -488,8 +497,14 @@
     var next = effectiveIsDark() ? "light" : "dark";
     root.setAttribute("data-theme", next);
     try { localStorage.setItem("roadmap-theme", next); } catch (e) {}
+    applyThemeColor();
     themeBtn.blur();
   });
+  // Follow the system scheme while on "auto" (no explicit toggle yet).
+  if (window.matchMedia) {
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyThemeColor);
+  }
+  applyThemeColor();
 
   // ── view toggle (board ⇄ list, remembered) ──
   var viewBtn = document.getElementById("viewToggle");
