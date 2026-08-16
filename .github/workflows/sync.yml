@@ -24,6 +24,7 @@ on:
     paths:
       - "sources.json"
       - "board.config.json"
+      - "roadmap/**" # this repo's own pucks → deploy on push, no waiting for the hourly run
       - "scripts/**"
       - "index.html"
       - "app.js"
