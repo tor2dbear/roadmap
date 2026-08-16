@@ -267,6 +267,7 @@
       board.appendChild(col);
     });
 
+    updateFilterButton();
     var shown = visible.length;
     document.getElementById("footmeta").textContent =
       shown + " of " + DATA.total + " shown · generated " + DATA.generatedAt.slice(0, 16).replace("T", " ") + " UTC · ";
@@ -357,14 +358,28 @@
     renderBoard();
   });
 
+  // ── collapsible filters (collapsed by default on narrow screens) ──
+  var filterChips = document.getElementById("filterChips");
+  var filterToggle = document.getElementById("filterToggle");
+  function setFilters(open) {
+    filterChips.hidden = !open;
+    filterToggle.setAttribute("aria-expanded", open ? "true" : "false");
+    filterToggle.classList.toggle("active", open);
+  }
+  filterToggle.addEventListener("click", function () { setFilters(filterChips.hidden); });
+  function updateFilterButton() {
+    var n = state.repos.size + state.tags.size;
+    filterToggle.textContent = n ? "Filter (" + n + ")" : "Filter";
+  }
+
   // ── boot ──
   var active = DATA.counts.now + DATA.counts.next + DATA.counts.later;
   document.getElementById("subtitle").textContent =
-    DATA.sources.map(function (s) { return s.name; }).join(" · ") +
-    " · " + active + " active, " + DATA.counts.done + " done";
+    active + " active · " + DATA.counts.done + " done · " + DATA.sources.length + " repos";
   buildModal();
   buildRepoChips();
   buildTagChips();
   buildAttentionChip();
+  setFilters(window.matchMedia("(min-width: 601px)").matches);
   renderBoard();
 })();

@@ -104,6 +104,9 @@ body {
   border-bottom: 1px solid var(--line);
 }
 .filter-group { display: flex; gap: 6px; flex-wrap: wrap; }
+.filter-chips { flex-basis: 100%; display: flex; flex-direction: column; gap: 10px; }
+.filter-chips[hidden] { display: none; }
+.ghost.active { border-color: var(--accent); color: var(--accent); }
 .chip {
   border: 1px solid var(--line);
   background: var(--panel);
@@ -270,6 +273,11 @@ body.modal-open { overflow: hidden; }
 @media (max-width: 600px) {
   .modal-backdrop { padding: 0; }
   .modal { max-width: none; max-height: 100vh; height: 100%; border-radius: 0; border: none; border-left: none; }
+  /* Chip groups become single swipeable rows so the expanded filters stay compact. */
+  .filter-group { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+  .filter-group::-webkit-scrollbar { display: none; }
+  #search { min-width: 0; flex: 1; }
+  .controls { flex: 1; }
 }
 
 .empty { color: var(--ink-3); font-size: 13px; padding: 8px 2px; }

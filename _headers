@@ -1,0 +1,6 @@
+# Cloudflare Workers static-assets headers.
+# Serve the generated markdown digest as UTF-8 so em dashes (—), · and é render
+# correctly instead of mojibake (â€", Â·, Ã©) — .md is otherwise served without a
+# charset and browsers fall back to Latin-1.
+/ROADMAP.md
+  Content-Type: text/markdown; charset=utf-8
