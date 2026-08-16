@@ -475,9 +475,17 @@
   var saved = null;
   try { saved = localStorage.getItem("roadmap-theme"); } catch (e) {}
   if (saved) root.setAttribute("data-theme", saved);
+  // True light⇄dark toggle: flip whatever is currently showing. (A three-state
+  // dark→light→auto cycle was confusing because "auto" looks identical to dark on
+  // a dark-set device, so getting back to dark took two presses.)
+  function effectiveIsDark() {
+    var t = root.getAttribute("data-theme");
+    if (t === "dark") return true;
+    if (t === "light") return false;
+    return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  }
   themeBtn.addEventListener("click", function () {
-    var cur = root.getAttribute("data-theme");
-    var next = cur === "dark" ? "light" : cur === "light" ? "auto" : "dark";
+    var next = effectiveIsDark() ? "light" : "dark";
     root.setAttribute("data-theme", next);
     try { localStorage.setItem("roadmap-theme", next); } catch (e) {}
     themeBtn.blur();
@@ -625,11 +633,21 @@
   // card or empty space doesn't. Blur on any tap outside the input (but not on the
   // dropdown, whose own pointerdown handles the pick).
   searchInput.addEventListener("blur", hideSuggestions);
-  document.addEventListener("touchstart", function (e) {
-    if (document.activeElement === searchInput && e.target !== searchInput && !suggestEl.contains(e.target)) {
-      searchInput.blur();
-    }
-  }, { passive: true });
+  // Tapping outside: dismiss the keyboard, and if the dropdown is open, close it
+  // AND swallow that tap so it only closes the dropdown instead of also opening
+  // whatever card is underneath. Reset the flag at the top of every pointerdown so
+  // a scroll that never produces a click can't leave it stuck.
+  var swallowClick = false;
+  document.addEventListener("pointerdown", function (e) {
+    swallowClick = false;
+    if (e.target === searchInput || suggestEl.contains(e.target)) return;
+    var wasOpen = !suggestEl.hidden;
+    if (document.activeElement === searchInput) searchInput.blur();
+    if (wasOpen) { hideSuggestions(); swallowClick = true; }
+  }, true);
+  document.addEventListener("click", function (e) {
+    if (swallowClick) { swallowClick = false; e.preventDefault(); e.stopPropagation(); }
+  }, true);
   document.getElementById("showDone").addEventListener("change", function (e) {
     state.showDone = e.target.checked;
     renderBoard();
