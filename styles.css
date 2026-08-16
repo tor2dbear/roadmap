@@ -159,6 +159,42 @@ body {
 .col-status-done .swatch { background: var(--done); }
 
 .cards { display: flex; flex-direction: column; gap: 10px; }
+
+/* ── list view ── one vertical column, grouped by status. #board gets .as-list. */
+.board.as-list {
+  display: block;
+  overflow-x: visible;
+  max-width: 760px;
+  padding: 12px 24px 40px;
+}
+.list-group { margin-bottom: 20px; }
+.list-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: sticky;
+  top: 0;
+  padding: 6px 2px 8px;
+  background: var(--bg);
+  z-index: 1;
+}
+.list-head .swatch { width: 10px; height: 10px; border-radius: 3px; }
+.list-head h2 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; }
+.list-head .count { color: var(--ink-3); font-size: 12px; font-variant-numeric: tabular-nums; }
+.list-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 4px 9px 12px;
+  border-bottom: 1px solid var(--line);
+  border-left: 2px solid var(--repo, var(--line));
+  cursor: pointer;
+}
+.list-row:hover { background: var(--panel-2); }
+.list-row.flagged { border-left-color: var(--later); }
+.list-row .repo-dot { align-self: center; }
+.list-title { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; color: var(--ink); line-height: 1.35; }
+.list-date { color: var(--ink-3); font-size: 11.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .card {
   background: var(--panel);
   border: 1px solid var(--line);

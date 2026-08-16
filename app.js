@@ -21,7 +21,12 @@
     query: "",
     showDone: false,
     attention: false,
+    view: "board", // "board" (kanban columns) | "list" (one column, grouped by status)
   };
+  try {
+    var savedView = localStorage.getItem("roadmap-view");
+    if (savedView === "list" || savedView === "board") state.view = savedView;
+  } catch (e) {}
 
   // ── auto-status ──
   // The harvester computes the flags (item.signals, discrete types) so the JSON,
@@ -261,13 +266,27 @@
     document.body.classList.remove("modal-open");
   }
 
-  function renderBoard() {
-    board.innerHTML = "";
-    var visible = DATA.items.filter(matches);
-    var statuses = DATA.statuses.filter(function (s) {
-      return s !== "done" || state.showDone || state.attention;
-    });
+  // A compact list row — denser than a card, one vertical column, tap → modal.
+  function listRow(item) {
+    var sig = signalMessages(item);
+    var r = el("div", "list-row" + (sig.length ? " flagged" : ""));
+    r.style.setProperty("--repo", item.repoColor);
+    r.title = item.repoName;
+    var dot = el("span", "repo-dot");
+    dot.style.background = item.repoColor;
+    r.appendChild(dot);
+    r.appendChild(el("span", "list-title", item.title));
+    if (sig.length) {
+      var warn = el("span", "warn-badge", "⚠");
+      warn.title = sig.join("\n");
+      r.appendChild(warn);
+    }
+    if (item.updated) r.appendChild(el("span", "list-date", item.updated));
+    r.addEventListener("click", function () { openModal(item); });
+    return r;
+  }
 
+  function renderColumns(visible, statuses) {
     statuses.forEach(function (status) {
       var group = visible.filter(function (it) { return it.status === status; });
       var col = el("div", "column col-status-" + status);
@@ -285,6 +304,33 @@
       col.appendChild(cards);
       board.appendChild(col);
     });
+  }
+
+  function renderList(visible, statuses) {
+    statuses.forEach(function (status) {
+      var group = visible.filter(function (it) { return it.status === status; });
+      if (group.length === 0) return; // no "—" placeholders in the flat list
+      var section = el("section", "list-group col-status-" + status);
+      var head = el("div", "list-head");
+      head.appendChild(el("span", "swatch"));
+      head.appendChild(el("h2", null, STATUS_LABEL[status] || status));
+      head.appendChild(el("span", "count", String(group.length)));
+      section.appendChild(head);
+      group.forEach(function (it) { section.appendChild(listRow(it)); });
+      board.appendChild(section);
+    });
+  }
+
+  function renderBoard() {
+    board.innerHTML = "";
+    board.classList.toggle("as-list", state.view === "list");
+    var visible = DATA.items.filter(matches);
+    var statuses = DATA.statuses.filter(function (s) {
+      return s !== "done" || state.showDone || state.attention;
+    });
+
+    if (state.view === "list") renderList(visible, statuses);
+    else renderColumns(visible, statuses);
 
     updateFilterButton();
     var shown = visible.length;
@@ -368,6 +414,22 @@
     try { localStorage.setItem("roadmap-theme", next); } catch (e) {}
   });
 
+  // ── view toggle (board ⇄ list, remembered) ──
+  var viewBtn = document.getElementById("viewToggle");
+  function updateViewButton() {
+    var toList = state.view === "board";
+    viewBtn.textContent = toList ? "☰" : "▦";
+    viewBtn.title = toList ? "Byt till listvy" : "Byt till brädvy";
+    viewBtn.setAttribute("aria-label", viewBtn.title);
+    viewBtn.classList.toggle("active", state.view === "list");
+  }
+  viewBtn.addEventListener("click", function () {
+    state.view = state.view === "board" ? "list" : "board";
+    try { localStorage.setItem("roadmap-view", state.view); } catch (e) {}
+    updateViewButton();
+    renderBoard();
+  });
+
   document.getElementById("search").addEventListener("input", function (e) {
     state.query = e.target.value.trim();
     renderBoard();
@@ -399,6 +461,7 @@
   buildRepoChips();
   buildTagChips();
   buildAttentionChip();
+  updateViewButton();
   setFilters(window.matchMedia("(min-width: 601px)").matches);
   renderBoard();
 })();
