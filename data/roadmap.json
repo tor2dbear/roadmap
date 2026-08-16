@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-16T10:42:01.128Z",
+  "generatedAt": "2026-08-16T11:01:38.086Z",
   "statuses": [
     "now",
     "next",
@@ -12,9 +12,9 @@
     "next": 6,
     "later": 14,
     "inbox": 9,
-    "done": 79
+    "done": 80
   },
-  "total": 111,
+  "total": 112,
   "sources": [
     {
       "repo": "tor2dbear/roadmap",
@@ -24,7 +24,7 @@
       "url": "https://github.com/tor2dbear/roadmap",
       "adapter": "pucks",
       "backend": "fs",
-      "count": 12,
+      "count": 13,
       "native": true,
       "error": null
     },
@@ -694,6 +694,29 @@
       "body": "## Mål\nKunna sortera tavlan på fler sätt än default, och visa när en puck skapades —\ninte bara när den senast rördes.\n\n## Levererat\n- **Sort-väljare** i Filter-panelen (sparad i `localStorage`): Senast uppdaterad\n  (default = harvesterns `order → nyast → titel`), Äldst uppdaterad, **Nyast\n  skapad**, **Äldst skapad**, Titel A–Ö. Klient-sidig `sortComparator`; en delad\n  `byDate`-helper lägger pucks utan datum sist.\n- **Skapad-datum** härlett ur git (första commit som la till filen), så det inte\n  behöver handpysslas — `repo.firstCommitDate()` i harvestern, `created:` i\n  frontmatter kan överstyra, `roadmap new` stämplar det framåt. Synken klonar\n  treeless (`--filter=blob:none`) så historiken finns i CI.\n- **Modalen** visar `Skapad · Uppdaterad` på en rad; korten/listan håller sig\n  kompakta med bara uppdaterat-datum.\n\n## Not\nDeploy-bugg upptäckt på vägen: Cloudflare hoppar över commits vars meddelande\ninnehåller CI-skip-tokenet, så den timvisa datan deployade aldrig av sig själv.\nÅtgärdat genom att ta bort tokenet ur sync-bottens commit (paths-filtret är den\nriktiga loop-vakten).",
       "sourcePath": "roadmap/sort-and-created.md",
       "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/sort-and-created.md",
+      "adapter": "pucks",
+      "native": true,
+      "signals": []
+    },
+    {
+      "id": "roadmap/share-link",
+      "repo": "tor2dbear/roadmap",
+      "repoName": "Roadmap",
+      "repoColor": "#94a3b8",
+      "issueState": null,
+      "slug": "share-link",
+      "title": "Dela-länk till en puck",
+      "status": "done",
+      "tags": [
+        "ui"
+      ],
+      "updated": "2026-08-16",
+      "created": "2026-08-16",
+      "issue": null,
+      "order": 70,
+      "body": "## Mål\nKunna länka direkt till ett enskilt kort — för att klistra in i en chatt/agent\neller dela med någon, så den öppnas direkt istället för att man får leta.\n\n## Levererat\n- Varje puck har en URL via hash: `…/#<repo>/<slug>` (item-id:t finns redan).\n- Öppnar man ett kort speglas det i URL:en (`history.replaceState`, ingen scroll-\n  hopp eller history-spam); stänger man rensas hashen.\n- Laddar man en URL med `#<id>` öppnas det kortets modal direkt; `hashchange`\n  hanterar även inklistrad länk i samma flik och Bakåt.\n- **\"🔗 Kopiera länk\"** i modalens länkrad — kopierar full URL (clipboard-API med\n  execCommand-fallback), visar \"✓ Kopierad\".\n\n## Not\nByggsten för både delning och portabilitet — en stabil referens till ett kort\när det man vill peka en människa eller en agent på.",
+      "sourcePath": "roadmap/share-link.md",
+      "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/share-link.md",
       "adapter": "pucks",
       "native": true,
       "signals": []

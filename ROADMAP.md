@@ -4,11 +4,11 @@
      hand: your changes will be overwritten on the next sync. Edit the roadmap in
      the source repo instead. -->
 
-_Generated 2026-08-16 · 111 items across 6 repos._
+_Generated 2026-08-16 · 112 items across 6 repos._
 
 ## Sources
 
-- **[Roadmap](https://github.com/tor2dbear/roadmap)** — 12 items, native pucks. This board's own backlog — the aggregator tracking itself.
+- **[Roadmap](https://github.com/tor2dbear/roadmap)** — 13 items, native pucks. This board's own backlog — the aggregator tracking itself.
 - **[PIA](https://github.com/tor2dbear/pia-terminal)** — 51 items, native pucks. Personal Integrated Applications — a Unix-flavoured terminal in the browser.
 - **[Cadence](https://github.com/tor2dbear/cadence)** — 10 items, native pucks. A motion *system* designer — tokens for timing & easing, not another easing toy.
 - **[Méta-Matic](https://github.com/tor2dbear/meta-matic)** — 18 items, native pucks. A digital drawing machine after Jean Tinguely — infinite works, never anything new.
@@ -91,7 +91,7 @@ _Generated 2026-08-16 · 111 items across 6 repos._
 - **Paket-roadmap — brew-appar som passar PIA** — PIA · #packages #overview · 2026-07-18  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/package-ideas.md
 
-## Done (79)
+## Done (80)
 
 - **Linjera med fleet-konventionen (Cloudflare + roadmap.tor2dbear.com)** — Roadmap · #hosting #ops · 2026-08-15  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/align-with-fleet-cloudflare.md
@@ -127,6 +127,8 @@ _Generated 2026-08-16 · 111 items across 6 repos._
   https://github.com/tor2dbear/cadence/blob/main/roadmap/shipped-extras.md
 - **Sortering + skapad-datum** — Roadmap · #ui · 2026-08-16  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/sort-and-created.md
+- **Dela-länk till en puck** — Roadmap · #ui · 2026-08-16  
+  https://github.com/tor2dbear/roadmap/blob/main/roadmap/share-link.md
 - **Dependency-refresh** — tor-bjorn.com · #tooling · 2026-08-16  
   https://github.com/tor2dbear/portfolio/blob/master/roadmap/dependency-refresh.md
 - **Footer-omstrukturering** — tor-bjorn.com · #design #layout · 2026-08-16  
