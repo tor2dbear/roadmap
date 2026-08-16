@@ -45,7 +45,7 @@
     },
     {
       "repo": "tor2dbear/portfolio",
-      "name": "tor-björn.com",
+      "name": "tor-bjorn.com",
       "blurb": "Personal Hugo site — design system, typography, terminal, header/footer redesign.",
       "color": "#fb923c",
       "adapter": "pucks",
