@@ -577,13 +577,28 @@
     openModal(it);
   }
 
+  var searchClear = document.getElementById("searchClear");
+  function updateSearchClear() { searchClear.hidden = !searchInput.value; }
+
   searchInput.addEventListener("input", function (e) {
     state.query = e.target.value.trim();
     renderBoard();
     updateSuggestions();
+    updateSearchClear();
   });
   searchInput.addEventListener("focus", function () {
     if (state.query) updateSuggestions();
+  });
+  // pointerdown + preventDefault so the tap clears without first blurring the
+  // input (keeps focus, so the keyboard stays and you can keep typing).
+  searchClear.addEventListener("pointerdown", function (e) {
+    e.preventDefault();
+    searchInput.value = "";
+    state.query = "";
+    renderBoard();
+    hideSuggestions();
+    updateSearchClear();
+    searchInput.focus();
   });
   searchInput.addEventListener("keydown", function (e) {
     var n = suggestItems.length;
@@ -596,8 +611,11 @@
       suggestIndex = (suggestIndex - 1 + n) % n;
       renderSuggestions();
     } else if (e.key === "Enter") {
-      if (n) { e.preventDefault(); chooseSuggestion(suggestItems[suggestIndex >= 0 ? suggestIndex : 0]); }
-      else searchInput.blur();
+      // Only open a suggestion the user actually arrowed to; otherwise Enter just
+      // commits the search — dismiss the dropdown/keyboard and show the filtered
+      // board (the query is already applied live).
+      if (suggestIndex >= 0 && n) { e.preventDefault(); chooseSuggestion(suggestItems[suggestIndex]); }
+      else { hideSuggestions(); searchInput.blur(); }
     } else if (e.key === "Escape") {
       if (n) hideSuggestions();
       else searchInput.blur();

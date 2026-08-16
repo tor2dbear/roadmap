@@ -81,10 +81,33 @@ body {
   border: 1px solid var(--line);
   color: var(--ink);
   border-radius: 8px;
-  padding: 8px 12px;
+  padding: 8px 34px 8px 12px;
   font-size: 14px;
 }
 #search:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+/* Hide the native search clear so it doesn't double up with our own button. */
+#search::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+.search-clear {
+  position: absolute;
+  top: 50%;
+  right: 7px;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--ink-3);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+.search-clear[hidden] { display: none; }
+@media (hover: hover) { .search-clear:hover { color: var(--ink); border-color: var(--accent); } }
 
 /* ── search suggestions dropdown ── */
 .suggest {
