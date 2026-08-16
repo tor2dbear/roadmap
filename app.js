@@ -22,13 +22,14 @@
     showDone: false,
     attention: false,
     view: "board", // "board" (kanban columns) | "list" (one column, grouped by status)
-    sort: "default", // "default" (order → newest) | "updated-asc" | "title"
+    sort: "default", // see SORTS below
   };
+  var SORTS = ["default", "updated-asc", "created-desc", "created-asc", "title"];
   try {
     var savedView = localStorage.getItem("roadmap-view");
     if (savedView === "list" || savedView === "board") state.view = savedView;
     var savedSort = localStorage.getItem("roadmap-sort");
-    if (savedSort === "default" || savedSort === "updated-asc" || savedSort === "title") state.sort = savedSort;
+    if (SORTS.indexOf(savedSort) !== -1) state.sort = savedSort;
   } catch (e) {}
 
   // ── auto-status ──
@@ -352,12 +353,22 @@
   // Client-side sort. "default" mirrors the harvester (manual `order` first, then
   // freshest `updated`, then title) so the board looks the same until you pick
   // another mode; the explicit modes drop `order` since the choice is deliberate.
+  // Sort by a nullable date field, always pushing items that lack it to the end.
+  // dir: 1 = oldest first (ascending), -1 = newest first (descending).
+  function byDate(field, dir) {
+    return function (a, b) {
+      var av = a[field], bv = b[field];
+      if (av && bv) return (dir === 1 ? av.localeCompare(bv) : bv.localeCompare(av)) || a.title.localeCompare(b.title);
+      if (av) return -1;
+      if (bv) return 1;
+      return a.title.localeCompare(b.title);
+    };
+  }
+
   function sortComparator() {
-    if (state.sort === "updated-asc") {
-      return function (a, b) {
-        return (a.updated || "").localeCompare(b.updated || "") || a.title.localeCompare(b.title);
-      };
-    }
+    if (state.sort === "updated-asc") return byDate("updated", 1);
+    if (state.sort === "created-desc") return byDate("created", -1);
+    if (state.sort === "created-asc") return byDate("created", 1);
     if (state.sort === "title") {
       return function (a, b) { return a.title.localeCompare(b.title); };
     }
