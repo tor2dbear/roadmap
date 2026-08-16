@@ -272,6 +272,7 @@ body {
 .card-repo { display: inline-flex; align-items: center; gap: 5px; color: var(--ink-2); font-weight: 600; white-space: nowrap; }
 .repo-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
 .card-date { margin-left: auto; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.date-label { color: var(--ink-3); margin-right: 1px; }
 /* Row 3 — tags. Badges are STATIC (flat, rounded-rect, no border, default cursor);
    the round bordered pills in the filter bar (.chip) are the CLICKABLE ones. */
 .card-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }

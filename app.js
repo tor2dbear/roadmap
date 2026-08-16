@@ -143,6 +143,18 @@
     return e;
   }
 
+  // Compact last-updated stamp for cards/list rows: a muted "Uppd." label makes
+  // clear which date this is (there's only one, and it's the last-updated one)
+  // without spelling it out full-width like the modal does.
+  function dateEl(date, cls) {
+    var d = el("span", cls || "card-date");
+    d.appendChild(el("span", "date-label", "Uppd."));
+    d.appendChild(document.createTextNode(" " + date));
+    d.title = "Senast uppdaterad";
+    d.setAttribute("aria-label", "Senast uppdaterad " + date);
+    return d;
+  }
+
   // A card is a compact summary; tapping it opens the full detail in a modal
   // (fullscreen on mobile) so long bodies don't blow up the column height.
   function card(item) {
@@ -166,12 +178,7 @@
       warn.title = sig.join("\n");
       meta.appendChild(warn);
     }
-    if (item.updated) {
-      var cdate = el("span", "card-date", item.updated);
-      cdate.title = "Senast uppdaterad";
-      cdate.setAttribute("aria-label", "Senast uppdaterad " + item.updated);
-      meta.appendChild(cdate);
-    }
+    if (item.updated) meta.appendChild(dateEl(item.updated));
     c.appendChild(meta);
 
     // Row 3: tags (static badges).
@@ -295,12 +302,7 @@
       warn.title = sig.join("\n");
       r.appendChild(warn);
     }
-    if (item.updated) {
-      var ldate = el("span", "list-date", item.updated);
-      ldate.title = "Senast uppdaterad";
-      ldate.setAttribute("aria-label", "Senast uppdaterad " + item.updated);
-      r.appendChild(ldate);
-    }
+    if (item.updated) r.appendChild(dateEl(item.updated, "list-date"));
     r.addEventListener("click", function () { openModal(item); });
     return r;
   }
