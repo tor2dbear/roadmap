@@ -4,11 +4,11 @@
      hand: your changes will be overwritten on the next sync. Edit the roadmap in
      the source repo instead. -->
 
-_Generated 2026-08-16 · 116 items across 6 repos._
+_Generated 2026-08-16 · 117 items across 6 repos._
 
 ## Sources
 
-- **[Roadmap](https://github.com/tor2dbear/roadmap)** — 17 items, native pucks. This board's own backlog — the aggregator tracking itself.
+- **[Roadmap](https://github.com/tor2dbear/roadmap)** — 18 items, native pucks. This board's own backlog — the aggregator tracking itself.
 - **[PIA](https://github.com/tor2dbear/pia-terminal)** — 51 items, native pucks. Personal Integrated Applications — a Unix-flavoured terminal in the browser.
 - **[Cadence](https://github.com/tor2dbear/cadence)** — 10 items, native pucks. A motion *system* designer — tokens for timing & easing, not another easing toy.
 - **[Méta-Matic](https://github.com/tor2dbear/meta-matic)** — 18 items, native pucks. A digital drawing machine after Jean Tinguely — infinite works, never anything new.
@@ -24,8 +24,10 @@ _Generated 2026-08-16 · 116 items across 6 repos._
 - **brew install: ärlig installationsceremoni** — PIA · #packages #system · 2026-08-08  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/brew-install-progress.md
 
-## Next (5)
+## Next (6)
 
+- **Brand it + split product / instance** — Roadmap · #product · 2026-08-16  
+  https://github.com/tor2dbear/roadmap/blob/main/roadmap/productize.md
 - **Lazy email verification (gate claim, not signup)** — PIA · #auth #share · 2026-08-08  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/email-verification-lazy.md
 - **Custom probes: bring your own markup** — Cadence · #bench · 2026-08-15  
