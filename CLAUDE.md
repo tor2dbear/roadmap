@@ -112,8 +112,10 @@ Flagged cards get a ⚠ badge + note; a "⚠ Needs attention" filter shows only 
 `.github/workflows/sync.yml` runs hourly + on manual dispatch + when the
 aggregator's own code changes. It clones the sources, harvests, and commits
 changed data back to `main` (so the in-repo JSON/digest stay current for humans
-and agents). The data commit is `[skip ci]` so it does not retrigger the
-workflow — but it **does** push to `main`.
+and agents). The data commit does **not** carry `[skip ci]` — Cloudflare skips
+those, which would stop the hourly data from ever deploying. It can't retrigger
+the workflow regardless: the push trigger only watches code paths, not `data/**`,
+so that paths filter (not `[skip ci]`) is the loop-guard.
 
 **Deployment is Cloudflare Workers Builds**, connected to this repo (Pattern B in
 `tor2dbear.com/CONVENTIONS.md`; config in `wrangler.jsonc`, served at

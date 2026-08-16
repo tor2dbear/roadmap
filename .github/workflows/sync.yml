@@ -8,8 +8,10 @@ name: Sync roadmap
 #
 # Runs on a schedule (keeps the board in sync without touching the source repos),
 # on manual dispatch, and when the aggregator's own code changes. The data commit
-# is [skip ci] so it does not retrigger this workflow (it still triggers the
-# Cloudflare build, which is the point).
+# must NOT carry [skip ci]: Cloudflare Workers Builds skips those, which would
+# stop the hourly data from ever deploying. It can't retrigger this workflow
+# anyway — the push trigger below only watches code paths, not data/** — so the
+# paths filter is the real loop-guard, and the data commit deploys freely.
 
 on:
   schedule:
@@ -75,6 +77,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No roadmap changes — nothing to deploy."
           else
-            git commit -m "chore: sync roadmap data [skip ci]"
+            git commit -m "chore: sync roadmap data"
             git push
           fi
