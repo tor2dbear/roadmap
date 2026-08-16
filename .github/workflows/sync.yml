@@ -1,17 +1,19 @@
 name: Sync roadmap
 
-# Harvests every source repo's roadmap into data/roadmap.json + the board and
-# commits the refreshed data back to main. Deployment is handled by Cloudflare
-# Workers Builds (connected to this repo, see wrangler.jsonc): every push to main
-# — including the data commit below — triggers a production deploy, so the board
-# stays fresh without a manual step.
+# Harvests every source repo's roadmap into data/roadmap.json + the board, then
+# deploys straight to Cloudflare with `wrangler deploy`. The data is built fresh
+# in CI and served from this run — it is NOT committed back to the repo, so there
+# are no generated files in git, no idempotency dance, and no [skip ci] traps.
+# One job does the whole thing (harvest + deploy), replacing the old two-robot
+# split (commit data → Cloudflare Workers Builds picks it up).
 #
-# Runs on a schedule (keeps the board in sync without touching the source repos),
-# on manual dispatch, and when the aggregator's own code changes. The data commit
-# must NOT carry [skip ci]: Cloudflare Workers Builds skips those, which would
-# stop the hourly data from ever deploying. It can't retrigger this workflow
-# anyway — the push trigger below only watches code paths, not data/** — so the
-# paths filter is the real loop-guard, and the data commit deploys freely.
+# Runs on a schedule (keeps the board fresh without touching the source repos),
+# on manual dispatch, and when the aggregator's own code or config changes.
+#
+# Requires two GitHub secrets: CLOUDFLARE_API_TOKEN (an "Edit Cloudflare Workers"
+# token scoped to this account + the tor2dbear.com zone) and CLOUDFLARE_ACCOUNT_ID.
+# The Worker's own Git build must be disconnected in the Cloudflare dashboard, or
+# it would deploy the stale committed data on top of this fresh one.
 
 on:
   schedule:
@@ -26,17 +28,19 @@ on:
       - "index.html"
       - "app.js"
       - "styles.css"
+      - "wrangler.jsonc"
+      - ".assetsignore"
       - ".github/workflows/sync.yml"
 
 permissions:
-  contents: write # commit refreshed data back to the repo
+  contents: read
 
 concurrency:
   group: roadmap-sync
   cancel-in-progress: true
 
 jobs:
-  harvest:
+  harvest-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout aggregator
@@ -45,6 +49,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+
+      - name: Install deps (wrangler)
+        run: npm ci || npm install
 
       - name: Clone source repos (treeless, read-only)
         env:
@@ -64,20 +71,13 @@ jobs:
               || git clone --filter=blob:none "https://github.com/$repo" "$RUNNER_TEMP/sources/$repo"
           done <<< "$repos"
 
-      - name: Harvest
+      - name: Harvest (build data/ fresh, not committed)
         env:
           ROADMAP_LOCAL_ROOT: ${{ runner.temp }}/sources
         run: node scripts/harvest.mjs
 
-      - name: Commit refreshed data (if changed)
-        run: |
-          set -euo pipefail
-          git config user.name "roadmap-bot"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/roadmap.json data/roadmap.js ROADMAP.md
-          if git diff --cached --quiet; then
-            echo "No roadmap changes — nothing to deploy."
-          else
-            git commit -m "chore: sync roadmap data"
-            git push
-          fi
+      - name: Deploy to Cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy

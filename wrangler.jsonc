@@ -7,10 +7,10 @@
   // out of the served bundle.
   //
   // Content freshness: scripts/harvest.mjs runs in GitHub Actions (hourly + on
-  // push), clones the source repos, and commits changed data/ back to main. Each
-  // such push to main triggers a Workers Build, so the deployed board refreshes
-  // without a manual step — while code changes still get preview URLs and the
-  // merge-to-main flow.
+  // push), clones the source repos, builds data/ fresh, and deploys it here with
+  // `wrangler deploy` (see .github/workflows/sync.yml). The data is never
+  // committed back — CI is the only thing that deploys, so the Worker's own Git
+  // build must stay disconnected in the Cloudflare dashboard.
   //
   // `routes` with custom_domain claims roadmap.tor2dbear.com and lets wrangler
   // create it and its DNS record on the tor2dbear.com zone at first deploy. An

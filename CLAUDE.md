@@ -141,17 +141,20 @@ Flagged cards get a ⚠ badge + note; a "⚠ Needs attention" filter shows only 
 ## Sync & deploy
 
 `.github/workflows/sync.yml` runs hourly + on manual dispatch + when the
-aggregator's own code changes. It clones the sources, harvests, and commits
-changed data back to `main` (so the in-repo JSON/digest stay current for humans
-and agents). The data commit does **not** carry `[skip ci]` — Cloudflare skips
-those, which would stop the hourly data from ever deploying. It can't retrigger
-the workflow regardless: the push trigger only watches code paths, not `data/**`,
-so that paths filter (not `[skip ci]`) is the loop-guard.
+aggregator's own code or config changes. In **one job** it clones the sources,
+harvests `data/` fresh, and deploys straight to Cloudflare with `wrangler deploy`.
+The data is built in CI and served from that run — it is **not committed back**,
+so there are no generated files in git, no idempotency logic, and no `[skip ci]`
+traps. (The tradeoff: the in-repo `data/roadmap.json` is a frozen snapshot, not
+live — agents wanting current data read the deployed `roadmap.json` URL; primary
+truth is still the per-puck markdown in the source repos anyway.)
 
-**Deployment is Cloudflare Workers Builds**, connected to this repo (Pattern B in
+**Deployment is `wrangler deploy` from CI** (Pattern B in
 `tor2dbear.com/CONVENTIONS.md`; config in `wrangler.jsonc`, served at
-`roadmap.tor2dbear.com`). Every push to `main` — including the hourly data
-commit — triggers a production deploy, so the board refreshes automatically;
-non-`main` branches get preview URLs. There is no build step: the repo root is
-the served bundle and `.assetsignore` keeps `scripts/`, config and docs out of
-it. (GitHub Pages was the old host — now retired.)
+`roadmap.tor2dbear.com`). It needs two GitHub secrets — `CLOUDFLARE_API_TOKEN`
+(an "Edit Cloudflare Workers" token, this account + the `tor2dbear.com` zone) and
+`CLOUDFLARE_ACCOUNT_ID` — and the Worker's own Cloudflare **Git build must stay
+disconnected** (else it redeploys the stale committed data over CI's fresh one).
+There is no build step: the repo root is the served bundle and `.assetsignore`
+keeps `scripts/`, config and docs out of it. (GitHub Pages, then Cloudflare
+Workers Builds, were the old hosts — both now retired.)
