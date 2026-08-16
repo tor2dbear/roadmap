@@ -26,11 +26,11 @@ becomes **my instance** (my sources, my pucks, my domain); a **new repo** holds 
   codebases; the product repo is a derived artifact.
 - Publish the `roadmap` CLI to npm so authoring works anywhere without cloning.
 
-## Name — decided: **Vantage**
-A vantage point = one overview across all repos, which is exactly what the board
-is. Tagline: *"git-native roadmap-as-code."* The unit stays **puck** (like
-Trello/cards). Known namesake to note: `vantage.sh` (cloud-cost, different
-category). Product lives at `tor2dbear/vantage`; this repo stays my instance.
+## Name — decided: **Etapp**
+Swedish for a stage/leg of a journey — IKEA-style name, English tool. The roadmap
+is the route; each puck a stage along it. Tagline: *"git-native roadmap-as-code."*
+The unit stays **puck** (like Trello/cards). Product lives at `tor2dbear/etapp`;
+this repo stays my instance.
 
 ## Ready-made content
 The Linear/Projects comparison and the "close gaps, keep the USP" strategy are

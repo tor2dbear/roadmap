@@ -23,6 +23,6 @@ The truth is these plain files — readable in an editor, greppable by an agent,
 harvested by the multi-repo roadmap board.
 
 **Full spec & field reference:**
-https://github.com/tor2dbear/vantage/blob/main/CONVENTION.md
+https://github.com/tor2dbear/etapp/blob/main/CONVENTION.md
 **Starter template:**
-https://github.com/tor2dbear/vantage/blob/main/templates/puck.md
+https://github.com/tor2dbear/etapp/blob/main/templates/puck.md

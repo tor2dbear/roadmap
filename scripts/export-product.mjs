@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// Assemble the generic **Vantage** product tree from this instance repo: the
+// Assemble the generic **Etapp** product tree from this instance repo: the
 // reusable engine + UI + docs + templates, with personal config swapped for
 // examples. This is the "generated mirror" — run it to create or refresh the
-// product repo (tor2dbear/vantage) without maintaining two diverging codebases.
+// product repo (tor2dbear/etapp) without maintaining two diverging codebases.
 //
-//   node scripts/export-product.mjs [outDir]      # default: ../vantage-export
+//   node scripts/export-product.mjs [outDir]      # default: ../etapp-export
 //
 // Then, in the product repo: copy outDir over it, commit, push.
 
@@ -13,7 +13,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(fileURLToPath(import.meta.url), "../..");
-const OUT = path.resolve(process.argv[2] || path.join(ROOT, "..", "vantage-export"));
+const OUT = path.resolve(process.argv[2] || path.join(ROOT, "..", "etapp-export"));
 
 // Verbatim: the generic engine, UI, docs, templates. Nothing here is personal.
 const COPY = [
@@ -33,7 +33,7 @@ const COPY = [
 
 // ── generated files (personal → generic examples) ──
 const PKG = {
-  name: "vantage",
+  name: "etapp",
   version: "0.1.0",
   private: false,
   type: "module",
@@ -57,7 +57,7 @@ const WRANGLER = `{
   //
   // Set "name" to your Worker's name. For a custom domain, add a "routes" entry
   // with custom_domain:true (it claims the hostname + DNS on first deploy).
-  "name": "vantage",
+  "name": "etapp",
   "compatibility_date": "2026-08-15",
   "preview_urls": true,
   "assets": { "directory": "." }
@@ -85,9 +85,9 @@ const SOURCES = `{
 `;
 
 const BOARD_CONFIG = {
-  title: "Vantage",
+  title: "Etapp",
   description: "Roadmap-as-code — one board across your repos, truth in git.",
-  repoUrl: "https://github.com/your-org/vantage",
+  repoUrl: "https://github.com/your-org/etapp",
 };
 
 const EXAMPLE_PUCK = `---
@@ -104,7 +104,7 @@ the \`roadmap\` CLI (it bumps \`updated\` for you) or by hand. See CONVENTION.md
 
 const CLAUDE_MD = `# CLAUDE.md
 
-This is a **Vantage** board — a read-only aggregator. Roadmap truth lives in each
+This is an **Etapp** board — a read-only aggregator. Roadmap truth lives in each
 source repo as plain-markdown pucks (\`roadmap/*.md\`); this repo harvests them into
 \`data/roadmap.json\` + \`ROADMAP.md\` and renders the board. **Generated files are
 never hand-edited.**
@@ -113,7 +113,7 @@ Operating the roadmap as an agent: see [\`AGENTS.md\`](AGENTS.md) — the read/w
 contract (find what's ready via \`blockedBy\`, update pucks via the \`roadmap\` CLI).
 `;
 
-const README = `# Vantage
+const README = `# Etapp
 
 **Roadmap-as-code.** Your roadmap lives in each repo as plain-markdown *pucks* that
 both you and your AI agents read and write — aggregated into one **zero-backend
@@ -123,10 +123,10 @@ board**. No SaaS, no lock-in, no second source of truth.
 
 ## Why not Linear / GitHub Projects?
 
-They're team-PM tools; Vantage is a roadmap **layer in your code**. The difference
+They're team-PM tools; Etapp is a roadmap **layer in your code**. The difference
 is structural, not featural:
 
-| | Linear / Projects | **Vantage** |
+| | Linear / Projects | **Etapp** |
 |---|---|---|
 | Truth lives | their cloud / GitHub | **in each repo, in git** |
 | Format | proprietary / issues | **plain markdown** |
@@ -135,7 +135,7 @@ is structural, not featural:
 | Agent read/write | via API + keys | **direct (md + JSON + CLI)** |
 | Lock-in | yes | **none** |
 
-Vantage deliberately **cedes** real-time co-editing, notifications, sprints, and a
+Etapp deliberately **cedes** real-time co-editing, notifications, sprints, and a
 comment feed — that's Linear's turf. Building them would need a second database and
 make a worse Linear. The moat is being **git-native and agent-native**.
 
@@ -199,8 +199,8 @@ async function main() {
   await write("roadmap/example.md", EXAMPLE_PUCK);
 
   const files = (await readdir(OUT, { recursive: true })).filter((f) => !f.includes("/") || true).length;
-  console.error(`✓ Vantage product tree → ${OUT} (${files} entries)`);
-  console.error("  Next: copy it into an empty tor2dbear/vantage repo, commit, push.");
+  console.error(`✓ Etapp product tree → ${OUT} (${files} entries)`);
+  console.error("  Next: copy it into an empty tor2dbear/etapp repo, commit, push.");
 }
 
 main().catch((err) => {
