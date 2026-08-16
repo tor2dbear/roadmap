@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-16T10:30:25.414Z",
+  "generatedAt": "2026-08-16T10:42:01.128Z",
   "statuses": [
     "now",
     "next",
@@ -12,9 +12,9 @@
     "next": 6,
     "later": 14,
     "inbox": 9,
-    "done": 78
+    "done": 79
   },
-  "total": 110,
+  "total": 111,
   "sources": [
     {
       "repo": "tor2dbear/roadmap",
@@ -24,7 +24,7 @@
       "url": "https://github.com/tor2dbear/roadmap",
       "adapter": "pucks",
       "backend": "fs",
-      "count": 11,
+      "count": 12,
       "native": true,
       "error": null
     },
@@ -671,6 +671,29 @@
       "body": "## Mål\nErsätt inline-HTML (`<br>`, `<i>`, `<strong>`) i innehåll med Markdown, så Hugos\nrendering-defaults hålls rena.\n\n## Levererat\nPåbörjad — prioriterat klient/arbetsgivar-innehåll först.\n\n## Kvar\nNågra innehållsfiler har fortfarande inline-HTML (bl.a. techcorp SV/EN, test01, deg17).\nUnderlag: `docs/features/content-markdown-cleanup.md`.",
       "sourcePath": "roadmap/content-markdown-cleanup.md",
       "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/content-markdown-cleanup.md",
+      "adapter": "pucks",
+      "native": true,
+      "signals": []
+    },
+    {
+      "id": "roadmap/sort-and-created",
+      "repo": "tor2dbear/roadmap",
+      "repoName": "Roadmap",
+      "repoColor": "#94a3b8",
+      "issueState": null,
+      "slug": "sort-and-created",
+      "title": "Sortering + skapad-datum",
+      "status": "done",
+      "tags": [
+        "ui"
+      ],
+      "updated": "2026-08-16",
+      "created": "2026-08-16",
+      "issue": null,
+      "order": 60,
+      "body": "## Mål\nKunna sortera tavlan på fler sätt än default, och visa när en puck skapades —\ninte bara när den senast rördes.\n\n## Levererat\n- **Sort-väljare** i Filter-panelen (sparad i `localStorage`): Senast uppdaterad\n  (default = harvesterns `order → nyast → titel`), Äldst uppdaterad, **Nyast\n  skapad**, **Äldst skapad**, Titel A–Ö. Klient-sidig `sortComparator`; en delad\n  `byDate`-helper lägger pucks utan datum sist.\n- **Skapad-datum** härlett ur git (första commit som la till filen), så det inte\n  behöver handpysslas — `repo.firstCommitDate()` i harvestern, `created:` i\n  frontmatter kan överstyra, `roadmap new` stämplar det framåt. Synken klonar\n  treeless (`--filter=blob:none`) så historiken finns i CI.\n- **Modalen** visar `Skapad · Uppdaterad` på en rad; korten/listan håller sig\n  kompakta med bara uppdaterat-datum.\n\n## Not\nDeploy-bugg upptäckt på vägen: Cloudflare hoppar över commits vars meddelande\ninnehåller CI-skip-tokenet, så den timvisa datan deployade aldrig av sig själv.\nÅtgärdat genom att ta bort tokenet ur sync-bottens commit (paths-filtret är den\nriktiga loop-vakten).",
+      "sourcePath": "roadmap/sort-and-created.md",
+      "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/sort-and-created.md",
       "adapter": "pucks",
       "native": true,
       "signals": []
