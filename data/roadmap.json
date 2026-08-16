@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-16T05:29:41.662Z",
+  "generatedAt": "2026-08-16T05:44:38.016Z",
   "statuses": [
     "now",
     "next",
@@ -8,13 +8,13 @@
     "done"
   ],
   "counts": {
-    "now": 4,
-    "next": 8,
-    "later": 12,
-    "inbox": 10,
-    "done": 64
+    "now": 3,
+    "next": 6,
+    "later": 14,
+    "inbox": 9,
+    "done": 76
   },
-  "total": 98,
+  "total": 108,
   "sources": [
     {
       "repo": "tor2dbear/roadmap",
@@ -84,7 +84,7 @@
       "url": "https://github.com/tor2dbear/portfolio",
       "adapter": "pucks",
       "backend": "fs",
-      "count": 9,
+      "count": 19,
       "native": true,
       "error": null
     }
@@ -338,6 +338,28 @@
       "signals": []
     },
     {
+      "id": "portfolio/homepage-rebuild",
+      "repo": "tor2dbear/portfolio",
+      "repoName": "tor-bjorn.com",
+      "repoColor": "#fb923c",
+      "issueState": null,
+      "slug": "homepage-rebuild",
+      "title": "Startsida-ombyggnad (Fas 5)",
+      "status": "done",
+      "tags": [
+        "design"
+      ],
+      "updated": "2026-08-16",
+      "issue": null,
+      "order": 20,
+      "body": "## Mål\nBygga om startsidan som huvudsaklig innehållspunkt enligt redesign-planen.\n\n## Levererat\nFas 5 klar — startsidan ombyggd. Detaljer i `REDESIGN_PLAN.md` (Fas 5).",
+      "sourcePath": "roadmap/homepage-rebuild.md",
+      "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/homepage-rebuild.md",
+      "adapter": "pucks",
+      "native": true,
+      "signals": []
+    },
+    {
       "id": "roadmap/cadence-to-native-pucks",
       "repo": "tor2dbear/roadmap",
       "repoName": "Roadmap",
@@ -427,28 +449,6 @@
       "signals": []
     },
     {
-      "id": "portfolio/homepage-rebuild",
-      "repo": "tor2dbear/portfolio",
-      "repoName": "tor-bjorn.com",
-      "repoColor": "#fb923c",
-      "issueState": null,
-      "slug": "homepage-rebuild",
-      "title": "Startsida-ombyggnad (Fas 5)",
-      "status": "next",
-      "tags": [
-        "design"
-      ],
-      "updated": "2026-08-15",
-      "issue": null,
-      "order": 20,
-      "body": "## Mål\nBygga om startsidan som huvudsaklig innehållspunkt enligt redesign-planen.\n\n## Research\nSista fasen i header/footer-redesignen. Detaljer i `REDESIGN_PLAN.md` (Fas 5).",
-      "sourcePath": "roadmap/homepage-rebuild.md",
-      "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/homepage-rebuild.md",
-      "adapter": "pucks",
-      "native": true,
-      "signals": []
-    },
-    {
       "id": "roadmap/gui-editing",
       "repo": "tor2dbear/roadmap",
       "repoName": "Roadmap",
@@ -495,6 +495,29 @@
       "signals": []
     },
     {
+      "id": "portfolio/breakpoints-update",
+      "repo": "tor2dbear/portfolio",
+      "repoName": "tor-bjorn.com",
+      "repoColor": "#fb923c",
+      "issueState": null,
+      "slug": "breakpoints-update",
+      "title": "Breakpoints-uppdatering",
+      "status": "later",
+      "tags": [
+        "css",
+        "layout"
+      ],
+      "updated": "2026-08-16",
+      "issue": null,
+      "order": 40,
+      "body": "## Mål\nEnhetliga em-baserade breakpoints (xs–xl), desktop-first, med bottom-sheet bara på sm/xs.\n\n## Levererat\nFas 2–5 klara (grid, utilities, komponenter, bilder) enligt planen.\n\n## Kvar\nFas 1: bekräfta ev. token-fil-referens. Samt hela valideringschecklistan (viewport-tester,\ndropdown/footer-verifiering) är fortfarande obockad. Underlag:\n`docs/features/breakpoints-update-plan.md`.",
+      "sourcePath": "roadmap/breakpoints-update.md",
+      "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/breakpoints-update.md",
+      "adapter": "pucks",
+      "native": true,
+      "signals": []
+    },
+    {
       "id": "cadence/export-targets",
       "repo": "tor2dbear/cadence",
       "repoName": "Cadence",
@@ -517,6 +540,29 @@
       "signals": []
     },
     {
+      "id": "portfolio/color-token-restructure",
+      "repo": "tor2dbear/portfolio",
+      "repoName": "tor-bjorn.com",
+      "repoColor": "#fb923c",
+      "issueState": null,
+      "slug": "color-token-restructure",
+      "title": "Färgtoken-omstrukturering",
+      "status": "later",
+      "tags": [
+        "css",
+        "tokens"
+      ],
+      "updated": "2026-08-16",
+      "issue": null,
+      "order": 50,
+      "body": "## Mål\nOmstrukturera semantiska färgtokens (surface/primary/secondary-namn, död kod,\nstatus-konsolidering) i staged PR:er.\n\n## Levererat\nPR A (fas 1–5) och PR B (fas 6) genomförda.\n\n## Kvar\nPR C (naming-migration) delvis klar — legacy-alias (`--bg-*`/`--brand-*`/`--accent-*`)\nkvar avsiktligt; slutlig repo-wide cleanup av alias + sista referenser återstår.\nUnderlag: `docs/migrations/token_plan.md`.",
+      "sourcePath": "roadmap/color-token-restructure.md",
+      "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/color-token-restructure.md",
+      "adapter": "pucks",
+      "native": true,
+      "signals": []
+    },
+    {
       "id": "cadence/shipped-extras",
       "repo": "tor2dbear/cadence",
       "repoName": "Cadence",
@@ -534,6 +580,273 @@
       "body": "## Levererat\nUtöver punkterna ovan har följande skeppats, ej ursprungligen listat:\nsprings → CSS `linear()`, motion-mode-axel, stagger + cascade-lins, property-axel,\ndistance/travel-primitiv + velocity-check, tempo, reduced-motion, en live demo-yta,\noch \"Load a system\".",
       "sourcePath": "roadmap/shipped-extras.md",
       "sourceUrl": "https://github.com/tor2dbear/cadence/blob/main/roadmap/shipped-extras.md",
+      "adapter": "pucks",
+      "native": true,
+      "signals": []
+    },
+    {
+      "id": "portfolio/content-markdown-cleanup",
+      "repo": "tor2dbear/portfolio",
+      "repoName": "tor-bjorn.com",
+      "repoColor": "#fb923c",
+      "issueState": null,
+      "slug": "content-markdown-cleanup",
+      "title": "Content markdown-cleanup",
+      "status": "later",
+      "tags": [
+        "content"
+      ],
+      "updated": "2026-08-16",
+      "issue": null,
+      "order": 60,
+      "body": "## Mål\nErsätt inline-HTML (`<br>`, `<i>`, `<strong>`) i innehåll med Markdown, så Hugos\nrendering-defaults hålls rena.\n\n## Levererat\nPåbörjad — prioriterat klient/arbetsgivar-innehåll först.\n\n## Kvar\nNågra innehållsfiler har fortfarande inline-HTML (bl.a. techcorp SV/EN, test01, deg17).\nUnderlag: `docs/features/content-markdown-cleanup.md`.",
+      "sourcePath": "roadmap/content-markdown-cleanup.md",
+      "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/content-markdown-cleanup.md",
+      "adapter": "pucks",
+      "native": true,
+      "signals": []
+    },
+    {
+      "id": "portfolio/dependency-refresh",
+      "repo": "tor2dbear/portfolio",
+      "repoName": "tor-bjorn.com",
+      "repoColor": "#fb923c",
+      "issueState": null,
+      "slug": "dependency-refresh",
+      "title": "Dependency-refresh",
+      "status": "done",
+      "tags": [
+        "tooling"
+      ],
+      "updated": "2026-08-16",
+      "issue": null,
+      "order": null,
+      "body": "## Mål\nUppdatera npm-deps och verktygskedja, rensa deprecation-varningar.\n\n## Levererat\nVerktygen på aktuella majors (t.ex. eslint ^9, jest ^30). Underlag:\n`docs/features/dependency-refresh.md`.",
+      "sourcePath": "roadmap/dependency-refresh.md",
+      "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/dependency-refresh.md",
+      "adapter": "pucks",
+      "native": true,
+      "signals": []
+    },
+    {
+      "id": "portfolio/footer-restructure",
+      "repo": "tor2dbear/portfolio",
+      "repoName": "tor-bjorn.com",
+      "repoColor": "#fb923c",
+      "issueState": null,
+      "slug": "footer-restructure",
+      "title": "Footer-omstrukturering",
+      "status": "done",
+      "tags": [
+        "design",
+        "layout"
+      ],
+      "updated": "2026-08-16",
+      "issue": null,
+      "order": null,
+      "body": "## Mål\nFooter i flera rader med nyhetsbrevsformulär och en metadata-rad (RSS/Privacy/License),\ntvåspråkigt via i18n.\n\n## Levererat\nByggd i `footer.html` (`footer-newsletter`-sektion + metadata). Underlag:\n`docs/features/footer-restructure-plan.md`.",
+      "sourcePath": "roadmap/footer-restructure.md",
+      "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/footer-restructure.md",
+      "adapter": "pucks",
+      "native": true,
+      "signals": []
+    },
+    {
+      "id": "portfolio/gallery-shortcode",
+      "repo": "tor2dbear/portfolio",
+      "repoName": "tor-bjorn.com",
+      "repoColor": "#fb923c",
+      "issueState": null,
+      "slug": "gallery-shortcode",
+      "title": "Gallery-shortcode för bildgrids",
+      "status": "done",
+      "tags": [
+        "content"
+      ],
+      "updated": "2026-08-16",
+      "issue": null,
+      "order": null,
+      "body": "## Mål\nEn `gallery`-shortcode som lägger Markdown-bilder i layout-medvetna grids utan att\nändra bildsyntaxen.\n\n## Levererat\n`layouts/shortcodes/gallery.html` finns. Underlag: `docs/features/gallery-shortcode-plan.md`.",
+      "sourcePath": "roadmap/gallery-shortcode.md",
+      "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/gallery-shortcode.md",
+      "adapter": "pucks",
+      "native": true,
+      "signals": []
+    },
+    {
+      "id": "portfolio/hero-seo-title",
+      "repo": "tor2dbear/portfolio",
+      "repoName": "tor-bjorn.com",
+      "repoColor": "#fb923c",
+      "issueState": null,
+      "slug": "hero-seo-title",
+      "title": "Hero SEO-title + rollanimation",
+      "status": "done",
+      "tags": [
+        "seo"
+      ],
+      "updated": "2026-08-16",
+      "issue": null,
+      "order": null,
+      "body": "## Mål\nExplicit home `<title>` för SEO (Fas A) och omarbetad hero-H1-rollanimation (Fas B).\n\n## Levererat\nBåda faserna markerade *done* i planen. Underlag: `docs/features/hero-seo-title-plan.md`.",
+      "sourcePath": "roadmap/hero-seo-title.md",
+      "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/hero-seo-title.md",
+      "adapter": "pucks",
+      "native": true,
+      "signals": []
+    },
+    {
+      "id": "portfolio/seed-remaining-plans",
+      "repo": "tor2dbear/portfolio",
+      "repoName": "tor-bjorn.com",
+      "repoColor": "#fb923c",
+      "issueState": null,
+      "slug": "seed-remaining-plans",
+      "title": "Migrera övriga docs/-planer till pucks",
+      "status": "done",
+      "tags": [
+        "roadmap"
+      ],
+      "updated": "2026-08-16",
+      "issue": null,
+      "order": null,
+      "body": "## Mål\nStartpunkt: göra egna pucks av resten av `docs/features/` och `docs/migrations/`-planerna.\n\n## Levererat\nKlart — alla kvarvarande planer är nu egna pucks (7 done, 3 later för kvarvarande\nsmåjobb), med status verifierad mot både dokumenten och koden.",
+      "sourcePath": "roadmap/seed-remaining-plans.md",
+      "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/seed-remaining-plans.md",
+      "adapter": "pucks",
+      "native": true,
+      "signals": []
+    },
+    {
+      "id": "portfolio/brand-mark-morph",
+      "repo": "tor2dbear/portfolio",
+      "repoName": "tor-bjorn.com",
+      "repoColor": "#fb923c",
+      "issueState": null,
+      "slug": "brand-mark-morph",
+      "title": "Morphande brand-mark",
+      "status": "done",
+      "tags": [
+        "design"
+      ],
+      "updated": "2026-08-16",
+      "issue": null,
+      "order": null,
+      "body": "## Mål\nEn morphande brand-loop i headern som växlar mellan två knut-former medan linjerna\nstannar låsta vid loop-ändarna.\n\n## Levererat\nImplementerat i `layouts/partials/brand.html` (curl-transition på loop-path,\n`data-curl-transition-*`). Underlag: `docs/features/brand-mark-morph-plan.md`.",
+      "sourcePath": "roadmap/brand-mark-morph.md",
+      "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/brand-mark-morph.md",
+      "adapter": "pucks",
+      "native": true,
+      "signals": []
+    },
+    {
+      "id": "portfolio/pantone-css-refactor",
+      "repo": "tor2dbear/portfolio",
+      "repoName": "tor-bjorn.com",
+      "repoColor": "#fb923c",
+      "issueState": null,
+      "slug": "pantone-css-refactor",
+      "title": "Pantone/palett — CSS-driven refactor",
+      "status": "done",
+      "tags": [
+        "css",
+        "tokens"
+      ],
+      "updated": "2026-08-16",
+      "issue": null,
+      "order": null,
+      "body": "## Mål\nFlytta palett/pantone-hanteringen till en CSS-driven modell.\n\n## Levererat\nGenomförd — palett/pantone-hanteringen är CSS-driven. Underlag:\n`docs/migrations/pantone-css-driven-refactor.md`, `palette-override-audit-*`,\n`pantone-lab-separation-*`.",
+      "sourcePath": "roadmap/pantone-css-refactor.md",
+      "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/pantone-css-refactor.md",
+      "adapter": "pucks",
+      "native": true,
+      "signals": []
+    },
+    {
+      "id": "portfolio/project-info-block",
+      "repo": "tor2dbear/portfolio",
+      "repoName": "tor-bjorn.com",
+      "repoColor": "#fb923c",
+      "issueState": null,
+      "slug": "project-info-block",
+      "title": "Project info-block",
+      "status": "done",
+      "tags": [
+        "components"
+      ],
+      "updated": "2026-08-16",
+      "issue": null,
+      "order": null,
+      "body": "## Mål\nÅteranvändbart Role/Details/Client-metadatablock (`dl/dt/dd`) på projektsidor.\n\n## Levererat\nUtrullat — partial + CSS, pilot (Utblick SV/EN) och övriga projekt; alla rollout-steg\nmarkerade *done*. Underlag: `docs/features/project-info-block-plan.md`.",
+      "sourcePath": "roadmap/project-info-block.md",
+      "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/project-info-block.md",
+      "adapter": "pucks",
+      "native": true,
+      "signals": []
+    },
+    {
+      "id": "portfolio/schema-org",
+      "repo": "tor2dbear/portfolio",
+      "repoName": "tor-bjorn.com",
+      "repoColor": "#fb923c",
+      "issueState": null,
+      "slug": "schema-org",
+      "title": "Schema.org strukturerad data (JSON-LD)",
+      "status": "done",
+      "tags": [
+        "seo"
+      ],
+      "updated": "2026-08-16",
+      "issue": null,
+      "order": null,
+      "body": "## Mål\nJSON-LD (Person / WebSite / CreativeWork / Article) för tydligare SEO utan att\nändra det visuella.\n\n## Levererat\nImplementerat i `layouts/partials/schema.html`. Underlag: `docs/features/schema-org-plan.md`.",
+      "sourcePath": "roadmap/schema-org.md",
+      "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/schema-org.md",
+      "adapter": "pucks",
+      "native": true,
+      "signals": []
+    },
+    {
+      "id": "portfolio/ui-library",
+      "repo": "tor2dbear/portfolio",
+      "repoName": "tor-bjorn.com",
+      "repoColor": "#fb923c",
+      "issueState": null,
+      "slug": "ui-library",
+      "title": "UI-library-implementation",
+      "status": "done",
+      "tags": [
+        "components"
+      ],
+      "updated": "2026-08-16",
+      "issue": null,
+      "order": null,
+      "body": "## Mål\nBygga ut ett återanvändbart UI-bibliotek.\n\n## Levererat\nKlart. Delsteg och beslut i `docs/features/ui-library-implementation.md`.",
+      "sourcePath": "roadmap/ui-library.md",
+      "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/ui-library.md",
+      "adapter": "pucks",
+      "native": true,
+      "signals": []
+    },
+    {
+      "id": "portfolio/utility-class-cleanup",
+      "repo": "tor2dbear/portfolio",
+      "repoName": "tor-bjorn.com",
+      "repoColor": "#fb923c",
+      "issueState": null,
+      "slug": "utility-class-cleanup",
+      "title": "Utility-class-cleanup",
+      "status": "done",
+      "tags": [
+        "css",
+        "refactor"
+      ],
+      "updated": "2026-08-16",
+      "issue": null,
+      "order": null,
+      "body": "## Mål\nStäda utility-klasser i faser och minska utility-användningen.\n\n## Levererat\nMigrationen är genomförd — inga kvarvarande typography-utilities i `layouts/`\n(undantag UI-library och `_deprecated`); sista utility flyttad till komponent-CSS.\nPost-migration-validering och 2–4-veckors-cleanup avklarade.\nDetaljer i `docs/migrations/utility-class-cleanup.md`.",
+      "sourcePath": "roadmap/utility-class-cleanup.md",
+      "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/utility-class-cleanup.md",
       "adapter": "pucks",
       "native": true,
       "signals": []
@@ -601,51 +914,6 @@
       "body": "## Mål\nLäsa in ett ramverks motion-tokens och visualisera/kritisera dem — \"reverse-engineer\nthe art direction\".\n\n## Research\nMotsatsen till export: ta en extern palett av rörelse och kör den genom system-read.\nAngeläget som portfolio-vinkel (visar omdömet, inte bara generering).",
       "sourcePath": "roadmap/import-motion-palette.md",
       "sourceUrl": "https://github.com/tor2dbear/cadence/blob/main/roadmap/import-motion-palette.md",
-      "adapter": "pucks",
-      "native": true,
-      "signals": []
-    },
-    {
-      "id": "portfolio/seed-remaining-plans",
-      "repo": "tor2dbear/portfolio",
-      "repoName": "tor-bjorn.com",
-      "repoColor": "#fb923c",
-      "issueState": null,
-      "slug": "seed-remaining-plans",
-      "title": "Migrera övriga docs/-planer till pucks",
-      "status": "inbox",
-      "tags": [
-        "roadmap"
-      ],
-      "updated": "2026-08-15",
-      "issue": null,
-      "order": null,
-      "body": "## Mål\nStartpunkt: resten av `docs/features/` och `docs/migrations/` bör bli egna pucks\nnär de aktualiseras.\n\n## Research\nKvar att förädla till pucks: schema-org, breakpoints-update, footer-restructure,\nbrand-mark-morph, dependency-refresh, gallery-shortcode (TODO), hero-seo-title\n(Fas A klar), project-info-block (klar), token_plan, content-markdown-cleanup.\nSkapa med `roadmap new` när de blir aktuella.",
-      "sourcePath": "roadmap/seed-remaining-plans.md",
-      "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/seed-remaining-plans.md",
-      "adapter": "pucks",
-      "native": true,
-      "signals": []
-    },
-    {
-      "id": "portfolio/pantone-css-refactor",
-      "repo": "tor2dbear/portfolio",
-      "repoName": "tor-bjorn.com",
-      "repoColor": "#fb923c",
-      "issueState": null,
-      "slug": "pantone-css-refactor",
-      "title": "Pantone/palett — CSS-driven refactor",
-      "status": "later",
-      "tags": [
-        "css",
-        "tokens"
-      ],
-      "updated": "2026-08-15",
-      "issue": null,
-      "order": null,
-      "body": "## Mål\nFlytta palett/pantone-hanteringen till en CSS-driven modell.\n\n## Research\nPlan, ej påbörjad. Ingår: `docs/migrations/pantone-css-driven-refactor.md`,\n`palette-override-audit-*` och `pantone-lab-separation-*`.",
-      "sourcePath": "roadmap/pantone-css-refactor.md",
-      "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/pantone-css-refactor.md",
       "adapter": "pucks",
       "native": true,
       "signals": []
@@ -757,51 +1025,6 @@
       "body": "## Mål\nFörbättra typografisk skala och prosa.\n\n## Levererat\nPlanen i `docs/features/typography-plan.md` är genomförd: `--text-1-5xl` (32px),\n`.prose` med vertikal rytm, `.type-preamble` / `.type-display` / `.type-lead`,\nclamp-sizing och justerad headline-skala.\n\n## Öppna frågor\n- `.type-headline-3` tillbaka på 24px (`--text-2xl`) eller behåll 32px?",
       "sourcePath": "roadmap/typography.md",
       "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/typography.md",
-      "adapter": "pucks",
-      "native": true,
-      "signals": []
-    },
-    {
-      "id": "portfolio/ui-library",
-      "repo": "tor2dbear/portfolio",
-      "repoName": "tor-bjorn.com",
-      "repoColor": "#fb923c",
-      "issueState": null,
-      "slug": "ui-library",
-      "title": "UI-library-implementation",
-      "status": "now",
-      "tags": [
-        "components"
-      ],
-      "updated": "2026-08-15",
-      "issue": null,
-      "order": null,
-      "body": "## Mål\nBygga ut ett återanvändbart UI-bibliotek.\n\n## Research\nPågår. Delsteg och beslut i `docs/features/ui-library-implementation.md`.",
-      "sourcePath": "roadmap/ui-library.md",
-      "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/ui-library.md",
-      "adapter": "pucks",
-      "native": true,
-      "signals": []
-    },
-    {
-      "id": "portfolio/utility-class-cleanup",
-      "repo": "tor2dbear/portfolio",
-      "repoName": "tor-bjorn.com",
-      "repoColor": "#fb923c",
-      "issueState": null,
-      "slug": "utility-class-cleanup",
-      "title": "Utility-class-cleanup",
-      "status": "next",
-      "tags": [
-        "css",
-        "refactor"
-      ],
-      "updated": "2026-08-15",
-      "issue": null,
-      "order": null,
-      "body": "## Mål\nStäda utility-klasser i faser och minska utility-användningen.\n\n## Levererat\nMigrationen är genomförd — inga kvarvarande typography-utilities i `layouts/`\n(undantag UI-library och `_deprecated`); sista utility flyttad till komponent-CSS.\nDetaljer i `docs/migrations/utility-class-cleanup.md`.\n\n## Kvar\n- Post-migration-validering: visuell test på breakpoints, inga regressioner,\n  Lighthouse/a11y oförändrad.\n- Cleanup 2–4 veckor efter deploy: räkna och överväg borttagning av oanvända\n  utilities (< 5 användningar).",
-      "sourcePath": "roadmap/utility-class-cleanup.md",
-      "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/utility-class-cleanup.md",
       "adapter": "pucks",
       "native": true,
       "signals": []
