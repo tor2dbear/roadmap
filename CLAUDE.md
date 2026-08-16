@@ -21,8 +21,11 @@ generated files below does nothing lasting; the next sync overwrites them.
   about the roadmap programmatically). Shape: `{ generatedAt, statuses, counts,
   total, sources[], items[] }`. Each item: `{ id, repo, repoName, repoColor,
   slug, title, status, tags[], updated, issue, issueState, order, body,
-  sourcePath, sourceUrl, adapter, native }`. `issueState` is `"open"`/`"closed"`
-  (or `null`) — the real state of the linked `issue`, reconciled at harvest.
+  sourcePath, sourceUrl, adapter, native, signals[] }`. `issueState` is
+  `"open"`/`"closed"` (or `null`) — the real state of the linked `issue`,
+  reconciled at harvest. `signals[]` are the drift flags (`{ type }`, discrete:
+  `stale` / `issue-closed` / `issue-open`) — read these to spot cards whose
+  declared status disagrees with reality.
 - `data/roadmap.js` — the same payload as `window.__ROADMAP__`, so `index.html`
   renders from `file://` with no server.
 - `ROADMAP.md` — a flat, greppable digest grouped by status.
@@ -87,16 +90,20 @@ So status upkeep isn't purely self-reported, the board flags pucks whose declare
 status disagrees with reality (it never rewrites the source — truth stays in the
 puck; drift is surfaced so a human fixes it with the `roadmap` CLI):
 
-- **Issue drift** — `harvest.mjs` reconciles each puck's `issue:` against its real
-  GitHub state into `issueState`. `app.js` flags `closed` + not `done` ("mark
-  done?") and `open` + `done` ("issue still open"). `issueState` is discrete, so
-  it only changes the data when an issue actually flips — idempotency holds.
-- **Staleness** — computed live in `app.js` from `updated` vs today (no data
-  change): a `now` puck untouched > 21 days, or `next` > 60, is flagged "still
-  active?". Thresholds: `STALE_DAYS` in `app.js`.
+`harvest.mjs` computes the flags centrally into each item's `signals[]` (discrete
+types, so the payload only changes when a flag flips — idempotency holds), and
+`ROADMAP.md` gets a "⚠ Needs attention" section. The board and any agent read the
+same `signals`, so there's one source of truth for the flag decision.
+
+- **Issue drift** — reconciles each puck's `issue:` against its real GitHub state
+  into `issueState`, then flags `closed` + not `done` ("mark done?") and `open` +
+  `done` ("issue still open").
+- **Staleness** — a `now` puck untouched > 21 days, or `next` > 60, gets a `stale`
+  flag. Thresholds: `STALE_DAYS` in `harvest.mjs`. The board turns the flag into a
+  live "N days" string for display.
 
 Flagged cards get a ⚠ badge + note; a "⚠ Needs attention" filter shows only them
-(including flagged `done` items). The digest marks issue drift inline.
+(including flagged `done` items).
 
 ## Sync & deploy
 

@@ -23,29 +23,29 @@
     attention: false,
   };
 
-  // ── auto-status: derive real-world signals so status upkeep isn't manual ──
-  // Staleness is computed live here (from `updated` + today) so it needs no data
-  // change; issue drift uses `issueState`, which the harvester reconciles.
-  var STALE_DAYS = { now: 21, next: 60 };
+  // ── auto-status ──
+  // The harvester computes the flags (item.signals, discrete types) so the JSON,
+  // digest and board agree and an agent can read them. The board just renders
+  // them, turning a `stale` flag into a live "N days" string for display.
   function daysSince(dateStr) {
     if (!dateStr) return null;
     var t = Date.parse(dateStr + "T00:00:00Z");
     if (isNaN(t)) return null;
     return Math.floor((Date.now() - t) / 86400000);
   }
-  function signalsFor(item) {
-    var out = [];
-    var ds = daysSince(item.updated);
-    if ((item.status === "now" || item.status === "next") && ds != null && ds > STALE_DAYS[item.status]) {
-      out.push(STATUS_LABEL[item.status] + " sedan " + ds + " dagar utan uppdatering — fortfarande aktiv?");
-    }
-    if (item.issueState === "closed" && item.status !== "done") {
-      out.push("Issue #" + item.issue + " är stängd — markera done?");
-    }
-    if (item.issueState === "open" && item.status === "done") {
-      out.push("Markerad done men issue #" + item.issue + " är fortfarande öppen.");
-    }
-    return out;
+  function isFlagged(item) { return (item.signals || []).length > 0; }
+  function signalMessages(item) {
+    return (item.signals || []).map(function (s) {
+      if (s.type === "stale") {
+        var ds = daysSince(item.updated);
+        return STATUS_LABEL[item.status] +
+          (ds != null ? " sedan " + ds + " dagar utan uppdatering" : " utan uppdatering") +
+          " — fortfarande aktiv?";
+      }
+      if (s.type === "issue-closed") return "Issue #" + item.issue + " är stängd — markera done?";
+      if (s.type === "issue-open") return "Markerad done men issue #" + item.issue + " är fortfarande öppen.";
+      return s.type;
+    });
   }
 
   // ── tiny, safe markdown (escape first, then a whitelist of inline + block bits) ──
@@ -100,7 +100,7 @@
   }
 
   function matches(item) {
-    if (state.attention && signalsFor(item).length === 0) return false;
+    if (state.attention && !isFlagged(item)) return false;
     // In attention mode, flagged done items should surface even if "show done" is off.
     if (!state.attention && !state.showDone && item.status === "done") return false;
     if (state.repos.size && !state.repos.has(item.repo)) return false;
@@ -124,7 +124,7 @@
   }
 
   function card(item) {
-    var sig = signalsFor(item);
+    var sig = signalMessages(item);
     var c = el("div", "card" + (item.native ? "" : " adapted") + (sig.length ? " flagged" : ""));
     c.style.setProperty("--repo", item.repoColor);
 
@@ -253,7 +253,7 @@
 
   // "Needs attention" filter — only shown when something is actually flagged.
   function buildAttentionChip() {
-    var flagged = DATA.items.filter(function (it) { return signalsFor(it).length > 0; }).length;
+    var flagged = DATA.items.filter(function (it) { return isFlagged(it); }).length;
     if (!flagged) return;
     var chip = el("button", "chip attention");
     chip.setAttribute("aria-pressed", "false");

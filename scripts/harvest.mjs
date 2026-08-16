@@ -45,6 +45,32 @@ const STATUS_LABEL = {
   done: "Done",
 };
 
+// Auto-status thresholds (days). A now/next puck untouched past these is "quiet".
+const STALE_DAYS = { now: 21, next: 60 };
+
+function daysSince(dateStr, nowMs) {
+  if (!dateStr) return null;
+  const t = Date.parse(dateStr + "T00:00:00Z");
+  if (isNaN(t)) return null;
+  return Math.floor((nowMs - t) / 86400000);
+}
+
+// Real-world drift signals, computed centrally so the JSON, the digest and the
+// board all read the same thing (no client-side split-brain). Each signal is a
+// DISCRETE type — never a day count — so the payload only changes when a flag
+// actually flips, which keeps the harvest idempotent. The board turns a `stale`
+// flag into a live "N days" string for display.
+function computeSignals(item, nowMs) {
+  const out = [];
+  const ds = daysSince(item.updated, nowMs);
+  if ((item.status === "now" || item.status === "next") && ds != null && ds > STALE_DAYS[item.status]) {
+    out.push({ type: "stale" });
+  }
+  if (item.issueState === "closed" && item.status !== "done") out.push({ type: "issue-closed" });
+  if (item.issueState === "open" && item.status === "done") out.push({ type: "issue-open" });
+  return out;
+}
+
 function sortItems(a, b) {
   // Manual `order` first (lower = higher), then freshest `updated`, then title.
   const ao = a.order ?? Number.POSITIVE_INFINITY;
@@ -126,6 +152,12 @@ async function main() {
     console.error(`  · reconciled ${known}/${linked.length} linked issue(s)`);
   }
 
+  // Derive drift signals once, for every item.
+  const nowMs = Date.parse(BUILT_AT) || Date.now();
+  for (const it of items) it.signals = computeSignals(it, nowMs);
+  const flaggedCount = items.filter((it) => it.signals.length).length;
+  if (flaggedCount) console.error(`  · ${flaggedCount} item(s) need attention`);
+
   items.sort(sortItems);
 
   const counts = Object.fromEntries(STATUSES.map((s) => [s, 0]));
@@ -201,6 +233,23 @@ function renderDigest(payload) {
     lines.push(`- **[${s.name}](${s.url})** — ${s.count} items, ${kind}. ${s.blurb}`);
   }
   lines.push("");
+
+  // Discrete drift labels (no day counts, so the digest stays idempotent).
+  const signalLabel = (s, it) =>
+    s.type === "stale" ? `stale (${it.status})`
+    : s.type === "issue-closed" ? `issue #${it.issue} closed`
+    : s.type === "issue-open" ? `issue #${it.issue} still open`
+    : s.type;
+  const flagged = payload.items.filter((it) => (it.signals || []).length);
+  if (flagged.length) {
+    lines.push(`## ⚠ Needs attention (${flagged.length})`, "");
+    for (const it of flagged) {
+      const msgs = it.signals.map((s) => signalLabel(s, it)).join(", ");
+      lines.push(`- **${it.title}** — ${it.repoName} · ${msgs}  `);
+      lines.push(`  ${it.sourceUrl}`);
+    }
+    lines.push("");
+  }
 
   for (const status of payload.statuses) {
     const group = payload.items.filter((it) => it.status === status);
