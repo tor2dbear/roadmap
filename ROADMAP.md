@@ -24,10 +24,8 @@ _Generated 2026-08-16 · 116 items across 6 repos._
 - **brew install: ärlig installationsceremoni** — PIA · #packages #system · 2026-08-08  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/brew-install-progress.md
 
-## Next (7)
+## Next (6)
 
-- **Fungera utanför mina egna repon** — Roadmap · #product · 2026-08-16  
-  https://github.com/tor2dbear/roadmap/blob/main/roadmap/portability-for-others.md
 - **Lazy email verification (gate claim, not signup)** — PIA · #auth #share · 2026-08-08  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/email-verification-lazy.md
 - **Agent-kontrakt (+ ev. MCP)** — Roadmap · #product #ai · 2026-08-16  
@@ -95,8 +93,10 @@ _Generated 2026-08-16 · 116 items across 6 repos._
 - **Paket-roadmap — brew-appar som passar PIA** — PIA · #packages #overview · 2026-07-18  
   https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/package-ideas.md
 
-## Done (82)
+## Done (83)
 
+- **Fungera utanför mina egna repon** — Roadmap · #product · 2026-08-16  
+  https://github.com/tor2dbear/roadmap/blob/main/roadmap/portability-for-others.md
 - **Linjera med fleet-konventionen (Cloudflare + roadmap.tor2dbear.com)** — Roadmap · #hosting #ops · 2026-08-15  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/align-with-fleet-cloudflare.md
 - **Auto-status från verkligheten** — Roadmap · #core #sync · 2026-08-15  

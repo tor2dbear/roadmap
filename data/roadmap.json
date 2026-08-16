@@ -1,5 +1,10 @@
 {
-  "generatedAt": "2026-08-16T11:38:11.916Z",
+  "generatedAt": "2026-08-16T11:48:58.834Z",
+  "config": {
+    "title": "Roadmap",
+    "description": "An aggregated roadmap across repos — truth in git, one board.",
+    "repoUrl": "https://github.com/tor2dbear/roadmap"
+  },
   "statuses": [
     "now",
     "next",
@@ -9,10 +14,10 @@
   ],
   "counts": {
     "now": 3,
-    "next": 7,
+    "next": 6,
     "later": 15,
     "inbox": 9,
-    "done": 82
+    "done": 83
   },
   "total": 116,
   "sources": [
@@ -98,7 +103,7 @@
       "issueState": null,
       "slug": "portability-for-others",
       "title": "Fungera utanför mina egna repon",
-      "status": "next",
+      "status": "done",
       "tags": [
         "product"
       ],
@@ -107,7 +112,7 @@
       "issue": null,
       "order": 5,
       "depends": [],
-      "body": "## Mål\nGöra det trivialt för någon annan att peka verktyget på *sina* repon och få ett\nbräde — utan att handpyssla kod. Nordstjärnan för \"utanför bubblan\": det som gör\ndet från personligt verktyg till något andra kan använda.\n\n## Första snittet (MVP)\n- **Config-drivet:** allt repo-/färg-/namn-specifikt bort ur koden och in i\n  `sources.json` (redan mestadels där) + en liten `board.config.json` för titel,\n  domän och tema. Inga hårdkodade \"tor2dbear\"-antaganden kvar.\n- **Deploya-dina-egna:** kort guide (fork → redigera `sources.json` → koppla\n  Cloudflare → klar på ~10 min). Ev. ett `template`-repo att \"Use this template\" på.\n- **Privata repon:** dokumentera `GITHUB_TOKEN`-vägen (finns i backenden redan);\n  funkar för publika och privata utan kodändring.\n\n## Utanför MVP\nHostad multi-tenant-tjänst, konton, \"lägg till repo\"-GUI. Det vore en annan produkt\n(och en backend = risk mot USP:n). Håll det som \"kör din egen\".\n\n## Varför först\nLägst risk, ren USP-expansion (fler kör den git-nativa modellen), och breddar basen\ninnan skriv-vägen (GUI) läggs ovanpå.",
+      "body": "## Mål\nGöra det trivialt för någon annan att peka verktyget på *sina* repon och få ett\nbräde — utan att handpyssla kod. Nordstjärnan för \"utanför bubblan\": det som gör\ndet från personligt verktyg till något andra kan använda.\n\n## Levererat (första snittet)\n- **`board.config.json`** — titel, beskrivning och source-länk ut ur koden och in\n  i config; harvestern bäddar in den i payloaden, `app.js` applicerar (titel/h1/\n  meta/source), digesten använder titeln. Inget \"tor2dbear\"-antagande kvar i den\n  serverade koden.\n- **\"Deploy your own\"-guide** i README (fork → `sources.json` + `board.config.json`\n  → `wrangler.jsonc` → Cloudflare). Privata repon täckta via `GITHUB_TOKEN`.\n- `board.config.json` triggar synken och hålls ur den serverade bundlen.\n\n## Kvar (valfria följdsteg, ej detta snitt)\nEtt `template`-repo (\"Use this template\"), och att faktiskt validera med en\nfrämmande fork. Hostad multi-tenant förblir uttryckligen utanför scope (backend =\nrisk mot USP:n).\n\n## Första snittet (MVP)\n- **Config-drivet:** allt repo-/färg-/namn-specifikt bort ur koden och in i\n  `sources.json` (redan mestadels där) + en liten `board.config.json` för titel,\n  domän och tema. Inga hårdkodade \"tor2dbear\"-antaganden kvar.\n- **Deploya-dina-egna:** kort guide (fork → redigera `sources.json` → koppla\n  Cloudflare → klar på ~10 min). Ev. ett `template`-repo att \"Use this template\" på.\n- **Privata repon:** dokumentera `GITHUB_TOKEN`-vägen (finns i backenden redan);\n  funkar för publika och privata utan kodändring.\n\n## Utanför MVP\nHostad multi-tenant-tjänst, konton, \"lägg till repo\"-GUI. Det vore en annan produkt\n(och en backend = risk mot USP:n). Håll det som \"kör din egen\".\n\n## Varför först\nLägst risk, ren USP-expansion (fler kör den git-nativa modellen), och breddar basen\ninnan skriv-vägen (GUI) läggs ovanpå.",
       "sourcePath": "roadmap/portability-for-others.md",
       "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/portability-for-others.md",
       "adapter": "pucks",
