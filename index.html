@@ -34,11 +34,11 @@
             aria-controls="searchSuggest"
             aria-expanded="false"
           />
-          <button id="searchClear" class="search-clear" type="button" aria-label="Rensa sökning" hidden>✕</button>
-          <ul id="searchSuggest" class="suggest" role="listbox" aria-label="Sökförslag" hidden></ul>
+          <button id="searchClear" class="search-clear" type="button" aria-label="Clear search" hidden>✕</button>
+          <ul id="searchSuggest" class="suggest" role="listbox" aria-label="Search suggestions" hidden></ul>
         </div>
         <button id="filterToggle" class="ghost" aria-expanded="false" aria-controls="filterChips">Filter</button>
-        <button id="viewToggle" class="ghost" title="Byt till listvy" aria-label="Byt till listvy">☰</button>
+        <button id="viewToggle" class="ghost" title="Switch to list view" aria-label="Switch to list view">☰</button>
         <button id="theme" class="ghost" title="Toggle theme" aria-label="Toggle theme">◐</button>
       </div>
     </header>
@@ -46,13 +46,13 @@
     <nav class="filters" id="filters" aria-label="Filters">
       <div class="filter-chips" id="filterChips" hidden>
         <div class="filter-sort">
-          <label for="sortSelect">Sortera</label>
+          <label for="sortSelect">Sort</label>
           <select id="sortSelect">
-            <option value="default">Senast uppdaterad</option>
-            <option value="updated-asc">Äldst uppdaterad</option>
-            <option value="created-desc">Nyast skapad</option>
-            <option value="created-asc">Äldst skapad</option>
-            <option value="title">Titel A–Ö</option>
+            <option value="default">Recently updated</option>
+            <option value="updated-asc">Oldest updated</option>
+            <option value="created-desc">Newest created</option>
+            <option value="created-asc">Oldest created</option>
+            <option value="title">Title A–Z</option>
           </select>
         </div>
         <div class="filter-group" id="repoFilters" aria-label="Repositories"></div>

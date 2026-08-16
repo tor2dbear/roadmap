@@ -57,11 +57,11 @@
       if (s.type === "stale") {
         var ds = daysSince(item.updated);
         return STATUS_LABEL[item.status] +
-          (ds != null ? " sedan " + ds + " dagar utan uppdatering" : " utan uppdatering") +
-          " — fortfarande aktiv?";
+          (ds != null ? " for " + ds + " days without an update" : " without an update") +
+          " — still active?";
       }
-      if (s.type === "issue-closed") return "Issue #" + item.issue + " är stängd — markera done?";
-      if (s.type === "issue-open") return "Markerad done men issue #" + item.issue + " är fortfarande öppen.";
+      if (s.type === "issue-closed") return "Issue #" + item.issue + " is closed — mark done?";
+      if (s.type === "issue-open") return "Marked done but issue #" + item.issue + " is still open.";
       return s.type;
     });
   }
@@ -158,8 +158,8 @@
   // label would only add clutter. The tooltip/aria keep it explicit.
   function dateEl(date, cls) {
     var d = el("span", cls || "card-date", date);
-    d.title = "Senast uppdaterad";
-    d.setAttribute("aria-label", "Senast uppdaterad " + date);
+    d.title = "Last updated";
+    d.setAttribute("aria-label", "Last updated " + date);
     return d;
   }
 
@@ -185,7 +185,7 @@
   function blockBadge(item) {
     var b = el("span", "block-badge", "⛔");
     var names = blockerItems(item).map(function (x) { return x.title; });
-    b.title = "Blockerad av: " + (names.join(", ") || item.blockedBy.join(", "));
+    b.title = "Blocked by: " + (names.join(", ") || item.blockedBy.join(", "));
     b.setAttribute("aria-label", b.title);
     return b;
   }
@@ -276,7 +276,7 @@
     panel.setAttribute("role", "dialog");
     panel.setAttribute("aria-modal", "true");
     var close = el("button", "modal-close", "✕");
-    close.setAttribute("aria-label", "Stäng");
+    close.setAttribute("aria-label", "Close");
     close.addEventListener("click", closeModal);
     modalContent = el("div", "modal-content");
     panel.appendChild(close);
@@ -314,14 +314,14 @@
     if (item.created || item.updated) {
       var dates = el("div", "modal-dates");
       if (item.created) {
-        var cs = el("span", null, "Skapad " + item.created);
-        cs.title = "Skapad (första commit)";
+        var cs = el("span", null, "Created " + item.created);
+        cs.title = "Created (first commit)";
         dates.appendChild(cs);
       }
       if (item.created && item.updated) dates.appendChild(el("span", "modal-dates-sep", "·"));
       if (item.updated) {
-        var us = el("span", null, "Uppdaterad " + item.updated);
-        us.title = "Senast uppdaterad";
+        var us = el("span", null, "Updated " + item.updated);
+        us.title = "Last updated";
         dates.appendChild(us);
       }
       meta.appendChild(dates);
@@ -346,7 +346,7 @@
     // Blocked-by: list the unfinished dependencies; each opens that puck.
     if ((item.blockedBy || []).length) {
       var blk = el("div", "modal-blocked");
-      blk.appendChild(document.createTextNode("⛔ Blockerad av: "));
+      blk.appendChild(document.createTextNode("⛔ Blocked by: "));
       var blockers = blockerItems(item);
       if (blockers.length) {
         blockers.forEach(function (b, i) {
@@ -363,7 +363,7 @@
     }
 
     var body = el("div", "modal-body");
-    body.innerHTML = renderMd(item.body || "(inga detaljer)");
+    body.innerHTML = renderMd(item.body || "(no details)");
     modalContent.appendChild(body);
 
     var links = el("div", "card-links");
@@ -371,13 +371,13 @@
     if (item.issue) {
       links.appendChild(linkEl("issue #" + item.issue, "https://github.com/" + item.repo + "/issues/" + item.issue));
     }
-    var copyBtn = el("button", "linklike", "🔗 Kopiera länk");
+    var copyBtn = el("button", "linklike", "🔗 Copy link");
     copyBtn.type = "button";
     copyBtn.addEventListener("click", function () {
       var url = location.origin + location.pathname + "#" + item.id;
       copyText(url, function () {
-        copyBtn.textContent = "✓ Kopierad";
-        setTimeout(function () { copyBtn.textContent = "🔗 Kopiera länk"; }, 1500);
+        copyBtn.textContent = "✓ Copied";
+        setTimeout(function () { copyBtn.textContent = "🔗 Copy link"; }, 1500);
       });
     });
     links.appendChild(copyBtn);
@@ -612,7 +612,7 @@
     // Icon = the current view (no persistent .active highlight — it read as a
     // stuck focus ring); the title says what a tap does.
     viewBtn.textContent = isList ? "☰" : "▦";
-    viewBtn.title = isList ? "Byt till brädvy" : "Byt till listvy";
+    viewBtn.title = isList ? "Switch to board view" : "Switch to list view";
     viewBtn.setAttribute("aria-label", viewBtn.title);
   }
   viewBtn.addEventListener("click", function () {
