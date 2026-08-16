@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-16T05:44:38.016Z",
+  "generatedAt": "2026-08-16T06:33:48.608Z",
   "statuses": [
     "now",
     "next",
@@ -210,7 +210,7 @@
       "repoColor": "#94a3b8",
       "issueState": null,
       "slug": "add-portfolio-source",
-      "title": "Lägg till portfolio (tor-björn.com) på tavlan",
+      "title": "Lägg till portfolio (tor-bjorn.com) på tavlan",
       "status": "done",
       "tags": [
         "sources"
@@ -218,7 +218,7 @@
       "updated": "2026-08-15",
       "issue": null,
       "order": 10,
-      "body": "## Mål\nFå med portfolio-sajten på brädet.\n\n## Levererat\nPortfolio (`tor-björn.com`) har nu en native `roadmap/` (PR #295) och är tillagd\nsom källa i `sources.json` (adapter `pucks`, `branch: master`). Cadence migrerades\nsamtidigt till native pucks (PR #61), så alla källor är nu native — inga adaptrar\nkvar. tor2dbear.com (\"Workshop\") finns som separat källa.",
+      "body": "## Mål\nFå med portfolio-sajten på brädet.\n\n## Levererat\nPortfolio (`tor-bjorn.com`) har nu en native `roadmap/` (PR #295) och är tillagd\nsom källa i `sources.json` (adapter `pucks`, `branch: master`). Cadence migrerades\nsamtidigt till native pucks (PR #61), så alla källor är nu native — inga adaptrar\nkvar. tor2dbear.com (\"Workshop\") finns som separat källa.",
       "sourcePath": "roadmap/add-portfolio-source.md",
       "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/add-portfolio-source.md",
       "adapter": "pucks",

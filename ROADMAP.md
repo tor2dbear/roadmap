@@ -99,7 +99,7 @@ _Generated 2026-08-16 · 108 items across 6 repos._
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/auto-status-from-reality.md
 - **Draggbar bézier-editor** — Cadence · #editor · 2026-08-15  
   https://github.com/tor2dbear/cadence/blob/main/roadmap/draggable-bezier-editor.md
-- **Lägg till portfolio (tor-björn.com) på tavlan** — Roadmap · #sources · 2026-08-15  
+- **Lägg till portfolio (tor-bjorn.com) på tavlan** — Roadmap · #sources · 2026-08-15  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/add-portfolio-source.md
 - **Multi-repo roadmap-aggregator + tavla** — Roadmap · #core · 2026-08-15  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/multi-repo-board.md
