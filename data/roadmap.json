@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-16T06:33:48.608Z",
+  "generatedAt": "2026-08-16T07:05:37.076Z",
   "statuses": [
     "now",
     "next",
@@ -11,10 +11,10 @@
     "now": 3,
     "next": 6,
     "later": 14,
-    "inbox": 9,
-    "done": 76
+    "inbox": 10,
+    "done": 77
   },
-  "total": 108,
+  "total": 110,
   "sources": [
     {
       "repo": "tor2dbear/roadmap",
@@ -24,7 +24,7 @@
       "url": "https://github.com/tor2dbear/roadmap",
       "adapter": "pucks",
       "backend": "fs",
-      "count": 9,
+      "count": 11,
       "native": true,
       "error": null
     },
@@ -518,6 +518,28 @@
       "signals": []
     },
     {
+      "id": "roadmap/list-view",
+      "repo": "tor2dbear/roadmap",
+      "repoName": "Roadmap",
+      "repoColor": "#94a3b8",
+      "issueState": null,
+      "slug": "list-view",
+      "title": "Listvy-läge (alternativ till kanban)",
+      "status": "done",
+      "tags": [
+        "ui"
+      ],
+      "updated": "2026-08-16",
+      "issue": null,
+      "order": 40,
+      "body": "## Mål\nEtt listläge som alternativ till kanban-brädet. Brädet tvingar horisontell swipe\nmellan kolumnerna (NOW → NEXT → …) på mobil; en lista är en enda vertikal kolumn,\ntätare rader, bättre överblick på telefon.\n\n## Levererat\nToggle **☰/▦** i headern (val sparas i `localStorage`). Listläget grupperar per\nstatus med rubriker, kompakta rader (repo-prick + titel + datum, repo-färgad\nvänsterkant), tryck → samma modal. Läser samma filtrerade `items` som brädet, så\nsök/filter/attention gäller likadant. `renderList()`/`listRow()` i `app.js`,\n`.board.as-list` i `styles.css`. Sökförslag (`search-suggestions`) kan bygga\nvidare på list-renderingen härnäst.\n\n## Skiss\n- Toggle i headern: **Bräda ⇄ Lista**. Val sparas i `localStorage`.\n- Lista = kompakt rad per kort (titel + repo-prick + status-pill + datum),\n  grupperad per status med rubriker. Tryck på rad → samma modal som idag.\n- Läser samma filtrerade `items` som brädet — sök/filter/attention gäller likadant.\n\n## Varför billigt\nData, filtrering och modal finns redan. Det är en andra render-funktion (~40–60 rader)\nplus en toggle-knapp. Ingen ny datamodell.\n\n## Synergi\nEn bra sökresultat-vy *är* i praktiken en listvy. Bygger vi list-renderingen en gång\nkan sökförslag (`search-suggestions`) återanvända den. Värt att ta listvyn först och\nbygga sökförslag ovanpå.\n\n## Öppna frågor\n- Gruppera per status eller per repo i listläget?\n- Ska listan vara default på mobil och brädet på desktop, eller alltid användarens val?",
+      "sourcePath": "roadmap/list-view.md",
+      "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/list-view.md",
+      "adapter": "pucks",
+      "native": true,
+      "signals": []
+    },
+    {
       "id": "cadence/export-targets",
       "repo": "tor2dbear/cadence",
       "repoName": "Cadence",
@@ -558,6 +580,28 @@
       "body": "## Mål\nOmstrukturera semantiska färgtokens (surface/primary/secondary-namn, död kod,\nstatus-konsolidering) i staged PR:er.\n\n## Levererat\nPR A (fas 1–5) och PR B (fas 6) genomförda.\n\n## Kvar\nPR C (naming-migration) delvis klar — legacy-alias (`--bg-*`/`--brand-*`/`--accent-*`)\nkvar avsiktligt; slutlig repo-wide cleanup av alias + sista referenser återstår.\nUnderlag: `docs/migrations/token_plan.md`.",
       "sourcePath": "roadmap/color-token-restructure.md",
       "sourceUrl": "https://github.com/tor2dbear/portfolio/blob/master/roadmap/color-token-restructure.md",
+      "adapter": "pucks",
+      "native": true,
+      "signals": []
+    },
+    {
+      "id": "roadmap/search-suggestions",
+      "repo": "tor2dbear/roadmap",
+      "repoName": "Roadmap",
+      "repoColor": "#94a3b8",
+      "issueState": null,
+      "slug": "search-suggestions",
+      "title": "Sökförslag / autocomplete",
+      "status": "inbox",
+      "tags": [
+        "ui"
+      ],
+      "updated": "2026-08-16",
+      "issue": null,
+      "order": 50,
+      "body": "## Mål\nFörslag medan man skriver i sökrutan. All data ligger redan i webbläsaren, så\nsökningen är redan instant — värdet är **upptäckbarhet** (vad kan jag söka på?)\noch att **hoppa direkt** till rätt kort.\n\n## Alternativ\n1. **Native `<datalist>`** — ~10 rader, noll JS, men kan inte tema-stylas och är\n   klumpig på iOS. Billig men trubbig.\n2. **Egen dropdown (rekommenderad)** — visar matchande **korttitlar** (klick öppnar\n   kortets modal direkt) och ev. **taggar/repos** (klick sätter filtret). Full\n   styling-kontroll, störst nytta. ~60–80 rader + tangentbordsnav (↑↓ Enter Esc)\n   och klick-utanför-stäng.\n3. **Fuzzy-sök** — typo-tolerant, men overkill för ~100 kort. Inte i första versionen.\n\n## Beslut\nBygg #2 avskalat: mest **titel-förslag → öppna kort**. Taggar/repos finns redan som\nfilter-chips, så förslag där är delvis redundant. Inte fuzzy till att börja med.\n\n## Beroende / ordning\nÖverlappar `list-view` — sökresultat-listan kan återanvända list-renderingen. Ta\nlistvyn först om båda ska byggas.",
+      "sourcePath": "roadmap/search-suggestions.md",
+      "sourceUrl": "https://github.com/tor2dbear/roadmap/blob/main/roadmap/search-suggestions.md",
       "adapter": "pucks",
       "native": true,
       "signals": []
