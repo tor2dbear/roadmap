@@ -430,10 +430,20 @@
     renderBoard();
   });
 
-  document.getElementById("search").addEventListener("input", function (e) {
+  var searchInput = document.getElementById("search");
+  searchInput.addEventListener("input", function (e) {
     state.query = e.target.value.trim();
     renderBoard();
   });
+  // iOS keeps the keyboard up until something explicitly blurs the field — a tap
+  // on a card or empty space doesn't. Dismiss on Enter and on any tap outside the
+  // input so focus never feels stuck.
+  searchInput.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") searchInput.blur();
+  });
+  document.addEventListener("touchstart", function (e) {
+    if (document.activeElement === searchInput && e.target !== searchInput) searchInput.blur();
+  }, { passive: true });
   document.getElementById("showDone").addEventListener("change", function (e) {
     state.showDone = e.target.checked;
     renderBoard();
