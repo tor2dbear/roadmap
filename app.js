@@ -328,6 +328,8 @@
     }
     modalContent.appendChild(meta);
 
+    buildStatusEditor(item); // status buttons (only when a token is set + native puck)
+
     // Tags on their own row (static badges).
     if (item.tags.length || !item.native) {
       var tags = el("div", "card-tags");
@@ -811,6 +813,147 @@
   updateViewButton();
   setFilters(window.matchMedia("(min-width: 601px)").matches);
   renderBoard();
+
+  // ── GUI editing: write pucks back to git from the browser ────────────────
+  // Zero-backend. With a fine-grained GitHub token (kept only in this browser's
+  // localStorage) the board commits roadmap/<slug>.md straight to api.github.com
+  // — the same edit the CLI makes, from the web. Edit controls appear only when a
+  // token is set, so the public board is identical for everyone else.
+  var TOKEN_KEY = "roadmap-gh-token";
+  function ghToken() { try { return localStorage.getItem(TOKEN_KEY) || ""; } catch (e) { return ""; } }
+  function setGhToken(v) { try { v ? localStorage.setItem(TOKEN_KEY, v) : localStorage.removeItem(TOKEN_KEY); } catch (e) {} }
+  function b64encode(s) { return btoa(unescape(encodeURIComponent(s))); }
+  function b64decode(b) { return decodeURIComponent(escape(atob(String(b).replace(/\s/g, "")))); }
+  function today() { return new Date().toISOString().slice(0, 10); }
+  function branchOf(item) { var m = /\/blob\/([^/]+)\//.exec(item.sourceUrl || ""); return m ? m[1] : "main"; }
+
+  // Format-preserving frontmatter edit — mirrors scripts/roadmap.mjs setField.
+  function editFrontmatter(text, key, value) {
+    var nl = text.indexOf("\r\n") >= 0 ? "\r\n" : "\n";
+    var lines = text.replace(/\r\n/g, "\n").split("\n");
+    if (lines[0] !== "---") return null;
+    var end = -1;
+    for (var i = 1; i < lines.length; i++) { if (lines[i] === "---") { end = i; break; } }
+    if (end < 0) return null;
+    var out = key + ": " + value, done = false;
+    for (var j = 1; j < end; j++) {
+      if (new RegExp("^" + key + ":").test(lines[j])) { lines[j] = out; done = true; break; }
+    }
+    if (!done) lines.splice(end, 0, out);
+    return lines.join(nl);
+  }
+
+  // Commit a status change via the GitHub Contents API (read sha → PUT commit).
+  function commitStatus(item, status) {
+    var token = ghToken();
+    var apiPath = item.sourcePath.split("/").map(encodeURIComponent).join("/");
+    var api = "https://api.github.com/repos/" + item.repo + "/contents/" + apiPath;
+    var branch = branchOf(item);
+    var headers = { Authorization: "Bearer " + token, Accept: "application/vnd.github+json" };
+    return fetch(api + "?ref=" + encodeURIComponent(branch), { headers: headers })
+      .then(function (r) { if (!r.ok) throw new Error("read failed (" + r.status + ")"); return r.json(); })
+      .then(function (info) {
+        var text = b64decode(info.content);
+        var out = editFrontmatter(text, "status", status);
+        if (out == null) throw new Error("no frontmatter");
+        out = editFrontmatter(out, "updated", today());
+        return fetch(api, {
+          method: "PUT",
+          headers: { Authorization: "Bearer " + token, Accept: "application/vnd.github+json", "Content-Type": "application/json" },
+          body: JSON.stringify({ message: "roadmap: " + item.slug + " → " + status, content: b64encode(out), sha: info.sha, branch: branch }),
+        });
+      })
+      .then(function (r) { if (!r.ok) throw new Error("write failed (" + r.status + ")"); });
+  }
+
+  // Optimistic: flip in-memory + re-render now, commit in the background, revert on failure.
+  function changeStatus(item, status) {
+    if (status === item.status || !ghToken()) return;
+    var prevS = item.status, prevU = item.updated;
+    item.status = status; item.updated = today();
+    renderBoard(); openModal(item);
+    toast("Saving…");
+    commitStatus(item, status)
+      .then(function () { toast("✓ Saved — live in ~1 min"); })
+      .catch(function (err) {
+        item.status = prevS; item.updated = prevU;
+        renderBoard(); openModal(item);
+        toast("✗ " + err.message, true);
+      });
+  }
+
+  // Status editor inside the modal — native pucks only, token set.
+  function buildStatusEditor(item) {
+    if (!ghToken() || !item.native) return;
+    var row = el("div", "edit-status");
+    row.appendChild(el("span", "edit-label", "Set status"));
+    DATA.statuses.forEach(function (s) {
+      var b = el("button", "edit-btn status-" + s + (s === item.status ? " active" : ""), STATUS_LABEL[s] || s);
+      b.type = "button";
+      if (s === item.status) b.disabled = true;
+      else b.addEventListener("click", function () { changeStatus(item, s); });
+      row.appendChild(b);
+    });
+    modalContent.appendChild(row);
+  }
+
+  // Toast
+  var toastEl, toastTimer;
+  function toast(msg, isErr) {
+    if (!toastEl) { toastEl = el("div", "toast"); document.body.appendChild(toastEl); }
+    toastEl.textContent = msg;
+    toastEl.className = "toast show" + (isErr ? " err" : "");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.className = "toast"; }, isErr ? 6000 : 2600);
+  }
+
+  // 🔑 token control in the header + a small paste/clear panel.
+  function buildTokenControl() {
+    var host = document.getElementById("theme");
+    if (!host || !host.parentNode) return;
+    var btn = el("button", "iconbtn tokenbtn", "🔑");
+    btn.type = "button";
+    btn.title = "Edit access — set a GitHub token to edit pucks from the board";
+    function refresh() { btn.classList.toggle("on", !!ghToken()); }
+    refresh();
+    btn.addEventListener("click", function () { openTokenPanel(refresh); });
+    host.parentNode.insertBefore(btn, host);
+  }
+
+  function openTokenPanel(after) {
+    var back = el("div", "token-backdrop");
+    var p = el("div", "token-panel");
+    p.appendChild(el("h3", "token-title", "Edit access"));
+    p.appendChild(el("p", "token-note",
+      "Paste a GitHub fine-grained token with Contents: write on your roadmap repo(s). It’s stored only in this browser and used to commit edits straight to GitHub."));
+    var help = el("a", "token-help", "Create a fine-grained token ↗");
+    help.href = "https://github.com/settings/personal-access-tokens/new";
+    help.target = "_blank"; help.rel = "noopener";
+    p.appendChild(help);
+    var inp = el("input", "token-input");
+    inp.type = "password"; inp.placeholder = "github_pat_…"; inp.value = ghToken();
+    inp.autocomplete = "off"; inp.spellcheck = false;
+    p.appendChild(inp);
+    var actions = el("div", "token-actions");
+    var save = el("button", "tbtn primary", "Save");
+    var clear = el("button", "tbtn", "Clear");
+    var cancel = el("button", "tbtn", "Cancel");
+    function close() { if (back.parentNode) document.body.removeChild(back); }
+    save.addEventListener("click", function () {
+      var v = inp.value.trim(); setGhToken(v); if (after) after(); close();
+      toast(v ? "Token saved — open a puck to edit" : "Token cleared");
+    });
+    clear.addEventListener("click", function () { setGhToken(""); inp.value = ""; if (after) after(); close(); toast("Token cleared"); });
+    cancel.addEventListener("click", close);
+    actions.appendChild(save); actions.appendChild(clear); actions.appendChild(cancel);
+    p.appendChild(actions);
+    back.appendChild(p);
+    back.addEventListener("click", function (e) { if (e.target === back) close(); });
+    document.body.appendChild(back);
+    inp.focus();
+  }
+
+  buildTokenControl();
 
   // Deep link: open the puck named in the URL hash on load, and react to the
   // hash changing (pasted link in the same tab, or Back after opening a modal).
