@@ -1,11 +1,10 @@
 ---
 title: "PO-lager: routa tickets till disciplin-agenter"
-status: later
+status: done
 tags: [product, ai]
 updated: 2026-08-17
 created: 2026-08-17
 order: 37
-depends: [ai-first-gui-cockpit-inte-kort-editor]
 ---
 
 ## Mål
@@ -44,3 +43,28 @@ Låt människan agera **PO**: dela ut tickets till agenter med rätt kompetens
 - `agent:` som en handle (`agent: backend`) vs härleds ur taggar — eller båda?
 - Runnern: en generell Claude-cron i instans-repot, eller per-disciplin-körningar?
 - Hur undviker vi att PO-konsolen blir "en sämre Linear/Jira" — vad *avstår* vi?
+
+## Delivered
+Den git-nativa PO-lager-kärnan är byggd (dispatch = ett commit, ingen ny motor):
+
+- **`agent:`-fältet** — routing-state i pucken, hela vägen: `adapters.mjs` +
+  harvester (digest-glyf `→ agent`), `roadmap agent <slug> <disciplin>`-CLI (+`--clear`),
+  dokumenterat i `CONVENTION.md`/`AGENTS.md`/`CLAUDE.md`.
+- **PO-konsol i GUI:t** — routa lika enkelt som en status-flip: en editerbar
+  **Agent**-rad (picker: disciplinerna + de som redan används), badge på kort/rader,
+  och en **Agents-sektion i sidomenyn** = per-disciplin-köer (räknare + filter).
+  "Kön" är bara pucks med `agent:` satt, läst ur git.
+- **Disciplin-profiler i git** — `agents/` med README (routing-modell + runner-mönster)
+  och exempel `backend.md` / `design.md`. Byts ut mot egna i ett instans-repo.
+
+## Medvetet utelämnat (USP-vakt)
+- **Runnern körs inte här.** Den är en Claude-Code-**cron i instans-repot** som
+  läser `roadmap.json`, plockar pucks med `agent:`, laddar profilen, jobbar i
+  källrepot och öppnar PR. Mönstret är dokumenterat i `agents/README.md`; själva
+  schemat är deploy-specifikt (och en avsiktlig icke-produkt-del).
+- Ingen scheduler/kö/dispatcher, inget per-agent-aktivitetslager — aktivitet =
+  commits/PR (Activity-fliken läser redan den historiken).
+
+## Svar på de öppna frågorna
+- Profiler: **i produkten som exempel** + byt ut per instans-repo. `agent:` = **explicit
+  handle** (medvetet val, inte härledd — routing ska vara en avsiktlig handling).

@@ -48,10 +48,13 @@ tagged `product` track this direction.
   about the roadmap programmatically). Shape: `{ generatedAt, statuses, counts,
   total, sources[], items[] }`. Each item: `{ id, repo, repoName, repoColor,
   slug, title, status, priority, tags[], updated, created, issue, issueState, order,
-  depends[], blockedBy[], owner, body, sourcePath, sourceUrl, adapter, native,
+  depends[], blockedBy[], owner, agent, body, sourcePath, sourceUrl, adapter, native,
   signals[] }`. `owner` is a GitHub handle (or `null`) — thin collaboration, a
   field not an assignee store. `priority` is `urgent`/`high`/`medium`/`low` (or
-  `null` = none) — orthogonal to `status` (*when* vs *how much it matters*). `depends[]` are the same-repo slugs a puck declares it's blocked
+  `null` = none) — orthogonal to `status` (*when* vs *how much it matters*).
+  `agent` is a discipline handle (or `null`) — the PO-layer routing state (which
+  `agents/<name>.md` profile a runner should use); the "queue" is just pucks with
+  `agent:` set, read from git — never a scheduler. `depends[]` are the same-repo slugs a puck declares it's blocked
   by; `blockedBy[]` is the harvester-resolved subset of those that aren't `done`
   yet (empty = ready). Read `blockedBy` to find what's actually startable. `issueState` is
   `"open"`/`"closed"` (or `null`) — the real state of the linked `issue`,
