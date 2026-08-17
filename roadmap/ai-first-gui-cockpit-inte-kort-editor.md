@@ -5,6 +5,7 @@ tags: [product, ui]
 updated: 2026-08-17
 created: 2026-08-17
 order: 36
+agent: backend
 ---
 
 ## Mål
