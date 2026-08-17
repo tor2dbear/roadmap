@@ -1,6 +1,6 @@
 ---
 title: "GUI-struktur v2: Linear-nivå + växbarhet"
-status: now
+status: done
 tags: [product, ui]
 updated: 2026-08-17
 created: 2026-08-17
@@ -41,3 +41,22 @@ v2-mockup först (godkänd look), sen ombyggnad i pass ovanpå nuvarande app.js/
 - Properties-rail: härled ur frontmatter; hur redigeras varje rad inline (samma
   browser-write som status/body idag)?
 - `priority:` — lägg till i CONVENTION.md + harvester + `roadmap` CLI.
+
+## Delivered
+Hela v2-passet är byggt och testat på riktiga boarden (headless Chromium):
+
+- **App-skal** — sidomeny (identitet · vyer · repos · discipliner) + huvudkolumn
+  med konsekvent vy-header (namn + räknare + view-options) som stannar när puckar
+  öppnas. Detaljen är en **properties-rail** (diskreta rader) — nytt fält = ny rad.
+- **⌘K command-palette** — sök flyttad ur topbaren till en centrerad palett
+  (⌘K/Ctrl+K, "/", eller kompakt trigger). Palett = navigering, inte kvarhängande
+  filter; nollställer query vid stängning. Extensibility-ytan för framtida actions.
+- **`priority`-fält** — nytt frivilligt, ordnat konventionsfält
+  (`urgent`/`high`/`medium`/`low`, tomt = ingen). Orthogonalt mot `status` (*när*
+  vs *hur mycket det spelar roll*). Genomgående: `CONVENTION.md`/`AGENTS.md`/
+  `CLAUDE.md`, harvester (adapter-fält + digest-glyf), `roadmap priority`-CLI
+  (+`--clear`), signal-bar-badge på kort, redigerbar rad i railen (samma
+  browser-write som status), och en "Priority (high→low)"-sortering.
+
+Medvetet utelämnat (Linears mark): realtids-co-editing, notiser, sprints/points,
+rik kommentars-feed. Kopplingen `priority` → `po-lager` (routning) tas där.
