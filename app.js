@@ -402,6 +402,13 @@
     body.innerHTML = renderMd(item.body || "(no details)");
     modalContent.appendChild(body);
 
+    if (ghToken() && item.native) {
+      var editBtn = el("button", "linklike body-edit", "✎ Edit body");
+      editBtn.type = "button";
+      editBtn.addEventListener("click", function () { startBodyEdit(item, body, editBtn); });
+      modalContent.appendChild(editBtn);
+    }
+
     var links = el("div", "card-links");
     var srcLink = linkEl("source", item.sourceUrl);
     srcLink.insertBefore(icon("external", "inline"), srcLink.firstChild);
@@ -930,6 +937,67 @@
         renderBoard(); openModal(item);
         toast("✗ " + err.message, true);
       });
+  }
+
+  // Replace the body (everything after the frontmatter fence), keeping the
+  // frontmatter byte-identical.
+  function replaceBody(text, newBody) {
+    var nl = text.indexOf("\r\n") >= 0 ? "\r\n" : "\n";
+    var lines = text.replace(/\r\n/g, "\n").split("\n");
+    if (lines[0] !== "---") return null;
+    var end = -1;
+    for (var i = 1; i < lines.length; i++) { if (lines[i] === "---") { end = i; break; } }
+    if (end < 0) return null;
+    var fm = lines.slice(0, end + 1);
+    var b = newBody.replace(/\r\n/g, "\n").replace(/\s+$/, "").split("\n");
+    return fm.concat([""], b, [""]).join(nl);
+  }
+
+  // Commit an edited body via the Contents API (read sha → PUT), bumping updated.
+  function commitBody(item, newBody) {
+    var token = ghToken();
+    var api = "https://api.github.com/repos/" + item.repo + "/contents/" + item.sourcePath.split("/").map(encodeURIComponent).join("/");
+    var branch = branchOf(item);
+    var headers = { Authorization: "Bearer " + token, Accept: "application/vnd.github+json" };
+    return fetch(api + "?ref=" + encodeURIComponent(branch), { headers: headers })
+      .then(function (r) { if (!r.ok) throw new Error("read failed (" + r.status + ")"); return r.json(); })
+      .then(function (info) {
+        var out = replaceBody(b64decode(info.content), newBody);
+        if (out == null) throw new Error("no frontmatter");
+        out = editFrontmatter(out, "updated", today());
+        return fetch(api, {
+          method: "PUT",
+          headers: { Authorization: "Bearer " + token, Accept: "application/vnd.github+json", "Content-Type": "application/json" },
+          body: JSON.stringify({ message: "roadmap: " + item.slug + " edit body", content: b64encode(out), sha: info.sha, branch: branch }),
+        });
+      })
+      .then(function (r) { if (!r.ok) throw new Error("write failed (" + r.status + ")"); });
+  }
+
+  // Swap the rendered body for a textarea; Save commits, Cancel restores.
+  function startBodyEdit(item, bodyEl, editBtn) {
+    editBtn.style.display = "none";
+    var ta = document.createElement("textarea");
+    ta.className = "body-editor";
+    ta.value = item.body || "";
+    var actions = el("div", "body-edit-actions");
+    var save = el("button", "tbtn primary", "Save");
+    var cancel = el("button", "tbtn", "Cancel");
+    save.type = "button"; cancel.type = "button";
+    actions.appendChild(save); actions.appendChild(cancel);
+    bodyEl.innerHTML = ""; bodyEl.appendChild(ta); bodyEl.appendChild(actions);
+    ta.focus();
+    function restore(md) { bodyEl.innerHTML = renderMd(md || "(no details)"); editBtn.style.display = ""; }
+    cancel.addEventListener("click", function () { restore(item.body); });
+    save.addEventListener("click", function () {
+      var newBody = ta.value, prev = item.body;
+      item.body = newBody; item.updated = today();
+      restore(newBody);
+      toast("Saving…");
+      commitBody(item, newBody)
+        .then(function () { toast("✓ Saved — live in ~1 min"); })
+        .catch(function (err) { item.body = prev; restore(prev); toast("✗ " + err.message, true); });
+    });
   }
 
   // Status editor inside the modal — native pucks only, token set.
