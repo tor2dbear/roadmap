@@ -181,7 +181,9 @@
     return wrap;
   }
 
-  // ── inline icons (Feather-style, stroke inherits currentColor) ──
+  // ── inline icons — Streamline "Feather" set (streamlinehq.com), stroke
+  // inherits currentColor so they track light/dark + the repo accent. To add
+  // one: drop its path 'd' string(s) into ICONS and reference by name. ──
   var SVGNS = "http://www.w3.org/2000/svg";
   var ICONS = {
     slash: ["M1.25 7.5a6.25 6.25 0 1 0 12.5 0 6.25 6.25 0 1 0 -12.5 0", "m3.08125 3.08125 8.8375 8.8375"],
