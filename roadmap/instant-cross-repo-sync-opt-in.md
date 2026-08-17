@@ -1,8 +1,8 @@
 ---
 title: Instant cross-repo sync (opt-in)
-status: next
+status: later
 tags: [product]
-updated: 2026-08-16
+updated: 2026-08-17
 created: 2026-08-16
 order: 32
 depends: [deploy-simplification]
