@@ -1,11 +1,26 @@
 ---
 title: GitHub Pages-deploy (bara GitHub)
-status: next
+status: done
 tags: [product, ops]
 updated: 2026-08-17
 created: 2026-08-17
 order: 31
 ---
+
+## Levererat
+Generatorn (`export-product.mjs`) skeppar nu **`.github/workflows/pages.yml`** som
+produktens default: skörda → assemblera ren `_site/` → `upload-pages-artifact` →
+`deploy-pages`. Bara GitHub krävs — ingen Cloudflare, inga secrets. `sync.yml`
+(Cloudflare) borttagen ur mallen; Cloudflare blir dokumenterad opt-in
+(`npx wrangler deploy`). README "Deploy your own" omskriven till Pages-flödet;
+custom-domäner gratis via Pages. Validerat: giltig YAML, `${{ }}` literala, tree ok.
+
+## Follow-ups (valfria, egna pucker om de tas)
+- **Live-propagering:** befintliga `etapp` behåller sin nuvarande workflow (mirror
+  speglar inte `.github/workflows` — kräver `workflow`-scope). Att sätta etapp på
+  Pages är ett engångs-manuellt steg (eller bumpa SYNC_TOKEN:s Workflows-scope).
+- **Flytta min egen instans till Pages** (dogfooding): kräver DNS-ompekning +
+  aktivera Pages + retire Cloudflare-Workern. Frivilligt, egen risk mot live-domänen.
 
 ## Mål
 Göra så att en forkare bara behöver **GitHub** för att köra Etapp — ingen
