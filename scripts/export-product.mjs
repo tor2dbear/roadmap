@@ -65,13 +65,11 @@ const WRANGLER = `{
 }
 `;
 
+// Must be valid JSON, not JSONC — the harvester and the sync workflow read it
+// with strict JSON.parse/require(), which reject // comments. The $schema gives
+// editors autocomplete; format guidance lives in README → "Deploy your own".
 const SOURCES = `{
-  // Add the repos to harvest here. Each entry looks like:
-  //   { "repo": "owner/name", "name": "Label", "color": "#38bdf8",
-  //     "adapter": "pucks", "path": "roadmap" }
-  // "pucks" = the native convention (roadmap/*.md, full fidelity);
-  // "checklist" / "prose" (+ "section") adapt a repo that hasn't adopted it yet.
-  // See CONVENTION.md and README.md → "Deploy your own". Empty until you add one.
+  "$schema": "./scripts/sources.schema.json",
   "defaultBranch": "main",
   "sources": []
 }

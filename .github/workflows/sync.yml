@@ -77,7 +77,23 @@ jobs:
           ROADMAP_LOCAL_ROOT: ${{ runner.temp }}/sources
         run: node scripts/harvest.mjs
 
+      # Gate the deploy on credentials so a fresh clone / the etapp template (which
+      # ships this same workflow but no Cloudflare secrets) harvests green and just
+      # skips deploy, instead of failing every run.
+      - name: Check for Cloudflare credentials
+        id: cf
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -n "$TOKEN" ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::CLOUDFLARE_API_TOKEN not set — data/ harvested but not deployed. Add CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID to deploy your board."
+          fi
+
       - name: Deploy to Cloudflare
+        if: steps.cf.outputs.deploy == 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
