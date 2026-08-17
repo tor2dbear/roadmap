@@ -181,9 +181,40 @@
     return wrap;
   }
 
-  // ⛔ badge for a puck waiting on unfinished dependencies (tooltip lists them).
+  // ── inline icons (Feather-style, stroke inherits currentColor) ──
+  var SVGNS = "http://www.w3.org/2000/svg";
+  var ICONS = {
+    slash: ["M1.25 7.5a6.25 6.25 0 1 0 12.5 0 6.25 6.25 0 1 0 -12.5 0", "m3.08125 3.08125 8.8375 8.8375"],
+    share: ["M2.5 7.5v5a1.25 1.25 0 0 0 1.25 1.25h7.5a1.25 1.25 0 0 0 1.25 -1.25v-5", "m10 3.75 -2.5 -2.5 -2.5 2.5", "m7.5 1.25 0 8.125"],
+    list: ["m5 3.75 8.125 0", "m5 7.5 8.125 0", "m5 11.25 8.125 0", "m1.875 3.75 0.00625 0", "m1.875 7.5 0.00625 0", "m1.875 11.25 0.00625 0"],
+    grid: ["M1.875 1.875h4.375v4.375H1.875Z", "M8.75 1.875h4.375v4.375h-4.375Z", "M8.75 8.75h4.375v4.375h-4.375Z", "M1.875 8.75h4.375v4.375H1.875Z"],
+    key: ["m13.125 1.25 -1.25 1.25m-4.7562500000000005 4.7562500000000005a3.4375 3.4375 0 1 1 -4.86125 4.86125 3.4375 3.4375 0 0 1 4.860625 -4.860625zm0 0L9.6875 4.6875m0 0 1.875 1.875L13.75 4.375l-1.875 -1.875m-2.1875 2.1875L11.875 2.5"],
+    external: ["M11.25 8.125v3.75a1.25 1.25 0 0 1 -1.25 1.25H3.125a1.25 1.25 0 0 1 -1.25 -1.25V5a1.25 1.25 0 0 1 1.25 -1.25h3.75", "m9.375 1.875 3.75 0 0 3.75", "M6.25 8.75 13.125 1.875"],
+    sun: ["M4.375 7.5a3.125 3.125 0 1 0 6.25 0 3.125 3.125 0 1 0 -6.25 0", "m7.5 0.625 0 1.25", "m7.5 13.125 0 1.25", "m2.6374999999999997 2.6374999999999997 0.8875 0.8875", "m11.475 11.475 0.8875 0.8875", "m0.625 7.5 1.25 0", "m13.125 7.5 1.25 0", "m2.6374999999999997 12.3625 0.8875 -0.8875", "m11.475 3.525 0.8875 -0.8875"],
+    moon: ["M13.125 7.9937499999999995A5.625 5.625 0 1 1 7.0062500000000005 1.875 4.375 4.375 0 0 0 13.125 7.9937499999999995z"],
+  };
+  function icon(name, cls) {
+    var svg = document.createElementNS(SVGNS, "svg");
+    svg.setAttribute("viewBox", "-0.5 -0.5 16 16");
+    svg.setAttribute("fill", "none");
+    svg.setAttribute("stroke", "currentColor");
+    svg.setAttribute("stroke-width", "1");
+    svg.setAttribute("stroke-linecap", "round");
+    svg.setAttribute("stroke-linejoin", "round");
+    svg.setAttribute("class", "icn" + (cls ? " " + cls : ""));
+    svg.setAttribute("aria-hidden", "true");
+    (ICONS[name] || []).forEach(function (d) {
+      var p = document.createElementNS(SVGNS, "path");
+      p.setAttribute("d", d);
+      svg.appendChild(p);
+    });
+    return svg;
+  }
+
+  // Blocked badge for a puck waiting on unfinished dependencies (tooltip lists them).
   function blockBadge(item) {
-    var b = el("span", "block-badge", "⛔");
+    var b = el("span", "block-badge");
+    b.appendChild(icon("slash"));
     var names = blockerItems(item).map(function (x) { return x.title; });
     b.title = "Blocked by: " + (names.join(", ") || item.blockedBy.join(", "));
     b.setAttribute("aria-label", b.title);
@@ -348,7 +379,8 @@
     // Blocked-by: list the unfinished dependencies; each opens that puck.
     if ((item.blockedBy || []).length) {
       var blk = el("div", "modal-blocked");
-      blk.appendChild(document.createTextNode("⛔ Blocked by: "));
+      blk.appendChild(icon("slash", "inline"));
+      blk.appendChild(document.createTextNode("Blocked by: "));
       var blockers = blockerItems(item);
       if (blockers.length) {
         blockers.forEach(function (b, i) {
@@ -369,17 +401,22 @@
     modalContent.appendChild(body);
 
     var links = el("div", "card-links");
-    links.appendChild(linkEl("source ↗", item.sourceUrl));
+    var srcLink = linkEl("source", item.sourceUrl);
+    srcLink.insertBefore(icon("external", "inline"), srcLink.firstChild);
+    links.appendChild(srcLink);
     if (item.issue) {
       links.appendChild(linkEl("issue #" + item.issue, "https://github.com/" + item.repo + "/issues/" + item.issue));
     }
-    var copyBtn = el("button", "linklike", "🔗 Copy link");
+    var copyBtn = el("button", "linklike");
     copyBtn.type = "button";
+    copyBtn.appendChild(icon("share", "inline"));
+    var copyLabel = el("span", null, "Copy link");
+    copyBtn.appendChild(copyLabel);
     copyBtn.addEventListener("click", function () {
       var url = location.origin + location.pathname + "#" + item.id;
       copyText(url, function () {
-        copyBtn.textContent = "✓ Copied";
-        setTimeout(function () { copyBtn.textContent = "🔗 Copy link"; }, 1500);
+        copyLabel.textContent = "Copied";
+        setTimeout(function () { copyLabel.textContent = "Copy link"; }, 1500);
       });
     });
     links.appendChild(copyBtn);
@@ -594,18 +631,28 @@
     if (t === "light") return false;
     return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
   }
+  function updateThemeButton() {
+    themeBtn.innerHTML = "";
+    // Show the icon of the mode a tap switches TO (dark now → sun to go light).
+    themeBtn.appendChild(icon(effectiveIsDark() ? "sun" : "moon"));
+  }
   themeBtn.addEventListener("click", function () {
     var next = effectiveIsDark() ? "light" : "dark";
     root.setAttribute("data-theme", next);
     try { localStorage.setItem("roadmap-theme", next); } catch (e) {}
     applyThemeColor();
+    updateThemeButton();
     themeBtn.blur();
   });
   // Follow the system scheme while on "auto" (no explicit toggle yet).
   if (window.matchMedia) {
-    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyThemeColor);
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () {
+      applyThemeColor();
+      updateThemeButton();
+    });
   }
   applyThemeColor();
+  updateThemeButton();
 
   // ── view toggle (board ⇄ list, remembered) ──
   var viewBtn = document.getElementById("viewToggle");
@@ -613,7 +660,8 @@
     var isList = state.view === "list";
     // Icon = the current view (no persistent .active highlight — it read as a
     // stuck focus ring); the title says what a tap does.
-    viewBtn.textContent = isList ? "☰" : "▦";
+    viewBtn.innerHTML = "";
+    viewBtn.appendChild(icon(isList ? "grid" : "list"));
     viewBtn.title = isList ? "Switch to board view" : "Switch to list view";
     viewBtn.setAttribute("aria-label", viewBtn.title);
   }
@@ -911,8 +959,9 @@
   function buildTokenControl() {
     var host = document.getElementById("theme");
     if (!host || !host.parentNode) return;
-    var btn = el("button", "iconbtn tokenbtn", "🔑");
+    var btn = el("button", "iconbtn tokenbtn");
     btn.type = "button";
+    btn.appendChild(icon("key"));
     btn.title = "Edit access — set a GitHub token to edit pucks from the board";
     function refresh() { btn.classList.toggle("on", !!ghToken()); }
     refresh();

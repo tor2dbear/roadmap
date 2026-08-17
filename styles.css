@@ -543,3 +543,12 @@ body.modal-open { overflow: hidden; }
 .tbtn:hover { border-color: var(--ink-3); }
 .tbtn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .tbtn.primary:hover { filter: brightness(1.05); }
+
+/* ── inline SVG icons (Feather-style, inherit currentColor) ──────────────── */
+.icn { width: 16px; height: 16px; display: inline-block; vertical-align: middle; flex: none; }
+.icn.inline { width: 13px; height: 13px; vertical-align: -2px; margin-right: 4px; }
+/* icon-only ghost buttons: center the glyph */
+#viewToggle, #theme { display: inline-flex; align-items: center; justify-content: center; }
+/* blocked badge: amber caution tint, slightly smaller in the dense meta row */
+.block-badge { color: var(--later); }
+.block-badge .icn { width: 14px; height: 14px; }
