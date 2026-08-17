@@ -1,11 +1,21 @@
 ---
 title: "GUI-evolution: app-känsla, Etapp-identitet"
-status: now
+status: done
 tags: [product, ui]
 updated: 2026-08-17
 created: 2026-08-17
 order: 35
 ---
+
+## Levererat
+Fyra pass, alla verifierade i headless Chromium:
+1. **Identitet** — map-paper/ink-palett, trail-orange accent, forest-grönt, mono-chrome.
+2. **Cockpit-fokus** — Ready · All · ⚠-växlare (Ready = oblockerat now/next som arbetskö).
+3. **Detaljpanel** — Linear-läge på desktop (skanna + agera sida-vid-sida), modal på mobil.
+4. **App-skal** — vänster sidomeny (brand, vyer, repos, tema/nyckel) + tunn topbar
+   (sök, Filter-popover, layout-toggle) + mobil-drawer.
+Kvar utanför denna puck: tangentbords-nav, snabb-capture (→ `ai-first-gui`),
+hand-to-agent (→ `po-lager`/dispatch).
 
 ## Mål
 Utvärdera nuvarande tavla och höj den mot en mer polerad, app-lik GUI (referens:
