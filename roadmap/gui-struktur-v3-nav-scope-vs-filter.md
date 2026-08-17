@@ -36,6 +36,11 @@ Skärp IA:n efter v2 så sidomenyn = **navigation/scope** och vy-headern = **vy-
 Verifierat i headless Chromium (desktop + mobil): Views + räknare, All utan inbox-kolumn,
 Inbox-vyn, filter-badge, breadcrumb, sök-knappar, topbar dold på desktop. Inga JS-fel.
 
+## Uppföljning
+Fullskärm-öppning omvärderades senare och **valdes** — pucks öppnas nu som en sida
+(full bredd, board + vy-header göms, breadcrumb "← All pucks" tillbaka), samma på
+desktop och mobil. Skälet: pucks är dokument (tjocka bodies per konventionen) och
+växer med flikar; en smal panel kramar innehållet. Modal/overlay-vägen är pensionerad.
+
 ## Medvetet utelämnat
-Fullskärm-öppning av puckar (valde panel + breadcrump). Fler filter (status, blocked,
-owner) — ytan finns, läggs till vid behov.
+Fler filter (status, blocked, owner) — ytan finns, läggs till vid behov.
