@@ -28,7 +28,6 @@ const COPY = [
   "AGENTS.md",
   "templates",
   ".assetsignore",
-  ".github/workflows/sync.yml",
 ];
 
 // ── generated files (personal → generic examples) ──
@@ -73,6 +72,91 @@ const SOURCES = `{
   "defaultBranch": "main",
   "sources": []
 }
+`;
+
+// The default deploy: GitHub Pages — only GitHub required, no other account or
+// secret. Cloudflare is an opt-in alternative (see README + wrangler.jsonc).
+// NOTE: \${{ ... }} is escaped so it survives this template literal verbatim.
+const PAGES_YML = `name: Build & deploy (GitHub Pages)
+
+# Harvests every source repo's roadmap and publishes the board to GitHub Pages —
+# only GitHub required, no other account or secret. Enable Pages once
+# (Settings → Pages → Source: "GitHub Actions") and every push + hourly run
+# redeploys. Custom domain (optional, free): add it under Settings → Pages.
+#
+# Prefer Cloudflare Workers? Deploy with 'npx wrangler deploy' (wrangler.jsonc)
+# and disable this workflow.
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "sources.json"
+      - "board.config.json"
+      - "roadmap/**"
+      - "scripts/**"
+      - "index.html"
+      - "app.js"
+      - "styles.css"
+      - ".github/workflows/pages.yml"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Clone source repos (treeless, read-only)
+        env:
+          GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/sources"
+          repos=$(node -e "for (const s of require('./sources.json').sources) console.log(s.repo, s.branch || require('./sources.json').defaultBranch || 'main')")
+          while read -r repo branch; do
+            [ -z "$repo" ] && continue
+            git clone --filter=blob:none --branch "$branch" \\
+              "https://github.com/$repo" "$RUNNER_TEMP/sources/$repo" \\
+              || git clone --filter=blob:none "https://github.com/$repo" "$RUNNER_TEMP/sources/$repo"
+          done <<< "$repos"
+      - name: Harvest
+        env:
+          ROADMAP_LOCAL_ROOT: \${{ runner.temp }}/sources
+        run: node scripts/harvest.mjs
+      - name: Assemble site (only the board ships)
+        run: |
+          set -euo pipefail
+          mkdir -p _site
+          cp index.html app.js styles.css _site/
+          [ -f ROADMAP.md ] && cp ROADMAP.md _site/ || true
+          cp -r data _site/data
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: \${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
 `;
 
 const BOARD_CONFIG = {
@@ -139,15 +223,19 @@ each repo (roadmap/*.md)  ──harvest──▶  data/roadmap.json · ROADMAP.m
                           index.html + app.js + styles.css  → the board
 \`\`\`
 
-## Deploy your own
+## Deploy your own — only GitHub needed
 
-1. **Fork / use this template.**
-2. \`sources.json\` — list your repos. Private repos work with a \`GITHUB_TOKEN\`.
+1. **Use this template** (or fork).
+2. \`sources.json\` — list your repos.
 3. \`board.config.json\` — title, description, source link.
-4. \`wrangler.jsonc\` — Worker name and (optional) custom domain.
-5. Cloudflare → *Workers & Pages → Import a repository* → deploy \`npx wrangler deploy\`.
+4. **Settings → Pages → Source: "GitHub Actions".**
 
-The hourly Sync Action harvests your repos and redeploys. Nothing to run.
+That's it. The included workflow harvests your repos hourly (and on every push) and
+publishes to GitHub Pages — no other account, no secrets, nothing to run. A
+**custom domain** (optional, free) goes under Settings → Pages.
+
+**Prefer Cloudflare Workers?** Deploy with \`npx wrangler deploy\` (\`wrangler.jsonc\`)
+and disable the Pages workflow — the board is the same static bundle either way.
 
 ## The convention & the agents
 
@@ -181,6 +269,7 @@ async function main() {
   };
 
   await write("package.json", JSON.stringify(PKG, null, 2) + "\n");
+  await write(".github/workflows/pages.yml", PAGES_YML);
   await write("wrangler.jsonc", WRANGLER);
   await write("sources.json", SOURCES);
   await write("board.config.json", JSON.stringify(BOARD_CONFIG, null, 2) + "\n");

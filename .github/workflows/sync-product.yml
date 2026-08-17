@@ -68,7 +68,11 @@ jobs:
           git clone --depth 1 "https://x-access-token:${TOKEN}@github.com/tor2dbear/etapp.git" "$RUNNER_TEMP/etapp"
           # keep the product repo's own sources.json / board.config.json (a live
           # instance may have customised them) — mirror only the engine, UI, docs.
-          rsync -a --delete --exclude='.git' \
+          # Exclude .github/workflows: pushing workflow files needs the token's
+          # `workflow` scope, which SYNC_TOKEN deliberately doesn't have. Workflows
+          # are per-repo scaffold (they ship with the template / a fresh clone),
+          # not something the mirror keeps in sync.
+          rsync -a --delete --exclude='.git' --exclude='.github/workflows' \
             --exclude='sources.json' --exclude='board.config.json' --exclude='wrangler.jsonc' \
             "$RUNNER_TEMP/etapp-new/" "$RUNNER_TEMP/etapp/"
           cd "$RUNNER_TEMP/etapp"
