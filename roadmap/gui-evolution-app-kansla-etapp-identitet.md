@@ -1,6 +1,6 @@
 ---
 title: "GUI-evolution: app-känsla, Etapp-identitet"
-status: later
+status: now
 tags: [product, ui]
 updated: 2026-08-17
 created: 2026-08-17

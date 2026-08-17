@@ -1,6 +1,6 @@
 ---
 title: "AI-first GUI: cockpit, inte kort-editor"
-status: later
+status: now
 tags: [product, ui]
 updated: 2026-08-17
 created: 2026-08-17
