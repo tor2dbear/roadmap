@@ -957,18 +957,142 @@
     toastTimer = setTimeout(function () { toastEl.className = "toast"; }, isErr ? 6000 : 2600);
   }
 
-  // 🔑 token control in the header + a small paste/clear panel.
-  function buildTokenControl() {
+  // slugify — a byte-for-byte copy of scripts/lib/adapters.mjs so a GUI-created
+  // puck lands at the same path the harvester derives from the title.
+  function slugify(s) {
+    return s.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "item";
+  }
+
+  // The new-puck file body — mirrors `roadmap new` in scripts/roadmap.mjs.
+  function puckTemplate(title, status, tags) {
+    var t = /[:#]/.test(title) ? JSON.stringify(title) : title;
+    var lines = ["---", "title: " + t, "status: " + status];
+    if (tags.length) lines.push("tags: [" + tags.join(", ") + "]");
+    lines.push("updated: " + today(), "created: " + today(), "---", "", "## Mål", "", "", "## Research", "", "", "## Öppna frågor", "- ", "");
+    return lines.join("\n");
+  }
+
+  // Where a repo keeps its pucks + which branch — derived from an existing item
+  // of that repo (falls back to the convention default).
+  function sourceMeta(repo) {
+    var it = DATA.items.filter(function (x) { return x.repo === repo; })[0];
+    var dir = "roadmap", branch = "main";
+    if (it) { var p = it.sourcePath.split("/"); p.pop(); dir = p.join("/") || "roadmap"; branch = branchOf(it); }
+    return { dir: dir, branch: branch };
+  }
+
+  // Create a new file via the Contents API (no sha = create; 422 = already exists).
+  function commitCreate(repo, path, branch, content, message) {
+    var token = ghToken();
+    var api = "https://api.github.com/repos/" + repo + "/contents/" + path.split("/").map(encodeURIComponent).join("/");
+    return fetch(api, {
+      method: "PUT",
+      headers: { Authorization: "Bearer " + token, Accept: "application/vnd.github+json", "Content-Type": "application/json" },
+      body: JSON.stringify({ message: message, content: b64encode(content), branch: branch }),
+    }).then(function (r) { if (!r.ok) throw new Error(r.status === 422 ? "already exists" : "create failed (" + r.status + ")"); });
+  }
+
+  // Optimistic create: add to the board now, commit in the background, revert on failure.
+  function createPuck(repo, title, status, tags) {
+    var slug = slugify(title);
+    var short = repo.split("/").pop();
+    var id = short + "/" + slug;
+    if (DATA.items.some(function (x) { return x.id === id; })) { toast('✗ A puck "' + slug + '" already exists here', true); return; }
+    var src = DATA.sources.filter(function (s) { return s.repo === repo; })[0] || {};
+    var meta = sourceMeta(repo);
+    var path = meta.dir + "/" + slug + ".md";
+    var body = "## Mål\n\n\n## Research\n\n\n## Öppna frågor\n- ";
+    var item = {
+      id: id, repo: repo, repoName: src.name || short, repoColor: src.color || "#888888",
+      issueState: null, slug: slug, title: title, status: status, tags: tags, updated: today(),
+      created: today(), issue: null, order: 0, depends: [], owner: null, body: body,
+      sourcePath: path, sourceUrl: "https://github.com/" + repo + "/blob/" + meta.branch + "/" + path,
+      adapter: "pucks", native: true, blockedBy: [], signals: [],
+    };
+    DATA.items.push(item); DATA.total += 1;
+    renderBoard(); openModal(item);
+    toast("Creating…");
+    commitCreate(repo, path, meta.branch, puckTemplate(title, status, tags), "roadmap: add " + slug)
+      .then(function () { toast("✓ Created — live in ~1 min"); })
+      .catch(function (err) {
+        var i = DATA.items.indexOf(item); if (i >= 0) DATA.items.splice(i, 1);
+        DATA.total -= 1; renderBoard(); closeModal();
+        toast("✗ " + err.message, true);
+      });
+  }
+
+  // 🔑 edit-access + ＋ new-puck controls in the header.
+  var tokenBtn, newBtn;
+  function refreshEditControls() {
+    if (tokenBtn) tokenBtn.classList.toggle("on", !!ghToken());
+    if (newBtn) newBtn.hidden = !ghToken();
+  }
+  function buildEditControls() {
     var host = document.getElementById("theme");
     if (!host || !host.parentNode) return;
-    var btn = el("button", "iconbtn tokenbtn");
-    btn.type = "button";
-    btn.appendChild(icon("key"));
-    btn.title = "Edit access — set a GitHub token to edit pucks from the board";
-    function refresh() { btn.classList.toggle("on", !!ghToken()); }
-    refresh();
-    btn.addEventListener("click", function () { openTokenPanel(refresh); });
-    host.parentNode.insertBefore(btn, host);
+    newBtn = el("button", "iconbtn newpuckbtn", "＋");
+    newBtn.type = "button"; newBtn.title = "New puck"; newBtn.hidden = !ghToken();
+    newBtn.addEventListener("click", openNewPuckPanel);
+    host.parentNode.insertBefore(newBtn, host);
+    tokenBtn = el("button", "iconbtn tokenbtn");
+    tokenBtn.type = "button";
+    tokenBtn.appendChild(icon("key"));
+    tokenBtn.title = "Edit access — set a GitHub token to edit pucks from the board";
+    tokenBtn.classList.toggle("on", !!ghToken());
+    tokenBtn.addEventListener("click", function () { openTokenPanel(refreshEditControls); });
+    host.parentNode.insertBefore(tokenBtn, host);
+  }
+
+  function field(labelText, control) {
+    var d = el("div", "np-field");
+    var l = el("label", null, labelText); d.appendChild(l); d.appendChild(control);
+    return d;
+  }
+  function selectEl(cls, opts, value) {
+    var s = document.createElement("select"); s.className = cls;
+    opts.forEach(function (o) { var e = document.createElement("option"); e.value = o.value; e.textContent = o.label; s.appendChild(e); });
+    if (value != null) s.value = value;
+    return s;
+  }
+  function openNewPuckPanel() {
+    if (!ghToken()) return;
+    var back = el("div", "token-backdrop");
+    var p = el("div", "token-panel");
+    p.appendChild(el("h3", "token-title", "New puck"));
+    var proj = selectEl("np-select", DATA.sources.map(function (s) { return { value: s.repo, label: s.name }; }),
+      DATA.sources.some(function (s) { return s.repo === "tor2dbear/roadmap"; }) ? "tor2dbear/roadmap" : null);
+    var title = el("input", "token-input"); title.type = "text"; title.placeholder = "Title"; title.autocomplete = "off";
+    var st = selectEl("np-select", DATA.statuses.map(function (s) { return { value: s, label: STATUS_LABEL[s] || s }; }), "inbox");
+    var tg = el("input", "token-input"); tg.type = "text"; tg.placeholder = "tags (comma-separated)"; tg.autocomplete = "off";
+    var preview = el("div", "np-preview", "");
+    function updatePreview() {
+      var m = sourceMeta(proj.value);
+      preview.textContent = title.value.trim() ? "→ " + m.dir + "/" + slugify(title.value) + ".md" : "";
+    }
+    title.addEventListener("input", updatePreview); proj.addEventListener("change", updatePreview);
+    p.appendChild(field("Project", proj));
+    p.appendChild(field("Title", title));
+    p.appendChild(preview);
+    p.appendChild(field("Status", st));
+    p.appendChild(field("Tags", tg));
+    var actions = el("div", "token-actions");
+    var create = el("button", "tbtn primary", "Create");
+    var cancel = el("button", "tbtn", "Cancel");
+    function close() { if (back.parentNode) document.body.removeChild(back); }
+    create.addEventListener("click", function () {
+      var t = title.value.trim();
+      if (!t) { title.focus(); return; }
+      var tags = tg.value.split(",").map(function (x) { return slugify(x); }).filter(Boolean);
+      close(); createPuck(proj.value, t, st.value, tags);
+    });
+    cancel.addEventListener("click", close);
+    actions.appendChild(create); actions.appendChild(cancel);
+    p.appendChild(actions);
+    back.appendChild(p);
+    back.addEventListener("click", function (e) { if (e.target === back) close(); });
+    document.body.appendChild(back);
+    title.focus();
   }
 
   function openTokenPanel(after) {
@@ -1004,7 +1128,7 @@
     inp.focus();
   }
 
-  buildTokenControl();
+  buildEditControls();
 
   // Deep link: open the puck named in the URL hash on load, and react to the
   // hash changing (pasted link in the same tab, or Back after opening a modal).

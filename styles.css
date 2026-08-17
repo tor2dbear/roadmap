@@ -552,3 +552,14 @@ body.modal-open { overflow: hidden; }
 /* blocked badge: amber caution tint, slightly smaller in the dense meta row */
 .block-badge { color: var(--later); }
 .block-badge .icn { width: 14px; height: 14px; }
+
+/* ── new-puck form ─────────────────────────────────────────────────────── */
+.iconbtn.newpuckbtn { font-size: 18px; line-height: 1; font-weight: 500; }
+.np-field { margin: 10px 0; }
+.np-field label { display: block; font-size: 12px; color: var(--ink-2); margin-bottom: 4px; }
+.np-select {
+  width: 100%; box-sizing: border-box; padding: 8px 10px; font-size: 16px;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink);
+}
+.np-select:focus { outline: none; border-color: var(--accent); }
+.np-preview { font-family: ui-monospace, monospace; font-size: 12px; color: var(--ink-3); min-height: 14px; margin: -4px 0 2px; }
