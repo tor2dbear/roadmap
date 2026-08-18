@@ -20,11 +20,13 @@
       <!-- ── left sidebar: identity + navigation ── -->
       <aside class="sidebar" id="sidebar" aria-label="Navigation">
         <div class="side-brand brand">
-          <!-- git-merge glyph injected via JS as the Etapp brand mark -->
-          <div class="brand-lockup">
+          <!-- Linear-style workspace button: glyph + title + caret; its menu holds
+               the account (identity + sign out). The git-merge glyph is injected via JS. -->
+          <button class="ws-btn" id="wsBtn" type="button" aria-haspopup="menu" aria-expanded="false" aria-label="Workspace menu">
             <span class="brand-mark" id="brandMark" aria-hidden="true"></span>
             <h1>Roadmap</h1>
-          </div>
+            <span class="ws-caret" aria-hidden="true">▾</span>
+          </button>
           <p class="sub" id="subtitle">Aggregated across repos · loading…</p>
         </div>
         <!-- top actions: search opens the ⌘K palette; New creates a puck (token-gated) -->
@@ -57,6 +59,8 @@
 
       <!-- ── main column: topbar + work ── -->
       <div class="maincol">
+        <!-- desktop-only drag handle to resize the sidebar -->
+        <div class="col-resizer" id="colResizer" role="separator" aria-orientation="vertical" aria-label="Resize sidebar"></div>
         <!-- mobile-only: sidebar (with search + New) is behind the menu, so mirror
              the quick actions here; hidden on desktop where the sidebar is visible -->
         <header class="topbar">
