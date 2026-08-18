@@ -93,9 +93,10 @@ jobs:
         run: |
           set -euo pipefail
           git clone --depth 1 "https://x-access-token:${TOKEN}@github.com/tor2dbear/etapp-site.git" "$RUNNER_TEMP/site"
-          # the demo board's index.html carries its own ribbon — only refresh the
-          # logic/styles so tool improvements reach the demo without clobbering it.
-          cp app.js styles.css "$RUNNER_TEMP/site/demo/"
+          # Mirror the full board (structure + logic + styles) so the demo stays in
+          # sync with the tool. The demo's ribbon is config-driven (board data's
+          # config.ribbon), not baked into index.html, so copying it is safe.
+          cp app.js styles.css index.html "$RUNNER_TEMP/site/demo/"
           cd "$RUNNER_TEMP/site"
           git config user.name "roadmap-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
