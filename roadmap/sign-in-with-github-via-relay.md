@@ -2,10 +2,11 @@
 title: Sign in with GitHub via relay
 status: later
 tags: [product, auth]
-updated: 2026-08-17
+updated: 2026-08-18
 created: 2026-08-17
 order: 33
 depends: [gui-editing]
+priority: urgent
 ---
 
 ## Mål
