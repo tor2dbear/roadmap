@@ -11,64 +11,64 @@
 @font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 100 800; font-display: swap; src: url("fonts/jetbrains-mono.woff2") format("woff2"); }
 
 :root {
-  --bg: #faf7f1;
-  --panel: #fffdf7;
-  --panel-2: #efe8d9;
-  --sidebar-bg: #ece4d3;
-  --ink: #2a241d;
-  --ink-2: #6b6153;
-  --ink-3: #9a9082;
-  --line: #e4ddcd;
-  --accent: #cf551b;
-  --shadow: 0 1px 2px rgba(60, 46, 28, 0.07), 0 2px 8px rgba(60, 46, 28, 0.05);
+  --bg: #f5f3ee;
+  --panel: #fffefb;
+  --panel-2: #ebe8e1;
+  --sidebar-bg: #e9e6df;
+  --ink: #262320;
+  --ink-2: #6a635a;
+  --ink-3: #9c948a;
+  --line: #e6e2d9;
+  --accent: #87414b;
+  --shadow: 0 1px 2px rgba(45, 38, 30, 0.07), 0 2px 8px rgba(45, 38, 30, 0.05);
   --radius: 12px;
   /* Apple's San Francisco stays first; Switzer is the self-hosted fallback that
      loads everywhere else (the -apple-system keywords resolve to SF only on Apple). */
   --sans: -apple-system, BlinkMacSystemFont, "Switzer", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  --now: #cf551b;
-  --next: #2c5b45;
-  --later: #b07d2e;
-  --inbox: #4f6592;
-  --done: #7d766a;
+  --now: #87414b;
+  --next: #567f66;
+  --later: #b8944a;
+  --inbox: #5f6590;
+  --done: #8f887c;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root[data-theme="auto"] {
-    --bg: #1c1813;
-    --panel: #232019;
-    --panel-2: #2b271f;
-    --sidebar-bg: #131009;
-    --ink: #ece6da;
-    --ink-2: #a89f90;
-    --ink-3: #6f6759;
-    --line: #332c23;
-    --accent: #e2622a;
+    --bg: #1a1815;
+    --panel: #211f1b;
+    --panel-2: #2a2722;
+    --sidebar-bg: #141210;
+    --ink: #eae6de;
+    --ink-2: #9d968a;
+    --ink-3: #6d665b;
+    --line: #322e28;
+    --accent: #c07682;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 2px 12px rgba(0, 0, 0, 0.35);
-    --now: #e2622a;
-    --next: #57a578;
-    --later: #c9a15b;
-    --inbox: #7d90b6;
-    --done: #83907d;
+    --now: #c07682;
+    --next: #79a58a;
+    --later: #c9a35b;
+    --inbox: #8b93c0;
+    --done: #8f887c;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #1c1813;
-  --panel: #232019;
-  --panel-2: #2b271f;
-  --sidebar-bg: #131009;
-  --ink: #ece6da;
-  --ink-2: #a89f90;
-  --ink-3: #6f6759;
-  --line: #332c23;
-  --accent: #e2622a;
+  --bg: #1a1815;
+  --panel: #211f1b;
+  --panel-2: #2a2722;
+  --sidebar-bg: #141210;
+  --ink: #eae6de;
+  --ink-2: #9d968a;
+  --ink-3: #6d665b;
+  --line: #322e28;
+  --accent: #c07682;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 2px 12px rgba(0, 0, 0, 0.35);
-  --now: #e2622a;
-  --next: #57a578;
-  --later: #c9a15b;
-  --inbox: #7d90b6;
-  --done: #83907d;
+  --now: #c07682;
+  --next: #79a58a;
+  --later: #c9a35b;
+  --inbox: #8b93c0;
+  --done: #8f887c;
   color-scheme: dark;
 }
 
