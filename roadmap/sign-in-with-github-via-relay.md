@@ -6,7 +6,7 @@ updated: 2026-08-18
 created: 2026-08-17
 order: 33
 depends: [gui-editing]
-priority: urgent
+priority: high
 ---
 
 ## Mål
