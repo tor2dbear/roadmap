@@ -1,8 +1,8 @@
 ---
 title: Redigera pucks direkt i GUI:t
-status: next
+status: done
 tags: [ui, editing]
-updated: 2026-08-16
+updated: 2026-08-18
 order: 30
 ---
 
