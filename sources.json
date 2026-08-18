@@ -7,7 +7,7 @@
       "repo": "tor2dbear/roadmap",
       "name": "Etapp",
       "blurb": "The Etapp tool's own roadmap — the aggregator tracking itself.",
-      "color": "#cf551b",
+      "color": "#4a8580",
       "adapter": "pucks",
       "path": "roadmap"
     },
@@ -15,7 +15,7 @@
       "repo": "tor2dbear/pia-terminal",
       "name": "PIA",
       "blurb": "Personal Integrated Applications — a Unix-flavoured terminal in the browser.",
-      "color": "#38bdf8",
+      "color": "#5f80a3",
       "adapter": "pucks",
       "path": "roadmap"
     },
@@ -23,7 +23,7 @@
       "repo": "tor2dbear/cadence",
       "name": "Cadence",
       "blurb": "A motion *system* designer — tokens for timing & easing, not another easing toy.",
-      "color": "#f472b6",
+      "color": "#bb7d92",
       "adapter": "pucks",
       "path": "roadmap"
     },
@@ -31,7 +31,7 @@
       "repo": "tor2dbear/meta-matic",
       "name": "Méta-Matic",
       "blurb": "A digital drawing machine after Jean Tinguely — infinite works, never anything new.",
-      "color": "#a78bfa",
+      "color": "#8a7bab",
       "adapter": "pucks",
       "path": "roadmap"
     },
@@ -39,7 +39,7 @@
       "repo": "tor2dbear/tor2dbear.com",
       "name": "Workshop",
       "blurb": "The apex site and the rule book for the fleet.",
-      "color": "#34d399",
+      "color": "#7d9163",
       "adapter": "pucks",
       "path": "roadmap"
     },
@@ -47,7 +47,7 @@
       "repo": "tor2dbear/portfolio",
       "name": "tor-bjorn.com",
       "blurb": "Personal Hugo site — design system, typography, terminal, header/footer redesign.",
-      "color": "#fb923c",
+      "color": "#bb8250",
       "adapter": "pucks",
       "path": "roadmap",
       "branch": "master"
