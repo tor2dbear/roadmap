@@ -24,6 +24,7 @@ const COPY = [
   "index.html",
   "app.js",
   "styles.css",
+  "fonts",
   "CONVENTION.md",
   "AGENTS.md",
   "templates",
@@ -101,6 +102,7 @@ on:
       - "index.html"
       - "app.js"
       - "styles.css"
+      - "fonts/**"
       - ".github/workflows/pages.yml"
 
 permissions:
@@ -142,6 +144,7 @@ jobs:
           set -euo pipefail
           mkdir -p _site
           cp index.html app.js styles.css _site/
+          [ -d fonts ] && cp -r fonts _site/fonts || true
           [ -f ROADMAP.md ] && cp ROADMAP.md _site/ || true
           cp -r data _site/data
       - uses: actions/upload-pages-artifact@v3

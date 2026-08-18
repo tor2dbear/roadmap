@@ -19,6 +19,7 @@ on:
       - "index.html"
       - "app.js"
       - "styles.css"
+      - "fonts/**"
       - "CONVENTION.md"
       - "AGENTS.md"
       - "templates/**"
@@ -97,6 +98,7 @@ jobs:
           # sync with the tool. The demo's ribbon is config-driven (board data's
           # config.ribbon), not baked into index.html, so copying it is safe.
           cp app.js styles.css index.html "$RUNNER_TEMP/site/demo/"
+          cp -r fonts "$RUNNER_TEMP/site/demo/fonts"
           cd "$RUNNER_TEMP/site"
           git config user.name "roadmap-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
