@@ -128,8 +128,10 @@ jobs:
           [ -n "$url" ] || url=$(grep -oE 'https://[^ ]*workers\.dev' wrangler-out.txt | head -1 || true)
           echo "url=$url" >> "$GITHUB_OUTPUT"
 
+      # Only touch the comment when we actually have a URL, so a transient upload
+      # failure (continue-on-error above) can't overwrite the last good stable link.
       - name: Post the preview link as a sticky comment
-        if: steps.cf.outputs.ok == 'true'
+        if: steps.cf.outputs.ok == 'true' && steps.preview.outputs.url != ''
         uses: actions/github-script@v7
         env:
           PREVIEW_URL: ${{ steps.preview.outputs.url }}
@@ -137,12 +139,11 @@ jobs:
           script: |
             const marker = '<!-- pr-preview -->';
             const url = process.env.PREVIEW_URL;
-            const body = url
-              ? `${marker}\n### 🔍 Staging preview\n**${url}**\n\nStabil länk för den här PR:en — den pekar om till senaste versionen vid varje push (bokmärk den gärna). Detta är en Worker-*version*; prod (roadmap.tor2dbear.com) påverkas inte förrän du mergar till \`main\`.`
-              : `${marker}\n### 🔍 Staging preview\nPreview-versionen laddades upp, men ingen preview-URL rapporterades. Kontrollera att **Preview URLs** är påslaget för workern i Cloudflare.`;
+            const body = `${marker}\n### 🔍 Staging preview\n**${url}**\n\nStabil länk för den här PR:en — den pekar om till senaste versionen vid varje push (bokmärk den gärna). Detta är en Worker-*version*; prod (roadmap.tor2dbear.com) påverkas inte förrän du mergar till \`main\`.`;
             const { owner, repo } = context.repo;
             const issue_number = context.issue.number;
-            const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number });
+            // Paginate so the marker is found even past the first 30 comments.
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number, per_page: 100 });
             const existing = comments.find(c => c.body && c.body.includes(marker));
             if (existing) {
               await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });

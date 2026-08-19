@@ -1206,8 +1206,9 @@
     if (!scope.length) return base;
     // "All pucks" is the default view — when you've navigated into a place (a repo
     // or agent) the place *is* the context, so lead with it instead of prefixing
-    // the redundant "All pucks ·". Named views (Ready/Inbox/…) keep their label.
-    if (state.focus === "all") return scope.join(", ");
+    // the redundant "All pucks ·". A tag/priority *filter* is a refinement, not a
+    // place, so it keeps the view name ("All pucks · #ui"). Named views too.
+    if (state.focus === "all" && placeActive()) return scope.join(", ");
     return base + " · " + scope.join(", ");
   }
   function updateViewHeader(shown) {
