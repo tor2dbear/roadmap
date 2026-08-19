@@ -261,7 +261,11 @@ body {
   align-items: center;
   gap: 8px;
   position: sticky;
-  top: var(--topbar-h, 0px); /* sit below the sticky topbar, not under it */
+  /* The kanban .board is its own scroll container (overflow-x: auto forces
+     overflow-y: auto too), so this sticks relative to the board, not the page —
+     top: 0 keeps it at the column top. (The list view scrolls with the viewport
+     and offsets below the topbar via --topbar-h; see .list-head.) */
+  top: 0;
   padding: 4px 2px 10px;
   background: var(--bg);
   z-index: 1;

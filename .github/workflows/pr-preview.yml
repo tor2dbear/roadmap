@@ -115,10 +115,17 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PR: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
-          npx wrangler versions upload 2>&1 | tee wrangler-out.txt
-          url=$(grep -oE 'https://[^ ]*workers\.dev' wrangler-out.txt | head -1 || true)
+          # A named preview alias gives one *stable* URL per PR that just re-points at
+          # the newest version on every push — so the sticky comment link stays the
+          # same and can be bookmarked, instead of a fresh per-version hash each time.
+          alias="pr-$PR"
+          npx wrangler versions upload --preview-alias "$alias" 2>&1 | tee wrangler-out.txt
+          # Prefer the stable alias URL; fall back to the per-version URL if absent.
+          url=$(grep -oE "https://${alias}-[^ ]*workers\.dev" wrangler-out.txt | head -1 || true)
+          [ -n "$url" ] || url=$(grep -oE 'https://[^ ]*workers\.dev' wrangler-out.txt | head -1 || true)
           echo "url=$url" >> "$GITHUB_OUTPUT"
 
       - name: Post the preview link as a sticky comment
@@ -131,7 +138,7 @@ jobs:
             const marker = '<!-- pr-preview -->';
             const url = process.env.PREVIEW_URL;
             const body = url
-              ? `${marker}\n### 🔍 Staging preview\n**${url}**\n\nUppdateras vid varje push till den här PR:en. Detta är en Worker-*version* — prod (roadmap.tor2dbear.com) påverkas inte förrän du mergar till \`main\`.`
+              ? `${marker}\n### 🔍 Staging preview\n**${url}**\n\nStabil länk för den här PR:en — den pekar om till senaste versionen vid varje push (bokmärk den gärna). Detta är en Worker-*version*; prod (roadmap.tor2dbear.com) påverkas inte förrän du mergar till \`main\`.`
               : `${marker}\n### 🔍 Staging preview\nPreview-versionen laddades upp, men ingen preview-URL rapporterades. Kontrollera att **Preview URLs** är påslaget för workern i Cloudflare.`;
             const { owner, repo } = context.repo;
             const issue_number = context.issue.number;
