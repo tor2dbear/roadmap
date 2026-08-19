@@ -380,9 +380,17 @@
   }
 
   // ── deep links: #<item.id> opens that puck's modal ──
+  // Opening a *different* puck pushes a new history entry so the browser Back
+  // button returns to where you were; re-rendering the same open puck (after an
+  // edit) or clearing the hash replaces in place, so history never piles up.
   function setHash(id) {
     var base = location.pathname + location.search;
-    try { history.replaceState(null, "", id ? base + "#" + id : base); } catch (e) {}
+    var url = id ? base + "#" + id : base;
+    var curId = decodeURIComponent(location.hash.replace(/^#/, ""));
+    try {
+      if (id && id !== curId) history.pushState(null, "", url);
+      else history.replaceState(null, "", url);
+    } catch (e) {}
   }
   function itemFromHash() {
     var h = decodeURIComponent(location.hash.replace(/^#/, ""));
@@ -956,13 +964,16 @@
   }
 
   function closeModal() {
-    if (location.hash) setHash(null);
     if (modalBackdrop) {
       modalBackdrop.hidden = true;
       modalBackdrop.style.top = "";
       document.body.classList.remove("modal-open");
     }
-    closeDetail();
+    // Pop the entry this puck pushed, so the URL + history stay in sync and a
+    // Forward press re-opens it; popstate then runs closeDetail. When there's no
+    // hash (nothing pushed), close directly.
+    if (location.hash) history.back();
+    else closeDetail();
   }
   // Navigating the sidebar (a view/repo/tag/agent) while a puck is open should
   // return to the board — otherwise the board changes behind the still-open puck.
@@ -2802,11 +2813,24 @@
     else { copyText(url, function () { toast("✓ Link copied"); }); }
   });
 
-  var deepItem = itemFromHash();
-  if (deepItem) openModal(deepItem);
-  window.addEventListener("hashchange", function () {
+  // Reflect the URL into the view without touching history (used by Back/Forward
+  // and manual hash edits). Idempotent so popstate + hashchange firing together
+  // for one navigation doesn't double-render.
+  function syncHash() {
     var it = itemFromHash();
-    if (it) openModal(it);
-    else closeModal();
-  });
+    if (it) {
+      if (!(currentDetailItem && currentDetailItem.id === it.id && document.body.classList.contains("viewing-puck"))) openDetail(it);
+    } else if (document.body.classList.contains("viewing-puck")) {
+      closeDetail();
+    }
+  }
+  var deepItem = itemFromHash();
+  if (deepItem) {
+    // Synthesize a board entry behind the deep-linked puck so Back returns to the
+    // board instead of leaving the site.
+    try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
+    openModal(deepItem);
+  }
+  window.addEventListener("popstate", syncHash);
+  window.addEventListener("hashchange", syncHash);
 })();
