@@ -939,7 +939,13 @@ body.preload * { transition: none !important; }
 .cmdk-hint[hidden] { display: none; }
 
 /* topbar: desktop hides it (actions live in the sidebar); mobile shows ☰ + 🔍 */
-@media (min-width: 900px) { .topbar { display: none; } }
+/* Desktop shares the same contextual header (title / breadcrumb + share). Search
+   and New live permanently in the sidebar there, so drop them from the topbar. */
+@media (min-width: 900px) {
+  .topbar .top-search.ghost, .topbar .top-new.ghost { display: none; }
+  /* the sidebar is always present on desktop — no drawer to toggle */
+  .topbar .menu-toggle.ghost { display: none; }
+}
 .top-search { margin-left: auto; }
 .top-search svg { width: 18px; height: 18px; }
 
@@ -1054,11 +1060,10 @@ body.preload * { transition: none !important; }
 /* ── mobile: view title moves into the topbar (fills the ☰ … 🔍 dead band) ──── */
 .top-title { display: flex; align-items: baseline; gap: 8px; min-width: 0; flex: 1; }
 .top-title .view-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-@media (max-width: 899px) {
-  /* the vhead keeps only the view-options; the title is up in the topbar now */
-  .vhead .view-title, .vhead .view-count { display: none; }
-  .vhead .vopts { margin-left: 0; }
-}
+/* The title lives in the topbar on every width now, so the vhead carries only the
+   view-options (filter / sort / layout) — the "body" toolbar. */
+.vhead .view-title, .vhead .view-count { display: none; }
+.vhead .vopts { margin-left: 0; }
 
 /* ── uniform control height across the topbar + view-header ─────────────────── */
 .topbar .ghost,
@@ -1163,8 +1168,8 @@ body.viewing-puck .topbar .top-share-btn { display: inline-flex; }
 .menu-toggle svg { width: 17px; height: 17px; }
 /* icon-only topbar buttons: guarantee a square, comfortable tap target */
 .topbar .ghost { min-width: 38px; }
-/* The topbar now carries the breadcrumb → drop the duplicate in-content one on mobile. */
-@media (max-width: 899px) { body.viewing-puck .detail-crumb { display: none; } }
+/* The topbar carries the breadcrumb on every width → drop the in-content one. */
+body.viewing-puck .detail-crumb { display: none; }
 
 /* ── optional config-driven ribbon (e.g. the live-demo strip) ──────────────── */
 .demo-ribbon {

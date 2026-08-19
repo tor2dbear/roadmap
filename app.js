@@ -1182,7 +1182,12 @@
   function currentViewTitle() {
     var base = VIEW_TITLES[state.focus] || "All pucks";
     var scope = scopeParts();
-    return scope.length ? base + " · " + scope.join(", ") : base;
+    if (!scope.length) return base;
+    // "All pucks" is the default view — when you've navigated into a place (a repo
+    // or agent) the place *is* the context, so lead with it instead of prefixing
+    // the redundant "All pucks ·". Named views (Ready/Inbox/…) keep their label.
+    if (state.focus === "all") return scope.join(", ");
+    return base + " · " + scope.join(", ");
   }
   function updateViewHeader(shown) {
     var title = currentViewTitle();
