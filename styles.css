@@ -22,6 +22,7 @@
   --accent: #87414b;
   --shadow: 0 1px 2px rgba(45, 38, 30, 0.07), 0 2px 8px rgba(45, 38, 30, 0.05);
   --radius: 12px;
+  --topbar-h: 52px; /* fixed app-header height, shared by the topbar and sidebar header */
   /* Apple's San Francisco stays first; Switzer is the self-hosted fallback that
      loads everywhere else (the -apple-system keywords resolve to SF only on Apple). */
   --sans: -apple-system, BlinkMacSystemFont, "Switzer", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -700,7 +701,7 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 
 .sidebar {
   background: var(--sidebar-bg); border-right: 1px solid var(--line);
-  padding: 16px 12px; display: flex; flex-direction: column; gap: 18px;
+  padding: 0 12px 16px; display: flex; flex-direction: column; gap: 18px;
   /* minimal, self-effacing scrollbar */
   scrollbar-width: thin; scrollbar-color: var(--line) transparent;
   position: sticky; top: 0; height: 100vh; overflow-y: auto;
@@ -709,7 +710,10 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 .sidebar::-webkit-scrollbar-track { background: transparent; }
 .sidebar::-webkit-scrollbar-thumb { background: var(--line); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
 .sidebar:hover::-webkit-scrollbar-thumb { background: var(--ink-3); background-clip: padding-box; }
-.side-brand { padding: 4px 4px; position: relative; display: flex; align-items: center; gap: 2px; }
+/* The workspace-header band: same fixed height as the topbar and top-aligned to the
+   viewport (the sidebar has no top padding), so "Roadmap" + search line up with the
+   topbar's title/breadcrumb across the seam. */
+.side-brand { height: var(--topbar-h); box-sizing: border-box; padding: 0 4px; position: relative; display: flex; align-items: center; gap: 2px; }
 .side-brand h1 { font-size: 16px; letter-spacing: -0.01em; }
 .side-brand .brand-glyph { width: 17px; height: 17px; }
 .side-eyebrow {
@@ -738,10 +742,13 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 
 .side-foot { margin-top: auto; display: flex; align-items: center; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
 
-/* topbar — thin, contextual (brand moved to the sidebar) */
+/* topbar — thin, contextual (brand moved to the sidebar). Fixed height so it
+   doesn't jump between board (title) and puck (breadcrumb + taller share button),
+   and so its content lines up with the sidebar's workspace-header band. */
 .topbar {
   justify-content: flex-start; align-items: center; gap: 12px;
-  padding: 12px 20px; position: sticky; top: 0; z-index: 20;
+  height: var(--topbar-h); box-sizing: border-box; padding: 0 20px;
+  position: sticky; top: 0; z-index: 20;
   background: var(--bg); border-bottom: 1px solid var(--line);
 }
 .topbar .search-wrap { flex: 1 1 auto; max-width: 440px; }
@@ -760,9 +767,10 @@ body.preload * { transition: none !important; }
   .sidebar {
     position: fixed; left: 0; top: 0; bottom: 0; width: 264px; height: 100%;
     transform: translateX(-100%); transition: transform .2s ease; z-index: 60;
-    box-shadow: 2px 0 24px rgba(0, 0, 0, .34);
   }
-  .app.menu-open .sidebar { transform: none; }
+  /* Shadow only while the drawer is open — otherwise the closed, off-screen drawer's
+     24px blur bleeds past its right edge into the content. */
+  .app.menu-open .sidebar { transform: none; box-shadow: 2px 0 24px rgba(0, 0, 0, .34); }
   .menu-toggle { display: inline-flex; align-items: center; justify-content: center; }
   .scrim { position: fixed; inset: 0; background: rgba(0, 0, 0, .45); z-index: 55; }
   .scrim[hidden] { display: none; }

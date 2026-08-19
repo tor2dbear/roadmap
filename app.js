@@ -2827,15 +2827,6 @@
   initSidebarResize();
   loadWritableRepos(); // check write permissions for the signed-in token, if any
 
-  // The topbar is sticky; expose its height as --topbar-h so sticky list-group
-  // headers can offset below it instead of scrolling underneath (the height varies
-  // by width and by board/puck mode, so measure rather than hardcode).
-  var topbarEl = document.querySelector(".topbar");
-  function syncTopbarH() { if (topbarEl) document.documentElement.style.setProperty("--topbar-h", topbarEl.offsetHeight + "px"); }
-  syncTopbarH();
-  if (window.ResizeObserver && topbarEl) { new window.ResizeObserver(syncTopbarH).observe(topbarEl); }
-  else { window.addEventListener("resize", syncTopbarH); }
-
   // Deep link: open the puck named in the URL hash on load, and react to the
   // hash changing (pasted link in the same tab, or Back after opening a modal).
   var detailCloseBtn = document.getElementById("detailClose");
