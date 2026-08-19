@@ -1,6 +1,6 @@
 ---
 title: Keyboard shortcuts (Linear-inspirerade)
-status: later
+status: done
 tags: [ui, editing]
 updated: 2026-08-19
 created: 2026-08-19
@@ -12,22 +12,29 @@ Ge tavlan ett genomtänkt kortkommando-lager, i Linears anda — så power-users
 navigerar och muterar pucker utan musen. Bygger vidare på ⌘K-paletten och den
 befintliga pil/Enter/Escape-navigeringen som redan finns i sök/paletten.
 
-## Research
+## Delivered (v1)
 
-- Referens (för mönster/vokabulär): <https://shortcuts.design/tools/toolspage-linear/>
-- Redan på plats: `⌘K` öppnar command palette; pil upp/ner + Enter väljer; Escape
-  stänger. Draghandtag för status; in-kolumn "+".
-- Linear-vokabulär värt att härma (urval):
-  - Enkeltangent-actions på en markerad puck: `S` status, `P` priority, `A`
-    assignee/agent, `L` labels — mappar rakt mot puck-radernas fält.
-  - `C` = create (öppna capture), `/` = fokusera sök, `G` sedan bokstav = gå till
-    vy (`G` `I` inbox osv).
-  - `X` markera, `Esc` avmarkera.
+Ett globalt keydown-lager med gating (triggar aldrig medan man skriver i ett
+fält, eller när en modal/⌘K äger tangentbordet):
 
-## Open questions
+- **Globalt:** `C` = capture (öppna New) · `/` = sök/palett · `⌘K`/`Ctrl-K` =
+  palett · `G` sedan bokstav = gå till vy (`A` all, `R` ready, `I` inbox,
+  `T` needs attention) · `?` = hjälp-overlay.
+- **När en puck är öppen:** `S` status · `P` priority · `A` agent · `L` labels —
+  öppnar respektive prop-picker. Mappar rakt mot puck-radernas fält (`data-field`).
+- **`Esc`** nystar upp ett lager i taget: hjälp → palett → detalj.
+- **`?`-overlay** listar alla kommandon; även nåbar via ⌘K → "Keyboard shortcuts".
 
-- Global lyssnare vs. bara när en puck är öppen? (Undvik krock med typing i fält.)
-- Enkeltangent på markerad puck kräver ett "markerat kort"-tillstånd på tavlan
-  (finns `selectedId` redan — bygg vidare på det?).
-- Hur visas de? (Ett `?`-overlay som listar dem, Linear-style.)
-- Mobil: irrelevant — det här är desktop-lager.
+Referens som styrde vokabulären: <https://shortcuts.design/tools/toolspage-linear/>.
+
+## Medvetet ej byggt (v2-spår)
+
+Kräver ett "markerat kort"-tillstånd på själva tavlan (inte bara i detaljvyn):
+
+- `J`/`K` för att flytta markering mellan kort, `Enter` för att öppna.
+- `X` markera/multiselect + bulk-actions (status/priority på flera i taget).
+- Enkeltangent-actions (`S`/`P`/`A`/`L`) direkt på ett markerat kort på tavlan,
+  inte bara när pucken är öppen.
+
+Filas som en separat förbättring — v1 täcker navigering + snabb mutation av en
+öppen puck, vilket är 80/20:t.

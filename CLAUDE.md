@@ -162,3 +162,23 @@ disconnected** (else it redeploys the stale committed data over CI's fresh one).
 There is no build step: the repo root is the served bundle and `.assetsignore`
 keeps `scripts/`, config and docs out of it. (GitHub Pages, then Cloudflare
 Workers Builds, were the old hosts — both now retired.)
+
+### PR checks + staging preview
+
+`.github/workflows/pr-preview.yml` runs on every `pull_request` to `main` — it is
+the gate + staging that `sync.yml` (deploy-on-push) doesn't provide:
+
+- **Checks (the merge gate):** syntax-checks the board JS and runs the harvester
+  (a self-source PR is symlinked to the PR checkout, not a fresh clone of `main`,
+  so proposed `roadmap/*.md` are validated). The gate fails on a broken build or
+  any `sources[].error`.
+- **Staging preview:** `wrangler versions upload --preview-alias pr-<number>` uploads
+  a Worker *version* (never touches prod) and posts/updates a **sticky PR comment**
+  with a **stable per-PR URL** (`https://pr-<number>-roadmap.<subdomain>.workers.dev`)
+  that re-points at the newest version on each push. This is deliberately *not*
+  Cloudflare's native Workers-Builds PR comment — that would require reconnecting the
+  Git build we keep disconnected; the alias replicates the same UX from CI instead.
+- **Runs automatically on all future PRs** once this workflow is on `main`. The
+  credentialed preview is gated to owner-authored PRs (`github.repository_owner`) so a
+  branch pusher without Cloudflare access can't read the token via PR-controlled
+  tooling; non-owner PRs still get the checks.
