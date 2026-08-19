@@ -1,8 +1,8 @@
 ---
 title: Koppla ett GitHub-issue till en puck från GUI:t
-status: later
+status: done
 tags: [ui, editing, github]
-updated: 2026-08-18
+updated: 2026-08-19
 created: 2026-08-18
 ---
 
