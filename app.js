@@ -398,9 +398,12 @@
     var base = location.pathname + location.search;
     var url = id ? base + "#" + id : base;
     var curId = decodeURIComponent(location.hash.replace(/^#/, ""));
+    // Mark entries we push so boot can tell a reload of an app-opened puck (state
+    // set) from a genuine direct deep link (no state) and not duplicate the board.
+    var st = id ? { puck: id } : null;
     try {
-      if (id && id !== curId) history.pushState(null, "", url);
-      else history.replaceState(null, "", url);
+      if (id && id !== curId) history.pushState(st, "", url);
+      else history.replaceState(st, "", url);
     } catch (e) {}
   }
   function itemFromHash() {
@@ -988,7 +991,14 @@
   }
   // Navigating the sidebar (a view/repo/tag/agent) while a puck is open should
   // return to the board — otherwise the board changes behind the still-open puck.
-  function exitPuckView() { if (document.body.classList.contains("viewing-puck")) closeModal(); }
+  // Unlike closeModal (which pops one entry), this normalizes straight to the board:
+  // history.back() would only return to the *previous* puck in a board→A→B stack and
+  // reopen it over the newly-picked view, so close in place and strip the hash.
+  function exitPuckView() {
+    if (!document.body.classList.contains("viewing-puck")) return;
+    closeDetail();
+    if (location.hash) { try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} }
+  }
   function closeDetail() {
     paneRefs();
     selectedId = null;
@@ -1636,6 +1646,10 @@
     if (k === "escape") {
       if (helpOpen()) { closeShortcutHelp(); e.stopImmediatePropagation(); return; }
       if (cmdkVisible()) { closeCmdk(); e.stopImmediatePropagation(); return; }
+      // An open property picker (status/priority/agent/labels) is the top layer —
+      // dismiss it first instead of letting the backdrop listener close the puck.
+      var openPick = document.querySelector(".pick-menu");
+      if (openPick) { openPick.remove(); e.stopImmediatePropagation(); e.preventDefault(); return; }
       return; // a bare puck: let the backdrop listener run closeModal()
     }
 
@@ -2853,10 +2867,17 @@
   }
   var deepItem = itemFromHash();
   if (deepItem) {
-    // Synthesize a board entry behind the deep-linked puck so Back returns to the
-    // board instead of leaving the site.
-    try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
-    openModal(deepItem);
+    if (history.state && history.state.puck === deepItem.id) {
+      // Reload of a puck we opened earlier — the board entry is already behind it,
+      // so just re-show it. (Synthesizing again would stack board → board → #puck
+      // and make the first Back appear to do nothing.)
+      openDetail(deepItem);
+    } else {
+      // Genuine direct deep link: put a board entry behind, then a marked puck entry,
+      // so Back returns to the board and a later reload takes the branch above.
+      try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
+      openModal(deepItem);
+    }
   } else if (location.hash) {
     // A hash pointing at a deleted/unknown puck: normalize to the board URL now, so
     // opening a puck later doesn't pushState over a stale hash that Back would restore.

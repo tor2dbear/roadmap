@@ -261,7 +261,7 @@ body {
   align-items: center;
   gap: 8px;
   position: sticky;
-  top: 0;
+  top: var(--topbar-h, 0px); /* sit below the sticky topbar, not under it */
   padding: 4px 2px 10px;
   background: var(--bg);
   z-index: 1;

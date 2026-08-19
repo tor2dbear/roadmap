@@ -80,15 +80,33 @@ jobs:
 
       - name: Validate the generated payload
         run: |
-          node -e "const d=require('./data/roadmap.json'); if(!Array.isArray(d.items)||!d.items.length) throw new Error('roadmap.json has no items'); console.log('✓ items:', d.items.length)"
+          node -e "
+          const d = require('./data/roadmap.json');
+          if (!Array.isArray(d.items) || !d.items.length) throw new Error('roadmap.json has no items');
+          // The harvester records per-source failures instead of throwing, so a PR that
+          // breaks a source (e.g. an unknown adapter) would still exit 0 and silently drop
+          // it. Fail the gate so the source markdown stays authoritative.
+          const bad = (d.sources || []).filter(s => s && s.error);
+          if (bad.length) throw new Error('source(s) failed to harvest: ' + bad.map(s => s.repo + ' — ' + s.error).join('; '));
+          console.log('✓ items:', d.items.length, '· sources ok:', (d.sources || []).length);
+          "
 
-      # Gate the preview on credentials (secrets can't be used directly in `if:`).
-      - name: Check for Cloudflare credentials
+      # Gate the credentialed preview: secrets exist only on same-repo PRs, and the job
+      # runs PR-controlled package.json + wrangler. Restrict it to PRs authored by the
+      # repo owner so a branch pusher without Cloudflare access can't swap the wrangler
+      # dependency to read the token. (Secrets can't be used directly in `if:`.)
+      - name: Gate the credentialed preview
         id: cf
         env:
           TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          IS_OWNER: ${{ github.event.pull_request.user.login == github.repository_owner }}
         run: |
-          if [ -n "$TOKEN" ]; then echo "ok=true" >> "$GITHUB_OUTPUT"; else echo "ok=false" >> "$GITHUB_OUTPUT"; fi
+          if [ -n "$TOKEN" ] && [ "$IS_OWNER" = "true" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            [ "$IS_OWNER" = "true" ] || echo "::notice::Preview skipped — credentialed deploy only runs on owner PRs (checks still ran)."
+          fi
 
       - name: Upload preview version (no prod impact)
         id: preview
