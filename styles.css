@@ -863,6 +863,39 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 .cmdk-box .search-clear { top: 25px; right: 12px; }
 .cmdk-box .suggest { position: static; border: 0; border-radius: 0; box-shadow: none; max-height: 52vh; margin: 0; padding: 6px; background: var(--panel); }
 
+/* ── keyboard shortcut help overlay ("?") ── */
+.shortcut-help {
+  position: fixed; inset: 0; z-index: 90; background: rgba(0, 0, 0, .4);
+  display: flex; align-items: flex-start; justify-content: center; padding: 10vh 16px 16px;
+}
+.shortcut-help .sc-card {
+  width: 100%; max-width: 440px; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 12px; box-shadow: var(--shadow); overflow: hidden;
+}
+.shortcut-help .sc-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px; border-bottom: 1px solid var(--line);
+}
+.shortcut-help .sc-title { margin: 0; font-size: 14px; font-weight: 600; color: var(--ink); }
+.shortcut-help .sc-close {
+  border: 0; background: none; color: var(--ink-3); font-size: 14px; cursor: pointer;
+  padding: 2px 6px; border-radius: 6px; line-height: 1;
+}
+.shortcut-help .sc-close:hover { color: var(--ink); background: var(--panel-2); }
+.shortcut-help .sc-list { padding: 8px; max-height: 64vh; overflow: auto; }
+.shortcut-help .sc-row {
+  display: flex; align-items: center; gap: 12px; padding: 7px 8px; border-radius: 6px;
+}
+.shortcut-help .sc-row:hover { background: var(--panel-2); }
+.shortcut-help .sc-keys { display: flex; align-items: center; gap: 5px; flex: none; min-width: 116px; }
+.shortcut-help .sc-key {
+  font-family: var(--mono); font-size: 11px; color: var(--ink-2);
+  border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px;
+  padding: 2px 6px; min-width: 18px; text-align: center; background: var(--panel);
+}
+.shortcut-help .sc-then { font-size: 11px; color: var(--ink-3); }
+.shortcut-help .sc-desc { font-size: 13px; color: var(--ink); }
+
 /* ── priority: an optional ordered field (urgent/high/medium/low) ── */
 /* Card badge: ascending signal bars, urgent = a red "!" chip. */
 .pri { display: inline-flex; align-items: flex-end; gap: 2px; height: 11px; flex: none; line-height: 1; }

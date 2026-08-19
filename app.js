@@ -422,7 +422,8 @@
     });
     document.body.appendChild(modalBackdrop);
     document.addEventListener("keydown", function (e) {
-      if (e.key === "Escape") closeModal();
+      // Defer to the palette/help layers — their own Escape unwinds them first.
+      if (e.key === "Escape" && !cmdkVisible() && !helpOpen()) closeModal();
     });
   }
 
@@ -440,6 +441,7 @@
   // A property row: mono key + value node. Add a field = add a row (growable).
   function propRow(k, valNode, cls) {
     var row = el("div", "prop" + (cls ? " prop-" + cls : ""));
+    row.dataset.field = String(k).toLowerCase(); // lets keyboard shortcuts target a field
     row.appendChild(el("span", "prop-k", k));
     var v = el("div", "prop-v");
     if (valNode != null) v.appendChild(valNode);
@@ -1382,6 +1384,7 @@
     cmds.push({ __cmd: true, label: "Go to Inbox", hint: "View", icon: "list", run: function () { setFocus("inbox"); } });
     if (vc.attention) cmds.push({ __cmd: true, label: "Go to Needs attention", hint: "View", icon: "list", run: function () { setFocus("attention"); } });
     cmds.push({ __cmd: true, label: "Settings", hint: "Workspace", icon: "sliders", run: function () { openSettingsPanel(); } });
+    cmds.push({ __cmd: true, label: "Keyboard shortcuts", hint: "Help", icon: "list", run: function () { toggleShortcutHelp(); } });
     cmds.push({ __cmd: true, label: effectiveIsDark() ? "Switch to light" : "Switch to dark", hint: "Theme", icon: effectiveIsDark() ? "sun" : "moon", run: function () { toggleTheme(); } });
     if (signedIn) {
       cmds.push({ __cmd: true, label: "Change token", hint: "Account", icon: "key", run: function () { openTokenPanel(afterAuth); } });
@@ -1529,17 +1532,128 @@
   }
   cmdkTriggers.forEach(function (t) { if (t) t.addEventListener("click", function () { openCmdk(); maybeCloseMenu(); }); });
   if (cmdkOverlay) cmdkOverlay.addEventListener("mousedown", function (e) { if (e.target === cmdkOverlay) closeCmdk(); });
+
+  // ── keyboard shortcuts (Linear-inspired) ──
+  // A single global keydown layer. Gating: never fire while typing in a field, and
+  // never let a bare key act while a modal/palette owns the keyboard.
+  function isTyping(t) {
+    return !!(t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable));
+  }
+  function cmdkVisible() { return !!(cmdkOverlay && !cmdkOverlay.hidden); }
+  function anyModalOpen() {
+    // The New/Settings panels + prompts render inside the modal backdrop; the puck
+    // detail also uses it but keeps its own class, so treat that as "detail", not "modal".
+    return document.body.classList.contains("modal-open") && !detailOpen();
+  }
+  function detailOpen() { return document.body.classList.contains("viewing-puck"); }
+  function helpOpen() { return !!document.querySelector(".shortcut-help"); }
+
+  // Click the editable control of a detail property row (status/priority/agent/labels).
+  function triggerField(field) {
+    if (!detailOpen()) return false;
+    var row = document.querySelector('.prop[data-field="' + field + '"]');
+    if (!row) return false;
+    var btn = row.querySelector(".prop-v .pick-chip.editable, .prop-v .linklike");
+    if (!btn) return false;
+    btn.click();
+    return true;
+  }
+
+  // "G then <letter>" jumps to a view, Linear-style. A short-lived pending flag.
+  var gPending = false, gTimer = null;
+  function armG() { gPending = true; clearTimeout(gTimer); gTimer = setTimeout(function () { gPending = false; }, 1200); }
+  function clearG() { gPending = false; clearTimeout(gTimer); }
+
   document.addEventListener("keydown", function (e) {
     var k = e.key.toLowerCase();
-    if ((e.metaKey || e.ctrlKey) && k === "k") { e.preventDefault(); cmdkOverlay && cmdkOverlay.hidden ? openCmdk() : closeCmdk(); return; }
-    // "/" opens search when not already typing in a field
-    if (k === "/" && !e.metaKey && !e.ctrlKey) {
-      var t = e.target;
-      var typing = t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable);
-      if (!typing) { e.preventDefault(); openCmdk(); return; }
+
+    // ⌘K / Ctrl-K toggles the palette from anywhere (even while typing).
+    if ((e.metaKey || e.ctrlKey) && k === "k") { e.preventDefault(); cmdkVisible() ? closeCmdk() : openCmdk(); return; }
+
+    // Escape unwinds one layer at a time: help → palette → detail.
+    if (k === "escape") {
+      if (helpOpen()) { closeShortcutHelp(); return; }
+      if (cmdkVisible()) { closeCmdk(); return; }
+      return; // detail/modal handle their own Escape
     }
-    if (k === "escape" && cmdkOverlay && !cmdkOverlay.hidden) { closeCmdk(); }
+
+    // Everything below is a bare single-key command — suppress it while typing,
+    // while the palette is open, or while a non-detail modal owns the screen.
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (isTyping(e.target) || cmdkVisible() || anyModalOpen()) return;
+
+    // "G <letter>" view jumps.
+    if (gPending) {
+      var jumped = true;
+      if (k === "a") setFocus("all");
+      else if (k === "r") setFocus("ready");
+      else if (k === "i") setFocus("inbox");
+      else if (k === "t") setFocus("attention");
+      else jumped = false;
+      clearG();
+      if (jumped) { e.preventDefault(); return; }
+    }
+
+    // Field shortcuts only make sense with a puck open.
+    if (detailOpen()) {
+      if (k === "s") { if (triggerField("status")) e.preventDefault(); return; }
+      if (k === "p") { if (triggerField("priority")) e.preventDefault(); return; }
+      if (k === "a") { if (triggerField("agent")) e.preventDefault(); return; }
+      if (k === "l") { if (triggerField("labels")) e.preventDefault(); return; }
+    }
+
+    // Global commands.
+    if (k === "c") { e.preventDefault(); openNewPuckPanel(); return; }
+    if (k === "/") { e.preventDefault(); openCmdk(); return; }
+    if (k === "g") { e.preventDefault(); armG(); return; }
+    if (k === "?") { e.preventDefault(); toggleShortcutHelp(); return; }
   });
+
+  // ── shortcut help overlay ("?") ──
+  var SHORTCUTS = [
+    { keys: ["C"], desc: "Capture a new puck" },
+    { keys: ["/"], desc: "Search / command palette" },
+    { keys: ["⌘", "K"], desc: "Command palette" },
+    { keys: ["G", "then", "A"], desc: "Go to All pucks" },
+    { keys: ["G", "then", "R"], desc: "Go to Ready" },
+    { keys: ["G", "then", "I"], desc: "Go to Inbox" },
+    { keys: ["G", "then", "T"], desc: "Go to Needs attention" },
+    { keys: ["S"], desc: "Set status (open puck)" },
+    { keys: ["P"], desc: "Set priority (open puck)" },
+    { keys: ["A"], desc: "Set agent (open puck)" },
+    { keys: ["L"], desc: "Edit labels (open puck)" },
+    { keys: ["Esc"], desc: "Close / back out" },
+    { keys: ["?"], desc: "This help" },
+  ];
+  function closeShortcutHelp() { var o = document.querySelector(".shortcut-help"); if (o) o.remove(); }
+  function toggleShortcutHelp() {
+    if (helpOpen()) { closeShortcutHelp(); return; }
+    var overlay = el("div", "shortcut-help");
+    var card = el("div", "sc-card");
+    var head = el("div", "sc-head");
+    head.appendChild(el("h2", "sc-title", "Keyboard shortcuts"));
+    var x = el("button", "sc-close", "✕"); x.type = "button";
+    x.addEventListener("click", closeShortcutHelp);
+    head.appendChild(x);
+    card.appendChild(head);
+    var list = el("div", "sc-list");
+    SHORTCUTS.forEach(function (s) {
+      var row = el("div", "sc-row");
+      var keys = el("div", "sc-keys");
+      s.keys.forEach(function (kk) {
+        if (kk === "then") keys.appendChild(el("span", "sc-then", "then"));
+        else keys.appendChild(el("kbd", "sc-key", kk));
+      });
+      row.appendChild(keys);
+      row.appendChild(el("div", "sc-desc", s.desc));
+      list.appendChild(row);
+    });
+    card.appendChild(list);
+    overlay.appendChild(card);
+    // Click the backdrop (not the card) to dismiss. Esc is handled globally.
+    overlay.addEventListener("mousedown", function (e) { if (e.target === overlay) closeShortcutHelp(); });
+    document.body.appendChild(overlay);
+  }
 
   var searchClear = document.getElementById("searchClear");
   var cmdkHint = document.getElementById("cmdkHint");
