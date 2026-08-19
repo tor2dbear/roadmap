@@ -1222,6 +1222,8 @@
   // ── filter chips ──
   function buildRepoChips() {
     var wrap = document.getElementById("repoFilters");
+    if (!wrap) return;
+    wrap.innerHTML = ""; // idempotent — refreshNav rebuilds this on every nav change
     DATA.sources.forEach(function (s) {
       var chip = el("button", "chip repo");
       chip.dataset.repo = s.repo;
@@ -1233,12 +1235,7 @@
       var n = el("span", "n", String(s.count));
       chip.appendChild(n);
       chip.title = s.blurb + (s.native ? "" : " — adapted from " + s.adapter);
-      chip.addEventListener("click", function () {
-        exitPuckView();
-        pickScope(state.repos, s.repo, wrap, "repo");
-        renderBoard();
-        maybeCloseMenu();
-      });
+      chip.addEventListener("click", function () { goToPlace(state.repos, s.repo); });
       wrap.appendChild(chip);
     });
   }
@@ -1264,7 +1261,7 @@
       chip.appendChild(el("span", "agent-arrow", "→"));
       chip.appendChild(document.createTextNode(agentLabel(a)));
       chip.appendChild(el("span", "n", String(counts[a])));
-      chip.addEventListener("click", function () { exitPuckView(); pickScope(state.agents, a, wrap, "agent"); renderBoard(); maybeCloseMenu(); });
+      chip.addEventListener("click", function () { goToPlace(state.agents, a); });
       wrap.appendChild(chip);
     });
   }
@@ -1276,20 +1273,43 @@
 
   // Sidebar repos/agents are places, not filters: single-select within their own
   // dimension (radio, not checkbox). Clicking a repo scopes to exactly that repo;
-  // clicking the one that's already the sole scope clears it (back to the view).
-  // Repo and agent stay orthogonal, so "Backend, within Etapp" still composes. The
-  // set stays a Set so passesFilters is untouched and the Filter popover can still
-  // offer the same dimensions as multi-select later. `attr` is the dataset key each
-  // chip stores its value under, so siblings refresh their pressed state together.
-  function pickScope(set, key, wrap, attr) {
+  // clicking the one that's already the sole scope clears it (back to All pucks).
+  // Repo and agent stay orthogonal, so "Backend, within Etapp" still composes.
+  function pickScope(set, key) {
     var wasSole = set.size === 1 && set.has(key);
     set.clear();
     if (!wasSole) set.add(key);
-    Array.prototype.forEach.call(wrap.children, function (c) {
-      if (c.dataset && c.dataset[attr] != null) {
-        c.setAttribute("aria-pressed", set.has(c.dataset[attr]) ? "true" : "false");
-      }
-    });
+  }
+  // A place (repo/agent) is active → the sidebar is "in" that place, not in a view.
+  function placeActive() { return state.repos.size > 0 || state.agents.size > 0; }
+  // Rebuild the whole sidebar nav so views + repo + agent pressed states stay in
+  // sync after any navigation (they're one mutually-exclusive dimension now).
+  function refreshNav() {
+    var host = document.getElementById("sideViews") || document.getElementById("filters");
+    if (host) { host.innerHTML = ""; buildFocusControl(); }
+    buildRepoChips();
+    buildAgentChips();
+  }
+  // Go to a view: clear any place so the view is global ("pure"), not still scoped
+  // to the repo/agent you were last in.
+  function goToView(key) {
+    exitPuckView();
+    state.focus = key;
+    state.repos.clear();
+    state.agents.clear();
+    refreshNav();
+    renderBoard();
+    maybeCloseMenu();
+  }
+  // Go to a place: single-select it and reset to its whole board (focus "all"), so a
+  // place always shows the same thing regardless of the view you came from.
+  function goToPlace(set, key) {
+    exitPuckView();
+    pickScope(set, key);
+    state.focus = "all";
+    refreshNav();
+    renderBoard();
+    maybeCloseMenu();
   }
 
   // Views — the primary navigation: All pucks (the committed board) · Ready (the
@@ -1316,39 +1336,26 @@
       { key: "inbox", label: "Inbox", title: "Raw ideas to triage — nothing here is a promise yet" },
     ];
     if (counts.attention) defs.push({ key: "attention", label: "Needs attention", title: "Pucks whose declared status disagrees with reality" });
-    var btns = {};
+    // A view reads as active only when we're not inside a place — otherwise the
+    // sidebar would highlight both "All pucks" and the repo you navigated into.
+    var inPlace = placeActive();
     defs.forEach(function (d) {
-      var b = el("button", "focusbtn focus-" + d.key + (state.focus === d.key ? " on" : ""));
+      var on = state.focus === d.key && !inPlace;
+      var b = el("button", "focusbtn focus-" + d.key + (on ? " on" : ""));
       b.type = "button";
       b.title = d.title;
-      b.setAttribute("aria-pressed", state.focus === d.key ? "true" : "false");
+      b.setAttribute("aria-pressed", on ? "true" : "false");
       b.appendChild(el("span", "focus-label", d.label));
       if (counts[d.key]) b.appendChild(el("span", "focus-n", String(counts[d.key])));
-      b.addEventListener("click", function () {
-        exitPuckView();
-        state.focus = d.key;
-        Object.keys(btns).forEach(function (k) {
-          btns[k].classList.toggle("on", k === d.key);
-          btns[k].setAttribute("aria-pressed", k === d.key ? "true" : "false");
-        });
-        renderBoard();
-        maybeCloseMenu();
-      });
-      btns[d.key] = b;
+      b.addEventListener("click", function () { goToView(d.key); });
       seg.appendChild(b);
     });
     var host = document.getElementById("sideViews") || document.getElementById("filters");
     host.appendChild(seg);
   }
-  // Switch the active view (used by the sidebar rows and the ⌘K palette).
-  function setFocus(key) {
-    exitPuckView();
-    state.focus = key;
-    var host = document.getElementById("sideViews") || document.getElementById("filters");
-    if (host) { host.innerHTML = ""; buildFocusControl(); }
-    renderBoard();
-    maybeCloseMenu();
-  }
+  // Switch the active view (used by the ⌘K palette). Same as a sidebar view click:
+  // clears any place so the view is global.
+  function setFocus(key) { goToView(key); }
 
   // ── theme ──
   var root = document.documentElement;
