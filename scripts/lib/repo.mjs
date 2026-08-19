@@ -76,6 +76,20 @@ export async function openRepo(repo, branch) {
     },
 
     /**
+     * Does `relPath` (a file or directory) exist? Lets the harvester tell a
+     * missing/misspelled source path (an error) apart from a legitimately empty
+     * roadmap dir (zero items, no error) — otherwise a whole source drops off the
+     * board silently, since list() returns [] for both.
+     */
+    async exists(relPath) {
+      if (backend === "fs") return pathExists(path.join(dir, relPath));
+      const json = await ghJson(
+        `https://api.github.com/repos/${repo}/contents/${relPath}?ref=${branch}`,
+      );
+      return json !== null;
+    },
+
+    /**
      * List entries directly under `relDir`.
      * @returns {Promise<Array<{ name: string, type: "file"|"dir" }>>} (empty if missing)
      */

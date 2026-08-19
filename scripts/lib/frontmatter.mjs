@@ -6,8 +6,17 @@
 function parseScalar(raw) {
   let v = raw.trim();
   if (v === "") return "";
-  // Inline array: [a, b, c]
-  if (v.startsWith("[") && v.endsWith("]")) {
+  // Double-quoted: JSON-decode so escapes (\" \\ …) round-trip with writers that
+  // quote via JSON.stringify (the CLI and the board's puck template).
+  if (v.length >= 2 && v[0] === '"' && v[v.length - 1] === '"') {
+    try { return JSON.parse(v); } catch { return v.slice(1, -1); }
+  }
+  // Single-quoted: strip quotes; YAML's only escape inside is '' → '.
+  if (v.length >= 2 && v[0] === "'" && v[v.length - 1] === "'") {
+    return v.slice(1, -1).replace(/''/g, "'");
+  }
+  // Inline array: [a, b, c] — only for genuinely unquoted values.
+  if (v[0] === "[" && v[v.length - 1] === "]") {
     const inner = v.slice(1, -1).trim();
     if (inner === "") return [];
     return inner
@@ -15,15 +24,19 @@ function parseScalar(raw) {
       .map((s) => stripQuotes(s.trim()))
       .filter((s) => s !== "");
   }
-  return stripQuotes(v);
+  // Bare scalar: strip a trailing YAML comment (a `#` only starts a comment when
+  // preceded by whitespace, so `C# tips` and a bare `#123` are left intact).
+  const c = v.search(/\s#/);
+  if (c !== -1) v = v.slice(0, c).trim();
+  return v;
 }
 
 function stripQuotes(s) {
-  if (
-    (s.startsWith('"') && s.endsWith('"')) ||
-    (s.startsWith("'") && s.endsWith("'"))
-  ) {
-    return s.slice(1, -1);
+  if (s.length >= 2 && s[0] === '"' && s[s.length - 1] === '"') {
+    try { return JSON.parse(s); } catch { return s.slice(1, -1); }
+  }
+  if (s.length >= 2 && s[0] === "'" && s[s.length - 1] === "'") {
+    return s.slice(1, -1).replace(/''/g, "'");
   }
   return s;
 }
@@ -33,7 +46,9 @@ function stripQuotes(s) {
  * @returns {{ data: Record<string, any>, body: string }}
  */
 export function parseFrontmatter(text) {
-  const normalized = text.replace(/\r\n/g, "\n");
+  // Strip a leading UTF-8 BOM (Windows editors emit one) before the fence check,
+  // otherwise the whole frontmatter block is silently treated as body.
+  const normalized = text.replace(/^﻿/, "").replace(/\r\n/g, "\n");
   if (!normalized.startsWith("---\n")) {
     return { data: {}, body: normalized };
   }
