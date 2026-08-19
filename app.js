@@ -157,9 +157,10 @@
       if (inCode) { code.push(line); continue; }
       var h = /^(#{2,4})\s+(.*)$/.exec(line);
       var ul = /^\s*[-*]\s+(.*)$/.exec(line);
-      var ol = /^\s*\d+[.)]\s+(.*)$/.exec(line);
+      var ol = /^\s*(\d+)[.)]\s+(.*)$/.exec(line);
       var li = ul || ol;
       var wantType = ul ? "ul" : (ol ? "ol" : null);
+      var liContent = ul ? ul[1] : (ol ? ol[2] : null);
       if (h) {
         flushPara();
         closeList();
@@ -169,8 +170,13 @@
         flushPara();
         if (inList && listType !== wantType) closeList(); // switching bullets ↔ numbered
         flushLi(); // close the previous item before starting this one
-        if (!inList) { out.push("<" + wantType + ">"); inList = true; listType = wantType; }
-        liBuf = [li[1]]; // buffer so soft-wrapped lines fold into this item
+        if (!inList) {
+          // Preserve an author's starting number (a section that resumes at "3.").
+          var openTag = "<" + wantType + ">";
+          if (wantType === "ol" && parseInt(ol[1], 10) !== 1) openTag = '<ol start="' + parseInt(ol[1], 10) + '">';
+          out.push(openTag); inList = true; listType = wantType;
+        }
+        liBuf = [liContent]; // buffer so soft-wrapped lines fold into this item
       } else if (line.trim() === "") {
         flushPara();
         closeList();
@@ -1594,9 +1600,10 @@
   }
   function cmdkVisible() { return !!(cmdkOverlay && !cmdkOverlay.hidden); }
   function anyModalOpen() {
-    // The New/Settings panels + prompts render inside the modal backdrop; the puck
-    // detail also uses it but keeps its own class, so treat that as "detail", not "modal".
-    return document.body.classList.contains("modal-open") && !detailOpen();
+    // The New/Settings panels + prompts add .modal-open; the puck detail never does
+    // (it uses .viewing-puck), so this is true exactly when such a panel owns the
+    // screen — including when it was launched over an already-open puck.
+    return document.body.classList.contains("modal-open");
   }
   function detailOpen() { return document.body.classList.contains("viewing-puck"); }
   function helpOpen() { return !!document.querySelector(".shortcut-help"); }
@@ -1623,16 +1630,26 @@
     // ⌘K / Ctrl-K toggles the palette from anywhere (even while typing).
     if ((e.metaKey || e.ctrlKey) && k === "k") { e.preventDefault(); cmdkVisible() ? closeCmdk() : openCmdk(); return; }
 
-    // Escape unwinds one layer at a time: help → palette → detail.
+    // Escape unwinds exactly one layer: help → palette → (else) the puck detail,
+    // which the modal-backdrop's own Escape listener closes. Consume the event for
+    // the layers we handle so that later listener can't also fire and unwind two.
     if (k === "escape") {
-      if (helpOpen()) { closeShortcutHelp(); return; }
-      if (cmdkVisible()) { closeCmdk(); return; }
-      return; // detail/modal handle their own Escape
+      if (helpOpen()) { closeShortcutHelp(); e.stopImmediatePropagation(); return; }
+      if (cmdkVisible()) { closeCmdk(); e.stopImmediatePropagation(); return; }
+      return; // a bare puck: let the backdrop listener run closeModal()
     }
 
-    // Everything below is a bare single-key command — suppress it while typing,
-    // while the palette is open, or while a non-detail modal owns the screen.
     if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+    // While the shortcut-help overlay is open it owns the keyboard: only "?" (to
+    // toggle it back off) does anything; every other bare key is swallowed.
+    if (helpOpen()) {
+      if (k === "?") { e.preventDefault(); closeShortcutHelp(); }
+      return;
+    }
+
+    // Suppress bare commands while typing, while the palette is open, or while a
+    // modal panel (New/Settings/prompt) owns the screen — including over an open puck.
     if (isTyping(e.target) || cmdkVisible() || anyModalOpen()) return;
 
     // "G <letter>" view jumps.
@@ -2810,6 +2827,15 @@
   initSidebarResize();
   loadWritableRepos(); // check write permissions for the signed-in token, if any
 
+  // The topbar is sticky; expose its height as --topbar-h so sticky list-group
+  // headers can offset below it instead of scrolling underneath (the height varies
+  // by width and by board/puck mode, so measure rather than hardcode).
+  var topbarEl = document.querySelector(".topbar");
+  function syncTopbarH() { if (topbarEl) document.documentElement.style.setProperty("--topbar-h", topbarEl.offsetHeight + "px"); }
+  syncTopbarH();
+  if (window.ResizeObserver && topbarEl) { new window.ResizeObserver(syncTopbarH).observe(topbarEl); }
+  else { window.addEventListener("resize", syncTopbarH); }
+
   // Deep link: open the puck named in the URL hash on load, and react to the
   // hash changing (pasted link in the same tab, or Back after opening a modal).
   var detailCloseBtn = document.getElementById("detailClose");
@@ -2840,6 +2866,10 @@
     // board instead of leaving the site.
     try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
     openModal(deepItem);
+  } else if (location.hash) {
+    // A hash pointing at a deleted/unknown puck: normalize to the board URL now, so
+    // opening a puck later doesn't pushState over a stale hash that Back would restore.
+    try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
   }
   window.addEventListener("popstate", syncHash);
   window.addEventListener("hashchange", syncHash);

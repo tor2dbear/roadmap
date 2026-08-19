@@ -30,6 +30,8 @@ jobs:
     steps:
       - name: Checkout PR
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history so the harvester can derive puck created-dates
 
       - uses: actions/setup-node@v4
         with:
@@ -49,12 +51,22 @@ jobs:
       - name: Clone source repos (treeless, read-only)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SELF_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/sources"
           repos=$(node -e "for (const s of require('./sources.json').sources) console.log(s.repo, s.branch || require('./sources.json').defaultBranch || 'main')")
           while read -r repo branch; do
             [ -z "$repo" ] && continue
+            # This repo is a source of itself: point the harvester at the PR checkout
+            # (the proposed changes), not a fresh clone of main, so the gate validates
+            # and the preview renders the PR's own roadmap/*.md.
+            if [ "$repo" = "$SELF_REPO" ]; then
+              echo "Linking $repo → PR checkout ($GITHUB_WORKSPACE)"
+              mkdir -p "$RUNNER_TEMP/sources/$(dirname "$repo")"
+              ln -s "$GITHUB_WORKSPACE" "$RUNNER_TEMP/sources/$repo"
+              continue
+            fi
             echo "Cloning $repo@$branch"
             git clone --filter=blob:none --branch "$branch" \
               "https://github.com/$repo" "$RUNNER_TEMP/sources/$repo" \
