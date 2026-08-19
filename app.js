@@ -1490,6 +1490,15 @@
     return out;
   }
 
+  // Swallow the very next click at the capture phase (once), so a tap that acted on
+  // pointerdown and closed an overlay can't fall through to whatever is now beneath
+  // the pointer. Self-clears on that click, or after a short window if none fires.
+  function swallowNextClick() {
+    var shield = function (ev) { ev.stopPropagation(); ev.preventDefault(); clearTimeout(t); document.removeEventListener("click", shield, true); };
+    var t = setTimeout(function () { document.removeEventListener("click", shield, true); }, 700);
+    document.addEventListener("click", shield, true);
+  }
+
   function renderSuggestions() {
     suggestEl.innerHTML = "";
     if (!suggestItems.length) {
@@ -1529,6 +1538,10 @@
       li.addEventListener("pointerdown", function (e) {
         e.preventDefault();
         chooseSuggestion(it);
+        // Acting on pointerdown hides the overlay before this tap's trailing click
+        // (and iOS's ~300ms ghost click) fires — which would otherwise fall through
+        // to the card/puck now revealed underneath. Swallow that next click once.
+        swallowNextClick();
       });
       if (idx === suggestIndex) li.scrollIntoView({ block: "nearest" });
       suggestEl.appendChild(li);
