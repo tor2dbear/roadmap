@@ -1149,7 +1149,7 @@ body.preload * { transition: none !important; }
   flex: 1; min-width: 0; display: flex; align-items: center; gap: 5px;
   font-size: 14px; color: var(--ink-3); /* sans-serif (inherit) → more compact than mono */
 }
-.crumb-back { font: inherit; background: none; border: 0; padding: 0; color: var(--ink-2); cursor: pointer; flex: none; }
+.crumb-back { font: inherit; background: none; border: 0; padding: 0; color: var(--ink-2); cursor: pointer; flex: 0 1 auto; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .crumb-back:hover { color: var(--accent); }
 .top-crumb .crumb-sep { color: var(--ink-3); flex: none; }
 .crumb-title { color: var(--ink); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

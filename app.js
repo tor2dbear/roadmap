@@ -561,7 +561,7 @@
     container.style.setProperty("--repo", item.repoColor);
 
     var crumb = el("div", "detail-crumb");
-    var home = el("button", "crumb-home", "← " + (VIEW_TITLES[state.focus] || "Board"));
+    var home = el("button", "crumb-home", "← " + currentViewTitle());
     home.type = "button";
     home.title = "Back to the board";
     home.addEventListener("click", function () { closeModal(); });
@@ -937,7 +937,7 @@
     var tc = document.getElementById("topCrumb");
     if (tc) {
       tc.innerHTML = "";
-      var back = el("button", "crumb-back", VIEW_TITLES[state.focus] || "Pucks");
+      var back = el("button", "crumb-back", currentViewTitle());
       back.type = "button";
       back.addEventListener("click", function () { closeModal(); });
       tc.appendChild(back);
@@ -1165,10 +1165,16 @@
     if (state.priorityFilter) p.push(PRIORITY_LABEL[state.priorityFilter]);
     return p;
   }
-  function updateViewHeader(shown) {
+  // The full view title, place scope included ("Inbox · Etapp") — the single
+  // source for both the view header and the detail breadcrumb's back label, so a
+  // place-scoped view reads the same whether or not a puck is open.
+  function currentViewTitle() {
     var base = VIEW_TITLES[state.focus] || "All pucks";
     var scope = scopeParts();
-    var title = scope.length ? base + " · " + scope.join(", ") : base;
+    return scope.length ? base + " · " + scope.join(", ") : base;
+  }
+  function updateViewHeader(shown) {
+    var title = currentViewTitle();
     var count = shown != null ? String(shown) : "";
     // Desktop: title lives in the view-header. Mobile: in the topbar (fills the
     // otherwise-empty band between the menu and search). CSS shows one per width.
