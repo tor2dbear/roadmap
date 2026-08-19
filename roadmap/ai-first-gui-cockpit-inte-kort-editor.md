@@ -1,11 +1,10 @@
 ---
 title: "AI-first GUI: cockpit, inte kort-editor"
-status: now
+status: done
 tags: [product, ui]
-updated: 2026-08-17
+updated: 2026-08-19
 created: 2026-08-17
 order: 36
-agent: backend
 ---
 
 ## Mål
@@ -23,23 +22,35 @@ Om agenter skriver och utför pucker är det orimligt att optimera GUI:t för at
   4. **Överblick** — vad är klart att ta, blockerat, driftande, in-flight.
   5. **Dispatch** — "lämna till AI": peka på en puck, agenten kör, du ser resultatet.
 
-## Konsekvens för det vi byggt
-Nuvarande ＋ (titel/status/taggar/body) är rätt *plumbing* men fel *yta* för daglig
-människo-användning. AI-first-versionen: **skriv en rad → AI expanderar** till en
-riktig puck. Body-redigeringen blir mest för AI/förfining, inte handpåläggning.
+## Reframe (det som gjorde den byggbar)
+Ingen AI-runtime på den statiska sidan. **New = capture, inte ett AI-anrop.**
+Människan fångar (en rad) + markerar (routar till en disciplin); expansionen sker
+**out-of-band** när du sitter i repot med en AI. Markören *är* kön (pucker med
+`agent:`, läst ur git). Tillståndet finns — **du är köraren**.
 
-## USP-vakter
-- **Hand-off via git, inte backend.** "Lämna till AI" = sätt ett *tillstånd* på
-  pucken (tagg / `assignee: @agent` / status) som en agent bevakar och plockar upp
-  **out-of-band** (schemalagd Claude-körning, egen agent). GUI:t förblir zero-backend.
-- **"Aktivitet" = commits / PR:er / agent-körningar** (redan i git), inte en egen ström.
-- Delad skrivväg (CLI + GUI + agent) som förut — GUI:t är människans *omdömes*-lager.
+## Delivered
+De fem jobben, mot vad som skeppats:
+- **Fånga intent** ✅ — ⌘K quick-capture + ett enat capture-flöde (titel + repo +
+  valfri kontext). Metadata sätts på pucken.
+- **Prioritera** ✅ — `priority`-fält (urgent/high/medium/low), dra-och-släpp mellan
+  status-kolumner, in-kolumn "+".
+- **Triage** ✅ — Inbox som egen yta; drift-flaggor (⚠ + "Needs attention"-vy);
+  `cancelled`-status + Delete. *(Slå ihop/dedup: ännu ej.)*
+- **Överblick** ✅ — Ready (ej blockerad), Needs attention (drift), `blockedBy` på
+  korten.
+- **Dispatch (tillstånd)** ✅ — `agent:`-routing (PO-lagret) = den git-native kön en
+  runner läser. Aktivitet = commits (Activity-fliken), tunt via GitHub.
 
-## Öppna frågor
-- Vad är den minsta "capture → AI expanderar"-loopen som håller zero-backend?
-  (GUI skapar stub + flagga; en agent-runner plockar upp den var/hur?)
-- Dispatch: hur startar man en agent från en statisk sida utan runtime? (GitHub
-  Action-trigger? En avgränsad relä-endpoint som i sign-in-pucken?)
-- Överblicks-vyer: "klart att ta" (ready = ej blockerad), "driftande", "in-flight"
-  — bygg som filter/vyer ovanpå befintlig data.
-- Relation till `gui-evolution` (polish) — den här definierar *vad*, gui-evolution *hur det ser ut*.
+## Medvetet ej byggt (eget spår)
+Kräver en runtime en statisk zero-backend-sida inte kan hosta:
+- **Auto-AI-expansion** av body (capture → AI *skriver* pucken automatiskt).
+- **Dispatch-körning** — något som faktiskt *startar* en agent på en `agent:`-puck.
+
+Båda hänger på samma bit: en **out-of-band runner** (GitHub Action-trigger eller
+ett relä à la `sign-in-with-github-via-relay`). Filas separat när/om automatisk
+körning blir aktuell — men designen står: markören är kön, körningen är valfri.
+
+## Öppna frågor (kvar för runner-spåret)
+- Minsta "capture → AI expanderar"-loopen som håller zero-backend (Action vs relä)?
+- Hur startar man en agent från en statisk sida utan runtime?
+- Triage: slå ihop/dedup av pucker i GUI:t — värt att bygga?
