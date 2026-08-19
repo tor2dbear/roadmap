@@ -13,6 +13,12 @@
     return;
   }
 
+  // Drop the transition-suppression guard once the first frame has painted, so
+  // real interactions animate but the initial load never does (see .preload CSS).
+  requestAnimationFrame(function () {
+    requestAnimationFrame(function () { document.body.classList.remove("preload"); });
+  });
+
   var STATUS_LABEL = { now: "Now", next: "Next", later: "Later", inbox: "Inbox", done: "Done", cancelled: "Cancelled" };
   // Terminal statuses: settled, hidden from the active board unless "show done" is on.
   var TERMINAL = { done: 1, cancelled: 1 };
@@ -969,7 +975,9 @@
     highlightSelected();
   }
 
-  // A compact list row — denser than a card, one vertical column, tap → modal.
+  // A table row — full-width, aligned columns (Name · Priority · Agent · Repo ·
+  // Updated), Linear-style. Grid tracks are shared across rows so the columns
+  // line up; on mobile the extra columns fold away (see styles.css). Tap → modal.
   function listRow(item) {
     var sig = signalMessages(item);
     var r = el("div", "list-row" + (sig.length ? " flagged" : "") + (item.id === selectedId ? " sel" : ""));
@@ -977,21 +985,39 @@
     r.style.setProperty("--repo", item.repoColor);
     r.title = item.repoName;
     r.appendChild(puckGlyph(item));
-    // title + meta share a wrapping row: inline (date right) on desktop, stacked
-    // (date on its own line below the title) on mobile.
-    var body = el("div", "list-body");
-    body.appendChild(el("span", "list-title", item.title));
-    var meta = el("div", "list-meta");
+
+    // Name: title (truncates) + inline drift/blocked badges.
+    var name = el("div", "list-name");
+    name.appendChild(el("span", "list-title", item.title));
     if (sig.length) {
       var warn = el("span", "warn-badge", "⚠");
       warn.title = sig.join("\n");
-      meta.appendChild(warn);
+      name.appendChild(warn);
     }
-    if (item.agent) meta.appendChild(agentBadge(item.agent));
-    if ((item.blockedBy || []).length) meta.appendChild(blockBadge(item));
-    if (item.updated) meta.appendChild(dateEl(item.updated, "list-date"));
-    body.appendChild(meta);
-    r.appendChild(body);
+    if ((item.blockedBy || []).length) name.appendChild(blockBadge(item));
+    r.appendChild(name);
+
+    // Priority · Agent · Repo · Updated — each its own aligned cell (empty cells
+    // still hold their track so rows stay in register).
+    var pri = el("div", "list-cell list-pri");
+    if (item.priority) pri.appendChild(priorityBadge(item.priority));
+    r.appendChild(pri);
+
+    var ag = el("div", "list-cell list-agent");
+    if (item.agent) ag.appendChild(agentBadge(item.agent));
+    r.appendChild(ag);
+
+    var rp = el("div", "list-cell list-repo");
+    var dot = el("span", "repo-dot");
+    dot.style.background = item.repoColor;
+    rp.appendChild(dot);
+    rp.appendChild(el("span", "repo-name", item.repoName));
+    r.appendChild(rp);
+
+    var dt = el("div", "list-cell list-dt");
+    if (item.updated) dt.appendChild(dateEl(item.updated, "list-date"));
+    r.appendChild(dt);
+
     r.addEventListener("click", function () { openModal(item); });
     return r;
   }
