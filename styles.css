@@ -376,7 +376,8 @@ body {
 .card-body :is(h2, h3, h4) { font-size: 13px; margin: 12px 0 4px; color: var(--ink); }
 .card-body :is(h2, h3, h4):first-child { margin-top: 0; }
 .card-body p { margin: 0 0 8px; }
-.card-body ul { margin: 4px 0 8px; padding-left: 18px; }
+.card-body ul, .card-body ol { margin: 4px 0 8px; padding-left: 20px; }
+.card-body ol { list-style: decimal; }
 .card-body li { margin: 2px 0; }
 .card-body a { color: var(--accent); }
 .card-links { margin-top: 10px; display: flex; gap: 12px; font-size: 12px; }
@@ -454,7 +455,9 @@ body {
 .modal-body :is(h2, h3, h4) { font-size: 14px; margin: 16px 0 6px; color: var(--ink); }
 .modal-body :is(h2, h3, h4):first-child { margin-top: 0; }
 .modal-body p { margin: 0 0 10px; }
-.modal-body ul { margin: 6px 0 10px; padding-left: 20px; }
+.modal-body ul, .modal-body ol { margin: 6px 0 10px; padding-left: 22px; }
+.modal-body ol { list-style: decimal; }
+.modal-body ol li, .modal-body ul li { margin: 2px 0; }
 .modal-body li { margin: 3px 0; }
 .modal-body code { background: var(--panel-2); padding: 1px 5px; border-radius: 4px; font-size: 0.92em; }
 .modal-body pre { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin: 0 0 10px; overflow-x: auto; }

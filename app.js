@@ -130,6 +130,7 @@
     var out = [];
     var lines = esc(src).split("\n");
     var inList = false;
+    var listType = null; // "ul" (bullets) | "ol" (numbered)
     var para = []; // buffer of wrapped lines that form one paragraph
     var liBuf = null; // buffer of wrapped lines that form one list item
     var inCode = false;
@@ -141,7 +142,7 @@
       if (liBuf) { out.push("<li>" + mdInline(liBuf.join(" ")) + "</li>"); liBuf = null; }
     }
     function closeList() {
-      if (inList) { flushLi(); out.push("</ul>"); inList = false; }
+      if (inList) { flushLi(); out.push("</" + listType + ">"); inList = false; listType = null; }
     }
     function flushCode() {
       if (code.length) { out.push("<pre><code>" + code.join("\n") + "</code></pre>"); code = []; }
@@ -155,7 +156,10 @@
       }
       if (inCode) { code.push(line); continue; }
       var h = /^(#{2,4})\s+(.*)$/.exec(line);
-      var li = /^\s*[-*]\s+(.*)$/.exec(line);
+      var ul = /^\s*[-*]\s+(.*)$/.exec(line);
+      var ol = /^\s*\d+[.)]\s+(.*)$/.exec(line);
+      var li = ul || ol;
+      var wantType = ul ? "ul" : (ol ? "ol" : null);
       if (h) {
         flushPara();
         closeList();
@@ -163,8 +167,9 @@
         out.push("<h" + lvl + ">" + mdInline(h[2]) + "</h" + lvl + ">");
       } else if (li) {
         flushPara();
+        if (inList && listType !== wantType) closeList(); // switching bullets ↔ numbered
         flushLi(); // close the previous item before starting this one
-        if (!inList) { out.push("<ul>"); inList = true; }
+        if (!inList) { out.push("<" + wantType + ">"); inList = true; listType = wantType; }
         liBuf = [li[1]]; // buffer so soft-wrapped lines fold into this item
       } else if (line.trim() === "") {
         flushPara();
