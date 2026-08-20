@@ -77,10 +77,13 @@ mellanrum tar slut går mittpunkten till decimal i stället för att numrera om
 grannarna — att renumrera en kolumn från webbläsaren vore N commits som kan
 halv-misslyckas. En droppzon-linje visar var kortet landar.
 
-**Bara i Manual.** I varje annan sortering härleds platsen ur ett fält, så
-hand-placering vore en lögn: där finns ingen droppzon alls (och ingen linje som
-antyder att det skulle gå). Kräver dessutom verifierad skrivbehörighet — samma
-grind som resten av redigeringen.
+**Två grindar, båda om ärlighet.** Sorteringen måste vara **Manual** — i varje
+annan härleds platsen ur ett fält, så hand-placering vore en lögn. Och
+grupperingen måste vara **status**, för `order` är definierat som platsen *i en
+status-kolumn*: att placera bland agent- eller priority-grannar hade räknat fram
+ett tal mot puckar från andra statusar och tyst kastat om det riktiga brädet.
+Övriga grupperingar behåller vanlig kolumn-drop, som skriver sitt eget fält.
+Dessutom krävs verifierad skrivbehörighet, som resten av redigeringen.
 
 **En flytt = en commit.** `commitFields()` skriver flera frontmatter-nycklar i en
 PUT, så ett kort som dras till en annan kolumn *och* en plats skriver `status` +

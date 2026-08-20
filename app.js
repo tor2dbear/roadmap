@@ -1471,12 +1471,17 @@
         add.addEventListener("click", function () { openNewPuckPanel(g.preset(grp.key)); });
         col.appendChild(add);
       }
-      // Manual ordering: dropping *between* cards writes `order` (and the grouped
-      // field too, when the card also changed column — one move, one commit). In
-      // every other ordering the position is derived from a field, so letting you
-      // place a card by hand would be a lie; there only the plain column drop below
-      // applies.
-      if (manualRank() && ghToken() && (g.field || g.key === "status")) {
+      // Manual ordering: dropping *between* cards writes `order` (and the status
+      // too, when the card also changed column — one move, one commit).
+      //
+      // Two conditions, both about honesty. The ordering must be Manual, because
+      // every other mode derives the position from a field and hand-placing would
+      // be a lie. And the grouping must be `status`, because `order` is defined as
+      // the rank *within a status column* — placing a card among agent- or
+      // priority-grouped neighbours would compute a number against pucks from other
+      // statuses and quietly reshuffle the real board. Those groupings keep the
+      // plain column drop below, which writes their own field.
+      if (manualRank() && ghToken() && state.group === "status") {
         cards.addEventListener("dragover", function (e) {
           if (!dragItem) return;
           e.preventDefault();
