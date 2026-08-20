@@ -90,9 +90,11 @@ function resolveBlockedBy(items) {
   for (const it of items) {
     it.blockedBy = (it.depends || []).filter((dep) => {
       const d = bySlug.get(it.repo + " " + dep);
-      // A terminal blocker (done *or* cancelled) no longer blocks — cancelled is
-      // terminal everywhere else, so a cancelled dep must clear blockedBy too.
-      return d && !TERMINAL.has(d.status);
+      // Only `done` clears a blocker (the AGENTS.md contract: blocked until every
+      // dep is done). A *cancelled* prerequisite deliberately keeps the dependent
+      // blocked — its plan now references work that won't happen, which should
+      // surface as ⛔ so a human fixes the `depends` rather than silently going ready.
+      return d && d.status !== "done";
     });
   }
 }
