@@ -4,7 +4,7 @@ status: next
 tags: [core, product]
 updated: 2026-08-20
 created: 2026-08-19
-order: 50
+order: 30
 ---
 
 ## Goal

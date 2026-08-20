@@ -1018,6 +1018,12 @@ body.preload * { transition: none !important; }
 /* A column grouped by something without its own palette (agent, repo, priority)
    still gets a swatch — tinted where the field has a colour, neutral otherwise. */
 .col-plain .swatch { background: var(--tint, var(--ink-3)); }
+/* Where a dragged card would land, in Manual ordering. Only drawn while dragging,
+   so it reads as a position and not as a divider. */
+.drop-line {
+  height: 2px; margin: 3px 2px; border-radius: 2px;
+  background: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent);
+}
 .fp-toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink); cursor: pointer; }
 .fp-toggle input { accent-color: var(--accent); cursor: pointer; }
 .fp-label { font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); margin-top: 2px; }

@@ -89,6 +89,8 @@ roadmap issue <slug> 42             # link a working issue
 roadmap owner <slug> <handle>       # set owner (--clear to remove)
 roadmap priority <slug> <level>     # urgent|high|medium|low (--clear to remove)
 roadmap target <slug> 2026-11       # horizon: a date, or a month = its last day
+roadmap move <slug> --before <slug> # manual rank within the status column
+roadmap renumber [--status now]     # tidy order back to 10, 20, 30 …
 roadmap agent <slug> <discipline>   # route to a discipline agent (--clear to remove)
 roadmap list [--status now]         # overview
 ```
@@ -112,7 +114,8 @@ what's ready. Use it to sequence work.
 
 - Never hand-edit `data/roadmap.json`, `data/roadmap.js`, `ROADMAP.md`.
 - Never add a second source of truth.
-- `status` is the *when* ladder (`inbox → now/next/later → done`); `order`
-  fine-tunes within a column; the optional `priority` field is *how much it
-  matters* (`urgent`/`high`/`medium`/`low`), orthogonal to status; the optional
-  `target` is *roughly when in the calendar* — a horizon, not a deadline.
+- Four orthogonal axes, never conflated: `status` = which column (`inbox →
+  now/next/later → done`), `order` = the place in it (manual rank, lower first,
+  unset sinks to the bottom), `priority` = how much it matters (a label to filter
+  and sort by, not the default ordering), `target` = roughly when in the calendar
+  (a horizon, not a deadline). `CONVENTION.md` has the table.

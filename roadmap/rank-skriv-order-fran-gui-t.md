@@ -1,10 +1,10 @@
 ---
 title: "Rank: manuellt läge + skriv order från GUI:t"
-status: next
+status: done
 tags: [ui, editing]
 updated: 2026-08-20
 created: 2026-08-19
-order: 40
+order: 20
 ---
 
 ## Goal
@@ -66,12 +66,61 @@ tas innan `target` landar, inte efter.
 Ordering-raden bor i Display-menyn — se `display-meny-och-gruppering`. Den här
 pucken äger radens *innehåll* och skrivvägen; den pucken äger menyn.
 
+## Delivered
+
+**Manual-läget är ärligt** (pass 0): `default` heter "Manual" och "Recently updated"
+är ett eget läge. Det var halva problemet — ordningen var påslagen men osynlig.
+
+**Drag till plats skriver `order`.** Att släppa mellan två kort räknar ut ett värde
+mellan grannarna och skriver **en** fil. Glesa steg (10) ger utrymme; när ett
+mellanrum tar slut går mittpunkten till decimal i stället för att numrera om
+grannarna — att renumrera en kolumn från webbläsaren vore N commits som kan
+halv-misslyckas. En droppzon-linje visar var kortet landar.
+
+**Bara i Manual.** I varje annan sortering härleds platsen ur ett fält, så
+hand-placering vore en lögn: där finns ingen droppzon alls (och ingen linje som
+antyder att det skulle gå). Kräver dessutom verifierad skrivbehörighet — samma
+grind som resten av redigeringen.
+
+**En flytt = en commit.** `commitFields()` skriver flera frontmatter-nycklar i en
+PUT, så ett kort som dras till en annan kolumn *och* en plats skriver `status` +
+`order` tillsammans. Två commits hade läst som två beslut i historiken.
+
+**CLI:t fick sin del:** `roadmap move <slug> --before|--after <slug>` (samma
+grannregel som brädet, men med validering: samma kolumn, inte sig själv, ankaret
+måste finnas) och `roadmap renumber [--status]` som städar tillbaka till 10, 20,
+30 … Bulkoperationen bor lokalt, enfilsskrivningen i browsern — den uppdelningen är
+avsiktlig.
+
+**Beslut om `priority`: den stannar.** Alternativet — slopa fältet och låta manuell
+rank vara enda ordningen — var på bordet, men `priority` bär PO-routningen och syns
+som badge utan att man sorterar om. I stället är rollerna nu **nedskrivna** i
+`CONVENTION.md` som fyra ortogonala axlar: `status` = vilken kolumn, `order` =
+platsen i den, `priority` = etikett att filtrera/sortera på (inte default-ordning),
+`target` = horisont. Det var den verkliga skulden — inte antalet fält.
+
+**Kortet visar rätt datum** (pass 2–3) och grupperingen kan vara vilket fält som
+helst (pass 2), så drag-till-plats fungerar i alla grupperingar som har en skrivare.
+
+Verifierat: 8 fall i headless Chromium (läges-grinden i tre varianter, placering
+inom kolumn, placering över kolumngräns, optimistisk rendering, återställning vid
+misslyckad skrivning, felmeddelande) + de tre tidigare sviterna som regression.
+CLI:t testat mot riktiga filer inklusive felfallen och idempotent `renumber`.
+
+Testet hittade en riktig bugg: ett gruppfält hette `valueOf`, vilket ärvs från
+`Object.prototype` — så *varje* grupp såg ut att ha en nyckel-till-värde-konverterare
+och status skrevs som `[object Object]`. Heter nu `toValue`.
+
+## Medvetet inte byggt
+- **"Flytta upp/ner" i radens meny för mobil.** Drag-till-plats med tumme är
+  klumpigt, men lösningen hör ihop med listvyns radmeny som inte finns än.
+- **Att slå ihop de sex `commit*`-hjälparna** till `commitFields()`. De gör nästan
+  samma sak, men refaktorn hör inte hemma i samma pass som funktionen.
+
 ## Open questions
-- Behåll `priority` som fält, eller degradera till ren etikett och låt `order` vara
-  enda ordningen?
-- Glesa `order`-steg räcker länge men inte för alltid — behövs ett
-  "normalisera ordningen"-kommando i CLI:t från start?
-- Drag mellan kolumner: skriver `status` och `order` i **en** commit eller två?
-  (Förslag: en — annars blir historiken brusig.)
-- Mobil: drag-till-plats fungerar dåligt med tumme. Behövs "flytta upp/ner" i radens
-  meny som skriver samma fält?
+- Mobil: drag-till-plats fungerar dåligt med tumme — "flytta upp/ner" i radens meny
+  skriver samma fält när den menyn finns.
+- Ska `renumber` kunna ge *oordnade* puckar ett `order` (i dag rör den bara dem som
+  redan har ett)? Att frysa alla i en rank ingen bett om vore värre — men det gör
+  första drag-till-plats i en orankad kolumn lite överraskande: kortet hoppar högst
+  upp, eftersom rankade kort sorteras före orankade.

@@ -4,7 +4,7 @@ status: next
 tags: [core, dx, ai]
 updated: 2026-08-20
 created: 2026-08-19
-order: 60
+order: 40
 ---
 
 ## Goal

@@ -646,6 +646,30 @@
   function clearDropTargets() {
     var els = document.querySelectorAll(".column.drop-target");
     Array.prototype.forEach.call(els, function (e) { e.classList.remove("drop-target"); });
+    var lines = document.querySelectorAll(".drop-line");
+    Array.prototype.forEach.call(lines, function (e) { if (e.parentNode) e.parentNode.removeChild(e); });
+  }
+
+  // Where a drop would land: the cards under the pointer, minus the one being
+  // dragged (it's about to leave its old slot, so it must not count as a neighbour).
+  function dropPointAt(container, y, items, moving) {
+    var kids = Array.prototype.filter.call(container.querySelectorAll(".card"), function (c) {
+      return c.getAttribute("data-id") !== moving.id;
+    });
+    var idx = kids.length;
+    for (var i = 0; i < kids.length; i++) {
+      var r = kids[i].getBoundingClientRect();
+      if (y < r.top + r.height / 2) { idx = i; break; }
+    }
+    var byId = {};
+    items.forEach(function (it) { byId[it.id] = it; });
+    var seq = kids.map(function (c) { return byId[c.getAttribute("data-id")]; }).filter(Boolean);
+    return { before: kids[idx] || null, prev: seq[idx - 1] || null, next: seq[idx] || null };
+  }
+  function showDropLine(container, before) {
+    var line = container.querySelector(".drop-line") || el("div", "drop-line");
+    if (before) container.insertBefore(line, before);
+    else container.appendChild(line);
   }
 
   function linkEl(text, href) {
@@ -1350,6 +1374,7 @@
   var GROUPS = {
     status: {
       label: "Status",
+      field: "status",
       fixed: true,
       keyOf: function (i) { return i.status; },
       keys: function () { return columnsForFocus(); },
@@ -1360,6 +1385,7 @@
     },
     agent: {
       label: "Agent",
+      field: "agent",
       keyOf: function (i) { return i.agent || NO_VALUE; },
       keys: function (items) { return presentKeys(items, this.keyOf); },
       labelOf: function (k) { return k === NO_VALUE ? "Unrouted" : agentLabel(k); },
@@ -1384,6 +1410,8 @@
     // the same "by the end of it" reading `roadmap target <slug> 2026-11` uses.
     target: {
       label: "Target",
+      field: "target",
+      toValue: function (k) { return k === NO_VALUE ? null : endOfMonth(k); },
       keyOf: function (i) { return i.target ? i.target.slice(0, 7) : NO_VALUE; },
       keys: function (items) { return presentKeys(items, this.keyOf); },
       labelOf: function (k) { return k === NO_VALUE ? "No target" : monthLabel(k); },
@@ -1391,6 +1419,7 @@
     },
     priority: {
       label: "Priority",
+      field: "priority",
       keyOf: function (i) { return i.priority || NO_VALUE; },
       keys: function (items) {
         return presentKeys(items, this.keyOf, function (k) { return PRIORITY_RANK[k]; });
@@ -1400,6 +1429,9 @@
     },
   };
   function activeGroup() { return GROUPS[state.group] || GROUPS.status; }
+  // "Manual" is the only ordering where a hand-placed position means anything —
+  // every other mode derives it from a field (see sortComparator).
+  function manualRank() { return state.sort === "default"; }
 
   // Bucket the visible pucks by the active grouping. Returns [{ key, label, items }]
   // in the group's own order — the one thing both renderers consume.
@@ -1439,6 +1471,35 @@
         add.addEventListener("click", function () { openNewPuckPanel(g.preset(grp.key)); });
         col.appendChild(add);
       }
+      // Manual ordering: dropping *between* cards writes `order` (and the grouped
+      // field too, when the card also changed column — one move, one commit). In
+      // every other ordering the position is derived from a field, so letting you
+      // place a card by hand would be a lie; there only the plain column drop below
+      // applies.
+      if (manualRank() && ghToken() && (g.field || g.key === "status")) {
+        cards.addEventListener("dragover", function (e) {
+          if (!dragItem) return;
+          e.preventDefault();
+          e.stopPropagation(); // the column's own handler must not also claim this
+          if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+          col.classList.remove("drop-target");
+          showDropLine(cards, dropPointAt(cards, e.clientY, grp.items, dragItem).before);
+        });
+        cards.addEventListener("drop", function (e) {
+          if (!dragItem) return;
+          e.preventDefault();
+          e.stopPropagation();
+          var moving = dragItem;
+          dragItem = null;
+          var at = dropPointAt(cards, e.clientY, grp.items, moving);
+          clearDropTargets();
+          var order = orderBetween(at.prev, at.next);
+          if (order == null) { toast("✗ No room left here — run `roadmap renumber`", true); return; }
+          var moved = g.keyOf(moving) !== grp.key;
+          changeOrder(moving, order, moved ? grp.key : null, g);
+        });
+      }
+
       // Drop = write the grouped field. No writer (repo) → no drop target.
       if (g.write) {
         col.addEventListener("dragover", function (e) {
@@ -2542,6 +2603,33 @@
     return lines.join(nl);
   }
 
+  // Write several frontmatter fields in ONE commit (a null value removes the key).
+  // Dragging a card to another column *and* a position is one move, so it should be
+  // one commit — two would make the history read like two decisions.
+  function commitFields(item, fields, message) {
+    var token = ghToken();
+    var apiPath = item.sourcePath.split("/").map(encodeURIComponent).join("/");
+    var api = "https://api.github.com/repos/" + item.repo + "/contents/" + apiPath;
+    var branch = branchOf(item);
+    var headers = { Authorization: "Bearer " + token, Accept: "application/vnd.github+json" };
+    return fetch(api + "?ref=" + encodeURIComponent(branch), { headers: headers })
+      .then(function (r) { assertOk(r, item); return r.json(); })
+      .then(function (info) {
+        var out = b64decode(info.content);
+        for (var k in fields) {
+          out = fields[k] == null ? removeFrontmatter(out, k) : editFrontmatter(out, k, String(fields[k]));
+          if (out == null) throw new Error("no frontmatter");
+        }
+        out = editFrontmatter(out, "updated", today());
+        return fetch(api, {
+          method: "PUT",
+          headers: { Authorization: "Bearer " + token, Accept: "application/vnd.github+json", "Content-Type": "application/json" },
+          body: JSON.stringify({ message: message, content: b64encode(out), sha: info.sha, branch: branch }),
+        });
+      })
+      .then(function (r) { assertOk(r, item); });
+  }
+
   // Commit a status change via the GitHub Contents API (read sha → PUT commit).
   function commitStatus(item, status) {
     var token = ghToken();
@@ -2563,6 +2651,54 @@
         });
       })
       .then(function (r) { assertOk(r, item); });
+  }
+
+  // ── manual rank ─────────────────────────────────────────────────────────────
+  // `order` is the puck's place inside its column. Dropping between two cards
+  // writes ONE file: the moved puck gets a value between its new neighbours.
+  // Sparse steps (10) leave room; when a gap closes, the midpoint goes decimal
+  // rather than renumbering the neighbours, because renumbering a column from the
+  // browser would mean N commits that can half-fail. `roadmap renumber` tidies a
+  // column back to 10, 20, 30 in one local pass when you want round numbers.
+  var ORDER_STEP = 10;
+  function orderBetween(prev, next) {
+    var a = prev && prev.order != null ? prev.order : null;
+    var b = next && next.order != null ? next.order : null;
+    if (a == null && b == null) return ORDER_STEP;      // first ranked card here
+    if (a == null) return b - ORDER_STEP;               // above every ranked card
+    if (b == null) return a + ORDER_STEP;               // below every ranked card
+    var mid = (a + b) / 2;
+    return mid === a || mid === b ? null : mid;         // no room left (never, in practice)
+  }
+  function changeOrder(item, order, alsoKey, group) {
+    if (!ghToken()) return;
+    var fields = { order: order };
+    var label = "reordered";
+    var prevOrder = item.order, prevU = item.updated, prevKey = null, keyField = null;
+    if (alsoKey && group && group.field) {
+      keyField = group.field;
+      prevKey = item[keyField];
+      // A group key isn't always the stored value (a month bucket is a date), so
+      // the group converts it.
+      // NB: not `valueOf` — that name is inherited from Object.prototype, so every
+      // group would look like it had a converter.
+      var value = group.toValue ? group.toValue(alsoKey) : (alsoKey === NO_VALUE ? null : alsoKey);
+      fields[keyField] = value;
+      item[keyField] = value;
+      label = keyField + " " + (value == null ? "cleared" : value);
+    }
+    item.order = order; item.updated = today();
+    renderBoard();
+    toast("Saving…");
+    commitFields(item, fields, "roadmap: " + item.slug + " " + label)
+      .then(function () { toast("✓ Moved — live in ~1 min"); })
+      .catch(function (err) {
+        item.order = prevOrder; item.updated = prevU;
+        if (keyField) item[keyField] = prevKey;
+        noteWriteError(item, err);
+        renderBoard();
+        toast("✗ " + err.message, true);
+      });
   }
 
   // Optimistic: flip in-memory + re-render now, commit in the background, revert on failure.

@@ -109,7 +109,9 @@ python3 -m http.server 4173              # then open the board locally
 Runs inside a source repo, operates on that repo's `roadmap/`, and edits
 frontmatter in place (bumping `updated` on every mutation) so status/date upkeep
 is automatic. `roadmap new "Title"`, `roadmap start|next|later|done <slug>`,
-`roadmap tag`, `roadmap issue`, `roadmap list`, `roadmap install-hook` (a
+`roadmap tag`, `roadmap issue`, `roadmap target`, `roadmap move <slug>
+--before|--after <slug>` (manual rank), `roadmap renumber` (tidy a column's
+`order` back to 10, 20, 30 …), `roadmap list`, `roadmap install-hook` (a
 pre-commit hook that bumps `updated` on hand edits too). Field edits are
 line-level and format-preserving; `STATUSES`/`slugify` are shared with
 `lib/adapters.mjs`. An agent can call these commands directly.

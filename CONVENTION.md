@@ -139,6 +139,27 @@ Optional and orthogonal to `status`: `status` says *when* (now/next/later),
 Omit the field entirely for "no priority" — most pucks won't need one. Set it
 with `roadmap priority <slug> <level>` (`--clear` to remove).
 
+### The four axes, in one place
+
+They overlap in conversation but never in the data. Written down so nobody has to
+guess which one to reach for:
+
+| Field | Answers | Shape |
+|---|---|---|
+| `status` | *Which column?* | the ladder: `inbox → now/next/later → done`/`cancelled` |
+| `order`  | *Where in that column?* | a number, lower = higher up; unset = below every ranked puck |
+| `priority` | *How much does it matter?* | a label you filter and sort by — **not** the default ordering |
+| `target` | *Roughly when in the calendar?* | a date, optional; a horizon, not a deadline |
+
+`order` is the manual rank. Set it by saying where a puck goes relative to another —
+`roadmap move <slug> --before <other>` — or by dragging a card to a position on the
+board while the ordering is **Manual**. Any other ordering derives the position from
+a field, so hand-placing is switched off there rather than silently ignored.
+
+Gaps are sparse (10, 20, 30 …) so a move can slot between two neighbours by writing
+**one** file. When a gap closes the midpoint goes decimal; `roadmap renumber` tidies
+a column back to round numbers in one local pass.
+
 ### The horizon (`target`)
 
 A third, independent axis: `status` is *when in the queue*, `priority` is *how much

@@ -360,6 +360,113 @@ async function listPucks() {
   if (!shown) console.log("(no pucks)");
 }
 
+// ── manual rank (`order`) ───────────────────────────────────────────────────
+// `order` is the puck's place inside its status column (lower = higher up); pucks
+// without one fall to the bottom, sorted by `updated`. You rarely want to pick a
+// number by hand — say where it goes relative to another puck instead.
+async function allPucks() {
+  let entries;
+  try {
+    entries = await readdir(DIR, { withFileTypes: true });
+  } catch {
+    fail(`no ${path.relative(process.cwd(), DIR) || "roadmap"}/ directory here`);
+  }
+  const out = [];
+  for (const e of entries) {
+    let file = null, slug = null;
+    if (e.isFile() && e.name.endsWith(".md") && e.name.toLowerCase() !== "readme.md") {
+      slug = e.name.replace(/\.md$/, "");
+      file = path.join(DIR, e.name);
+    } else if (e.isDirectory() && existsSync(path.join(DIR, e.name, "README.md"))) {
+      slug = e.name;
+      file = path.join(DIR, e.name, "README.md");
+    }
+    if (!file) continue;
+    const text = await readFile(file, "utf8");
+    const raw = getField(text, "order");
+    out.push({
+      slug,
+      path: file,
+      text,
+      status: getField(text, "status") || "inbox",
+      updated: getField(text, "updated") || "",
+      order: raw == null || raw === "" ? null : Number(raw),
+    });
+  }
+  return out;
+}
+// The board's own ordering: `order` first, then freshest, then slug.
+function rankSort(a, b) {
+  const ao = a.order == null ? Infinity : a.order;
+  const bo = b.order == null ? Infinity : b.order;
+  return ao - bo || b.updated.localeCompare(a.updated) || a.slug.localeCompare(b.slug);
+}
+
+async function cmdMove() {
+  const slug = pos.shift();
+  const anchor = opts.before || opts.after;
+  if (!slug || !anchor || (opts.before && opts.after)) {
+    fail("usage: roadmap move <slug> --before <slug> | --after <slug>");
+  }
+  const pucks = await allPucks();
+  const me = pucks.find((p) => p.slug === slug);
+  if (!me) fail(`no puck "${slug}" under ${path.relative(process.cwd(), DIR) || "roadmap"}/`);
+  const to = pucks.find((p) => p.slug === anchor);
+  if (!to) fail(`no puck "${anchor}" to move ${opts.before ? "before" : "after"}`);
+  if (to.slug === me.slug) fail("a puck can't move relative to itself");
+  if (to.status !== me.status) {
+    fail(`"${anchor}" is in ${to.status} but "${slug}" is in ${me.status} — order only ranks within a column`);
+  }
+  // Neighbours in the anchor's column, with the moving puck taken out first.
+  const column = pucks.filter((p) => p.status === me.status && p.slug !== me.slug).sort(rankSort);
+  const at = column.findIndex((p) => p.slug === anchor);
+  const idx = opts.before ? at : at + 1;
+  const prev = column[idx - 1] || null;
+  const next = column[idx] || null;
+  const a = prev && prev.order != null ? prev.order : null;
+  const b = next && next.order != null ? next.order : null;
+  let value;
+  if (a == null && b == null) value = 10;
+  else if (a == null) value = b - 10;
+  else if (b == null) value = a + 10;
+  else {
+    value = (a + b) / 2;
+    if (value === a || value === b) fail(`no room between ${a} and ${b} — run: roadmap renumber --status ${me.status}`);
+  }
+  // Keep it an integer when the gap allows; decimals are legal but ugly in git.
+  if (Number.isInteger(a) && Number.isInteger(b) && Math.abs(b - a) >= 2) value = Math.round(value);
+  let out = setField(me.text, "order", String(value));
+  out = setField(out, "updated", TODAY);
+  await writeFile(me.path, out);
+  console.log(`✓ ${slug} order ${value} (${opts.before ? "before" : "after"} ${anchor})  (updated ${TODAY})`);
+}
+
+// Renumber a column back to 10, 20, 30 … — the local, bulk counterpart to the
+// board's single-file drops, for when midpoints have gone decimal.
+async function cmdRenumber() {
+  const pucks = await allPucks();
+  const statuses = opts.status ? [String(opts.status)] : STATUSES;
+  for (const s of statuses) {
+    if (!STATUSES.includes(s)) fail(`status must be one of: ${STATUSES.join(", ")}`);
+  }
+  let touched = 0;
+  for (const s of statuses) {
+    // Only pucks that already carry an `order` — renumbering would otherwise
+    // freeze every unranked puck into a rank nobody asked for.
+    const column = pucks.filter((p) => p.status === s && p.order != null).sort(rankSort);
+    for (let i = 0; i < column.length; i++) {
+      const want = (i + 1) * 10;
+      if (column[i].order === want) continue;
+      let out = setField(column[i].text, "order", String(want));
+      out = setField(out, "updated", TODAY);
+      await writeFile(column[i].path, out);
+      console.log(`  ${column[i].slug.padEnd(28)} ${column[i].order} → ${want}`);
+      touched++;
+    }
+  }
+  console.log(touched ? `✓ renumbered ${touched} puck(s)  (updated ${TODAY})` : "✓ already tidy — nothing to renumber");
+}
+
 const HOOK_MARKER = "# roadmap-auto-updated";
 const HOOK_BODY = `#!/bin/sh
 ${HOOK_MARKER} — bump \`updated:\` on any staged roadmap puck that changed.
@@ -416,6 +523,8 @@ async function main() {
     case "owner": return cmdOwner();
     case "priority": case "prio": return cmdPriority();
     case "target": return cmdTarget();
+    case "move": return cmdMove();
+    case "renumber": return cmdRenumber();
     case "agent": case "route": return cmdAgent();
     case "touch": return cmdTouch();
     case "list": case "ls": return listPucks();
@@ -440,6 +549,8 @@ function printHelp() {
   roadmap owner <slug> <handle>                       set owner (--clear to remove)
   roadmap priority <slug> <level>                     set priority (--clear to remove)
   roadmap target <slug> <YYYY-MM-DD|YYYY-MM>          set the horizon (--clear to remove)
+  roadmap move <slug> --before|--after <slug>         rank within the status column
+  roadmap renumber [--status now]                     tidy order back to 10, 20, 30 …
   roadmap agent <slug> <discipline>                   route to an agent (--clear to remove)
   roadmap touch <slug>                                bump updated only
   roadmap list [--status now]                         overview
