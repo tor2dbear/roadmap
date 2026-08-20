@@ -125,19 +125,30 @@
     // Emphasis/link parsing that can't corrupt each other. Code spans AND links are
     // stashed behind control-char sentinels (which can't occur in the already
     // HTML-escaped text) before emphasis runs, so a `*` inside a URL or a `**x**`
-    // inside backticks is left literal; the stashed HTML is restored at the end.
+    // inside backticks is left literal. Emphasis IS applied to a link's label before
+    // the anchor is stashed (so `[**bold**](url)` renders), and the restore loops so
+    // a code span nested in a label is expanded too; the stashed HTML is restored last.
     var codes = [];
     var A = String.fromCharCode(1), B = String.fromCharCode(2);
     var stash = function (html) { codes.push(html); return A + (codes.length - 1) + B; };
-    s = s.replace(/`([^`]+)`/g, function (_, c) { return stash("<code>" + c + "</code>"); });
-    s = s.replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, function (_, t, u) {
-      return stash('<a href="' + u + '" target="_blank" rel="noopener">' + t + "</a>");
-    });
     // Bold is non-greedy and allows inner single-`*` italics (**a *b* c**); italics
     // then run on what's left (the `[^*]` guard avoids re-matching `**`).
-    s = s.replace(/\*\*([\s\S]+?)\*\*/g, "<strong>$1</strong>");
-    s = s.replace(/(^|[^*])\*([^*\n]+?)\*/g, "$1<em>$2</em>");
-    return s.replace(new RegExp(A + "(\\d+)" + B, "g"), function (_, i) { return codes[+i]; });
+    var emph = function (x) {
+      return x
+        .replace(/\*\*([\s\S]+?)\*\*/g, "<strong>$1</strong>")
+        .replace(/(^|[^*])\*([^*\n]+?)\*/g, "$1<em>$2</em>");
+    };
+    s = s.replace(/`([^`]+)`/g, function (_, c) { return stash("<code>" + c + "</code>"); });
+    s = s.replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, function (_, t, u) {
+      return stash('<a href="' + u + '" target="_blank" rel="noopener">' + emph(t) + "</a>");
+    });
+    s = emph(s);
+    // Restore stashed HTML, looping so a sentinel nested inside a stashed label (a
+    // code span inside a link) is expanded too. Terminates in ≤2 passes: code holds
+    // no sentinels, a link holds only code sentinels which resolve on the next pass.
+    var re = new RegExp(A + "(\\d+)" + B, "g");
+    while (s.indexOf(A) !== -1) s = s.replace(re, function (_, i) { return codes[+i]; });
+    return s;
   }
   function renderMd(src) {
     var out = [];
