@@ -352,11 +352,16 @@ const HOOK_MARKER = "# roadmap-auto-updated";
 const HOOK_BODY = `#!/bin/sh
 ${HOOK_MARKER} — bump \`updated:\` on any staged roadmap puck that changed.
 today=$(date +%F)
+# The three UTF-8 BOM bytes (EF BB BF), built portably so awk can strip a BOM'd
+# first line before the fence match — else a Windows-edited puck's opening \`---\`
+# wouldn't match and 'updated:' would never bump (matching the CLI/browser writers).
+bom=$(printf '\\357\\273\\277')
 files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '(^|/)roadmap/.*\\.md$' || true)
 [ -z "$files" ] && exit 0
 for f in $files; do
   [ -f "$f" ] || continue
-  awk -v d="$today" '
+  awk -v d="$today" -v bom="$bom" '
+    NR==1 { sub("^" bom, "") }
     /^---[ \\t\\r]*$/ { fm++; print; next }
     fm==1 && !done && /^updated:/ { sub(/^updated:.*/, "updated: " d); done=1 }
     { print }

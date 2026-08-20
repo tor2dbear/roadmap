@@ -117,6 +117,9 @@
   // ── tiny, safe markdown (escape first, then a whitelist of inline + block bits) ──
   function esc(s) {
     return s
+      // Drop the two control chars mdInline uses as stash sentinels, so escaped
+      // source text can never contain or forge one (keeps the sentinel scheme sound).
+      .replace(/[\x01\x02]/g, "")
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
@@ -143,11 +146,15 @@
       return stash('<a href="' + u + '" target="_blank" rel="noopener">' + emph(t) + "</a>");
     });
     s = emph(s);
-    // Restore stashed HTML, looping so a sentinel nested inside a stashed label (a
-    // code span inside a link) is expanded too. Terminates in ≤2 passes: code holds
-    // no sentinels, a link holds only code sentinels which resolve on the next pass.
+    // Restore stashed HTML, re-running while a pass still changes the string so a
+    // sentinel nested inside a stashed label (a code span inside a link) is expanded
+    // too. Stopping on no-change bounds it — a stray control char that matches no
+    // sentinel just ends the loop instead of spinning (≤2 real passes regardless).
     var re = new RegExp(A + "(\\d+)" + B, "g");
-    while (s.indexOf(A) !== -1) s = s.replace(re, function (_, i) { return codes[+i]; });
+    for (var before = ""; before !== s; ) {
+      before = s;
+      s = s.replace(re, function (_, i) { return codes[+i]; });
+    }
     return s;
   }
   function renderMd(src) {
