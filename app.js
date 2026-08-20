@@ -367,9 +367,11 @@
   // The query string is the store for every filter that isn't a place, so the chip
   // row and the panel don't keep their own copies: they parse it, change a term,
   // and serialize it back. One representation, three ways to touch it.
+  // The store, not the input: writing the whole query into the search box would
+  // put the active filters inside a field the palette selects-all on open, where
+  // the next keystroke would wipe them.
   function setQueryTerms(terms) {
     state.query = serializeTerms(terms);
-    if (searchInput) { searchInput.value = state.query; updateSearchClear(); }
     renderBoard();
   }
   // `is:` holds one state per term (that's its grammar), so it toggles whole terms;
@@ -507,7 +509,6 @@
       rest.push(t);
     });
     state.query = serializeTerms(rest);
-    if (searchInput) { searchInput.value = state.query; updateSearchClear(); }
   }
 
   function el(tag, cls, text) {
@@ -2230,10 +2231,19 @@
   // where the sidebar is behind the menu) — both are plain buttons, not fake inputs.
   var cmdkOverlay = document.getElementById("cmdkOverlay");
   var cmdkTriggers = [document.getElementById("sideSearch"), document.getElementById("topSearch")];
+  // What the palette edits: the free text, on top of whatever predicates are
+  // already active. Those are captured when it opens and re-applied on every
+  // keystroke, so searching for a title can't quietly drop the filters behind it.
+  // Type `status:now` here and it still becomes a filter — it just replaces that
+  // field rather than everything.
+  var paletteBase = [];
   function openCmdk() {
     if (!cmdkOverlay) return;
     cmdkOverlay.hidden = false;
     document.body.classList.add("cmdk-open");
+    paletteBase = parseQuery(state.query).filter(function (t) { return t.field !== "text"; });
+    searchInput.value = queryText();
+    updateSearchClear();
     searchInput.focus();
     searchInput.select();
     updateSuggestions();
@@ -2247,8 +2257,8 @@
     // here is a *filter*, indistinguishable from one built in the panel, so it
     // stays and shows up as a chip. Text goes, predicates remain.
     if (searchInput.value) {
-      var keep = parseQuery(state.query).filter(function (t) { return t.field !== "text"; });
-      setQueryTerms(keep);
+      searchInput.value = "";
+      setQueryTerms(parseQuery(state.query).filter(function (t) { return t.field !== "text"; }));
       updateSearchClear();
     }
     hideSuggestions();
@@ -2398,8 +2408,12 @@
   function updateSearchClear() { searchClear.hidden = !searchInput.value; if (cmdkHint) cmdkHint.hidden = !!searchInput.value; }
 
   searchInput.addEventListener("input", function (e) {
-    state.query = e.target.value.trim();
-    renderBoard();
+    var typed = parseQuery(e.target.value.trim());
+    var typedFields = {};
+    typed.forEach(function (t) { if (t.field !== "text") typedFields[t.field + (t.neg ? "!" : "")] = 1; });
+    // Predicates you didn't touch survive; a field you typed replaces that field.
+    var kept = paletteBase.filter(function (t) { return !typedFields[t.field + (t.neg ? "!" : "")]; });
+    setQueryTerms(kept.concat(typed));
     updateSuggestions();
     updateSearchClear();
   });
@@ -2535,9 +2549,21 @@
   // active terms, so the numbers describe the click you're about to make.
   function countFor(field, value) {
     var base = activeTerms().filter(function (t) { return !sameField(t, field, false); });
-    var probe = base.concat([field === "is"
-      ? { field: "is", op: "is", values: [value], neg: false }
-      : { field: field, op: "in", values: [value], neg: false }]);
+    // Model the toggle, not the value: with `status:now` on, clicking Next gives
+    // `status:now,next` (an OR — a *bigger* set), and clicking Now removes the
+    // filter entirely. Counting the candidate alone would predict neither.
+    var current = filterValues(field, false);
+    var next = current.indexOf(value) === -1
+      ? current.concat([value])
+      : current.filter(function (v) { return v !== value; });
+    var probe = base.slice();
+    if (next.length) {
+      if (field === "is") {
+        next.forEach(function (v) { probe.push({ field: "is", op: "is", values: [v], neg: false }); });
+      } else {
+        probe.push({ field: field, op: "in", values: next, neg: false });
+      }
+    }
     var n = 0;
     DATA.items.forEach(function (it) { if (runQuery(it, probe)) n++; });
     return n;
