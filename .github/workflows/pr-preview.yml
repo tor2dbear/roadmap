@@ -79,17 +79,7 @@ jobs:
         run: node scripts/harvest.mjs
 
       - name: Validate the generated payload
-        run: |
-          node -e "
-          const d = require('./data/roadmap.json');
-          if (!Array.isArray(d.items) || !d.items.length) throw new Error('roadmap.json has no items');
-          // The harvester records per-source failures instead of throwing, so a PR that
-          // breaks a source (e.g. an unknown adapter) would still exit 0 and silently drop
-          // it. Fail the gate so the source markdown stays authoritative.
-          const bad = (d.sources || []).filter(s => s && s.error);
-          if (bad.length) throw new Error('source(s) failed to harvest: ' + bad.map(s => s.repo + ' — ' + s.error).join('; '));
-          console.log('✓ items:', d.items.length, '· sources ok:', (d.sources || []).length);
-          "
+        run: node scripts/assert-payload.mjs
 
       # Gate the credentialed preview: secrets exist only on same-repo PRs, and the job
       # runs PR-controlled package.json + wrangler. Restrict it to PRs authored by the

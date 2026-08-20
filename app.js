@@ -2136,7 +2136,12 @@
   // Optimistic: flip in-memory + re-render now, commit in the background, revert on failure.
   // Reopen the detail only if it's currently showing (so a status change from the
   // picker refreshes the open puck, but a drag-drop on the board doesn't pop it).
-  function reopenIfOpen(item) { if (document.body.classList.contains("viewing-puck")) openModal(item); }
+  // Re-render the detail only when THIS puck is the one currently open — not just
+  // "some puck is open" — so a late commit callback can't yank the user from a
+  // different puck they've since opened (and push a stray history entry).
+  function reopenIfOpen(item) {
+    if (document.body.classList.contains("viewing-puck") && currentDetailItem && currentDetailItem.id === item.id) openModal(item);
+  }
   function changeStatus(item, status) {
     if (status === item.status || !ghToken()) return;
     var prevS = item.status, prevU = item.updated;

@@ -18,6 +18,7 @@ const OUT = path.resolve(process.argv[2] || path.join(ROOT, "..", "etapp-export"
 // Verbatim: the generic engine, UI, docs, templates. Nothing here is personal.
 const COPY = [
   "scripts/harvest.mjs",
+  "scripts/assert-payload.mjs",
   "scripts/roadmap.mjs",
   "scripts/lib",
   "scripts/sources.schema.json",
