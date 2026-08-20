@@ -84,7 +84,9 @@
   // them, turning a `stale` flag into a live "N days" string for display.
   function daysSince(dateStr) {
     if (!dateStr) return null;
-    var t = Date.parse(dateStr + "T00:00:00Z");
+    // Use just the YYYY-MM-DD prefix (mirrors the harvester) so an `updated` with a
+    // time component still yields the live "N days" age instead of NaN.
+    var t = Date.parse(String(dateStr).slice(0, 10) + "T00:00:00Z");
     if (isNaN(t)) return null;
     return Math.floor((Date.now() - t) / 86400000);
   }
@@ -115,16 +117,45 @@
   // ── tiny, safe markdown (escape first, then a whitelist of inline + block bits) ──
   function esc(s) {
     return s
+      // Drop the two control chars mdInline uses as stash sentinels, so escaped
+      // source text can never contain or forge one (keeps the sentinel scheme sound).
+      .replace(/[\x01\x02]/g, "")
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
   }
   function mdInline(s) {
-    return s
-      .replace(/`([^`]+)`/g, "<code>$1</code>")
-      .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-      .replace(/(^|[^*])\*([^*]+)\*/g, "$1<em>$2</em>")
-      .replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    // Emphasis/link parsing that can't corrupt each other. Code spans AND links are
+    // stashed behind control-char sentinels (which can't occur in the already
+    // HTML-escaped text) before emphasis runs, so a `*` inside a URL or a `**x**`
+    // inside backticks is left literal. Emphasis IS applied to a link's label before
+    // the anchor is stashed (so `[**bold**](url)` renders), and the restore loops so
+    // a code span nested in a label is expanded too; the stashed HTML is restored last.
+    var codes = [];
+    var A = String.fromCharCode(1), B = String.fromCharCode(2);
+    var stash = function (html) { codes.push(html); return A + (codes.length - 1) + B; };
+    // Bold is non-greedy and allows inner single-`*` italics (**a *b* c**); italics
+    // then run on what's left (the `[^*]` guard avoids re-matching `**`).
+    var emph = function (x) {
+      return x
+        .replace(/\*\*([\s\S]+?)\*\*/g, "<strong>$1</strong>")
+        .replace(/(^|[^*])\*([^*\n]+?)\*/g, "$1<em>$2</em>");
+    };
+    s = s.replace(/`([^`]+)`/g, function (_, c) { return stash("<code>" + c + "</code>"); });
+    s = s.replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, function (_, t, u) {
+      return stash('<a href="' + u + '" target="_blank" rel="noopener">' + emph(t) + "</a>");
+    });
+    s = emph(s);
+    // Restore stashed HTML, re-running while a pass still changes the string so a
+    // sentinel nested inside a stashed label (a code span inside a link) is expanded
+    // too. Stopping on no-change bounds it — a stray control char that matches no
+    // sentinel just ends the loop instead of spinning (≤2 real passes regardless).
+    var re = new RegExp(A + "(\\d+)" + B, "g");
+    for (var before = ""; before !== s; ) {
+      before = s;
+      s = s.replace(re, function (_, i) { return codes[+i]; });
+    }
+    return s;
   }
   function renderMd(src) {
     var out = [];
@@ -430,6 +461,11 @@
   }
 
   // ── detail modal ──
+  // Stack of open custom panels (New / Settings / Token). Escape and ⌘K consult it
+  // so Escape closes the *panel* (not the puck behind it) and ⌘K doesn't open the
+  // palette underneath a panel. Each panel pushes its close() and pops on close.
+  var modalCloseStack = [];
+  function closeTopModal() { var fn = modalCloseStack[modalCloseStack.length - 1]; if (fn) { fn(); return true; } return false; }
   var modalBackdrop, modalContent, modalPanel;
   function buildModal() {
     modalBackdrop = el("div", "modal-backdrop");
@@ -516,9 +552,15 @@
     return wrap;
   }
 
-  // Pull a trailing issue number out of "42", "#42", or a full issue URL.
+  // Pull the issue number out of "42", "#42", or a full issue URL. Match the
+  // `/issues/N` segment first so a link with a #comment fragment or ?query
+  // (…/issues/42#issuecomment-99 or …/issues/42?x=1) doesn't grab the trailing
+  // digits of the fragment; fall back to a bare number and reject anything else.
   function parseIssue(s) {
-    var m = String(s).trim().match(/(\d+)\s*$/);
+    s = String(s).trim();
+    var m = s.match(/\/issues\/(\d+)/);
+    if (m) return parseInt(m[1], 10);
+    m = s.match(/^#?(\d+)$/);
     return m ? parseInt(m[1], 10) : null;
   }
   // The Issue property cell: a link (+ open/closed state) when set, "Link issue"
@@ -811,7 +853,7 @@
     if ((m = rest.match(/^add\s+/i)) || /^new\s+/i.test(rest)) {
       return { icon: "plus", text: "created this puck" };
     }
-    if ((m = rest.match(/(?:^|\s)(?:→|->)\s*(now|next|later|inbox|done)\s*$/i))) {
+    if ((m = rest.match(/(?:^|\s)(?:→|->)\s*(now|next|later|inbox|done|cancelled)\s*$/i))) {
       var st = m[1].toLowerCase();
       var badge = el("span", "status-pill status-" + st, STATUS_LABEL[st] || st);
       return { badge: badge, text: "moved to" };
@@ -1159,6 +1201,13 @@
     board.classList.toggle("as-list", layout === "list");
     var visible = DATA.items.filter(matches).sort(sortComparator());
     var statuses = columnsForFocus();
+    // Needs attention can hold any status, but only render the columns that actually
+    // have a flagged card — otherwise the board shows six mostly-empty "—" columns.
+    if (state.focus === "attention") {
+      var present = {};
+      visible.forEach(function (it) { present[it.status] = 1; });
+      statuses = statuses.filter(function (s) { return present[s]; });
+    }
 
     if (layout === "list") renderList(visible, statuses);
     else renderColumns(visible, statuses);
@@ -1658,19 +1707,28 @@
   document.addEventListener("keydown", function (e) {
     var k = e.key.toLowerCase();
 
-    // ⌘K / Ctrl-K toggles the palette from anywhere (even while typing).
-    if ((e.metaKey || e.ctrlKey) && k === "k") { e.preventDefault(); cmdkVisible() ? closeCmdk() : openCmdk(); return; }
+    // ⌘K / Ctrl-K toggles the palette — but never opens it *under* a panel or the
+    // help overlay (it sits below them and would steal focus invisibly).
+    if ((e.metaKey || e.ctrlKey) && k === "k") {
+      e.preventDefault();
+      if (cmdkVisible()) closeCmdk();
+      else if (!anyModalOpen() && !helpOpen()) openCmdk();
+      return;
+    }
 
-    // Escape unwinds exactly one layer: help → palette → (else) the puck detail,
-    // which the modal-backdrop's own Escape listener closes. Consume the event for
-    // the layers we handle so that later listener can't also fire and unwind two.
+    // Escape unwinds exactly one layer, topmost first: help → palette → property
+    // picker → custom panel → (bare puck) the modal-backdrop listener. Consume the
+    // event for the layers we handle so that later listener can't also fire.
     if (k === "escape") {
       if (helpOpen()) { closeShortcutHelp(); e.stopImmediatePropagation(); return; }
       if (cmdkVisible()) { closeCmdk(); e.stopImmediatePropagation(); return; }
-      // An open property picker (status/priority/agent/labels) is the top layer —
-      // dismiss it first instead of letting the backdrop listener close the puck.
       var openPick = document.querySelector(".pick-menu");
       if (openPick) { openPick.remove(); e.stopImmediatePropagation(); e.preventDefault(); return; }
+      // A New/Settings/Token panel owns the screen → close *it*, not the puck behind.
+      if (anyModalOpen()) { closeTopModal(); e.stopImmediatePropagation(); e.preventDefault(); return; }
+      // Editing a body: swallow Escape so it can't close the puck and lose the edit
+      // (Cancel/Save are the deliberate exits).
+      if (document.querySelector(".body-editor")) { e.stopImmediatePropagation(); e.preventDefault(); return; }
       return; // a bare puck: let the backdrop listener run closeModal()
     }
 
@@ -2057,7 +2115,7 @@
   // Format-preserving frontmatter edit — mirrors scripts/roadmap.mjs setField.
   function editFrontmatter(text, key, value) {
     var nl = text.indexOf("\r\n") >= 0 ? "\r\n" : "\n";
-    var lines = text.replace(/\r\n/g, "\n").split("\n");
+    var lines = text.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").split("\n");
     if (lines[0] !== "---") return null;
     var end = -1;
     for (var i = 1; i < lines.length; i++) { if (lines[i] === "---") { end = i; break; } }
@@ -2096,7 +2154,12 @@
   // Optimistic: flip in-memory + re-render now, commit in the background, revert on failure.
   // Reopen the detail only if it's currently showing (so a status change from the
   // picker refreshes the open puck, but a drag-drop on the board doesn't pop it).
-  function reopenIfOpen(item) { if (document.body.classList.contains("viewing-puck")) openModal(item); }
+  // Re-render the detail only when THIS puck is the one currently open — not just
+  // "some puck is open" — so a late commit callback can't yank the user from a
+  // different puck they've since opened (and push a stray history entry).
+  function reopenIfOpen(item) {
+    if (document.body.classList.contains("viewing-puck") && currentDetailItem && currentDetailItem.id === item.id) openModal(item);
+  }
   function changeStatus(item, status) {
     if (status === item.status || !ghToken()) return;
     var prevS = item.status, prevU = item.updated;
@@ -2117,7 +2180,7 @@
   // removeField. Used to clear priority (absence of the field = no priority).
   function removeFrontmatter(text, key) {
     var nl = text.indexOf("\r\n") >= 0 ? "\r\n" : "\n";
-    var lines = text.replace(/\r\n/g, "\n").split("\n");
+    var lines = text.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").split("\n");
     if (lines[0] !== "---") return null;
     var end = -1;
     for (var i = 1; i < lines.length; i++) { if (lines[i] === "---") { end = i; break; } }
@@ -2156,14 +2219,14 @@
     if (priority === (item.priority || null) || !ghToken()) return;
     var prevP = item.priority, prevU = item.updated;
     item.priority = priority; item.updated = today();
-    renderBoard(); openModal(item);
+    renderBoard(); reopenIfOpen(item);
     toast("Saving…");
     commitPriority(item, priority)
       .then(function () { toast("✓ Saved — live in ~1 min"); })
       .catch(function (err) {
         item.priority = prevP; item.updated = prevU;
         noteWriteError(item, err);
-        renderBoard(); openModal(item);
+        renderBoard(); reopenIfOpen(item);
         toast("✗ " + err.message, true);
       });
   }
@@ -2194,14 +2257,14 @@
     if (agent === (item.agent || null) || !ghToken()) return;
     var prevA = item.agent, prevU = item.updated;
     item.agent = agent; item.updated = today();
-    renderBoard(); buildAgentChips(); openModal(item);
+    renderBoard(); buildAgentChips(); reopenIfOpen(item);
     toast("Saving…");
     commitAgent(item, agent)
       .then(function () { toast(agent ? "✓ Routed to " + agent + " — live in ~1 min" : "✓ Unassigned — live in ~1 min"); })
       .catch(function (err) {
         noteWriteError(item, err);
         item.agent = prevA; item.updated = prevU;
-        renderBoard(); buildAgentChips(); openModal(item);
+        renderBoard(); buildAgentChips(); reopenIfOpen(item);
         toast("✗ " + err.message, true);
       });
   }
@@ -2254,14 +2317,14 @@
     if (!ghToken() || tags.join(",") === (item.tags || []).join(",")) return;
     var prev = item.tags, prevU = item.updated;
     item.tags = tags; item.updated = today();
-    renderBoard(); openModal(item);
+    renderBoard(); reopenIfOpen(item);
     toast("Saving…");
     commitTags(item, tags)
       .then(function () { toast("✓ Labels saved — live in ~1 min"); })
       .catch(function (err) {
         item.tags = prev; item.updated = prevU;
         noteWriteError(item, err);
-        renderBoard(); openModal(item);
+        renderBoard(); reopenIfOpen(item);
         toast("✗ " + err.message, true);
       });
   }
@@ -2272,14 +2335,14 @@
     item.issue = number;
     if (number == null) item.issueState = null; // unknown until reharvest
     item.updated = today();
-    renderBoard(); openModal(item);
+    renderBoard(); reopenIfOpen(item);
     toast("Saving…");
     commitIssue(item, number)
       .then(function () { toast(number ? "✓ Linked issue #" + number + " — live in ~1 min" : "✓ Unlinked — live in ~1 min"); })
       .catch(function (err) {
         item.issue = prevI; item.issueState = prevState; item.updated = prevU;
         noteWriteError(item, err);
-        renderBoard(); openModal(item);
+        renderBoard(); reopenIfOpen(item);
         toast("✗ " + err.message, true);
       });
   }
@@ -2319,7 +2382,7 @@
   // frontmatter byte-identical.
   function replaceBody(text, newBody) {
     var nl = text.indexOf("\r\n") >= 0 ? "\r\n" : "\n";
-    var lines = text.replace(/\r\n/g, "\n").split("\n");
+    var lines = text.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").split("\n");
     if (lines[0] !== "---") return null;
     var end = -1;
     for (var i = 1; i < lines.length; i++) { if (lines[i] === "---") { end = i; break; } }
@@ -2327,6 +2390,15 @@
     var fm = lines.slice(0, end + 1);
     var b = newBody.replace(/\r\n/g, "\n").replace(/\s+$/, "").split("\n");
     return fm.concat([""], b, [""]).join(nl);
+  }
+  // The body portion (everything after the frontmatter) of a raw markdown file.
+  function bodyOf(text) {
+    var lines = text.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").split("\n");
+    if (lines[0] !== "---") return text.trim();
+    var end = -1;
+    for (var i = 1; i < lines.length; i++) { if (lines[i] === "---") { end = i; break; } }
+    if (end < 0) return "";
+    return lines.slice(end + 1).join("\n").trim();
   }
 
   // Delete a puck: remove its markdown file from the source repo (read sha →
@@ -2364,54 +2436,83 @@
       .catch(function (err) { noteWriteError(item, err); toast("✗ " + (err && err.message || "delete failed"), true); });
   }
 
-  // Commit an edited body via the Contents API (read sha → PUT), bumping updated.
-  function commitBody(item, newBody) {
+  // GET the live source file so the editor is seeded from — and committed against —
+  // the *current* content, not the frozen harvest snapshot. Returns { text, sha }.
+  function fetchSource(item) {
     var token = ghToken();
     var api = "https://api.github.com/repos/" + item.repo + "/contents/" + item.sourcePath.split("/").map(encodeURIComponent).join("/");
     var branch = branchOf(item);
-    var headers = { Authorization: "Bearer " + token, Accept: "application/vnd.github+json" };
-    return fetch(api + "?ref=" + encodeURIComponent(branch), { headers: headers })
+    return fetch(api + "?ref=" + encodeURIComponent(branch), { headers: { Authorization: "Bearer " + token, Accept: "application/vnd.github+json" } })
       .then(function (r) { assertOk(r, item); return r.json(); })
-      .then(function (info) {
-        var out = replaceBody(b64decode(info.content), newBody);
-        if (out == null) throw new Error("no frontmatter");
-        out = editFrontmatter(out, "updated", today());
-        return fetch(api, {
-          method: "PUT",
-          headers: { Authorization: "Bearer " + token, Accept: "application/vnd.github+json", "Content-Type": "application/json" },
-          body: JSON.stringify({ message: "roadmap: " + item.slug + " edit body", content: b64encode(out), sha: info.sha, branch: branch }),
-        });
-      })
-      .then(function (r) { assertOk(r, item); });
+      .then(function (info) { return { text: b64decode(info.content), sha: info.sha }; });
+  }
+  // Commit an edited body, preserving the frontmatter of the file we read at
+  // edit-start and PUTting with THAT sha — real optimistic concurrency, so a
+  // change made elsewhere since editing began 409s instead of being clobbered.
+  function commitBody(item, newBody, base) {
+    var token = ghToken();
+    var api = "https://api.github.com/repos/" + item.repo + "/contents/" + item.sourcePath.split("/").map(encodeURIComponent).join("/");
+    var branch = branchOf(item);
+    var out = replaceBody(base.text, newBody);
+    if (out == null) return Promise.reject(new Error("no frontmatter"));
+    out = editFrontmatter(out, "updated", today());
+    return fetch(api, {
+      method: "PUT",
+      headers: { Authorization: "Bearer " + token, Accept: "application/vnd.github+json", "Content-Type": "application/json" },
+      body: JSON.stringify({ message: "roadmap: " + item.slug + " edit body", content: b64encode(out), sha: base.sha, branch: branch }),
+    }).then(function (r) { assertOk(r, item); });
   }
 
-  // Swap the rendered body for a textarea; Save commits, Cancel restores.
+  // Swap the rendered body for a textarea; Save commits, Cancel restores. The
+  // editor is seeded from a fresh GET of the source (not the frozen snapshot) and
+  // commits against that read's sha, so a change made elsewhere while you edit
+  // 409s and is surfaced instead of silently overwriting the other edit.
   function startBodyEdit(item, bodyEl, editBtn) {
-    editBtn.style.display = "none";
-    var ta = document.createElement("textarea");
-    ta.className = "body-editor";
-    ta.value = item.body || "";
-    var actions = el("div", "body-edit-actions");
-    var save = el("button", "tbtn primary", "Save");
-    var cancel = el("button", "tbtn", "Cancel");
-    save.type = "button"; cancel.type = "button";
-    actions.appendChild(save); actions.appendChild(cancel);
-    bodyEl.innerHTML = ""; bodyEl.appendChild(ta); bodyEl.appendChild(actions);
-    // Auto-grow so the whole body is visible without an inner scrollbar (nicer on mobile).
-    function autoGrow() { ta.style.height = "auto"; ta.style.height = Math.max(200, ta.scrollHeight + 2) + "px"; }
-    ta.addEventListener("input", autoGrow);
-    ta.focus();
-    setTimeout(autoGrow, 0);
-    function restore(md) { bodyEl.innerHTML = renderMd(md || "(no details)"); editBtn.style.display = ""; }
-    cancel.addEventListener("click", function () { restore(item.body); });
-    save.addEventListener("click", function () {
-      var newBody = ta.value, prev = item.body;
-      item.body = newBody; item.updated = today();
-      restore(newBody);
-      toast("Saving…");
-      commitBody(item, newBody)
-        .then(function () { toast("✓ Saved — live in ~1 min"); })
-        .catch(function (err) { item.body = prev; noteWriteError(item, err); openModal(item); toast("✗ " + err.message, true); });
+    editBtn.disabled = true;
+    var wasLabel = editBtn.textContent;
+    editBtn.textContent = "Loading…";
+    fetchSource(item).then(function (base) {
+      editBtn.disabled = false; editBtn.textContent = wasLabel; editBtn.style.display = "none";
+      var ta = document.createElement("textarea");
+      ta.className = "body-editor";
+      ta.value = bodyOf(base.text); // the *live* body, not item.body (a harvest snapshot)
+      var actions = el("div", "body-edit-actions");
+      var save = el("button", "tbtn primary", "Save");
+      var cancel = el("button", "tbtn", "Cancel");
+      save.type = "button"; cancel.type = "button";
+      actions.appendChild(save); actions.appendChild(cancel);
+      bodyEl.innerHTML = ""; bodyEl.appendChild(ta); bodyEl.appendChild(actions);
+      // Auto-grow so the whole body is visible without an inner scrollbar (nicer on mobile).
+      function autoGrow() { ta.style.height = "auto"; ta.style.height = Math.max(200, ta.scrollHeight + 2) + "px"; }
+      ta.addEventListener("input", autoGrow);
+      ta.focus();
+      setTimeout(autoGrow, 0);
+      function restore(md) { bodyEl.innerHTML = renderMd(md || "(no details)"); editBtn.style.display = ""; }
+      cancel.addEventListener("click", function () { restore(item.body); });
+      save.addEventListener("click", function () {
+        var newBody = ta.value;
+        save.disabled = true; cancel.disabled = true;
+        toast("Saving…");
+        commitBody(item, newBody, base)
+          .then(function () {
+            item.body = newBody; item.updated = today();
+            restore(newBody);
+            toast("✓ Saved — live in ~1 min");
+          })
+          .catch(function (err) {
+            save.disabled = false; cancel.disabled = false; // keep the editor + text
+            if (err && /409/.test(err.message)) {
+              toast("✗ This puck changed elsewhere since you opened the editor. Copy your text, reload, and re-edit.", true);
+            } else {
+              noteWriteError(item, err);
+              toast("✗ " + err.message, true);
+            }
+          });
+      });
+    }).catch(function (err) {
+      editBtn.disabled = false; editBtn.textContent = wasLabel;
+      noteWriteError(item, err);
+      toast("✗ Couldn’t load the current body: " + (err && err.message || "network error"), true);
     });
   }
 
@@ -2449,9 +2550,16 @@
     if (context) body = context + "\n\n" + body; // a lead paragraph above the skeleton
     return body;
   }
+  // Quote a title YAML would mis-read (a `:`/`#`, a leading indicator char, or edge
+  // whitespace). JSON.stringify + the harvester's JSON-decode round-trip escapes, so
+  // a bare "[WIP]" no longer comes back as an array. Mirrors the CLI's formatValue.
+  function yamlTitle(title) {
+    var s = String(title);
+    return (/[:#]/.test(s) || /^[\s[\]{}>|*&!%@`"'?,-]/.test(s) || /\s$/.test(s) || s === "")
+      ? JSON.stringify(s) : s;
+  }
   function puckTemplate(title, status, tags, agent, context) {
-    var t = /[:#]/.test(title) ? JSON.stringify(title) : title;
-    var lines = ["---", "title: " + t, "status: " + status];
+    var lines = ["---", "title: " + yamlTitle(title), "status: " + status];
     if (tags.length) lines.push("tags: [" + tags.join(", ") + "]");
     if (agent) lines.push("agent: " + agent);
     lines.push("updated: " + today(), "created: " + today(), "---", "");
@@ -2683,7 +2791,7 @@
     var actions = el("div", "token-actions");
     var create = el("button", "tbtn primary", "Create");
     var cancel = el("button", "tbtn", "Cancel");
-    function close() { if (back.parentNode) document.body.removeChild(back); document.body.classList.remove("modal-open"); }
+    function close() { if (back.parentNode) document.body.removeChild(back); document.body.classList.remove("modal-open"); var mi = modalCloseStack.indexOf(close); if (mi >= 0) modalCloseStack.splice(mi, 1); }
     create.addEventListener("click", function () {
       var t = title.value.trim();
       if (!t) { title.focus(); return; }
@@ -2697,6 +2805,7 @@
     back.addEventListener("click", function (e) { if (e.target === back) close(); });
     document.body.appendChild(back);
     document.body.classList.add("modal-open");
+    modalCloseStack.push(close);
     updatePreview();
     title.focus();
   }
@@ -2719,7 +2828,7 @@
     var save = el("button", "tbtn primary", "Save");
     var clear = el("button", "tbtn", "Clear");
     var cancel = el("button", "tbtn", "Cancel");
-    function close() { if (back.parentNode) document.body.removeChild(back); document.body.classList.remove("modal-open"); }
+    function close() { if (back.parentNode) document.body.removeChild(back); document.body.classList.remove("modal-open"); var mi = modalCloseStack.indexOf(close); if (mi >= 0) modalCloseStack.splice(mi, 1); }
     save.addEventListener("click", function () {
       var v = inp.value.trim(); setGhToken(v); if (after) after(); close();
       toast(v ? "Token saved — open a puck to edit" : "Token cleared");
@@ -2732,6 +2841,7 @@
     back.addEventListener("click", function (e) { if (e.target === back) close(); });
     document.body.appendChild(back);
     document.body.classList.add("modal-open");
+    modalCloseStack.push(close);
     inp.focus();
   }
 
@@ -2829,7 +2939,7 @@
     var actions = el("div", "token-actions");
     var save = el("button", "tbtn primary", "Save");
     var cancel = el("button", "tbtn", "Close");
-    function close() { if (back.parentNode) document.body.removeChild(back); document.body.classList.remove("modal-open"); }
+    function close() { if (back.parentNode) document.body.removeChild(back); document.body.classList.remove("modal-open"); var mi = modalCloseStack.indexOf(close); if (mi >= 0) modalCloseStack.splice(mi, 1); }
     save.disabled = !canGit;
     save.addEventListener("click", function () {
       if (!canGit) { close(); return; }
@@ -2855,6 +2965,7 @@
     back.addEventListener("click", function (e) { if (e.target === back) close(); });
     document.body.appendChild(back);
     document.body.classList.add("modal-open");
+    modalCloseStack.push(close);
   }
 
   buildEditControls();

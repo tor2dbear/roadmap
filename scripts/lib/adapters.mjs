@@ -24,6 +24,25 @@ function normalizePriority(raw) {
   return VALID_PRIORITY.has(v) ? v : null;
 }
 
+// A finite number or null — never NaN (which JSON-serializes to null anyway, but
+// also poisons the sort comparator and triggers wasted `issues/NaN` fetches).
+function parseNumOrNull(raw) {
+  if (raw == null || raw === "") return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+// Issue links: a full URL's `/issues/N` wins (so a digit elsewhere in the host/path
+// — e.g. "tor2dbear" — isn't grabbed), otherwise a bare/anchored `#?N`. Mirrors the
+// browser-side parseIssue. Junk → null (a dropped link, not a wrong one).
+function parseIssueNum(raw) {
+  if (raw == null || raw === "") return null;
+  const s = String(raw).trim();
+  let m = s.match(/\/issues\/(\d+)/);
+  if (m) return Number(m[1]);
+  m = s.match(/^#?(\d+)$/);
+  return m ? Number(m[1]) : null;
+}
+
 export function slugify(s) {
   return s
     .normalize("NFKD")
@@ -88,8 +107,8 @@ async function pucksAdapter(repo, branch, source) {
       tags: Array.isArray(data.tags) ? data.tags : data.tags ? [String(data.tags)] : [],
       updated: data.updated ? String(data.updated) : "",
       created: created || null,
-      issue: data.issue != null && data.issue !== "" ? Number(data.issue) : null,
-      order: data.order != null && data.order !== "" ? Number(data.order) : null,
+      issue: parseIssueNum(data.issue),
+      order: parseNumOrNull(data.order),
       // Same-repo slugs this puck is blocked by; the harvester resolves them.
       depends: Array.isArray(data.depends)
         ? data.depends.map(String)
@@ -197,6 +216,7 @@ async function checklistAdapter(repo, branch, source) {
     if (/^\*?\(/.test(raw.trim())) continue;
 
     const { title, body } = titleAndBody(raw);
+    if (!title.trim()) continue; // a bare "- [x]" / blank bullet isn't an item
     // Tag items nested under an h3 only when the heading slugs to something short
     // and clean — a whole sentence ("Candidates that add a backend…") is dropped
     // rather than turned into a monster tag.

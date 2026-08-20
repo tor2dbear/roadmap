@@ -77,6 +77,12 @@ jobs:
           ROADMAP_LOCAL_ROOT: ${{ runner.temp }}/sources
         run: node scripts/harvest.mjs
 
+      # Don't publish a board with a source silently dropped: fail if any source
+      # errored (e.g. its roadmap path disappeared). Same gate as the PR preview —
+      # the last good deployment stays live and the failed run is the signal.
+      - name: Validate the generated payload
+        run: node scripts/assert-payload.mjs
+
       # Gate the deploy on credentials so a fresh clone / the etapp template (which
       # ships this same workflow but no Cloudflare secrets) harvests green and just
       # skips deploy, instead of failing every run.

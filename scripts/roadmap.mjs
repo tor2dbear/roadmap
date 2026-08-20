@@ -52,6 +52,10 @@ function parseArgs(args) {
 }
 
 const { opts, pos } = parseArgs(argv);
+// `--dir` with no value parses to `true`. Reject it explicitly rather than falling
+// back to `roadmap/` — a mutating command (`roadmap done slug --dir`) must not
+// silently write to a same-named puck in the default directory.
+if (opts.dir === true) fail("--dir needs a path, e.g. --dir roadmap");
 const DIR = path.resolve(opts.dir || "roadmap");
 const cmd = pos.shift();
 
@@ -70,31 +74,40 @@ function formatValue(key, value) {
     return `[${arr.join(", ")}]`;
   }
   const s = String(value);
-  if (key === "title" && /[:#]/.test(s)) return JSON.stringify(s);
+  // Quote a title that YAML would otherwise mis-read: a `:`/`#`, a leading YAML
+  // indicator char (`[ { > | * & ! % @ ` " ' ? , -` …), or edge whitespace. We
+  // quote with JSON.stringify and the frontmatter parser JSON-decodes, so escapes
+  // round-trip cleanly (a bare `[WIP]` no longer parses back as an array).
+  if (key === "title" && (/[:#]/.test(s) || /^[\s\[\]{}>|*&!%@`"'?,-]/.test(s) || /\s$/.test(s) || s === "")) {
+    return JSON.stringify(s);
+  }
   return s;
 }
 
 function setField(text, key, value) {
   const nl = text.includes("\r\n") ? "\r\n" : "\n";
-  const lines = text.replace(/\r\n/g, "\n").split("\n");
+  const lines = text.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").split("\n");
   const range = frontmatterRange(lines);
   if (!range) fail("no YAML frontmatter found — is this a puck?");
   const [start, end] = range;
   const line = `${key}: ${formatValue(key, value)}`;
   let replaced = false;
   for (let i = start; i < end; i++) {
-    if (new RegExp(`^${key}:`).test(lines[i])) { lines[i] = line; replaced = true; break; }
+    // Tolerate a leading-whitespace key (a hand-edited ` status:`) so we *replace*
+    // it instead of appending a duplicate key — a duplicate splits the CLI (reads
+    // the first) from the harvester (reads the last) permanently.
+    if (new RegExp(`^\\s*${key}:`).test(lines[i])) { lines[i] = line; replaced = true; break; }
   }
   if (!replaced) lines.splice(end, 0, line); // insert before closing fence
   return lines.join(nl);
 }
 
 function getField(text, key) {
-  const lines = text.replace(/\r\n/g, "\n").split("\n");
+  const lines = text.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").split("\n");
   const range = frontmatterRange(lines);
   if (!range) return null;
   for (let i = range[0]; i < range[1]; i++) {
-    const m = new RegExp(`^${key}:\\s*(.*)$`).exec(lines[i]);
+    const m = new RegExp(`^\\s*${key}:\\s*(.*)$`).exec(lines[i]);
     if (m) return m[1].trim();
   }
   return null;
@@ -104,17 +117,18 @@ function getField(text, key) {
 // byte-identical, same as setField.
 function removeField(text, key) {
   const nl = text.includes("\r\n") ? "\r\n" : "\n";
-  const lines = text.replace(/\r\n/g, "\n").split("\n");
+  const lines = text.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").split("\n");
   const range = frontmatterRange(lines);
   if (!range) fail("no YAML frontmatter found — is this a puck?");
   for (let i = range[0]; i < range[1]; i++) {
-    if (new RegExp(`^${key}:`).test(lines[i])) { lines.splice(i, 1); break; }
+    if (new RegExp(`^\\s*${key}:`).test(lines[i])) { lines.splice(i, 1); break; }
   }
   return lines.join(nl);
 }
 
 // ── locate a puck file by slug: roadmap/<slug>.md | roadmap/<slug>/README.md ──
 function puckPath(slug) {
+  if (!slug) return null; // guard: path.join(DIR, undefined, …) would throw
   const flat = path.join(DIR, `${slug}.md`);
   if (existsSync(flat)) return flat;
   const folder = path.join(DIR, slug, "README.md");
@@ -125,7 +139,7 @@ function puckPath(slug) {
 async function readPuckOrFail(slug) {
   const p = puckPath(slug);
   if (!p) fail(`no puck "${slug}" under ${path.relative(process.cwd(), DIR) || "roadmap"}/`);
-  return { path: p, text: await readFile(p, "utf8") };
+  return { path: p, text: (await readFile(p, "utf8")).replace(/^\uFEFF/, "") };
 }
 
 // ── commands ──
@@ -142,7 +156,7 @@ async function cmdNew() {
 
   const fm = [
     "---",
-    `title: ${/[:#]/.test(title) ? JSON.stringify(title) : title}`,
+    `title: ${formatValue("title", title)}`,
     `status: ${status}`,
     ...(tags.length ? [`tags: [${tags.join(", ")}]`] : []),
     `updated: ${TODAY}`,
@@ -167,6 +181,7 @@ async function cmdNew() {
 }
 
 async function setStatus(slug, status) {
+  if (!slug) fail(`usage: roadmap ${status} <slug>`);
   if (!STATUSES.includes(status)) fail(`status must be one of: ${STATUSES.join(", ")}`);
   const { path: p, text } = await readPuckOrFail(slug);
   let out = setField(text, "status", status);
@@ -197,8 +212,12 @@ async function cmdIssue() {
   const slug = pos.shift();
   const num = pos.shift();
   if (!slug || !num) fail("usage: roadmap issue <slug> <number>");
+  // Reject non-numeric input — Number("abc") is NaN, and writing `issue: NaN`
+  // corrupts the source file (invalid YAML/JSON, silently dropped at harvest).
+  const m = String(num).match(/^#?(\d+)$/);
+  if (!m) fail(`issue must be a number (got "${num}")`);
   const { path: p, text } = await readPuckOrFail(slug);
-  let out = setField(text, "issue", Number(num));
+  let out = setField(text, "issue", Number(m[1]));
   out = setField(out, "updated", TODAY);
   await writeFile(p, out);
   console.log(`✓ ${slug} issue #${num}  (updated ${TODAY})`);
@@ -333,12 +352,17 @@ const HOOK_MARKER = "# roadmap-auto-updated";
 const HOOK_BODY = `#!/bin/sh
 ${HOOK_MARKER} — bump \`updated:\` on any staged roadmap puck that changed.
 today=$(date +%F)
+# The three UTF-8 BOM bytes (EF BB BF), built portably so awk can strip a BOM'd
+# first line before the fence match — else a Windows-edited puck's opening \`---\`
+# wouldn't match and 'updated:' would never bump (matching the CLI/browser writers).
+bom=$(printf '\\357\\273\\277')
 files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '(^|/)roadmap/.*\\.md$' || true)
 [ -z "$files" ] && exit 0
 for f in $files; do
   [ -f "$f" ] || continue
-  awk -v d="$today" '
-    /^---[ \\t]*$/ { fm++; print; next }
+  awk -v d="$today" -v bom="$bom" '
+    NR==1 { sub("^" bom, "") }
+    /^---[ \\t\\r]*$/ { fm++; print; next }
     fm==1 && !done && /^updated:/ { sub(/^updated:.*/, "updated: " d); done=1 }
     { print }
   ' "$f" > "$f.rmtmp" && mv "$f.rmtmp" "$f"
