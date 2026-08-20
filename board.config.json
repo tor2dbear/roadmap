@@ -1,5 +1,11 @@
 {
   "title": "Roadmap",
   "description": "An aggregated roadmap across repos — truth in git, one board.",
-  "repoUrl": "https://github.com/tor2dbear/roadmap"
+  "repoUrl": "https://github.com/tor2dbear/roadmap",
+  "views": [
+    {
+      "name": "Testvy",
+      "empty": "0"
+    }
+  ]
 }
