@@ -139,7 +139,7 @@ function puckPath(slug) {
 async function readPuckOrFail(slug) {
   const p = puckPath(slug);
   if (!p) fail(`no puck "${slug}" under ${path.relative(process.cwd(), DIR) || "roadmap"}/`);
-  return { path: p, text: await readFile(p, "utf8") };
+  return { path: p, text: (await readFile(p, "utf8")).replace(/^\uFEFF/, "") };
 }
 
 // ── commands ──

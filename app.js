@@ -2097,7 +2097,7 @@
   // Format-preserving frontmatter edit — mirrors scripts/roadmap.mjs setField.
   function editFrontmatter(text, key, value) {
     var nl = text.indexOf("\r\n") >= 0 ? "\r\n" : "\n";
-    var lines = text.replace(/\r\n/g, "\n").split("\n");
+    var lines = text.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").split("\n");
     if (lines[0] !== "---") return null;
     var end = -1;
     for (var i = 1; i < lines.length; i++) { if (lines[i] === "---") { end = i; break; } }
@@ -2162,7 +2162,7 @@
   // removeField. Used to clear priority (absence of the field = no priority).
   function removeFrontmatter(text, key) {
     var nl = text.indexOf("\r\n") >= 0 ? "\r\n" : "\n";
-    var lines = text.replace(/\r\n/g, "\n").split("\n");
+    var lines = text.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").split("\n");
     if (lines[0] !== "---") return null;
     var end = -1;
     for (var i = 1; i < lines.length; i++) { if (lines[i] === "---") { end = i; break; } }
@@ -2364,7 +2364,7 @@
   // frontmatter byte-identical.
   function replaceBody(text, newBody) {
     var nl = text.indexOf("\r\n") >= 0 ? "\r\n" : "\n";
-    var lines = text.replace(/\r\n/g, "\n").split("\n");
+    var lines = text.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").split("\n");
     if (lines[0] !== "---") return null;
     var end = -1;
     for (var i = 1; i < lines.length; i++) { if (lines[i] === "---") { end = i; break; } }
@@ -2375,7 +2375,7 @@
   }
   // The body portion (everything after the frontmatter) of a raw markdown file.
   function bodyOf(text) {
-    var lines = text.replace(/\r\n/g, "\n").split("\n");
+    var lines = text.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").split("\n");
     if (lines[0] !== "---") return text.trim();
     var end = -1;
     for (var i = 1; i < lines.length; i++) { if (lines[i] === "---") { end = i; break; } }
