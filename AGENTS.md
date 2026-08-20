@@ -38,6 +38,44 @@ console.log(d.items.filter(i=>['now','next'].includes(i.status) && !(i.blockedBy
 
 **"What needs attention?"** — items where `signals.length > 0`.
 
+## Query grammar
+
+The board reads the same query language, so you can answer with a **link** instead
+of a list: `<board-url>/?q=<query>`. Terms are ANDed; values inside one term are
+ORed; `-` negates.
+
+```
+status:now,next        field match — a value list means "or"
+-status:done           negation
+repo:pia-terminal      short name, owner/name or display name all work
+tag:ui  label:ui       tags (aliases: label, labels, tags)
+agent:backend          discipline routing (alias: discipline)
+owner:tor2dbear        the owner field
+priority:high          urgent | high | medium | low
+issue:42               the linked issue number
+updated:>=2026-08-01   dates take >= <= > < (created likewise)
+"grep context"         free text over title, body, tags and repo name
+```
+
+`is:` is the namespace for states that are **derived**, not stored — giving each a
+field of its own would invent a second truth:
+
+| Term | True when |
+|---|---|
+| `is:ready` | `status` is `now`/`next` **and** `blockedBy` is empty |
+| `is:blocked` | `blockedBy` is non-empty |
+| `is:flagged` | the puck has any drift signal |
+| `is:stale` | its signals include `stale` |
+| `is:adapted` | the source isn't native pucks |
+| `is:done` | `done` **or** `cancelled` (the archive) |
+
+The board's own views are just queries — `Ready` is `is:ready`, `Needs attention`
+is `is:flagged` — so anything a view shows, a query can name.
+
+URL parameters: `?q=` is the filter, `?view=` names a view (`all`/`ready`/`inbox`/
+`attention`), `?done=1` shows the archive, and `#<repo>/<slug>` opens one puck.
+They compose: `?q=agent:backend+repo:pia-terminal&view=ready`.
+
 ## Writing
 
 Do it **in the source repo**, via the CLI (it bumps `updated` for you) — never in

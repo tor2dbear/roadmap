@@ -192,34 +192,233 @@
     return out.join("\n");
   }
 
-  function matches(item) {
-    // Views: Ready = unblocked now/next; Inbox = triage (its own space); Attention
-    // = flagged (drift); All = the committed board (now/next/later/done), no inbox.
-    if (state.focus === "ready") {
-      if (item.status !== "now" && item.status !== "next") return false;
-      if ((item.blockedBy || []).length) return false;
-    } else if (state.focus === "inbox") {
-      if (item.status !== "inbox") return false; // dedicated triage surface
-    } else if (state.focus === "attention") {
-      if (!isFlagged(item)) return false; // flagged done surfaces even if "show done" is off
+  // ── query model ──────────────────────────────────────────────────────────────
+  // What's on screen is one list of predicates. The search box, the sidebar places,
+  // the filter popover and the URL are four *faces* of that list — never four
+  // sources: the controls hold the state, this projects it, and one evaluator runs
+  // it. A term is { field, op, values, neg }: AND between terms, OR within a term's
+  // values (`status:now,next` = now or next). Grammar is GitHub-shaped so nobody has
+  // to learn it, and it is the same string an agent or a saved view writes.
+  function lower(s) { return String(s).toLowerCase(); }
+  function shortRepo(r) { return String(r).split("/").pop(); }
+
+  // Fields are what a puck actually carries. `dateOf` marks the ones that compare
+  // with >=/<=/>/< instead of matching a value.
+  var FIELDS = {
+    status: { vals: function (i) { return [i.status]; } },
+    priority: { vals: function (i) { return i.priority ? [i.priority] : []; } },
+    agent: { vals: function (i) { return i.agent ? [i.agent] : []; } },
+    owner: { vals: function (i) { return i.owner ? [i.owner] : []; } },
+    tag: { vals: function (i) { return i.tags || []; } },
+    repo: { vals: function (i) { return [i.repo, shortRepo(i.repo), i.repoName]; } },
+    issue: { vals: function (i) { return i.issue == null ? [] : [String(i.issue)]; } },
+    updated: { dateOf: function (i) { return i.updated; } },
+    created: { dateOf: function (i) { return i.created; } },
+  };
+  var FIELD_ALIAS = { label: "tag", labels: "tag", tags: "tag", repos: "repo", prio: "priority", discipline: "agent" };
+
+  // `is:` is the namespace for states that aren't fields — they're derived from the
+  // data (by the harvester or here), so giving each its own field would invent a
+  // second truth. Negate with `-is:blocked`.
+  var IS_STATES = {
+    ready: function (i) { return (i.status === "now" || i.status === "next") && !(i.blockedBy || []).length; },
+    blocked: function (i) { return !!(i.blockedBy || []).length; },
+    flagged: function (i) { return isFlagged(i); },
+    stale: function (i) { return (i.signals || []).some(function (s) { return s.type === "stale"; }); },
+    adapted: function (i) { return !i.native; },
+    done: function (i) { return !!TERMINAL[i.status]; }, // done *or* cancelled — the archive
+  };
+
+  // Split on whitespace, but keep "quoted phrases" whole so free text can contain spaces.
+  function tokenize(str) {
+    var out = [], cur = "", quote = null;
+    for (var i = 0; i < str.length; i++) {
+      var c = str.charAt(i);
+      if (quote) { if (c === quote) quote = null; else cur += c; continue; }
+      if (c === '"' || c === "'") { quote = c; continue; }
+      if (/\s/.test(c)) { if (cur) { out.push(cur); cur = ""; } continue; }
+      cur += c;
+    }
+    if (cur) out.push(cur);
+    return out;
+  }
+
+  // Anything that isn't a known field or `is:` state stays free text, so a typo
+  // narrows the search instead of silently disappearing.
+  function parseQuery(str) {
+    var terms = [];
+    tokenize(String(str || "")).forEach(function (tok) {
+      var neg = false;
+      if (tok.charAt(0) === "-" && tok.length > 1) { neg = true; tok = tok.slice(1); }
+      var c = tok.indexOf(":");
+      if (c > 0) {
+        var name = lower(tok.slice(0, c));
+        var rest = tok.slice(c + 1);
+        name = FIELD_ALIAS[name] || name;
+        if (name === "is" && IS_STATES[lower(rest)]) {
+          terms.push({ field: "is", op: "is", values: [lower(rest)], neg: neg });
+          return;
+        }
+        if (FIELDS[name] && rest) {
+          if (FIELDS[name].dateOf) {
+            var m = /^(>=|<=|>|<|=)?(.+)$/.exec(rest);
+            terms.push({ field: name, op: m[1] || "=", values: [m[2]], neg: neg });
+          } else {
+            terms.push({ field: name, op: "in", values: rest.split(",").map(lower).filter(Boolean), neg: neg });
+          }
+          return;
+        }
+      }
+      terms.push({ field: "text", op: "has", values: [lower(tok)], neg: neg });
+    });
+    return terms;
+  }
+
+  function quoted(v) { return /\s/.test(v) ? '"' + v + '"' : v; }
+  function serializeTerms(terms) {
+    return terms.map(function (t) {
+      var p = t.neg ? "-" : "";
+      if (t.field === "text") return p + quoted(t.values[0]);
+      if (t.field === "is") return p + "is:" + t.values[0];
+      if (t.op !== "in" && t.op !== "=") return p + t.field + ":" + t.op + t.values[0];
+      return p + t.field + ":" + t.values.map(quoted).join(",");
+    }).join(" ");
+  }
+
+  // ISO dates compare as strings, so no parsing is needed.
+  function cmpDate(a, op, b) {
+    if (!a) return false; // no value → never matches a date question
+    if (op === ">") return a > b;
+    if (op === "<") return a < b;
+    if (op === ">=") return a >= b;
+    if (op === "<=") return a <= b;
+    return a === b;
+  }
+
+  function termMatches(item, t) {
+    var hit;
+    if (t.field === "text") {
+      var hay = lower(item.title + " " + item.body + " " + (item.tags || []).join(" ") + " " + item.repoName);
+      hit = hay.indexOf(t.values[0]) !== -1;
+    } else if (t.field === "is") {
+      hit = !!IS_STATES[t.values[0]](item);
     } else {
-      // "all" = the board of committed work; inbox lives in its own view.
-      if (item.status === "inbox") return false;
-      if (!state.showDone && TERMINAL[item.status]) return false;
+      var f = FIELDS[t.field];
+      if (f.dateOf) hit = cmpDate(f.dateOf(item), t.op, t.values[0]);
+      else {
+        var vals = f.vals(item).filter(Boolean).map(lower);
+        hit = t.values.some(function (v) { return vals.indexOf(v) !== -1; });
+      }
     }
-    if (state.priorityFilter && item.priority !== state.priorityFilter) return false;
-    if (state.agents.size && !state.agents.has(item.agent)) return false;
-    if (state.repos.size && !state.repos.has(item.repo)) return false;
-    if (state.tags.size) {
-      var hit = item.tags.some(function (t) { return state.tags.has(t); });
-      if (!hit) return false;
-    }
-    if (state.query) {
-      var q = state.query.toLowerCase();
-      var hay = (item.title + " " + item.body + " " + item.tags.join(" ") + " " + item.repoName).toLowerCase();
-      if (hay.indexOf(q) === -1) return false;
-    }
+    return t.neg ? !hit : hit;
+  }
+  function runQuery(item, terms) {
+    for (var i = 0; i < terms.length; i++) if (!termMatches(item, terms[i])) return false;
     return true;
+  }
+
+  // The sidebar views are queries, not special cases in the filter — the same
+  // strings a saved view or an agent would write. ("all" = the committed board;
+  // inbox has its own space, and the archive is added below unless it's shown.)
+  var VIEWS = { all: "-status:inbox", ready: "is:ready", inbox: "status:inbox", attention: "is:flagged" };
+  var NOT_DONE = { field: "is", op: "is", values: ["done"], neg: true };
+
+  // Places and the filter popover, projected into terms. A place is just a filter
+  // the navigation happens to have set to exactly one value.
+  function controlTerms() {
+    var t = [];
+    function fromSet(field, set, map) {
+      if (!set.size) return;
+      var vals = [];
+      set.forEach(function (v) { vals.push(map ? map(v) : v); });
+      t.push({ field: field, op: "in", values: vals, neg: false });
+    }
+    fromSet("repo", state.repos, shortRepo);
+    fromSet("agent", state.agents);
+    fromSet("tag", state.tags);
+    if (state.priorityFilter) t.push({ field: "priority", op: "in", values: [state.priorityFilter], neg: false });
+    return t;
+  }
+  // The filter half of the view — what goes in ?q= and, later, on the chip row.
+  function filterTerms() { return controlTerms().concat(parseQuery(state.query)); }
+  function activeTerms() {
+    var t = parseQuery(VIEWS[state.focus] || VIEWS.all);
+    if (state.focus === "all" && !state.showDone) t.push(NOT_DONE);
+    return t.concat(filterTerms());
+  }
+
+  // Recomputed once per render (renderBoard) so the query isn't parsed per item.
+  var activeQuery = null;
+  function matches(item) { return runQuery(item, activeQuery || activeTerms()); }
+
+  // The free-text half of the search box — what suggestions and quick-capture use,
+  // so typing `status:now` filters instead of offering to create a puck called that.
+  function queryText() {
+    return parseQuery(state.query).filter(function (t) { return t.field === "text" && !t.neg; })
+      .map(function (t) { return t.values[0]; }).join(" ");
+  }
+
+  // ── the URL: the query's third face ─────────────────────────────────────────
+  // `?view=` names the view (a shorthand for its query, so the sidebar can still
+  // highlight a row), `?q=` carries the filter on top of it, `?done=1` is display
+  // state — the archive toggle is not a filter. The puck hash is left alone, and
+  // writes always replace: the board URL describes where you are, it isn't a step
+  // in history.
+  function viewParams() {
+    var p = [];
+    if (state.focus !== "all") p.push("view=" + state.focus);
+    var q = serializeTerms(filterTerms());
+    if (q) p.push("q=" + encodeURIComponent(q).replace(/%20/g, "+"));
+    if (state.showDone) p.push("done=1");
+    return p.length ? "?" + p.join("&") : "";
+  }
+  function writeUrl() {
+    var next = viewParams();
+    if (next === location.search) return; // nothing moved — don't churn history
+    try { history.replaceState(history.state, "", location.pathname + next + location.hash); } catch (e) {}
+  }
+  // A repo can be written short (`pia-terminal`), full (`owner/pia-terminal`) or by
+  // display name (`PIA`) — resolve any of them to the id the state holds.
+  function resolveRepo(v) {
+    var want = lower(v), hit = null;
+    DATA.sources.forEach(function (s) {
+      if (hit) return;
+      if (lower(s.repo) === want || lower(shortRepo(s.repo)) === want || lower(s.name) === want) hit = s.repo;
+    });
+    return hit;
+  }
+  function readUrl() {
+    var s = location.search.replace(/^\?/, "");
+    if (!s) return;
+    var got = {};
+    s.split("&").forEach(function (kv) {
+      var i = kv.indexOf("=");
+      got[i < 0 ? kv : kv.slice(0, i)] = i < 0 ? "" : decodeURIComponent(kv.slice(i + 1).replace(/\+/g, " "));
+    });
+    if (got.done === "1") state.showDone = true;
+    if (VIEWS[got.view]) state.focus = got.view;
+    if (!got.q) return;
+    // Hand each incoming term back to the control that owns it, so the sidebar and
+    // the filter popover show what the link describes; the rest stays as text in the
+    // search box. This is controlTerms() run backwards — one model, two directions.
+    var rest = [];
+    parseQuery(got.q).forEach(function (t) {
+      if (!t.neg && t.op === "in") {
+        if (t.field === "repo") {
+          var ids = t.values.map(resolveRepo).filter(Boolean);
+          if (ids.length === t.values.length) { ids.forEach(function (r) { state.repos.add(r); }); return; }
+        } else if (t.field === "agent") {
+          t.values.forEach(function (v) { state.agents.add(v); }); return;
+        } else if (t.field === "tag") {
+          t.values.forEach(function (v) { state.tags.add(v); }); return;
+        } else if (t.field === "priority" && t.values.length === 1 && PRIORITY_RANK[t.values[0]] != null) {
+          state.priorityFilter = t.values[0]; return;
+        }
+      }
+      rest.push(t);
+    });
+    state.query = serializeTerms(rest);
+    if (searchInput) { searchInput.value = state.query; updateSearchClear(); }
   }
 
   function el(tag, cls, text) {
@@ -1160,6 +1359,7 @@
     var queue = state.focus === "ready" || state.focus === "inbox";
     var layout = queue ? "list" : state.view;
     board.classList.toggle("as-list", layout === "list");
+    activeQuery = activeTerms();
     var visible = DATA.items.filter(matches).sort(sortComparator());
     var statuses = columnsForFocus();
 
@@ -1168,6 +1368,7 @@
 
     var shown = visible.length;
     updateViewHeader(shown);
+    writeUrl(); // every render reflects the view into the URL, so it stays shareable
     document.getElementById("footmeta").textContent =
       shown + " of " + DATA.total + " shown · generated " + DATA.generatedAt.slice(0, 16).replace("T", " ") + " UTC · ";
   }
@@ -1320,12 +1521,16 @@
   // actionable queue) · Inbox (triage of raw ideas, its own space) · ⚠ Needs
   // attention (drift). Each is a nav row with a live count and a clear active state.
   function viewCounts() {
-    var c = { all: 0, ready: 0, inbox: 0, attention: 0 };
+    var c = {}, qs = {};
+    // Counted with the views' own queries, so a row's number can never drift from
+    // what clicking it shows. "All pucks" always excludes the archive, whatever the
+    // toggle says, so the count doesn't jump when you show done.
+    Object.keys(VIEWS).forEach(function (k) {
+      c[k] = 0;
+      qs[k] = parseQuery(VIEWS[k]).concat(k === "all" ? [NOT_DONE] : []);
+    });
     DATA.items.forEach(function (it) {
-      if (it.status === "inbox") c.inbox++;
-      else if (!TERMINAL[it.status]) c.all++;
-      if ((it.status === "now" || it.status === "next") && !(it.blockedBy || []).length) c.ready++;
-      if (isFlagged(it)) c.attention++;
+      Object.keys(qs).forEach(function (k) { if (runQuery(it, qs[k])) c[k]++; });
     });
     return c;
   }
@@ -1562,7 +1767,7 @@
   }
 
   function updateSuggestions() {
-    suggestItems = computeSuggestions(state.query);
+    suggestItems = computeSuggestions(queryText()); // field terms filter; only text suggests
     // Spotlight-style: highlight the top row so Enter runs it immediately.
     suggestIndex = suggestItems.length ? 0 : -1;
     renderSuggestions();
@@ -1967,6 +2172,7 @@
   }
 
   buildModal();
+  readUrl(); // a shared link decides the view before anything paints it
   buildRepoChips();
   buildAgentChips();
   buildFocusControl();

@@ -110,11 +110,54 @@ AI-filtret för att deras data är inlåst; vi behöver bara publicera en gramma
 
 Steg 1–2 är förutsättning för 3 och 4. Andra ordningen bygger panelen två gånger.
 
+## Beslut (tagna innan bygget)
+- **Datumsyntax:** `updated:>=2026-08-01` — operatorn ligger *i värdet*, så varje
+  term har samma form `fält:värde` och parsern delar på första kolon. Samma form som
+  GitHub.
+- **`is:`-familjen:** `ready` · `blocked` · `flagged` · `stale` · `adapted` · `done`
+  (= done **eller** cancelled). `orphan` och `mine` väntar på `parent` respektive
+  inloggning.
+- **Scope = filter, olika yta.** En plats *är* ett filter som navigationen satt till
+  exakt ett värde — `pickScope()` är "sätt predikatet till ett", ett filter är "sätt
+  det till flera". Invarianten: **aldrig två källor till samma predikat** — sätts
+  `repo:a,b` slocknar sidomenyns markering, i stället för att visa en plats som
+  säger emot filtret.
+
+## Levererat (steg 1–2)
+Predikatmodellen och dess text- och URL-ansikte finns i `app.js`:
+
+- **`FIELDS` + `IS_STATES`** — fältregistret (status, priority, agent, owner, tag,
+  repo, issue, updated, created + alias) och de härledda tillstånden. Nytt fält =
+  en rad, inte en ny gren i `matches()`.
+- **`parseQuery` / `serializeTerms` / `runQuery`** — tokenizer som respekterar
+  citattecken, negation med `-`, `,` = OR inom en term, AND mellan termer,
+  datumjämförelser via strängordning på ISO. Okänt fält blir fritext i stället för
+  att tyst försvinna.
+- **`matches()` kör modellen.** Vyerna är strängar i `VIEWS` (`is:ready`,
+  `is:flagged`, `status:inbox`, `-status:inbox`) i stället för if-grenar, och
+  `viewCounts()` räknar med samma frågor — en radräknare kan inte längre driva ifrån
+  vad raden visar.
+- **Sökrutan förstår fält.** `status:now repo:pia -is:blocked` funkar där man redan
+  skriver; fritext-delen är fortfarande det förslagen och quick-capture använder.
+- **URL:en är tredje ansiktet.** `?q=` (filter, inkl. platser), `?view=` (namnger
+  vyn), `?done=1` (arkivet — display, inte filter), `#repo/slug` (pucken) — och
+  inläsningen delar ut termerna tillbaka till kontrollerna som äger dem, så en delad
+  länk tänder rätt plats och rätt chips.
+- **Grammatiken dokumenterad i `AGENTS.md`** — det är den som gör "AI-filter" onödigt:
+  agenten svarar med en länk.
+
+Verifierat i headless Chromium: 22 fall (vyer, `is:`-familjen, OR/negation/datum,
+okänt fält, skrivning tillbaka till URL, platsmarkering, chip-spegling, djuplänk +
+fråga samtidigt) — alla gröna, inga JS-fel.
+
+## Kvar i den här pucken (steg 3–4)
+- **Chips-rad + "Add filter"-meny** — panelen ovanpå modellen (fältlistan ovan).
+- **Sparade vyer** i `board.config.json`, som en rad i Display-menyn.
+
 ## Open questions
-- Syntax för datumjämförelser: `target:<=2026-11-30` eller `target<=2026-11-30`?
-- `is:`-familjen — vilka härledda tillstånd är värda ett nyckelord (`ready`,
-  `blocked`, `flagged`, `stale`, `adapted`, `orphan`)?
-- Ska scope (sidomenyns repo/agent-val) vara *samma* modell som filter, eller två
-  lager som serialiseras var för sig? (Förslag: samma modell, olika yta — annars
-  blir URL:en två språk.)
-- Räckvidd på räknarna: räkna inom aktuellt scope eller globalt?
+- Räckvidd på räknarna i "Add filter"-menyn: räkna inom aktuellt scope eller globalt?
+- Ska chips-raden visa *alla* termer, inklusive dem som kommer från vyn
+  (`is:ready`), eller bara det man själv lagt på? (Förslag: bara egna — vyn har redan
+  ett namn i headern.)
+- `target:` läggs till i `FIELDS` när fältet finns (pass 3). Medvetet inte förskrivet
+  nu: ett filter som tyst matchar noll är en fälla.
