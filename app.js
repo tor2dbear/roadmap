@@ -71,7 +71,7 @@
     group: "status", // which field becomes the columns — see GROUPS
     showEmpty: true, // board only: keep a column that has no pucks (it's a drop target)
   };
-  var SORTS = ["default", "updated-desc", "priority", "updated-asc", "created-desc", "created-asc", "title"];
+  var SORTS = ["default", "updated-desc", "priority", "target", "updated-asc", "created-desc", "created-asc", "title"];
   var PRIORITY_RANK = { urgent: 0, high: 1, medium: 2, low: 3 };
   // Display preferences persist (they're settings, not a transient filter); a URL
   // that names them wins over these on load — see readUrl().
@@ -117,6 +117,10 @@
       }
       if (s.type === "issue-closed") return "Issue #" + item.issue + " is closed — mark done?";
       if (s.type === "issue-open") return "Marked done but issue #" + item.issue + " is still open.";
+      if (s.type === "target-passed") {
+        var dt = daysSince(item.target);
+        return "Target " + item.target + " has passed" + (dt != null ? " (" + dt + " days ago)" : "") + " — move the horizon or land it?";
+      }
       return s.type;
     });
   }
@@ -223,6 +227,7 @@
     issue: { vals: function (i) { return i.issue == null ? [] : [String(i.issue)]; } },
     updated: { dateOf: function (i) { return i.updated; } },
     created: { dateOf: function (i) { return i.created; } },
+    target: { dateOf: function (i) { return i.target; } },
   };
   var FIELD_ALIAS = { label: "tag", labels: "tag", tags: "tag", repos: "repo", prio: "priority", discipline: "agent" };
 
@@ -457,6 +462,33 @@
     return d;
   }
 
+  // ── the horizon ─────────────────────────────────────────────────────────────
+  // `target` is stored exact (it has to sort and compare) but shown coarse: a card
+  // shouting "30 NOV" reads as a deadline promise, "Nov 2026" reads as a horizon.
+  // Close in, the countdown is the useful part, so that wins.
+  var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  function monthLabel(ym) { // "2026-11" → "Nov 2026"
+    var p = String(ym).split("-");
+    return (MONTHS[Number(p[1]) - 1] || p[1]) + " " + p[0];
+  }
+  function targetLabel(date) {
+    var d = daysSince(date); // positive = the horizon has passed
+    if (d != null && d >= 0 && d <= 1) return d === 0 ? "today" : "yesterday";
+    if (d != null && d < 0 && d >= -21) return "in " + -d + " day" + (d === -1 ? "" : "s");
+    return monthLabel(String(date).slice(0, 7));
+  }
+  function endOfMonth(ym) { // "2026-11" → "2026-11-30"
+    var p = String(ym).split("-");
+    return new Date(Date.UTC(Number(p[0]), Number(p[1]), 0)).toISOString().slice(0, 10);
+  }
+  function targetEl(date, cls) {
+    var passed = daysSince(date) > 0;
+    var d = el("span", (cls || "card-date") + " target-date" + (passed ? " past" : ""), "◷ " + targetLabel(date));
+    d.title = "Target " + date + (passed ? " — horizon passed" : "");
+    d.setAttribute("aria-label", d.title);
+    return d;
+  }
+
   // Owner: a GitHub avatar (loaded from github.com/<handle>.png, hidden if it
   // fails). opts.name adds "@handle"; opts.link wraps it in a profile link.
   function ownerEl(handle, opts) {
@@ -546,7 +578,16 @@
   // Which date a card shows: the one the ordering is actually about. Sorting by
   // "Newest created" and then showing `updated` made the column look shuffled.
   function cardDateField() {
+    if (state.sort === "target" || state.group === "target") return "target";
     return (state.sort === "created-desc" || state.sort === "created-asc") ? "created" : "updated";
+  }
+  // The date cell for a card/row: the field the view is about, rendered in that
+  // field's own language. A puck with no target falls back to `updated` rather than
+  // leaving a hole where the others have a date.
+  function dateCell(item, cls) {
+    var f = cardDateField();
+    if (f === "target") return item.target ? targetEl(item.target, cls) : (item.updated ? dateEl(item.updated, cls) : null);
+    return item[f] ? dateEl(item[f], cls) : null;
   }
 
   function card(item) {
@@ -575,8 +616,8 @@
     if (item.agent) meta.appendChild(agentBadge(item.agent));
     if ((item.blockedBy || []).length) meta.appendChild(blockBadge(item));
     if (item.owner) meta.appendChild(ownerEl(item.owner));
-    var df = cardDateField();
-    if (item[df]) meta.appendChild(dateEl(item[df]));
+    var dc = dateCell(item);
+    if (dc) meta.appendChild(dc);
     c.appendChild(meta);
 
     // Row 3: tags (static badges).
@@ -900,6 +941,12 @@
         },
         onPick: function (v) { changePriority(item, v); },
       })));
+    }
+
+    // Target: the horizon. Shown when editable or when the puck declares one —
+    // most pucks won't, and an empty row on every card would be noise.
+    if (editable || item.target) {
+      props.appendChild(propRow("Target", targetValue(item, editable)));
     }
 
     props.appendChild(propRow("Assignee", item.owner
@@ -1272,8 +1319,8 @@
     r.appendChild(rp);
 
     var dt = el("div", "list-cell list-dt");
-    var ldf = cardDateField();
-    if (item[ldf]) dt.appendChild(dateEl(item[ldf], "list-date"));
+    var ldc = dateCell(item, "list-date");
+    if (ldc) dt.appendChild(ldc);
     r.appendChild(dt);
 
     r.addEventListener("click", function () { openModal(item); });
@@ -1331,6 +1378,16 @@
         var s = DATA.sources.filter(function (x) { return x.repo === k; })[0];
         return s && s.color; // a repo column wears its own colour, like its cards
       },
+    },
+    // The timeline: columns are months, so it's the same renderer as the board.
+    // Dropping a card into a month sets the horizon to that month's last day —
+    // the same "by the end of it" reading `roadmap target <slug> 2026-11` uses.
+    target: {
+      label: "Target",
+      keyOf: function (i) { return i.target ? i.target.slice(0, 7) : NO_VALUE; },
+      keys: function (items) { return presentKeys(items, this.keyOf); },
+      labelOf: function (k) { return k === NO_VALUE ? "No target" : monthLabel(k); },
+      write: function (item, k) { changeTarget(item, k === NO_VALUE ? null : endOfMonth(k)); },
     },
     priority: {
       label: "Priority",
@@ -1445,6 +1502,7 @@
         return (b.updated || "").localeCompare(a.updated || "") || a.title.localeCompare(b.title);
       };
     }
+    if (state.sort === "target") return byDate("target", 1); // nearest horizon first, undated last
     if (state.sort === "updated-desc") return byDate("updated", -1);
     if (state.sort === "updated-asc") return byDate("updated", 1);
     if (state.sort === "created-desc") return byDate("created", -1);
@@ -1729,6 +1787,7 @@
   // because "showing more" must never read as "you have narrowed something".
   var SORT_LABEL = {
     default: "Manual", "updated-desc": "Recently updated", priority: "Priority (high→low)",
+    target: "Target (soonest)",
     "updated-asc": "Oldest updated", "created-desc": "Newest created",
     "created-asc": "Oldest created", title: "Title A–Z",
   };
@@ -2678,6 +2737,77 @@
         toast("✗ " + err.message, true);
       });
   }
+  // Write the horizon by rewriting the `target:` frontmatter line (null removes it).
+  function commitTarget(item, date) {
+    var token = ghToken();
+    var api = "https://api.github.com/repos/" + item.repo + "/contents/" + item.sourcePath.split("/").map(encodeURIComponent).join("/");
+    var branch = branchOf(item);
+    var headers = { Authorization: "Bearer " + token, Accept: "application/vnd.github+json" };
+    return fetch(api + "?ref=" + encodeURIComponent(branch), { headers: headers })
+      .then(function (r) { assertOk(r, item); return r.json(); })
+      .then(function (info) {
+        var text = b64decode(info.content);
+        var out = date ? editFrontmatter(text, "target", date) : removeFrontmatter(text, "target");
+        if (out == null) throw new Error("no frontmatter");
+        out = editFrontmatter(out, "updated", today());
+        return fetch(api, {
+          method: "PUT",
+          headers: { Authorization: "Bearer " + token, Accept: "application/vnd.github+json", "Content-Type": "application/json" },
+          body: JSON.stringify({ message: "roadmap: " + item.slug + (date ? " target " + date : " clear target"), content: b64encode(out), sha: info.sha, branch: branch }),
+        });
+      })
+      .then(function (r) { assertOk(r, item); });
+  }
+  function changeTarget(item, date) {
+    date = date || null;
+    if (date === (item.target || null) || !ghToken()) return;
+    var prevT = item.target, prevU = item.updated;
+    item.target = date; item.updated = today();
+    renderBoard(); openModal(item);
+    toast("Saving…");
+    commitTarget(item, date)
+      .then(function () { toast(date ? "✓ Target " + date + " — live in ~1 min" : "✓ Target cleared — live in ~1 min"); })
+      .catch(function (err) {
+        item.target = prevT; item.updated = prevU;
+        noteWriteError(item, err);
+        renderBoard(); openModal(item);
+        toast("✗ " + err.message, true);
+      });
+  }
+  // Ask for a horizon in the same shape the CLI takes: a date, or a month meaning
+  // "by the end of it". Blank clears it.
+  function promptTarget(item) {
+    var val = window.prompt("Target horizon for this puck — YYYY-MM-DD, or YYYY-MM for the end of that month.\nLeave blank to clear.", item.target || "");
+    if (val === null) return;
+    val = val.trim();
+    if (val === "") { if (item.target) changeTarget(item, null); return; }
+    var m = /^(\d{4})-(\d{2})$/.exec(val);
+    var date = m ? endOfMonth(val) : val;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || isNaN(Date.parse(date + "T00:00:00Z"))) {
+      toast("✗ Use YYYY-MM-DD or YYYY-MM", true);
+      return;
+    }
+    changeTarget(item, date);
+  }
+  // The Target cell in the rail: the horizon, shown exact here (the detail view is
+  // where precision belongs) with an edit affordance when writable.
+  function targetValue(item, editable) {
+    var wrap = el("span", "issue-cell"); // same inline row shape as the Issue cell
+    if (item.target) {
+      wrap.appendChild(targetEl(item.target, "prop-date"));
+      wrap.appendChild(el("span", "prop-muted", item.target));
+    } else {
+      wrap.appendChild(el("span", "prop-muted", "No target"));
+    }
+    if (editable) {
+      var edit = el("button", "linklike", item.target ? "Change" : "Set target");
+      edit.type = "button";
+      edit.addEventListener("click", function () { promptTarget(item); });
+      wrap.appendChild(edit);
+    }
+    return wrap;
+  }
+
   function changeIssue(item, number) {
     number = number || null;
     if (number === (item.issue || null) || !ghToken()) return;

@@ -204,6 +204,37 @@ async function cmdIssue() {
   console.log(`✓ ${slug} issue #${num}  (updated ${TODAY})`);
 }
 
+// The horizon. A calendar date so it sorts and compares without a period parser;
+// the board renders it coarsely ("nov 2026") so it reads as a horizon, not a
+// deadline. Accepts a bare month (2026-11) and takes that month's last day.
+async function cmdTarget() {
+  const slug = pos.shift();
+  const when = pos.shift();
+  if (!slug) fail("usage: roadmap target <slug> <YYYY-MM-DD|YYYY-MM>   (--clear to remove)");
+  const { path: p, text } = await readPuckOrFail(slug);
+  const clearing = opts.clear || when === "none" || when === "-";
+  let out, shown = "";
+  if (clearing) {
+    out = removeField(text, "target");
+  } else {
+    const v = String(when || "").trim();
+    const month = /^(\d{4})-(\d{2})$/.exec(v);
+    // A month means "by the end of it" — the last day, so `target:<=` questions
+    // about that month include everything in it.
+    shown = month ? new Date(Date.UTC(+month[1], +month[2], 0)).toISOString().slice(0, 10) : v;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(shown)) fail("target must be YYYY-MM-DD or YYYY-MM  (or --clear)");
+    if (isNaN(Date.parse(shown + "T00:00:00Z"))) fail(`"${shown}" is not a real date`);
+    out = setField(text, "target", shown);
+  }
+  out = setField(out, "updated", TODAY);
+  await writeFile(p, out);
+  console.log(
+    clearing
+      ? `✓ ${slug} target cleared  (updated ${TODAY})`
+      : `✓ ${slug} target ${shown}  (updated ${TODAY})`,
+  );
+}
+
 async function cmdOwner() {
   const slug = pos.shift();
   const handle = pos.shift();
@@ -384,6 +415,7 @@ async function main() {
     case "issue": return cmdIssue();
     case "owner": return cmdOwner();
     case "priority": case "prio": return cmdPriority();
+    case "target": return cmdTarget();
     case "agent": case "route": return cmdAgent();
     case "touch": return cmdTouch();
     case "list": case "ls": return listPucks();
@@ -407,6 +439,7 @@ function printHelp() {
   roadmap issue <slug> <number>                       link a working issue
   roadmap owner <slug> <handle>                       set owner (--clear to remove)
   roadmap priority <slug> <level>                     set priority (--clear to remove)
+  roadmap target <slug> <YYYY-MM-DD|YYYY-MM>          set the horizon (--clear to remove)
   roadmap agent <slug> <discipline>                   route to an agent (--clear to remove)
   roadmap touch <slug>                                bump updated only
   roadmap list [--status now]                         overview

@@ -23,10 +23,10 @@ it's the wrong shape — use a GitHub primitive instead (see below).
 
 `data/roadmap.json` = `{ generatedAt, config, statuses, counts, total, sources[],
 items[] }`. Each item: `{ id, repo, slug, title, status, tags[], updated, created,
-issue, issueState, order, depends[], blockedBy[], signals[], sourceUrl, … }`.
+target, issue, issueState, order, depends[], blockedBy[], signals[], sourceUrl, … }`.
 
-- `signals[]` — drift flags (`stale` / `issue-closed` / `issue-open`): the
-  declared status disagrees with reality.
+- `signals[]` — drift flags (`stale` / `issue-closed` / `issue-open` /
+  `target-passed`): the declared status disagrees with reality.
 - `blockedBy[]` — same-repo dependencies not yet `done`. **Empty = unblocked.**
 
 **"What should I work on?"** — unblocked active pucks:
@@ -53,7 +53,7 @@ agent:backend          discipline routing (alias: discipline)
 owner:tor2dbear        the owner field
 priority:high          urgent | high | medium | low
 issue:42               the linked issue number
-updated:>=2026-08-01   dates take >= <= > < (created likewise)
+target:<=2026-11-30    the horizon (updated/created take the same operators)
 "grep context"         free text over title, body, tags and repo name
 ```
 
@@ -88,6 +88,7 @@ roadmap tag <slug> +a -b            # edit tags
 roadmap issue <slug> 42             # link a working issue
 roadmap owner <slug> <handle>       # set owner (--clear to remove)
 roadmap priority <slug> <level>     # urgent|high|medium|low (--clear to remove)
+roadmap target <slug> 2026-11       # horizon: a date, or a month = its last day
 roadmap agent <slug> <discipline>   # route to a discipline agent (--clear to remove)
 roadmap list [--status now]         # overview
 ```
@@ -113,4 +114,5 @@ what's ready. Use it to sequence work.
 - Never add a second source of truth.
 - `status` is the *when* ladder (`inbox → now/next/later → done`); `order`
   fine-tunes within a column; the optional `priority` field is *how much it
-  matters* (`urgent`/`high`/`medium`/`low`), orthogonal to status.
+  matters* (`urgent`/`high`/`medium`/`low`), orthogonal to status; the optional
+  `target` is *roughly when in the calendar* — a horizon, not a deadline.
