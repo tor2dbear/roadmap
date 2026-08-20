@@ -2,7 +2,7 @@
 title: "Beroenden: skrivväg + cross-repo"
 status: inbox
 tags: [core, dx, ai]
-updated: 2026-08-19
+updated: 2026-08-20
 created: 2026-08-19
 ---
 
@@ -21,8 +21,8 @@ hela agent-erbjudandet vilar på.
   `commitAgent`, `commitIssue`, `commitTags`, `commitBody`, `commitDelete` — inget
   `commitDepends`. Enda vägen är handredigerad YAML, exakt det konventionen lovar
   att man ska slippa.
-- **Utfallet:** 2 av 32 pucker i det här repot använder `depends`. Dokumenterad,
-  inte använd.
+  Ett fält som bara går att handredigera blir i praktiken oanvänt — det är samma
+  mönster som gjorde `order` osynligt (se `rank-skriv-order-fran-gui-t`).
 - **Same-repo only.** Harvestern resolvar bara slugs inom samma källa
   (`puck-dependencies`: "cross-repo via fullt id senare"). På en *tvärrepo*-tavla är
   cross-repo-beroendet precis det man byggde tavlan för — `portability` i etapp beror
