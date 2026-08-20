@@ -48,8 +48,8 @@ tagged `product` track this direction.
   about the roadmap programmatically). Shape: `{ generatedAt, statuses, counts,
   total, sources[], items[] }`. Each item: `{ id, repo, repoName, repoColor,
   slug, title, status, priority, tags[], updated, created, target, issue, issueState, order,
-  depends[], blockedBy[], owner, agent, body, sourcePath, sourceUrl, adapter, native,
-  signals[] }`. `owner` is a GitHub handle (or `null`) — thin collaboration, a
+  depends[], blockedBy[], parent, parentRef, children[], progress, owner, agent, body,
+  sourcePath, sourceUrl, adapter, native, signals[] }`. `owner` is a GitHub handle (or `null`) — thin collaboration, a
   field not an assignee store. `priority` is `urgent`/`high`/`medium`/`low` (or
   `null` = none) — orthogonal to `status` (*when* vs *how much it matters*).
   `target` is `YYYY-MM-DD` (or `null`) — the horizon, a third axis orthogonal to
@@ -60,12 +60,19 @@ tagged `product` track this direction.
   `agents/<name>.md` profile a runner should use); the "queue" is just pucks with
   `agent:` set, read from git — never a scheduler. `depends[]` are the same-repo slugs a puck declares it's blocked
   by; `blockedBy[]` is the harvester-resolved subset of those that aren't `done`
-  yet (empty = ready). Read `blockedBy` to find what's actually startable. `issueState` is
+  yet (empty = ready). Read `blockedBy` to find what's actually startable. `parent` is
+  the etapp as written in the puck (a same-repo slug or `owner/repo#slug`, or `null`);
+  `parentRef` is it resolved to an id, `children[]` the ids pointing back, and
+  `progress` `{ done, total }` over those children. Only `parent:` is authored — the
+  other three are derived at harvest, because a stored `children:` could disagree with
+  the `parent:` lines. A puck with children *is* the etapp; there is no second record
+  type. `issueState` is
   `"open"`/`"closed"` (or `null`) — the real state of the linked `issue`,
   reconciled at harvest. `created` is `YYYY-MM-DD` (or `null`) — the puck's
   first-commit date, derived from git at harvest (a `created:` frontmatter field
   overrides it); needs full clone history, so the sync clones treeless. `signals[]` are the drift flags (`{ type }`, discrete:
-  `stale` / `issue-closed` / `issue-open` / `target-passed`) — read these to spot cards whose
+  `stale` / `issue-closed` / `issue-open` / `target-passed` / `parent-missing` /
+  `parent-cycle`) — read these to spot cards whose
   declared status disagrees with reality.
 - `data/roadmap.js` — the same payload as `window.__ROADMAP__`, so `index.html`
   renders from `file://` with no server.
@@ -114,7 +121,8 @@ python3 -m http.server 4173              # then open the board locally
 Runs inside a source repo, operates on that repo's `roadmap/`, and edits
 frontmatter in place (bumping `updated` on every mutation) so status/date upkeep
 is automatic. `roadmap new "Title"`, `roadmap start|next|later|done <slug>`,
-`roadmap tag`, `roadmap issue`, `roadmap target`, `roadmap move <slug>
+`roadmap tag`, `roadmap issue`, `roadmap target`, `roadmap parent <slug>
+<parent-slug>` (etapp membership; `--clear` takes it out), `roadmap move <slug>
 --before|--after <slug>` (manual rank), `roadmap renumber` (tidy a column's
 `order` back to 10, 20, 30 …), `roadmap list`, `roadmap install-hook` (a
 pre-commit hook that bumps `updated` on hand edits too). Field edits are
@@ -149,6 +157,10 @@ same `signals`, so there's one source of truth for the flag decision.
 - **Staleness** — a `now` puck untouched > 21 days, or `next` > 60, gets a `stale`
   flag. Thresholds: `STALE_DAYS` in `harvest.mjs`. The board turns the flag into a
   live "N days" string for display.
+- **Broken etapp links** — a `parent:` naming a puck that doesn't exist flags
+  `parent-missing`; one that closes a loop flags `parent-cycle` and the link is cut
+  (the rest of the tree still resolves). Two flags, because they're two different
+  fixes — a typo vs a loop.
 
 Flagged cards get a ⚠ badge + note; a "⚠ Needs attention" filter shows only them
 (including flagged `done` items).
