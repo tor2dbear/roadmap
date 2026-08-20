@@ -187,15 +187,18 @@ depends: [deploy-simplification, tor2dbear/pia-terminal#vfs]
 ```
 
 Only the blocked puck stores anything. The harvester resolves the list into
-`blockedBy` (the blockers not yet `done`/`cancelled` — **empty means ready**) and
-the reverse edge `blocks` (what this puck holds up). There is deliberately no
-`blocks:` field to author: two fields pointing at each other is a second source of
-truth in miniature.
+`blockedBy` — everything declared that isn't settled yet, so **empty means ready** —
+and the reverse edge `blocks` (what this puck holds up), which is its exact mirror.
+There is deliberately no `blocks:` field to author: two fields pointing at each other
+is a second source of truth in miniature. A `done` or `cancelled` puck waits for
+nothing and holds nothing up, so its edges count in neither direction.
 
-A dependency that names nothing is flagged `depends-missing` — it matters, because
-the board would otherwise call the puck ready while its author believes it's
-blocked. A loop is flagged `dependency-cycle` on every puck in it; unlike an etapp
-parent, no single link can be cut to fix it, so the edges stand and a human decides.
+A dependency that names nothing keeps blocking and is flagged `depends-missing`.
+That matters: dropping it would call the puck ready while its author believes it is
+blocked — an unknown blocker is not a finished one. A loop is flagged
+`dependency-cycle` on every puck in it; unlike an etapp parent, no single link can be
+cut to fix it, so the edges stand and a human decides. A puck depending on itself is
+the same error with one node, kept rather than quietly discarded.
 
 Set it with `roadmap depends <slug> +<ref> -<ref>` (`--clear` empties it), or from
 the puck's **Blocked by** row on the board.

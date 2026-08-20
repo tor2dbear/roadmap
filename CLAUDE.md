@@ -60,8 +60,9 @@ tagged `product` track this direction.
   `agents/<name>.md` profile a runner should use); the "queue" is just pucks with
   `agent:` set, read from git — never a scheduler. `depends[]` are the references a puck declares it's blocked by
   (a same-repo slug or `owner/repo#slug`); `blockedBy[]` is the harvester-resolved
-  subset of those that aren't settled yet, as ids (empty = ready), `blocks[]` the
-  reverse edge (what this puck holds up) and `missingDepends[]` the references that
+  subset of those that aren't settled yet — ids, or the reference as written when it
+  resolves to nothing, since an unknown blocker isn't a finished one (empty = ready)
+  — `blocks[]` the exact mirror (what this puck holds up) and `missingDepends[]` the references that
   resolved to nothing. Only `depends:` is authored. Read `blockedBy` to find what's
   actually startable. `parent` is
   the etapp as written in the puck (a same-repo slug or `owner/repo#slug`, or `null`);

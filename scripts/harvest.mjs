@@ -113,19 +113,25 @@ function indexByRef(items) {
   return byKey;
 }
 
-// Resolve each puck's `depends` into ids: `blockedBy` = the blockers that aren't
-// done yet (empty = ready), `blocks` = the reverse edge, derived rather than
-// authored so no `blocks:` field can ever disagree with a `depends:` one.
-// Discrete like the other signals, so the payload only changes when a blocker
-// flips to/from done (idempotency holds).
+// Resolve each puck's `depends` into `blockedBy` — everything it declared that
+// isn't settled yet, so **empty means ready** and one field answers "what can I
+// start?". Resolved blockers appear as ids; a reference that names nothing stays
+// as written, because an unknown blocker is not a settled one: dropping it would
+// advertise the puck as ready while its author believes it's blocked.
 //
-// A dependency cycle would make "what's ready?" unanswerable — every puck in the
-// loop waits for the next. It can't be broken by picking a link (unlike an etapp
-// parent, where cutting one still leaves a usable tree), so the edges stand and
-// the pucks in the loop are flagged for a human.
+// `blocks` is the exact mirror — x.blocks contains y iff y.blockedBy contains x —
+// derived rather than authored so no `blocks:` field can ever disagree with a
+// `depends:` one. A settled puck waits for nothing, so its edges count in neither
+// direction.
+//
+// Cycles are found over the *authored* graph (status-independent, so a loop is a
+// loop whatever the pucks' states) and flagged, never cut: unlike an etapp parent
+// no single link is the wrong one, so a human picks. A puck that depends on itself
+// is that same error with one node — kept, so it blocks itself and shows up.
 function resolveBlockedBy(items) {
   const byKey = indexByRef(items);
-  const edges = new Map(); // puck → the pucks it depends on, resolved
+  const edges = new Map();   // puck → the pucks it depends on, resolved
+  const unknown = new Map(); // puck → the references that named nothing
 
   for (const it of items) {
     it.blocks = [];
@@ -134,13 +140,16 @@ function resolveBlockedBy(items) {
     for (const dep of it.depends || []) {
       const d = byKey.get(refKey(dep, it.repo));
       if (!d) it.missingDepends.push(dep);
-      else if (d !== it) deps.push(d);   // a puck depending on itself is just noise
+      else deps.push(d);
     }
     edges.set(it, deps);
+    unknown.set(it, it.missingDepends);
   }
   for (const it of items) {
-    it.blockedBy = edges.get(it).filter((d) => !TERMINAL.has(d.status)).map((d) => d.id);
-    for (const d of edges.get(it)) d.blocks.push(it.id);
+    if (TERMINAL.has(it.status)) { it.blockedBy = []; continue; } // landed: waits for nothing
+    const live = edges.get(it).filter((d) => !TERMINAL.has(d.status));
+    it.blockedBy = live.map((d) => d.id).concat(unknown.get(it));
+    for (const d of live) d.blocks.push(it.id);
   }
   for (const it of items) it.blocks.sort();
 

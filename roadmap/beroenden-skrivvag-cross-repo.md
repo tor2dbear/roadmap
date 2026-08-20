@@ -63,18 +63,25 @@ etappen.
 `owner/repo#slug` = var som helst. `blockedBy` bär numera **id:n**, inte slugs, så en
 blockerare i ett annat repo är en uppslagning och inte ett specialfall.
 
-**Motsatta riktningen deriveras.** `blocks[]` (vad den här pucken håller uppe) räknas
-vid skörd ur samma `depends`-kanter — inget `blocks:`-fält att skriva, för två fält
-som kan säga emot varandra är en andra sanning i miniatyr. Det ger också `is:blocking`
-och en `Blocks`-rad i detaljvyn utan ny lagring.
+**Motsatta riktningen deriveras — som en exakt spegel.** `blocks[]` räknas vid skörd
+ur samma kanter, med invarianten *x.blocks innehåller y precis när y.blockedBy
+innehåller x*. Inget `blocks:`-fält att skriva, för två fält som kan säga emot varandra
+är en andra sanning i miniatyr. Det ger `is:blocking` och en `Blocks`-rad utan ny
+lagring — och `is:blocking` betyder därmed att något **ofärdigt** väntar, inte att
+någon en gång skrev en rad.
 
-**Trasiga beroenden flaggas i stället för att tystna.** En referens som inte löser ut
-gav förut inget alls — pucken såg *redo* ut fast dess författare trodde den var
-blockerad. Nu: `depends-missing` med de faktiska referenserna i `missingDepends[]`.
-En cykel ger `dependency-cycle` på **varje** puck i loopen.
+**En okänd blockerare är inte en avklarad.** En referens som inte löser ut gav förut
+inget alls — pucken såg *redo* ut fast dess författare trodde den var blockerad. Nu
+står referensen kvar i `blockedBy` precis som den skrevs, plus flaggan
+`depends-missing` (med referenserna i `missingDepends[]`). Det håller definitionen
+enda: **tom `blockedBy` = redo**, för både tavlan och en agent som läser JSON:en. En
+cykel ger `dependency-cycle` på **varje** puck i loopen, och en puck som beror på sig
+själv är samma fel med en nod — den behålls och flaggas i stället för att tyst
+kastas bort.
 
 **Landat = `done` *eller* `cancelled`.** Förut släppte `blockedBy` bara `done`, så en
-avbruten blockerare blockerade för alltid.
+avbruten blockerare blockerade för alltid. En landad puck väntar dessutom inte på
+något och håller inte upp något: dess kanter räknas i ingen riktning.
 
 ### Beslut som bygget tvingade fram
 - **Cykel: vägra i CLI och GUI, flagga vid skörd.** Lokalt vet vi tillräckligt för att
@@ -85,10 +92,13 @@ avbruten blockerare blockerade för alltid.
 - **Hela listan skrivs i ett commit.** Samma regel som `order`+`status` vid ett drag:
   en handling, en commit.
 
-Verifierat: 16 fall i headless Chromium (frågespråk åt båda håll, detaljvyns två rader,
+Verifierat: 21 fall i headless Chromium (frågespråk åt båda håll, detaljvyns två rader,
 ✕/Add/cross-repo-form/loopvägran/självberoende/sista-blockeraren) plus de sju tidigare
-sviterna som regression, och harvestern körd mot en fixtur med cross-repo-beroende,
-saknad referens, tvåcykel och självberoende.
+sviterna som regression — och, nytt för det här passet, en **end-to-end-svit över den
+riktiga harvestern**: den bygger ett fixtur-checkout, kör `harvest.mjs` och läser
+payloaden. Webbsviterna matar in handskrivna payloads och kan därför bara fånga fel i
+tavlan; deriveringen behövde sitt eget nät. Det var också det som lät mig verifiera
+spegel-invarianten över hela datan i stället för på ett exempel.
 
 ## Medvetet inte byggt
 - **Graf och kritisk väg.** "Vad blockerar flest" är nu en sortering bort — `blocks[]`

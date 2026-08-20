@@ -29,9 +29,11 @@ parentRef, children[], progress, signals[], sourceUrl, … }`.
 - `signals[]` — drift flags (`stale` / `issue-closed` / `issue-open` /
   `target-passed` / `parent-missing` / `parent-cycle` / `depends-missing` /
   `dependency-cycle`): the declared status disagrees with reality.
-- `blockedBy[]` — ids of the pucks from `depends` that aren't settled yet.
-  **Empty = unblocked.** `blocks[]` is the reverse edge (what this puck holds up),
-  derived too; `missingDepends[]` lists references that resolved to nothing.
+- `blockedBy[]` — everything from `depends` that isn't settled yet, as ids;
+  a reference that resolves to nothing stays **as written**, because an unknown
+  blocker is not a finished one. **Empty = unblocked**, and a settled puck's is
+  always empty. `blocks[]` is the exact mirror (x blocks y ⇔ y is blocked by x),
+  derived too; `missingDepends[]` lists the references that resolved to nothing.
 - `parent` — the etapp as *written* (`slug`, or `owner/repo#slug`); `parentRef` is
   it resolved to an id, or `null` when it doesn't resolve. `children[]` and
   `progress` (`{done,total}`) are derived from the children's `parent:` lines —
@@ -73,7 +75,7 @@ field of its own would invent a second truth:
 |---|---|
 | `is:ready` | `status` is `now`/`next` **and** `blockedBy` is empty |
 | `is:blocked` | `blockedBy` is non-empty |
-| `is:blocking` | `blocks` is non-empty — something waits on this puck |
+| `is:blocking` | `blocks` is non-empty — something unfinished waits on this puck |
 | `is:flagged` | the puck has any drift signal |
 | `is:stale` | its signals include `stale` |
 | `is:adapted` | the source isn't native pucks |
@@ -137,10 +139,11 @@ roadmap depends <slug> +deploy-simplification +tor2dbear/pia-terminal#vfs
 roadmap depends <slug> -deploy-simplification      # or --clear for all
 ```
 
-A reference that resolves to nothing is flagged `depends-missing` rather than
-dropped — otherwise the board would call the puck ready while its author thinks it
-is blocked. A loop flags `dependency-cycle` on every puck in it: no single link can
-be cut to fix it, so a human decides which edge is wrong.
+A reference that resolves to nothing is flagged `depends-missing` **and keeps
+blocking** — otherwise the board would call the puck ready while its author thinks
+it is blocked. A loop flags `dependency-cycle` on every puck in it: no single link
+can be cut to fix it, so a human decides which edge is wrong. A puck that depends on
+itself is that same error with one node, kept and flagged the same way.
 
 ## Etapps (the level above)
 

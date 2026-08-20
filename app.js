@@ -3544,17 +3544,21 @@
   // holds me up) and `blocks` (what I hold up) are both derived — here as well as
   // at harvest, so an optimistic edit can't leave the two directions disagreeing.
   function recomputeDeps() {
-    DATA.items.forEach(function (it) { it.blocks = []; it.missingDepends = []; });
+    DATA.items.forEach(function (it) { it.blocks = []; it.missingDepends = []; it.blockedBy = []; });
     DATA.items.forEach(function (it) {
-      var out = [];
+      var unresolved = [];
+      var live = [];
       (it.depends || []).forEach(function (ref) {
         var d = resolveRef(it, ref);
-        if (!d) { it.missingDepends.push(ref); return; }
-        if (d === it) return; // a puck depending on itself is just noise
-        if (!TERMINAL[d.status]) out.push(d.id);
-        d.blocks.push(it.id);
+        if (!d) { it.missingDepends.push(ref); unresolved.push(ref); return; }
+        if (!TERMINAL[d.status]) live.push(d);
       });
-      it.blockedBy = out;
+      if (TERMINAL[it.status]) return; // landed: waits for nothing, holds up nothing
+      // An unknown blocker is not a settled one — it stays in `blockedBy` as
+      // written, so the puck doesn't read as ready while its author thinks it is
+      // blocked. `blocks` is the exact mirror of the resolved half.
+      it.blockedBy = live.map(function (d) { return d.id; }).concat(unresolved);
+      live.forEach(function (d) { d.blocks.push(it.id); });
     });
     DATA.items.forEach(function (it) { it.blocks.sort(); });
   }
