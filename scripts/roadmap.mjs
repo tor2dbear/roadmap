@@ -86,7 +86,7 @@ function formatValue(key, value) {
 
 function setField(text, key, value) {
   const nl = text.includes("\r\n") ? "\r\n" : "\n";
-  const lines = text.replace(/\r\n/g, "\n").split("\n");
+  const lines = text.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").split("\n");
   const range = frontmatterRange(lines);
   if (!range) fail("no YAML frontmatter found — is this a puck?");
   const [start, end] = range;
@@ -103,7 +103,7 @@ function setField(text, key, value) {
 }
 
 function getField(text, key) {
-  const lines = text.replace(/\r\n/g, "\n").split("\n");
+  const lines = text.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").split("\n");
   const range = frontmatterRange(lines);
   if (!range) return null;
   for (let i = range[0]; i < range[1]; i++) {
@@ -117,7 +117,7 @@ function getField(text, key) {
 // byte-identical, same as setField.
 function removeField(text, key) {
   const nl = text.includes("\r\n") ? "\r\n" : "\n";
-  const lines = text.replace(/\r\n/g, "\n").split("\n");
+  const lines = text.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").split("\n");
   const range = frontmatterRange(lines);
   if (!range) fail("no YAML frontmatter found — is this a puck?");
   for (let i = range[0]; i < range[1]; i++) {
