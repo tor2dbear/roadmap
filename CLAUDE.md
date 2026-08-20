@@ -47,11 +47,15 @@ tagged `product` track this direction.
 - `data/roadmap.json` — canonical machine-readable aggregate (read this to reason
   about the roadmap programmatically). Shape: `{ generatedAt, statuses, counts,
   total, sources[], items[] }`. Each item: `{ id, repo, repoName, repoColor,
-  slug, title, status, priority, tags[], updated, created, issue, issueState, order,
+  slug, title, status, priority, tags[], updated, created, target, issue, issueState, order,
   depends[], blockedBy[], owner, agent, body, sourcePath, sourceUrl, adapter, native,
   signals[] }`. `owner` is a GitHub handle (or `null`) — thin collaboration, a
   field not an assignee store. `priority` is `urgent`/`high`/`medium`/`low` (or
   `null` = none) — orthogonal to `status` (*when* vs *how much it matters*).
+  `target` is `YYYY-MM-DD` (or `null`) — the horizon, a third axis orthogonal to
+  both (*when in the calendar* vs *when in the queue* vs *how much it matters*);
+  stored exact so it sorts and compares, shown coarsely on the board, and flagged
+  by `target-passed` once it's behind us. Not sprints, not estimates.
   `agent` is a discipline handle (or `null`) — the PO-layer routing state (which
   `agents/<name>.md` profile a runner should use); the "queue" is just pucks with
   `agent:` set, read from git — never a scheduler. `depends[]` are the same-repo slugs a puck declares it's blocked
@@ -61,7 +65,7 @@ tagged `product` track this direction.
   reconciled at harvest. `created` is `YYYY-MM-DD` (or `null`) — the puck's
   first-commit date, derived from git at harvest (a `created:` frontmatter field
   overrides it); needs full clone history, so the sync clones treeless. `signals[]` are the drift flags (`{ type }`, discrete:
-  `stale` / `issue-closed` / `issue-open`) — read these to spot cards whose
+  `stale` / `issue-closed` / `issue-open` / `target-passed`) — read these to spot cards whose
   declared status disagrees with reality.
 - `data/roadmap.js` — the same payload as `window.__ROADMAP__`, so `index.html`
   renders from `file://` with no server.
@@ -105,7 +109,9 @@ python3 -m http.server 4173              # then open the board locally
 Runs inside a source repo, operates on that repo's `roadmap/`, and edits
 frontmatter in place (bumping `updated` on every mutation) so status/date upkeep
 is automatic. `roadmap new "Title"`, `roadmap start|next|later|done <slug>`,
-`roadmap tag`, `roadmap issue`, `roadmap list`, `roadmap install-hook` (a
+`roadmap tag`, `roadmap issue`, `roadmap target`, `roadmap move <slug>
+--before|--after <slug>` (manual rank), `roadmap renumber` (tidy a column's
+`order` back to 10, 20, 30 …), `roadmap list`, `roadmap install-hook` (a
 pre-commit hook that bumps `updated` on hand edits too). Field edits are
 line-level and format-preserving; `STATUSES`/`slugify` are shared with
 `lib/adapters.mjs`. An agent can call these commands directly.
