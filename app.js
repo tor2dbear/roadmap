@@ -69,7 +69,7 @@
     view: "board", // "board" (kanban columns) | "list" (one column, grouped by status)
     sort: "default", // see SORTS below
   };
-  var SORTS = ["default", "priority", "updated-asc", "created-desc", "created-asc", "title"];
+  var SORTS = ["default", "updated-desc", "priority", "updated-asc", "created-desc", "created-asc", "title"];
   var PRIORITY_RANK = { urgent: 0, high: 1, medium: 2, low: 3 };
   try {
     var savedView = localStorage.getItem("roadmap-view");
@@ -1113,9 +1113,11 @@
     });
   }
 
-  // Client-side sort. "default" mirrors the harvester (manual `order` first, then
-  // freshest `updated`, then title) so the board looks the same until you pick
-  // another mode; the explicit modes drop `order` since the choice is deliberate.
+  // Client-side sort. "default" is the *manual* order — it mirrors the harvester
+  // (manual `order` first, then freshest `updated`, then title) and is labelled
+  // "Manual" in the menu; "updated-desc" is the same freshness sort without `order`,
+  // for when the hand-ranking should step aside. Every explicit mode drops `order`
+  // since the choice is deliberate.
   // Sort by a nullable date field, always pushing items that lack it to the end.
   // dir: 1 = oldest first (ascending), -1 = newest first (descending).
   function byDate(field, dir) {
@@ -1137,6 +1139,7 @@
         return (b.updated || "").localeCompare(a.updated || "") || a.title.localeCompare(b.title);
       };
     }
+    if (state.sort === "updated-desc") return byDate("updated", -1);
     if (state.sort === "updated-asc") return byDate("updated", 1);
     if (state.sort === "created-desc") return byDate("created", -1);
     if (state.sort === "created-asc") return byDate("created", 1);
@@ -1824,7 +1827,7 @@
   document.addEventListener("click", function (e) {
     if (swallowClick) { swallowClick = false; e.preventDefault(); e.stopPropagation(); }
   }, true);
-  // ── Filter popover (view-header) — refinements: Show done · Priority · Disciplines.
+  // ── Filter popover (view-header) — refinements: Show done · Priority · Labels.
   // Sidebar = places (views/agents/repos); this popover = what narrows the view.
   function activeFilterCount() {
     return (state.showDone ? 1 : 0) + (state.priorityFilter ? 1 : 0) + state.tags.size;
@@ -1870,10 +1873,12 @@
     });
     pop.appendChild(prow);
 
-    // Disciplines (labels) — scoped to the current place (repo/agent), ranked by
-    // use, with the long singleton tail collapsed behind "Show all" (a search
-    // reveals everything). Folksonomies sprawl; this keeps the useful few in view.
-    pop.appendChild(el("div", "fp-label", "Disciplines"));
+    // Labels — scoped to the current place (repo/agent), ranked by use, with the
+    // long singleton tail collapsed behind "Show all" (a search reveals
+    // everything). Folksonomies sprawl; this keeps the useful few in view.
+    // ("Discipline" is reserved for `agent:` — the sidebar's queues — so the tags
+    // are labels here, matching this section's own search field and More button.)
+    pop.appendChild(el("div", "fp-label", "Labels"));
     var scopePass = function (it) {
       return (!state.repos.size || state.repos.has(it.repo)) && (!state.agents.size || state.agents.has(it.agent));
     };

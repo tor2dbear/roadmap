@@ -1,9 +1,10 @@
 ---
 title: "Beroenden: skrivväg + cross-repo"
-status: inbox
+status: next
 tags: [core, dx, ai]
 updated: 2026-08-20
 created: 2026-08-19
+order: 60
 ---
 
 ## Goal

@@ -1,9 +1,10 @@
 ---
 title: "Rank: manuellt läge + skriv order från GUI:t"
-status: inbox
+status: next
 tags: [ui, editing]
 updated: 2026-08-20
 created: 2026-08-19
+order: 40
 ---
 
 ## Goal

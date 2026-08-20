@@ -1,9 +1,10 @@
 ---
 title: "Filtermodell: chips, frågespråk, delbara vyer"
-status: inbox
+status: next
 tags: [ui, ai]
 updated: 2026-08-20
 created: 2026-08-19
+order: 10
 ---
 
 ## Goal

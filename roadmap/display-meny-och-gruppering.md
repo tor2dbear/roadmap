@@ -1,9 +1,10 @@
 ---
 title: "Display-meny + gruppering som variabel"
-status: inbox
+status: next
 tags: [ui, product]
 updated: 2026-08-20
 created: 2026-08-19
+order: 20
 ---
 
 ## Goal
