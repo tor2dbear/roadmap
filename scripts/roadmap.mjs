@@ -52,7 +52,8 @@ function parseArgs(args) {
 }
 
 const { opts, pos } = parseArgs(argv);
-const DIR = path.resolve(opts.dir || "roadmap");
+// typeof guard: `--dir` with no value parses to `true`, which path.resolve throws on.
+const DIR = path.resolve(typeof opts.dir === "string" ? opts.dir : "roadmap");
 const cmd = pos.shift();
 
 // ── frontmatter-aware, format-preserving field edits ──
@@ -353,7 +354,7 @@ files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '(^|/)roadmap/
 for f in $files; do
   [ -f "$f" ] || continue
   awk -v d="$today" '
-    /^---[ \\t]*$/ { fm++; print; next }
+    /^---[ \\t\\r]*$/ { fm++; print; next }
     fm==1 && !done && /^updated:/ { sub(/^updated:.*/, "updated: " d); done=1 }
     { print }
   ' "$f" > "$f.rmtmp" && mv "$f.rmtmp" "$f"

@@ -107,7 +107,10 @@ function sortItems(a, b) {
   const bo = Number.isFinite(b.order) ? b.order : Number.POSITIVE_INFINITY;
   if (ao !== bo) return ao - bo;
   if (a.updated !== b.updated) return (b.updated || "").localeCompare(a.updated || "");
-  return a.title.localeCompare(b.title);
+  // Code-unit compare (not localeCompare) so the tiebreak is deterministic across
+  // CI machines/locales — the "byte-for-byte unchanged payload" idempotency claim
+  // relies on it for accented/unicode titles.
+  return a.title < b.title ? -1 : a.title > b.title ? 1 : 0;
 }
 
 async function main() {
@@ -188,11 +191,16 @@ async function main() {
   // Reconcile pucks that link an issue against its real GitHub state.
   const linked = items.filter((it) => it.issue != null);
   if (linked.length) {
-    await Promise.all(
-      linked.map(async (it) => {
-        it.issueState = await fetchIssueState(it.repo, it.issue);
-      }),
-    );
+    // Cap concurrency so a board with many linked issues doesn't fire hundreds of
+    // requests at once and burn the (unauthenticated: 60/hr) rate limit in a burst.
+    const LIMIT = 8;
+    for (let i = 0; i < linked.length; i += LIMIT) {
+      await Promise.all(
+        linked.slice(i, i + LIMIT).map(async (it) => {
+          it.issueState = await fetchIssueState(it.repo, it.issue);
+        }),
+      );
+    }
     const known = linked.filter((it) => it.issueState).length;
     console.error(`  · reconciled ${known}/${linked.length} linked issue(s)`);
   }

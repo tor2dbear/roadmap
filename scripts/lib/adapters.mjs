@@ -24,6 +24,21 @@ function normalizePriority(raw) {
   return VALID_PRIORITY.has(v) ? v : null;
 }
 
+// A finite number or null — never NaN (which JSON-serializes to null anyway, but
+// also poisons the sort comparator and triggers wasted `issues/NaN` fetches).
+function parseNumOrNull(raw) {
+  if (raw == null || raw === "") return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+// Issue links tolerate a leading `#` ("#123") and pull the first integer, so a
+// stray URL/hash doesn't become NaN → a silently dropped link.
+function parseIssueNum(raw) {
+  if (raw == null || raw === "") return null;
+  const m = String(raw).match(/\d+/);
+  return m ? Number(m[0]) : null;
+}
+
 export function slugify(s) {
   return s
     .normalize("NFKD")
@@ -88,8 +103,8 @@ async function pucksAdapter(repo, branch, source) {
       tags: Array.isArray(data.tags) ? data.tags : data.tags ? [String(data.tags)] : [],
       updated: data.updated ? String(data.updated) : "",
       created: created || null,
-      issue: data.issue != null && data.issue !== "" ? Number(data.issue) : null,
-      order: data.order != null && data.order !== "" ? Number(data.order) : null,
+      issue: parseIssueNum(data.issue),
+      order: parseNumOrNull(data.order),
       // Same-repo slugs this puck is blocked by; the harvester resolves them.
       depends: Array.isArray(data.depends)
         ? data.depends.map(String)
@@ -197,6 +212,7 @@ async function checklistAdapter(repo, branch, source) {
     if (/^\*?\(/.test(raw.trim())) continue;
 
     const { title, body } = titleAndBody(raw);
+    if (!title.trim()) continue; // a bare "- [x]" / blank bullet isn't an item
     // Tag items nested under an h3 only when the heading slugs to something short
     // and clean — a whole sentence ("Candidates that add a backend…") is dropped
     // rather than turned into a monster tag.

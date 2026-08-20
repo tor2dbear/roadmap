@@ -1181,6 +1181,13 @@
     board.classList.toggle("as-list", layout === "list");
     var visible = DATA.items.filter(matches).sort(sortComparator());
     var statuses = columnsForFocus();
+    // Needs attention can hold any status, but only render the columns that actually
+    // have a flagged card — otherwise the board shows six mostly-empty "—" columns.
+    if (state.focus === "attention") {
+      var present = {};
+      visible.forEach(function (it) { present[it.status] = 1; });
+      statuses = statuses.filter(function (s) { return present[s]; });
+    }
 
     if (layout === "list") renderList(visible, statuses);
     else renderColumns(visible, statuses);
