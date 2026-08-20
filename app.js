@@ -389,6 +389,7 @@
     if (state.view !== DISPLAY_DEFAULTS.view) p.push("layout=" + state.view);
     if (state.sort !== DISPLAY_DEFAULTS.sort) p.push("sort=" + state.sort);
     if (state.showDone) p.push("done=1");
+    if (!state.showEmpty) p.push("empty=0");
     return p.length ? "?" + p.join("&") : "";
   }
   function writeUrl() {
@@ -417,6 +418,7 @@
     // A link's display choices win over the saved preferences, but aren't saved
     // themselves — someone else's view shouldn't quietly become yours.
     if (got.done === "1") state.showDone = true;
+    if (got.empty === "0") state.showEmpty = false;
     if (GROUPS[got.group]) state.group = got.group;
     if (got.layout === "list" || got.layout === "board") state.view = got.layout;
     if (SORTS.indexOf(got.sort) !== -1) state.sort = got.sort;
@@ -476,6 +478,14 @@
     if (d != null && d >= 0 && d <= 1) return d === 0 ? "today" : "yesterday";
     if (d != null && d < 0 && d >= -21) return "in " + -d + " day" + (d === -1 ? "" : "s");
     return monthLabel(String(date).slice(0, 7));
+  }
+  // A real calendar date, not just the right shape: Date rolls "2026-02-31" into
+  // March, so only a value that survives the round-trip counts. Mirrors
+  // normalizeDate() in the harvester, so the board and the pipeline agree.
+  function realDate(s) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+    var d = new Date(s + "T00:00:00Z");
+    return !isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
   }
   function endOfMonth(ym) { // "2026-11" → "2026-11-30"
     var p = String(ym).split("-");
@@ -1361,7 +1371,7 @@
   // `status` has a fixed domain (the ladder), so its columns stand even when empty:
   // an empty column is a real drop target. Open domains (agent, repo, priority) list
   // only the values actually on screen, so they can't produce phantom columns.
-  var NO_VALUE = " "; // the "none" bucket — a key no real value can collide with
+  var NO_VALUE = "\u0000"; // the "none" bucket — a key no real value can collide with
   function presentKeys(items, keyOf, rank) {
     var seen = {}, out = [];
     items.forEach(function (it) { var k = keyOf(it); if (!seen[k]) { seen[k] = 1; out.push(k); } });
@@ -1488,7 +1498,11 @@
           e.stopPropagation(); // the column's own handler must not also claim this
           if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
           col.classList.remove("drop-target");
-          showDropLine(cards, dropPointAt(cards, e.clientY, grp.items, dragItem).before);
+          // Only offer a position we can actually write — refusing after the drop
+          // would be worse than not inviting it.
+          var over = dropPointAt(cards, e.clientY, grp.items, dragItem);
+          if (orderBetween(over.prev, over.next) == null) { clearDropTargets(); return; }
+          showDropLine(cards, over.before);
         });
         cards.addEventListener("drop", function (e) {
           if (!dragItem) return;
@@ -1499,7 +1513,10 @@
           var at = dropPointAt(cards, e.clientY, grp.items, moving);
           clearDropTargets();
           var order = orderBetween(at.prev, at.next);
-          if (order == null) { toast("✗ No room left here — run `roadmap renumber`", true); return; }
+          if (order == null) {
+            toast("✗ Can’t place below an unranked puck — run `roadmap renumber` first", true);
+            return;
+          }
           var moved = g.keyOf(moving) !== grp.key;
           changeOrder(moving, order, moved ? grp.key : null, g);
         });
@@ -2665,15 +2682,21 @@
   // rather than renumbering the neighbours, because renumbering a column from the
   // browser would mean N commits that can half-fail. `roadmap renumber` tidies a
   // column back to 10, 20, 30 in one local pass when you want round numbers.
+  // A column renders as [ranked by `order`][unranked, by `updated`]. One write can
+  // therefore only express a position whose *upper* neighbour is ranked (or absent
+  // — the very top). Drop below an unranked card and no single `order` puts the
+  // card there: any value at all lifts it into the ranked block, above every
+  // unranked puck. Rather than land it somewhere the pointer never was, refuse and
+  // point at `roadmap renumber`, which ranks the column in one local pass.
   var ORDER_STEP = 10;
   function orderBetween(prev, next) {
-    var a = prev && prev.order != null ? prev.order : null;
     var b = next && next.order != null ? next.order : null;
-    if (a == null && b == null) return ORDER_STEP;      // first ranked card here
-    if (a == null) return b - ORDER_STEP;               // above every ranked card
+    if (prev == null) return b == null ? ORDER_STEP : b - ORDER_STEP; // the very top
+    if (prev.order == null) return null;                // below an unranked card
+    var a = prev.order;
     if (b == null) return a + ORDER_STEP;               // below every ranked card
     var mid = (a + b) / 2;
-    return mid === a || mid === b ? null : mid;         // no room left (never, in practice)
+    return mid === a || mid === b ? null : mid;         // gap exhausted (float limit)
   }
   function changeOrder(item, order, alsoKey, group) {
     if (!ghToken()) return;
@@ -2769,14 +2792,14 @@
     if (priority === (item.priority || null) || !ghToken()) return;
     var prevP = item.priority, prevU = item.updated;
     item.priority = priority; item.updated = today();
-    renderBoard(); openModal(item);
+    renderBoard(); reopenIfOpen(item);
     toast("Saving…");
     commitPriority(item, priority)
       .then(function () { toast("✓ Saved — live in ~1 min"); })
       .catch(function (err) {
         item.priority = prevP; item.updated = prevU;
         noteWriteError(item, err);
-        renderBoard(); openModal(item);
+        renderBoard(); reopenIfOpen(item);
         toast("✗ " + err.message, true);
       });
   }
@@ -2807,14 +2830,14 @@
     if (agent === (item.agent || null) || !ghToken()) return;
     var prevA = item.agent, prevU = item.updated;
     item.agent = agent; item.updated = today();
-    renderBoard(); buildAgentChips(); openModal(item);
+    renderBoard(); buildAgentChips(); reopenIfOpen(item);
     toast("Saving…");
     commitAgent(item, agent)
       .then(function () { toast(agent ? "✓ Routed to " + agent + " — live in ~1 min" : "✓ Unassigned — live in ~1 min"); })
       .catch(function (err) {
         noteWriteError(item, err);
         item.agent = prevA; item.updated = prevU;
-        renderBoard(); buildAgentChips(); openModal(item);
+        renderBoard(); buildAgentChips(); reopenIfOpen(item);
         toast("✗ " + err.message, true);
       });
   }
@@ -2867,14 +2890,14 @@
     if (!ghToken() || tags.join(",") === (item.tags || []).join(",")) return;
     var prev = item.tags, prevU = item.updated;
     item.tags = tags; item.updated = today();
-    renderBoard(); openModal(item);
+    renderBoard(); reopenIfOpen(item);
     toast("Saving…");
     commitTags(item, tags)
       .then(function () { toast("✓ Labels saved — live in ~1 min"); })
       .catch(function (err) {
         item.tags = prev; item.updated = prevU;
         noteWriteError(item, err);
-        renderBoard(); openModal(item);
+        renderBoard(); reopenIfOpen(item);
         toast("✗ " + err.message, true);
       });
   }
@@ -2904,14 +2927,14 @@
     if (date === (item.target || null) || !ghToken()) return;
     var prevT = item.target, prevU = item.updated;
     item.target = date; item.updated = today();
-    renderBoard(); openModal(item);
+    renderBoard(); reopenIfOpen(item);
     toast("Saving…");
     commitTarget(item, date)
       .then(function () { toast(date ? "✓ Target " + date + " — live in ~1 min" : "✓ Target cleared — live in ~1 min"); })
       .catch(function (err) {
         item.target = prevT; item.updated = prevU;
         noteWriteError(item, err);
-        renderBoard(); openModal(item);
+        renderBoard(); reopenIfOpen(item);
         toast("✗ " + err.message, true);
       });
   }
@@ -2923,11 +2946,11 @@
     val = val.trim();
     if (val === "") { if (item.target) changeTarget(item, null); return; }
     var m = /^(\d{4})-(\d{2})$/.exec(val);
+    if (m && (Number(m[2]) < 1 || Number(m[2]) > 12)) { toast("✗ " + val + " is not a real month", true); return; }
     var date = m ? endOfMonth(val) : val;
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || isNaN(Date.parse(date + "T00:00:00Z"))) {
-      toast("✗ Use YYYY-MM-DD or YYYY-MM", true);
-      return;
-    }
+    // Round-trip, like the CLI and the harvester: "2026-02-31" parses fine and
+    // silently becomes March, which would store a horizon nobody typed.
+    if (!realDate(date)) { toast("✗ Use a real date: YYYY-MM-DD or YYYY-MM", true); return; }
     changeTarget(item, date);
   }
   // The Target cell in the rail: the horizon, shown exact here (the detail view is
@@ -2956,14 +2979,14 @@
     item.issue = number;
     if (number == null) item.issueState = null; // unknown until reharvest
     item.updated = today();
-    renderBoard(); openModal(item);
+    renderBoard(); reopenIfOpen(item);
     toast("Saving…");
     commitIssue(item, number)
       .then(function () { toast(number ? "✓ Linked issue #" + number + " — live in ~1 min" : "✓ Unlinked — live in ~1 min"); })
       .catch(function (err) {
         item.issue = prevI; item.issueState = prevState; item.updated = prevU;
         noteWriteError(item, err);
-        renderBoard(); openModal(item);
+        renderBoard(); reopenIfOpen(item);
         toast("✗ " + err.message, true);
       });
   }
@@ -3554,7 +3577,10 @@
   if (topShareBtn) topShareBtn.appendChild(icon("share"));
   if (topShareBtn) topShareBtn.addEventListener("click", function () {
     if (!currentDetailItem) return;
-    var url = location.origin + location.pathname + "#" + currentDetailItem.id;
+    // Carry the board you're standing on into the link: `?q=`/`?view=`/display
+    // params + `#puck` compose (see AGENTS.md), so the recipient lands on the same
+    // puck *and* backs out to the same board instead of a default one.
+    var url = location.origin + location.pathname + viewParams() + "#" + currentDetailItem.id;
     if (navigator.share) { navigator.share({ title: currentDetailItem.title, url: url }).catch(function () {}); }
     else { copyText(url, function () { toast("✓ Link copied"); }); }
   });

@@ -77,6 +77,17 @@ mellanrum tar slut går mittpunkten till decimal i stället för att numrera om
 grannarna — att renumrera en kolumn från webbläsaren vore N commits som kan
 halv-misslyckas. En droppzon-linje visar var kortet landar.
 
+**Bara positioner som går att skriva erbjuds.** En kolumn renderas som
+`[rankade][orankade]`, så ingen enskild `order` kan lägga ett kort *under* ett
+orankat: vilket tal som helst lyfter det upp i den rankade delen. Regeln blev
+"övre grannen måste vara rankad (eller saknas — högst upp)", och där den inte
+håller ritas ingen linje alls. Att erbjuda en plats och sedan landa kortet någon
+annanstans vore värre än att inte bjuda in.
+
+CLI:t löser samma situation tvärtom: `roadmap move` **rankar kolumnen först** och
+skriver ut exakt vad den gjorde, eftersom bulkoperationen hör hemma lokalt.
+`roadmap renumber --all` tar med de orankade när man vill förbereda en kolumn.
+
 **Två grindar, båda om ärlighet.** Sorteringen måste vara **Manual** — i varje
 annan härleds platsen ur ett fält, så hand-placering vore en lögn. Och
 grupperingen måste vara **status**, för `order` är definierat som platsen *i en
@@ -120,10 +131,22 @@ och status skrevs som `[object Object]`. Heter nu `toValue`.
 - **Att slå ihop de sex `commit*`-hjälparna** till `commitFields()`. De gör nästan
   samma sak, men refaktorn hör inte hemma i samma pass som funktionen.
 
+## Från granskningen (Codex + egen genomläsning)
+- **Placering bara i status-gruppering** — `order` är rank inom en status-kolumn, så
+  droppzonen i agent/priority/target-grupperingar räknade mot grannar från andra
+  statusar. (Hittad i egen genomläsning, bekräftad av Codex.)
+- **Orankade grannar** — se ovan; den öppna frågan blev ett beslut.
+- **`openModal` vid drag** — `changeAgent`/`changeTarget`/`changePriority` öppnade
+  detaljvyn vid varje lyckad skrivning, så ett drag i de grupperingarna navigerade
+  in i pucken. Alla `change*` använder nu `reopenIfOpen`, som `changeStatus` gjorde.
+- **NUL-byte i källan** — `NO_VALUE` skrevs som ett bokstavligt NUL-tecken i stället
+  för `"\u0000"`, vilket fick git och ripgrep att klassa hela `app.js` som binär och
+  dölja diffen. Skrivs nu escapat.
+- **Omöjliga datum** — `2026-02-31` rullade vidare till mars och `2026-13` till
+  2027; både CLI, GUI-prompt och harvester round-trippar nu datumet.
+- **`empty=0` i URL:en** och **puck-länkar som behåller vyn** — display-state som
+  inte gick att dela.
+
 ## Open questions
 - Mobil: drag-till-plats fungerar dåligt med tumme — "flytta upp/ner" i radens meny
   skriver samma fält när den menyn finns.
-- Ska `renumber` kunna ge *oordnade* puckar ett `order` (i dag rör den bara dem som
-  redan har ett)? Att frysa alla i en rank ingen bett om vore värre — men det gör
-  första drag-till-plats i en orankad kolumn lite överraskande: kortet hoppar högst
-  upp, eftersom rankade kort sorteras före orankade.

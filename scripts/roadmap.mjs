@@ -25,7 +25,7 @@ import { readFile, writeFile, mkdir, readdir } from "node:fs/promises";
 import { existsSync, readFileSync, writeFileSync, chmodSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
-import { STATUSES, PRIORITIES, slugify } from "./lib/adapters.mjs";
+import { STATUSES, PRIORITIES, slugify, normalizeDate } from "./lib/adapters.mjs";
 
 const TODAY = new Date().toISOString().slice(0, 10);
 const argv = process.argv.slice(2);
@@ -219,11 +219,18 @@ async function cmdTarget() {
   } else {
     const v = String(when || "").trim();
     const month = /^(\d{4})-(\d{2})$/.exec(v);
-    // A month means "by the end of it" — the last day, so `target:<=` questions
-    // about that month include everything in it.
-    shown = month ? new Date(Date.UTC(+month[1], +month[2], 0)).toISOString().slice(0, 10) : v;
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(shown)) fail("target must be YYYY-MM-DD or YYYY-MM  (or --clear)");
-    if (isNaN(Date.parse(shown + "T00:00:00Z"))) fail(`"${shown}" is not a real date`);
+    if (month) {
+      // A month means "by the end of it" — the last day, so `target:<=` questions
+      // about that month include everything in it. Guard the month itself: Date.UTC
+      // rolls `2026-13` over into 2027 instead of complaining.
+      if (+month[2] < 1 || +month[2] > 12) fail(`"${v}" is not a real month`);
+      shown = new Date(Date.UTC(+month[1], +month[2], 0)).toISOString().slice(0, 10);
+    } else {
+      shown = v;
+    }
+    // normalizeDate round-trips, so `2026-02-31` is rejected instead of silently
+    // becoming March — the harvester applies the same rule to hand-written values.
+    if (!normalizeDate(shown)) fail(`target must be a real date: YYYY-MM-DD or YYYY-MM  (or --clear)`);
     out = setField(text, "target", shown);
   }
   out = setField(out, "updated", TODAY);
@@ -402,6 +409,26 @@ function rankSort(a, b) {
   return ao - bo || b.updated.localeCompare(a.updated) || a.slug.localeCompare(b.slug);
 }
 
+// Give a column round numbers in its current on-screen order. `all` decides
+// whether unranked pucks are drawn in too: `renumber` leaves them alone (freezing
+// every puck into a rank nobody asked for would be worse), while `move` needs them
+// ranked to be able to express the position you asked for.
+async function rankColumn(pucks, status, all) {
+  const column = pucks
+    .filter((p) => p.status === status && (all || p.order != null))
+    .sort(rankSort);
+  const changed = [];
+  for (let i = 0; i < column.length; i++) {
+    const want = (i + 1) * 10;
+    if (column[i].order === want) continue;
+    let out = setField(column[i].text, "order", String(want));
+    out = setField(out, "updated", TODAY);
+    await writeFile(column[i].path, out);
+    changed.push(`${column[i].slug} ${column[i].order == null ? "—" : column[i].order} → ${want}`);
+  }
+  return changed;
+}
+
 async function cmdMove() {
   const slug = pos.shift();
   const anchor = opts.before || opts.after;
@@ -418,16 +445,28 @@ async function cmdMove() {
     fail(`"${anchor}" is in ${to.status} but "${slug}" is in ${me.status} — order only ranks within a column`);
   }
   // Neighbours in the anchor's column, with the moving puck taken out first.
-  const column = pucks.filter((p) => p.status === me.status && p.slug !== me.slug).sort(rankSort);
-  const at = column.findIndex((p) => p.slug === anchor);
-  const idx = opts.before ? at : at + 1;
-  const prev = column[idx - 1] || null;
-  const next = column[idx] || null;
+  const neighbours = (list) => {
+    const column = list.filter((p) => p.status === me.status && p.slug !== me.slug).sort(rankSort);
+    const at = column.findIndex((p) => p.slug === anchor);
+    const idx = opts.before ? at : at + 1;
+    return { prev: column[idx - 1] || null, next: column[idx] || null };
+  };
+  let { prev, next } = neighbours(pucks);
+  // A column renders as [ranked][unranked], so a single `order` can only express a
+  // position whose upper neighbour is ranked. The board refuses here and points at
+  // `renumber`; this command *is* the local bulk tool, so it ranks the column and
+  // says so rather than failing on the common "nothing is ranked yet" case.
+  if (prev && prev.order == null) {
+    const changed = await rankColumn(pucks, me.status, true);
+    if (changed.length) console.log(`  ranked ${me.status} first: ${changed.join(", ")}`);
+    const fresh = await allPucks();
+    Object.assign(me, fresh.find((p) => p.slug === me.slug));
+    ({ prev, next } = neighbours(fresh));
+  }
   const a = prev && prev.order != null ? prev.order : null;
   const b = next && next.order != null ? next.order : null;
   let value;
-  if (a == null && b == null) value = 10;
-  else if (a == null) value = b - 10;
+  if (prev == null) value = b == null ? 10 : b - 10;
   else if (b == null) value = a + 10;
   else {
     value = (a + b) / 2;
@@ -449,20 +488,13 @@ async function cmdRenumber() {
   for (const s of statuses) {
     if (!STATUSES.includes(s)) fail(`status must be one of: ${STATUSES.join(", ")}`);
   }
+  // `--all` also ranks the pucks that carry no `order` yet — needed before the
+  // board can place a card below them by hand.
   let touched = 0;
   for (const s of statuses) {
-    // Only pucks that already carry an `order` — renumbering would otherwise
-    // freeze every unranked puck into a rank nobody asked for.
-    const column = pucks.filter((p) => p.status === s && p.order != null).sort(rankSort);
-    for (let i = 0; i < column.length; i++) {
-      const want = (i + 1) * 10;
-      if (column[i].order === want) continue;
-      let out = setField(column[i].text, "order", String(want));
-      out = setField(out, "updated", TODAY);
-      await writeFile(column[i].path, out);
-      console.log(`  ${column[i].slug.padEnd(28)} ${column[i].order} → ${want}`);
-      touched++;
-    }
+    const changed = await rankColumn(pucks, s, !!opts.all);
+    changed.forEach(function (line) { console.log("  " + line); });
+    touched += changed.length;
   }
   console.log(touched ? `✓ renumbered ${touched} puck(s)  (updated ${TODAY})` : "✓ already tidy — nothing to renumber");
 }
