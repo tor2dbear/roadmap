@@ -91,6 +91,11 @@ sources.json ──▶ scripts/harvest.mjs ──▶ data/roadmap.json + data/ro
     (`path` + `section`). `✅`/`[x]` → `done`, else `later`. Marked `adapted`.
   - `prose` — best-effort: bullet items under a "future"/`## Vidare` section.
     Marked `adapted`.
+- **`board.config.json`** is the instance's own config — title, description,
+  `repoUrl`, and `views[]`: saved views, each a named
+  `{ q, group, sort, layout, done, empty }` using the same keys as the URL.
+  Configuration, not truth (the pucks stay the only data), and hand-editable;
+  *Display → Save as view* on the board writes it for you, as a commit.
 - **Backends** (`lib/repo.mjs`): if `ROADMAP_LOCAL_ROOT` points at local checkouts
   it reads from disk (CI clones the repos there — no API limits); otherwise it
   fetches via the GitHub API + raw endpoints (`GITHUB_TOKEN` optional).

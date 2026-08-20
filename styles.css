@@ -1024,6 +1024,16 @@ body.preload * { transition: none !important; }
   height: 2px; margin: 3px 2px; border-radius: 2px;
   background: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent);
 }
+/* A saved view's remove affordance — only on hover/focus, so the sidebar stays
+   calm and a saved view reads as navigation first. */
+.saved-del {
+  margin-left: auto; background: none; border: 0; padding: 0 2px; cursor: pointer;
+  color: var(--ink-3); font-size: 11px; line-height: 1; opacity: 0; transition: opacity .12s;
+}
+.focusbtn:hover .saved-del, .saved-del:focus { opacity: 1; }
+.saved-del:hover { color: var(--ink); }
+.dp-save { color: var(--accent); }
+
 /* The chip row: one chip per active predicate, under the view header. It is the
    filter's display — which is why the Filter button needs no count of its own. */
 .chiprow {

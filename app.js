@@ -419,18 +419,28 @@
   // state — the archive toggle is not a filter. The puck hash is left alone, and
   // writes always replace: the board URL describes where you are, it isn't a step
   // in history.
+  // The view as data: the same keys the URL uses and a saved view stores, so a
+  // link, a config entry and the live board are three encodings of one thing.
+  // Only non-defaults are included, so a plain board keeps a clean URL.
+  function viewParamObject() {
+    var o = {};
+    if (state.focus !== "all") o.view = state.focus;
+    var q = serializeTerms(filterTerms());
+    if (q) o.q = q;
+    if (state.group !== DISPLAY_DEFAULTS.group) o.group = state.group;
+    if (state.view !== DISPLAY_DEFAULTS.view) o.layout = state.view;
+    if (state.sort !== DISPLAY_DEFAULTS.sort) o.sort = state.sort;
+    if (state.showDone) o.done = "1";
+    if (!state.showEmpty) o.empty = "0";
+    return o;
+  }
   function viewParams() {
     var p = [];
-    if (state.focus !== "all") p.push("view=" + state.focus);
-    var q = serializeTerms(filterTerms());
-    if (q) p.push("q=" + encodeURIComponent(q).replace(/%20/g, "+"));
-    // Display state rides along so a shared link arrives looking the way you left
-    // it — but only when it differs from default, so a plain board keeps a clean URL.
-    if (state.group !== DISPLAY_DEFAULTS.group) p.push("group=" + state.group);
-    if (state.view !== DISPLAY_DEFAULTS.view) p.push("layout=" + state.view);
-    if (state.sort !== DISPLAY_DEFAULTS.sort) p.push("sort=" + state.sort);
-    if (state.showDone) p.push("done=1");
-    if (!state.showEmpty) p.push("empty=0");
+    var o = viewParamObject();
+    ["view", "q", "group", "layout", "sort", "done", "empty"].forEach(function (k) {
+      if (o[k] == null) return;
+      p.push(k + "=" + (k === "q" ? encodeURIComponent(o[k]).replace(/%20/g, "+") : o[k]));
+    });
     return p.length ? "?" + p.join("&") : "";
   }
   function writeUrl() {
@@ -456,6 +466,22 @@
       var i = kv.indexOf("=");
       got[i < 0 ? kv : kv.slice(0, i)] = i < 0 ? "" : decodeURIComponent(kv.slice(i + 1).replace(/\+/g, " "));
     });
+    applyParams(got);
+  }
+  // Apply a view's params to the board. `reset` makes them authoritative (a saved
+  // view is a complete description); the boot path leaves untouched keys alone
+  // because there is nothing to reset yet.
+  function applyParams(got, reset) {
+    if (reset) {
+      state.repos.clear(); state.agents.clear();
+      state.query = "";
+      state.focus = "all";
+      state.showDone = DISPLAY_DEFAULTS.showDone;
+      state.showEmpty = DISPLAY_DEFAULTS.showEmpty;
+      state.group = DISPLAY_DEFAULTS.group;
+      state.view = DISPLAY_DEFAULTS.view;
+      state.sort = DISPLAY_DEFAULTS.sort;
+    }
     // A link's display choices win over the saved preferences, but aren't saved
     // themselves — someone else's view shouldn't quietly become yours.
     if (got.done === "1") state.showDone = true;
@@ -1654,6 +1680,7 @@
     var shown = visible.length;
     updateViewHeader(shown);
     renderChips();
+    buildSavedViews(); // its "active" state tracks the board, like the view rows
     refreshDisplayDot();
     writeUrl(); // every render reflects the view into the URL, so it stays shareable
     document.getElementById("footmeta").textContent =
@@ -1777,6 +1804,7 @@
   function refreshNav() {
     var host = document.getElementById("sideViews") || document.getElementById("filters");
     if (host) { host.innerHTML = ""; buildFocusControl(); }
+    buildSavedViews();
     buildRepoChips();
     buildAgentChips();
   }
@@ -1992,6 +2020,14 @@
     pop.appendChild(emptyRow);
 
     pop.appendChild(el("div", "dp-rule"));
+    // "Save as view" is Linear's "Set default for everyone", git-native: it writes
+    // board.config.json, and repo permissions decide who may.
+    if (ghToken()) {
+      var save = el("button", "dp-reset dp-save", "Save as view…");
+      save.type = "button";
+      save.addEventListener("click", function () { toggleDisplayMenu(); saveCurrentView(); });
+      pop.appendChild(save);
+    }
     var reset = el("button", "dp-reset", "Reset to default");
     reset.type = "button";
     reset.addEventListener("click", function () {
@@ -2597,6 +2633,120 @@
     paint();
   }
 
+  // ── saved views ─────────────────────────────────────────────────────────────
+  // A view is the whole tuple — scope + filter + grouping + ordering + layout —
+  // named, in `board.config.json`. That file is *configuration*, not truth, so this
+  // adds no second source: the pucks are still the only data. Saving one is a
+  // commit, and who may save is decided by repo permissions — which is how we get
+  // Linear's "set default for everyone" without building a role model.
+  function savedViews() {
+    var vs = (DATA.config && DATA.config.views) || [];
+    return vs.filter(function (v) { return v && v.name; });
+  }
+  function paramsOf(v) {
+    var o = {};
+    ["view", "q", "group", "layout", "sort", "done", "empty"].forEach(function (k) {
+      if (v[k] != null && v[k] !== "") o[k] = String(v[k]);
+    });
+    return o;
+  }
+  function sameParams(a, b) {
+    var keys = ["view", "q", "group", "layout", "sort", "done", "empty"];
+    for (var i = 0; i < keys.length; i++) {
+      if ((a[keys[i]] || "") !== (b[keys[i]] || "")) return false;
+    }
+    return true;
+  }
+  function applySavedView(v) {
+    exitPuckView();
+    applyParams(paramsOf(v), true); // a saved view describes the whole board
+    refreshNav();
+    renderBoard();
+    maybeCloseMenu();
+  }
+  function buildSavedViews() {
+    var host = document.getElementById("savedViews");
+    var section = document.getElementById("savedSection");
+    if (!host || !section) return;
+    var views = savedViews();
+    section.hidden = !views.length;
+    host.innerHTML = "";
+    if (!views.length) return;
+    var now = viewParamObject();
+    var seg = el("div", "focusseg");
+    views.forEach(function (v) {
+      var on = sameParams(paramsOf(v), now);
+      var b = el("button", "focusbtn" + (on ? " on" : ""));
+      b.type = "button";
+      b.title = v.q || "Saved view";
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+      b.appendChild(el("span", "focus-label", v.name));
+      b.addEventListener("click", function () { applySavedView(v); });
+      if (ghToken()) {
+        var del = el("button", "saved-del", "✕");
+        del.type = "button";
+        del.title = "Remove this saved view";
+        del.setAttribute("aria-label", "Remove saved view " + v.name);
+        del.addEventListener("click", function (e) { e.stopPropagation(); removeSavedView(v); });
+        b.appendChild(del);
+      }
+      seg.appendChild(b);
+    });
+    host.appendChild(seg);
+  }
+  // Both writes go through the same helper: read the config, change `views`, commit.
+  function writeViews(views, message, done) {
+    var repo = aggregatorRepo();
+    if (!repo) { toast("✗ No aggregator repo configured", true); return; }
+    toast("Saving…");
+    commitViews(repo, views, message)
+      .then(function () {
+        DATA.config = DATA.config || {};
+        DATA.config.views = views; // optimistic: the harvest will confirm it
+        buildSavedViews();
+        if (done) done();
+        toast("✓ Saved — live in ~1 min");
+      })
+      .catch(function (err) { toast("✗ " + err.message, true); });
+  }
+  function commitViews(repo, views, message) {
+    var token = ghToken();
+    var api = "https://api.github.com/repos/" + repo + "/contents/board.config.json";
+    var errItem = { repo: repo, repoName: repo };
+    var headers = { Authorization: "Bearer " + token, Accept: "application/vnd.github+json" };
+    return fetch(api, { headers: headers })
+      .then(function (r) { assertOk(r, errItem); return r.json(); })
+      .then(function (info) {
+        var cfg = {};
+        try { cfg = JSON.parse(b64decode(info.content)); } catch (e) {}
+        if (views.length) cfg.views = views; else delete cfg.views;
+        var out = JSON.stringify(cfg, null, 2) + "\n";
+        return fetch(api, {
+          method: "PUT",
+          headers: { Authorization: "Bearer " + token, Accept: "application/vnd.github+json", "Content-Type": "application/json" },
+          body: JSON.stringify({ message: message, content: b64encode(out), sha: info.sha }),
+        });
+      })
+      .then(function (r) { assertOk(r, errItem); });
+  }
+  function saveCurrentView() {
+    var params = viewParamObject();
+    if (!Object.keys(params).length) { toast("✗ Nothing to save — this is the default board", true); return; }
+    var name = window.prompt("Name this view — it goes in board.config.json and shows in the sidebar.", "");
+    if (name == null) return;
+    name = name.trim();
+    if (!name) return;
+    var views = savedViews().filter(function (v) { return v.name !== name; }); // same name = replace
+    var entry = { name: name };
+    for (var k in params) entry[k] = params[k];
+    views.push(entry);
+    writeViews(views, "roadmap: save view “" + name + "”");
+  }
+  function removeSavedView(v) {
+    if (!window.confirm("Remove the saved view “" + v.name + "”?")) return;
+    writeViews(savedViews().filter(function (x) { return x !== v; }), "roadmap: remove view “" + v.name + "”");
+  }
+
   // ── the chip row ────────────────────────────────────────────────────────────
   // Every active predicate, visible and individually removable — the filter's own
   // display, so the Filter button needs no count and "showing more" can never read
@@ -2707,6 +2857,7 @@
   buildRepoChips();
   buildAgentChips();
   buildFocusControl();
+  buildSavedViews();
   renderBoard();
 
   // ── mobile drawer: the sidebar slides in over a scrim ──

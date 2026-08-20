@@ -1,6 +1,6 @@
 ---
 title: "Filtermodell: chips, frågespråk, delbara vyer"
-status: next
+status: done
 tags: [ui, ai]
 updated: 2026-08-20
 created: 2026-08-19
@@ -150,9 +150,53 @@ Verifierat i headless Chromium: 22 fall (vyer, `is:`-familjen, OR/negation/datum
 okänt fält, skrivning tillbaka till URL, platsmarkering, chip-spegling, djuplänk +
 fråga samtidigt) — alla gröna, inga JS-fel.
 
-## Kvar i den här pucken (steg 3–4)
-- **Chips-rad + "Add filter"-meny** — panelen ovanpå modellen (fältlistan ovan).
-- **Sparade vyer** i `board.config.json`, som en rad i Display-menyn.
+## Levererat (steg 3–4)
+
+**Panelen är additiv.** `FILTER_FIELDS` (Status · Priority · Labels · Owner ·
+State) med värdelista, räknare per värde och sökruta där värdena är många. Ett nytt
+fält är en rad i registret, inte en ny hårdkodad sektion. Räknarna beräknas mot
+*övriga* aktiva filter, så siffran beskriver klicket du är på väg att göra.
+
+**Repo och agent är medvetet inte filterfält.** De är sidomenyns platser — en
+navigationsdimension — och beslutet att avvakta med repo-som-filter står kvar.
+Deras chips syns ändå, så en aktiv plats går att se och ta bort.
+
+**Chip-raden** under vy-headern: ett chip per predikat med eget ✕, plus Clear all.
+Filter-knappens räkning är därmed chip-radens jobb.
+
+**Frågan blev den enda lagringen.** `state.tags` och `state.priorityFilter` är
+borta; `controlTerms()` bär bara platserna. Det var poängen med modellen i pass 1,
+men då gjordes den halvvägs — panelen behöll egna set. Nu redigerar panelen,
+chipsen, sökrutan och URL:en samma sträng.
+
+**Sparade vyer.** Hela tupeln — scope + filter + gruppering + sortering + layout —
+namngiven i `board.config.json`, listad i sidomenyn, markerad när brädet matchar.
+"Save as view" i Display-menyn skriver filen som ett commit; ✕ på en sparad vy tar
+bort den. Det är Linears "Set default for everyone" utan rollmodell: vem som får
+spara avgörs av repo-behörigheten.
+
+Vyerna lagras med **samma nycklar som URL:en** (`q`, `group`, `sort`, `layout`,
+`done`, `empty`), så en länk, en config-rad och det levande brädet är tre
+kodningar av samma sak. Att klicka en sparad vy *återställer* först — en sparad vy
+beskriver hela brädet, den ärver inte filtret du stod i.
+
+### Beslut som bygget tvingade fram
+- **Paletten nollställer bara fritexten.** `gui-struktur-v2` slog fast att paletten
+  inte ska lämna kvarhängande filter. Med filtren i frågan blev regeln: text är
+  flyktig, fälttermer är filter och stannar som chips.
+- **Inga påhittade vyer i konfigurationen.** Testet äger sina egna; instansens
+  `views[]` är ägarens beslut, precis som horisonterna i `tidsaxel`-pucken.
+
+Verifierat: 7 fall för panelen/chipsen + 13 för sparade vyer i headless Chromium,
+plus de fyra tidigare sviterna som regression. En bugg fångad: panelen ritar om sig
+i samma element, vilket kopplade bort det klickade elementet innan klicket nådde
+dokumentet — stängningslyssnaren såg då ett mål "utanför" och stängde panelen, så
+den gick inte att navigera i alls.
+
+## Medvetet inte byggt
+- **Advanced filter** (AND/OR-nästling) — textformen kan bära det den dag behovet
+  finns; panelen behöver det inte.
+- **Repo/agent som filterfält** — se ovan; ett beslut, inte en lucka.
 
 ## Open questions
 - Räckvidd på räknarna i "Add filter"-menyn: räkna inom aktuellt scope eller globalt?

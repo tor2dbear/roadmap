@@ -42,7 +42,8 @@ The board is **config-driven** — point it at your repos, no code changes:
    `GITHUB_TOKEN` secret.
 3. **[`board.config.json`](board.config.json)** — set `title`, `description`, and
    `repoUrl` (link back to your fork). Everything owner-specific lives here, not in
-   the code.
+   the code. Add `views[]` here for saved views, or build one on the board and
+   use *Display → Save as view* — it writes this file for you.
 4. **[`wrangler.jsonc`](wrangler.jsonc)** — set `name` (your Worker) and, for a
    custom domain, `routes`.
 5. **Cloudflare** — Workers & Pages → *Import a repository* → your fork, deploy
@@ -145,7 +146,7 @@ bundle; [`.assetsignore`](.assetsignore) keeps `scripts/`, config and docs out.
 | Path | What |
 |------|------|
 | `sources.json` | Which repos to harvest and how. |
-| `board.config.json` | Board title, description, and source link (deploy-your-own). |
+| `board.config.json` | Board title, description, source link, and saved views (deploy-your-own). |
 | `scripts/harvest.mjs` | The harvester (entry point). |
 | `scripts/lib/` | `repo.mjs` (backends), `adapters.mjs`, `frontmatter.mjs`. |
 | `CONVENTION.md` | The cross-repo roadmap standard. |
