@@ -84,7 +84,9 @@
   // them, turning a `stale` flag into a live "N days" string for display.
   function daysSince(dateStr) {
     if (!dateStr) return null;
-    var t = Date.parse(dateStr + "T00:00:00Z");
+    // Use just the YYYY-MM-DD prefix (mirrors the harvester) so an `updated` with a
+    // time component still yields the live "N days" age instead of NaN.
+    var t = Date.parse(String(dateStr).slice(0, 10) + "T00:00:00Z");
     if (isNaN(t)) return null;
     return Math.floor((Date.now() - t) / 86400000);
   }

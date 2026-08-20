@@ -52,8 +52,11 @@ function parseArgs(args) {
 }
 
 const { opts, pos } = parseArgs(argv);
-// typeof guard: `--dir` with no value parses to `true`, which path.resolve throws on.
-const DIR = path.resolve(typeof opts.dir === "string" ? opts.dir : "roadmap");
+// `--dir` with no value parses to `true`. Reject it explicitly rather than falling
+// back to `roadmap/` — a mutating command (`roadmap done slug --dir`) must not
+// silently write to a same-named puck in the default directory.
+if (opts.dir === true) fail("--dir needs a path, e.g. --dir roadmap");
+const DIR = path.resolve(opts.dir || "roadmap");
 const cmd = pos.shift();
 
 // ── frontmatter-aware, format-preserving field edits ──

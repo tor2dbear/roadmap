@@ -31,12 +31,16 @@ function parseNumOrNull(raw) {
   const n = Number(raw);
   return Number.isFinite(n) ? n : null;
 }
-// Issue links tolerate a leading `#` ("#123") and pull the first integer, so a
-// stray URL/hash doesn't become NaN → a silently dropped link.
+// Issue links: a full URL's `/issues/N` wins (so a digit elsewhere in the host/path
+// — e.g. "tor2dbear" — isn't grabbed), otherwise a bare/anchored `#?N`. Mirrors the
+// browser-side parseIssue. Junk → null (a dropped link, not a wrong one).
 function parseIssueNum(raw) {
   if (raw == null || raw === "") return null;
-  const m = String(raw).match(/\d+/);
-  return m ? Number(m[0]) : null;
+  const s = String(raw).trim();
+  let m = s.match(/\/issues\/(\d+)/);
+  if (m) return Number(m[1]);
+  m = s.match(/^#?(\d+)$/);
+  return m ? Number(m[1]) : null;
 }
 
 export function slugify(s) {
