@@ -87,6 +87,15 @@ en fälla.
 `Etapp`-rad i railen, och drag-and-drop. `depends`-misstaget (ett fält som bara går att
 handredigera används inte) upprepas inte.
 
+**Efterjustering: railen frågar inte längre efter en slug.** Första versionen använde
+`window.prompt`, vilket var fel på två sätt. Fältets värde är *en annan puck* — något
+man ska välja, inte stava; och en systemdialog ritas av webbläsaren, så på iOS dök
+Safaris egen ruta upp mitt i appen med sina former och färger. Nu finns en sökbar
+puck-väljare byggd av två mönster som redan fanns (picker-popovern + filterpanelens
+sökruta), delad med `Blocked by`. Den skriver referensformen åt dig och **utelämnar
+omöjliga val** — pucken själv och dess egna barn — så loopvägran blev en sista
+säkring i stället för något man möter genom att klicka.
+
 **Trasiga länkar flaggas, lagas aldrig.** En `parent:` som inte finns ger
 `parent-missing`; en som sluter en cirkel ger `parent-cycle` och länken klipps så resten
 av trädet fortfarande löser ut. Två flaggor för att det är två olika fixar — en felstavning

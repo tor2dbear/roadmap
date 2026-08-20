@@ -120,6 +120,9 @@
     }
     return null;
   }
+  // How this repo would name that puck: a bare slug at home, `owner/repo#slug`
+  // across repos. Matches refKey() in the harvester, and is the one place both
+  // `parent` and `depends` decide how a link is written.
   function refFor(from, target) {
     return target.repo === from.repo ? target.slug : target.repo + "#" + target.slug;
   }
@@ -954,6 +957,98 @@
     });
     function closeMenu() { var m = wrap.querySelector(".pick-menu"); if (m) m.remove(); }
     wrap.appendChild(chip);
+    return wrap;
+  }
+
+  // A searchable list of pucks — the control for every field whose value is
+  // *another puck* (etapp, blockers). Those can't be typed from memory the way a
+  // date or an issue number can, and `window.prompt` hands the whole dialog to the
+  // browser: on iOS that draws a system sheet in its own shape and colours, which
+  // reads as a different app. This is ours, built from the two patterns already
+  // here — the picker popover and the filter panel's search box.
+  //
+  // Impossible choices are left out rather than refused afterwards: what can't be
+  // picked shouldn't be pointable.
+  //   opts: { current, exclude(item) → bool, placeholder, empty, onPick(item|null) }
+  function puckPicker(label, opts) {
+    var wrap = el("div", "prop-pick");
+    var btn = el("button", "linklike");
+    btn.type = "button";
+    btn.textContent = label;
+    wrap.appendChild(btn);
+
+    function close() {
+      var m = wrap.querySelector(".pick-menu");
+      if (m) m.remove();
+      btn.setAttribute("aria-expanded", "false");
+    }
+    btn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (wrap.querySelector(".pick-menu")) { close(); return; }
+      var menu = el("div", "pick-menu pick-find");
+      btn.setAttribute("aria-expanded", "true");
+
+      var search = el("input", "fp-search");
+      search.type = "text";
+      search.placeholder = opts.placeholder || "Find a puck…";
+      search.autocomplete = "off"; search.spellcheck = false;
+      menu.appendChild(search);
+      var list = el("div", "pick-list");
+      menu.appendChild(list);
+
+      // Same repo first — that's where a link usually points — then the rest.
+      var pool = DATA.items.filter(function (it) { return it.native && !opts.exclude(it); });
+      pool.sort(function (a, b) {
+        var ar = a.repo === opts.repo ? 0 : 1, br = b.repo === opts.repo ? 0 : 1;
+        return ar - br || a.title.localeCompare(b.title);
+      });
+
+      var CAP = 40;
+      function paint() {
+        list.innerHTML = "";
+        var q = lower(search.value.trim());
+        if (opts.empty) {
+          var none = el("button", "pick-mi" + (opts.current ? "" : " on"));
+          none.type = "button";
+          none.appendChild(el("span", "prop-muted", opts.empty));
+          none.addEventListener("click", function () { close(); opts.onPick(null); });
+          list.appendChild(none);
+        }
+        var hits = pool.filter(function (it) {
+          return !q || lower(it.title).indexOf(q) !== -1 || it.slug.indexOf(q) !== -1 ||
+            lower(it.repoName).indexOf(q) !== -1;
+        });
+        hits.slice(0, CAP).forEach(function (it) {
+          var mi = el("button", "pick-mi" + (it.id === opts.current ? " on" : ""));
+          mi.type = "button";
+          var dot = el("span", "repo-dot");
+          dot.style.background = it.repoColor;
+          mi.appendChild(dot);
+          mi.appendChild(el("span", "pick-title", it.title));
+          // The repo is worth naming only when it isn't the one we're writing in.
+          if (it.repo !== opts.repo) mi.appendChild(el("span", "pick-repo", it.repoName));
+          if (it.id === opts.current) mi.appendChild(el("span", "pick-check", "✓"));
+          mi.addEventListener("click", function () { close(); opts.onPick(it); });
+          list.appendChild(mi);
+        });
+        if (!hits.length) list.appendChild(el("div", "fp-empty", q ? "No puck matches" : "Nothing to pick"));
+        else if (hits.length > CAP) list.appendChild(el("div", "fp-empty", "…and " + (hits.length - CAP) + " more — keep typing"));
+      }
+      search.addEventListener("input", paint);
+      paint();
+
+      menu.addEventListener("click", function (ev) { ev.stopPropagation(); });
+      wrap.appendChild(menu);
+      search.focus();
+      setTimeout(function () {
+        document.addEventListener("click", function closer(ev) {
+          if (!wrap.contains(ev.target) || !document.contains(ev.target)) {
+            close();
+            document.removeEventListener("click", closer);
+          }
+        });
+      }, 0);
+    });
     return wrap;
   }
 
@@ -3493,11 +3588,6 @@
   // file — no epic record to keep in sync, and dragging a card between etapp
   // columns is the same one-file commit a status flip is.
 
-  // How this repo would name that puck: a bare slug at home, `owner/repo#slug`
-  // across repos. Matches refKey() in the harvester.
-  function parentRefFor(item, target) {
-    return target.repo === item.repo ? target.slug : target.repo + "#" + target.slug;
-  }
   // Would this link close a loop? Walk up from the proposed parent; meeting the
   // puck itself means the etapp would contain its own ancestor. The harvester cuts
   // such a link anyway — refusing here keeps a nonsense line out of git.
@@ -3601,23 +3691,16 @@
     changeDepends(item, (item.depends || []).filter(function (r) { return r !== ref; }),
       "roadmap: " + item.slug + " no longer blocked by " + ref);
   }
-  // Ask for a blocker the way the CLI takes one: a slug in this repo, or
-  // `owner/repo#slug` anywhere on the board.
-  function promptDepend(item) {
-    var val = window.prompt(
-      "Blocked by which puck? A slug in " + item.repoName + ", or owner/repo#slug.", "");
-    if (val === null) return;
-    val = val.trim();
-    if (!val) return;
-    var target = resolveRef(item, val);
-    if (!target) { toast('✗ No puck "' + val + '" on the board', true); return; }
-    if (target === item) { toast("✗ A puck can’t depend on itself", true); return; }
-    var ref = refFor(item, target);
-    if ((item.depends || []).indexOf(ref) !== -1) return;
-    if (wouldDependLoop(item, target)) { toast("✗ That would make a dependency loop", true); return; }
-    changeDepends(item, (item.depends || []).concat([ref]),
-      "roadmap: " + item.slug + " blocked by " + ref);
+  // Which pucks could block this one: anything but itself, what it already lists,
+  // and anything that already waits on it (a loop).
+  function blockerCandidates(item) {
+    var listed = {};
+    dependsItems(item).forEach(function (d) { listed[d.id] = 1; });
+    return function (other) {
+      return other === item || listed[other.id] || wouldDependLoop(item, other);
+    };
   }
+
   // The Blocked by cell: every *declared* blocker (landed ones struck through, so
   // they can still be removed), each with a ✕ when writable, plus "Add".
   function dependsValue(item, editable) {
@@ -3644,10 +3727,17 @@
     });
     if (!(item.depends || []).length) wrap.appendChild(el("span", "prop-muted", "Nothing"));
     if (editable) {
-      var add = el("button", "linklike", "Add");
-      add.type = "button";
-      add.addEventListener("click", function () { promptDepend(item); });
-      wrap.appendChild(add);
+      wrap.appendChild(puckPicker("Add", {
+        repo: item.repo,
+        current: null,
+        exclude: blockerCandidates(item),
+        placeholder: "Find a blocker…",
+        onPick: function (target) {
+          var ref = refFor(item, target);
+          changeDepends(item, (item.depends || []).concat([ref]),
+            "roadmap: " + item.slug + " blocked by " + ref);
+        },
+      }));
     }
     return wrap;
   }
@@ -3668,7 +3758,7 @@
     if (parentId && !target) return;
     if (parentId === item.id) { toast("✗ A puck can’t be its own etapp", true); return; }
     if (wouldLoop(item, parentId)) { toast("✗ That would make an etapp loop", true); return; }
-    var raw = target ? parentRefFor(item, target) : null;
+    var raw = target ? refFor(item, target) : null;
     var prevRef = item.parentRef, prevRaw = item.parent, prevU = item.updated;
     relink(item, parentId, raw);
     item.updated = today();
@@ -3684,27 +3774,13 @@
         toast("✗ " + err.message, true);
       });
   }
-  // Ask for an etapp the way the CLI takes one: a slug in this repo, or
-  // `owner/repo#slug` anywhere on the board. Blank takes the puck out.
-  function promptParent(item) {
-    var cur = parentItem(item);
-    var val = window.prompt(
-      "Etapp for this puck — a puck slug in " + item.repoName + ", or owner/repo#slug.\nLeave blank to take it out of its etapp.",
-      item.parent || "");
-    if (val === null) return;
-    val = val.trim();
-    if (val === "") { if (item.parentRef || item.parent) changeParent(item, null); return; }
-    var hash = val.indexOf("#");
-    var repo = hash === -1 ? item.repo : val.slice(0, hash);
-    var slug = hash === -1 ? val : val.slice(hash + 1);
-    var target = null;
-    for (var i = 0; i < DATA.items.length; i++) {
-      if (DATA.items[i].repo === repo && DATA.items[i].slug === slug) { target = DATA.items[i]; break; }
-    }
-    if (!target) { toast('✗ No puck "' + val + '" on the board', true); return; }
-    if (target === cur) return;
-    changeParent(item, target.id);
+  // Which pucks could be this one's etapp: anything but itself and its own
+  // descendants (that would close a loop). Excluded up front, so the loop refusal
+  // in changeParent() is a backstop rather than something you meet by clicking.
+  function etappCandidates(item) {
+    return function (other) { return other === item || wouldLoop(item, other.id); };
   }
+
   // The Etapp cell in the rail: a link to the etapp when set, plus an edit
   // affordance. Same inline shape as Issue and Target.
   function parentValue(item, editable) {
@@ -3721,10 +3797,14 @@
       wrap.appendChild(el("span", "prop-muted", "No etapp"));
     }
     if (editable) {
-      var edit = el("button", "linklike", item.parent ? "Change" : "Set etapp");
-      edit.type = "button";
-      edit.addEventListener("click", function () { promptParent(item); });
-      wrap.appendChild(edit);
+      wrap.appendChild(puckPicker(item.parent ? "Change" : "Set etapp", {
+        repo: item.repo,
+        current: item.parentRef,
+        exclude: etappCandidates(item),
+        placeholder: "Find an etapp…",
+        empty: item.parent ? "No etapp" : null,
+        onPick: function (target) { changeParent(item, target && target.id); },
+      }));
     }
     return wrap;
   }

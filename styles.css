@@ -1237,6 +1237,32 @@ body.preload * { transition: none !important; }
 .disc-body pre { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; overflow-x: auto; }
 .disc-body a { color: var(--accent); }
 
+/* ── puck picker: the control for a field whose value is another puck ───────── */
+/* Ours, not the browser's: window.prompt hands the dialog to the OS, which on iOS
+   draws a system sheet in its own shape and colours. This borrows the picker
+   popover's shell and the filter panel's search box, so it reads as one app. */
+.pick-find { min-width: 260px; max-width: min(340px, calc(100vw - 32px)); padding: 6px; gap: 6px; }
+.pick-find .fp-search { margin-bottom: 2px; }
+.pick-list { display: flex; flex-direction: column; gap: 1px; max-height: 46vh; overflow-y: auto; }
+.pick-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pick-repo { margin-left: auto; padding-left: 8px; color: var(--ink-3); font-size: 11px; flex: none; }
+.pick-mi .repo-dot { flex: none; }
+.pick-find .fp-empty { padding: 8px 9px; color: var(--ink-3); font-size: 12px; }
+
+/* On a phone the rail sits low, so a popover anchored below its button opens off
+   screen and the keyboard eats what is left. Centre it instead and cap it to the
+   visible viewport (dvh follows the keyboard, unlike vh). */
+@media (max-width: 640px) {
+  .pick-find {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: min(340px, calc(100vw - 32px)); max-width: none; max-height: 70dvh;
+  }
+  .pick-list { max-height: calc(70dvh - 64px); }
+  /* No scrim: none of the other popovers (filter panel, status picker, Display
+     menu) dim the page, and dimming only this one would be the inconsistency this
+     control was built to remove. The shadow carries the layering. */
+}
+
 /* ── dependencies: the Blocked by / Blocks rows ─────────────────────────────── */
 /* `depends:` is the only authored half; the row edits it in place, one chip per
    declared blocker (landed ones struck through so they can still be removed). */
