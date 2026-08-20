@@ -23,13 +23,15 @@ it's the wrong shape — use a GitHub primitive instead (see below).
 
 `data/roadmap.json` = `{ generatedAt, config, statuses, counts, total, sources[],
 items[] }`. Each item: `{ id, repo, slug, title, status, tags[], updated, created,
-target, issue, issueState, order, depends[], blockedBy[], parent, parentRef,
-children[], progress, signals[], sourceUrl, … }`.
+target, issue, issueState, order, depends[], blockedBy[], blocks[], parent,
+parentRef, children[], progress, signals[], sourceUrl, … }`.
 
 - `signals[]` — drift flags (`stale` / `issue-closed` / `issue-open` /
-  `target-passed` / `parent-missing` / `parent-cycle`): the declared status
-  disagrees with reality.
-- `blockedBy[]` — same-repo dependencies not yet `done`. **Empty = unblocked.**
+  `target-passed` / `parent-missing` / `parent-cycle` / `depends-missing` /
+  `dependency-cycle`): the declared status disagrees with reality.
+- `blockedBy[]` — ids of the pucks from `depends` that aren't settled yet.
+  **Empty = unblocked.** `blocks[]` is the reverse edge (what this puck holds up),
+  derived too; `missingDepends[]` lists references that resolved to nothing.
 - `parent` — the etapp as *written* (`slug`, or `owner/repo#slug`); `parentRef` is
   it resolved to an id, or `null` when it doesn't resolve. `children[]` and
   `progress` (`{done,total}`) are derived from the children's `parent:` lines —
@@ -71,6 +73,7 @@ field of its own would invent a second truth:
 |---|---|
 | `is:ready` | `status` is `now`/`next` **and** `blockedBy` is empty |
 | `is:blocked` | `blockedBy` is non-empty |
+| `is:blocking` | `blocks` is non-empty — something waits on this puck |
 | `is:flagged` | the puck has any drift signal |
 | `is:stale` | its signals include `stale` |
 | `is:adapted` | the source isn't native pucks |
@@ -114,6 +117,7 @@ roadmap target <slug> 2026-11       # horizon: a date, or a month = its last day
 roadmap move <slug> --before <slug> # manual rank within the status column
 roadmap renumber [--status now]     # tidy order back to 10, 20, 30 …
 roadmap parent <slug> <etapp-slug>  # put it in an etapp (--clear to take it out)
+roadmap depends <slug> +a -b        # edit blockers (--clear to remove all)
 roadmap agent <slug> <discipline>   # route to a discipline agent (--clear to remove)
 roadmap list [--status now]         # overview
 ```
@@ -123,9 +127,20 @@ Or edit `roadmap/<slug>.md` directly — the `install-hook` pre-commit hook bump
 
 ## Dependencies
 
-Declare `depends: [slug, …]` (same-repo slugs) in frontmatter. The board shows ⛔
-until every listed puck is `done`; agents read the resolved `blockedBy[]` to know
-what's ready. Use it to sequence work.
+Declare `depends: [<ref>, …]` — a slug in the same repo, or `owner/repo#slug`
+anywhere on the board. The harvester resolves it into `blockedBy[]` (the blockers
+not yet settled — **empty = ready**) and the reverse edge `blocks[]`. Only
+`depends:` is authored: a `blocks:` field could disagree with it.
+
+```bash
+roadmap depends <slug> +deploy-simplification +tor2dbear/pia-terminal#vfs
+roadmap depends <slug> -deploy-simplification      # or --clear for all
+```
+
+A reference that resolves to nothing is flagged `depends-missing` rather than
+dropped — otherwise the board would call the puck ready while its author thinks it
+is blocked. A loop flags `dependency-cycle` on every puck in it: no single link can
+be cut to fix it, so a human decides which edge is wrong.
 
 ## Etapps (the level above)
 
@@ -148,7 +163,8 @@ A `parent:` that names nothing, or that closes a loop, is flagged
 - Never hand-edit `data/roadmap.json`, `data/roadmap.js`, `ROADMAP.md`.
 - Never add a second source of truth.
 - The hierarchy points **up only**: a child names its `parent`. Never write a
-  `children:` field — it's derived, and a stored copy could disagree.
+  `children:` field — it's derived, and a stored copy could disagree. Same for
+  dependencies: only the blocked puck writes `depends:`; `blocks` is derived.
 - Four orthogonal axes, never conflated: `status` = which column (`inbox →
   now/next/later → done`), `order` = the place in it (manual rank, lower first,
   unset sinks to the bottom), `priority` = how much it matters (a label to filter
