@@ -1,6 +1,6 @@
 ---
 title: "Display-meny + gruppering som variabel"
-status: next
+status: done
 tags: [ui, product]
 updated: 2026-08-20
 created: 2026-08-19
@@ -94,14 +94,54 @@ det smarta defaultet räcker långt och kostar nästan inget.)
 - `rank-skriv-order-fran-gui-t` — äger Ordering-radens innehåll och skrivvägen.
 - `fragesprak-delbara-vyer` — äger Filter-knappen; "Save as view" behöver dess modell.
 
-## Open questions
-- Hur sorteras grupperna själva per fält? (status = konventionens ordning, target =
-  kronologiskt, etapp = förälderns `order`, repo = `sources.json`-ordningen, agent =
-  alfabetiskt?)
-- Var hamnar puckar utan värde — hink först eller sist, och heter den "Ingen etapp"
-  eller "—"?
-- Ska gruppering + layout ligga i URL:en från dag ett (`&group=target&layout=timeline`)
-  eller bara i localStorage tills sparade vyer finns? (Förslag: URL direkt — annars
-  är vyn inte delbar, vilket var halva poängen.)
-- Timeline-layout: kolumner per månad/kvartal, eller ett riktigt gantt-liknande band?
-  (Förslag: kolumner — samma kod som brädet, noll ny rendering.)
+## Delivered
+
+**Gruppering är en variabel.** `GROUPS` (status · agent · repo · priority) ger
+`keyOf`, `keys`, `labelOf` och — där fältet är skrivbart — `write`. `groupsOf()`
+hinkar de synliga puckarna och båda renderarna konsumerar samma lista. Följder:
+
+- **Att släppa ett kort i en kolumn skriver det grupperade fältet.** Grupperat på
+  agent *är* PO-konsolen (drag = routa), på priority = triage. Repo saknar skrivare
+  → ingen drop-target, i stället för en drop som ljuger.
+- **Fixed vs öppen domän** löste tomma kolumner utan specialfall: `status` har en
+  känd stege, så dess kolumner står kvar tomma (en tom kolumn är en drop-target);
+  agent/repo/priority listar bara värden som finns, så inga spökkolumner uppstår.
+  Listan visar aldrig tomma grupper — den har inget att släppa i.
+- **"Ingen"-hinken** sorteras alltid sist och heter fältets språk ("Unrouted",
+  "No priority").
+- **Gruppordning per fält:** status = konventionens stege, priority = urgent→low,
+  repo = `sources.json`-ordningen, agent = alfabetisk.
+
+**Display-menyn.** `Sort`-selecten och `☰`-toggeln är borta ur vy-headern; kvar är
+**Filter · Display**. Menyn har layout (segmenterad), Grouping, Ordering, arkiv- och
+tomma-kolumner-togglarna och Reset. Varje val finns också i ⌘K, så nästa
+display-val blir en rad — aldrig en ny knapp.
+
+**Arkiv-toggeln flyttade till Display** och `activeFilterCount()` räknar den inte
+längre: Filter visar bara sådant som *smalnar av*, Display visar en prick när något
+avviker från default. Den persistas nu (som `sort`/`view`) i stället för att
+nollställas vid varje omladdning.
+
+**Kortets datum följer sorteringen** — sorterar du på created visar kortet created.
+
+**URL:en bär hela vyn:** `?q=` · `?view=` · `&group=` · `&layout=` · `&sort=` ·
+`&done=1` · `#repo/slug`. Länkens display-val vinner över de sparade men skrivs inte
+till localStorage — någon annans vy ska inte tyst bli din.
+
+**Bonusfix:** popovern ankras nu under sin egen knapp (`left: 0`). Med två popovers
+bredvid varandra syntes det att den gamla `right: 0`-ankringen — från när knapparna
+satt till höger — öppnade menyn vänsterut över sidomenyn.
+
+Verifierat i headless Chromium: 21 fall gröna (menyns innehåll, alla fyra
+grupperingar, gruppordning, prick på/av, tomma kolumner, listvy, sortering inom
+grupp, kortdatum, URL-bevaring, filterräknaren) + pass 1:s 22 fall som regression.
+Skärmdumpar i ljust och mörkt.
+
+## Medvetet inte byggt här (flyttat till sin ägare)
+- **Timeline-layouten** — det är gruppering på `target`, så den landar i
+  `tidsaxel-target-horisont` när fältet finns. Renderaren behöver inget nytt.
+- **"Save as view"** — kräver filtermodellens sparade vyer, så den bor i
+  `fragesprak-delbara-vyer` (steg 4) och blir en rad längst ned i den här menyn.
+- **Sub-grouping** — meningsfullt först med `parent` (etapp × status).
+- **Display properties** (vilka fält kortet visar) — det smarta defaultet räcker
+  tills något efterfrågar mer.

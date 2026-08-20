@@ -66,17 +66,26 @@
     showDone: false,
     priorityFilter: null, // null = any; else one of PRIORITIES
     focus: "all", // "all" | "ready" (unblocked now/next) | "inbox" (triage) | "attention" (flagged)
-    view: "board", // "board" (kanban columns) | "list" (one column, grouped by status)
+    view: "board", // "board" (kanban columns) | "list" (one column, grouped)
     sort: "default", // see SORTS below
+    group: "status", // which field becomes the columns — see GROUPS
+    showEmpty: true, // board only: keep a column that has no pucks (it's a drop target)
   };
   var SORTS = ["default", "updated-desc", "priority", "updated-asc", "created-desc", "created-asc", "title"];
   var PRIORITY_RANK = { urgent: 0, high: 1, medium: 2, low: 3 };
+  // Display preferences persist (they're settings, not a transient filter); a URL
+  // that names them wins over these on load — see readUrl().
   try {
     var savedView = localStorage.getItem("roadmap-view");
     if (savedView === "list" || savedView === "board") state.view = savedView;
     var savedSort = localStorage.getItem("roadmap-sort");
     if (SORTS.indexOf(savedSort) !== -1) state.sort = savedSort;
+    var savedGroup = localStorage.getItem("roadmap-group");
+    if (savedGroup) state.group = savedGroup; // validated after GROUPS is defined
+    state.showDone = localStorage.getItem("roadmap-done") === "1";
+    if (localStorage.getItem("roadmap-empty") === "0") state.showEmpty = false;
   } catch (e) {}
+  function saveDisplay(key, value) { try { localStorage.setItem("roadmap-" + key, value); } catch (e) {} }
 
   // ── auto-status ──
   // The harvester computes the flags (item.signals, discrete types) so the JSON,
@@ -369,6 +378,11 @@
     if (state.focus !== "all") p.push("view=" + state.focus);
     var q = serializeTerms(filterTerms());
     if (q) p.push("q=" + encodeURIComponent(q).replace(/%20/g, "+"));
+    // Display state rides along so a shared link arrives looking the way you left
+    // it — but only when it differs from default, so a plain board keeps a clean URL.
+    if (state.group !== DISPLAY_DEFAULTS.group) p.push("group=" + state.group);
+    if (state.view !== DISPLAY_DEFAULTS.view) p.push("layout=" + state.view);
+    if (state.sort !== DISPLAY_DEFAULTS.sort) p.push("sort=" + state.sort);
     if (state.showDone) p.push("done=1");
     return p.length ? "?" + p.join("&") : "";
   }
@@ -395,7 +409,12 @@
       var i = kv.indexOf("=");
       got[i < 0 ? kv : kv.slice(0, i)] = i < 0 ? "" : decodeURIComponent(kv.slice(i + 1).replace(/\+/g, " "));
     });
+    // A link's display choices win over the saved preferences, but aren't saved
+    // themselves — someone else's view shouldn't quietly become yours.
     if (got.done === "1") state.showDone = true;
+    if (GROUPS[got.group]) state.group = got.group;
+    if (got.layout === "list" || got.layout === "board") state.view = got.layout;
+    if (SORTS.indexOf(got.sort) !== -1) state.sort = got.sort;
     if (VIEWS[got.view]) state.focus = got.view;
     if (!got.q) return;
     // Hand each incoming term back to the control that owns it, so the sidebar and
@@ -524,6 +543,12 @@
 
   // A card is a compact summary; tapping it opens the full detail in a modal
   // (fullscreen on mobile) so long bodies don't blow up the column height.
+  // Which date a card shows: the one the ordering is actually about. Sorting by
+  // "Newest created" and then showing `updated` made the column look shuffled.
+  function cardDateField() {
+    return (state.sort === "created-desc" || state.sort === "created-asc") ? "created" : "updated";
+  }
+
   function card(item) {
     var sig = signalMessages(item);
     var c = el("div", "card" + (item.native ? "" : " adapted") + (sig.length ? " flagged" : "") + (item.id === selectedId ? " sel" : ""));
@@ -550,7 +575,8 @@
     if (item.agent) meta.appendChild(agentBadge(item.agent));
     if ((item.blockedBy || []).length) meta.appendChild(blockBadge(item));
     if (item.owner) meta.appendChild(ownerEl(item.owner));
-    if (item.updated) meta.appendChild(dateEl(item.updated));
+    var df = cardDateField();
+    if (item[df]) meta.appendChild(dateEl(item[df]));
     c.appendChild(meta);
 
     // Row 3: tags (static badges).
@@ -1246,68 +1272,149 @@
     r.appendChild(rp);
 
     var dt = el("div", "list-cell list-dt");
-    if (item.updated) dt.appendChild(dateEl(item.updated, "list-date"));
+    var ldf = cardDateField();
+    if (item[ldf]) dt.appendChild(dateEl(item[ldf], "list-date"));
     r.appendChild(dt);
 
     r.addEventListener("click", function () { openModal(item); });
     return r;
   }
 
-  function renderColumns(visible, statuses) {
-    statuses.forEach(function (status) {
-      var group = visible.filter(function (it) { return it.status === status; });
-      var col = el("div", "column col-status-" + status);
+  // ── grouping ────────────────────────────────────────────────────────────────
+  // Which field becomes the columns is a variable, not a hard-coded status axis. A
+  // group supplies: keyOf (puck → key), keys (the ordered keys to draw), labelOf, an
+  // optional column class, and — where the field is writable — a `write`, so
+  // dropping a card into a column *sets that field*. Grouping by agent is then the
+  // PO console and grouping by repo the fleet view, out of one renderer.
+  //
+  // `status` has a fixed domain (the ladder), so its columns stand even when empty:
+  // an empty column is a real drop target. Open domains (agent, repo, priority) list
+  // only the values actually on screen, so they can't produce phantom columns.
+  var NO_VALUE = " "; // the "none" bucket — a key no real value can collide with
+  function presentKeys(items, keyOf, rank) {
+    var seen = {}, out = [];
+    items.forEach(function (it) { var k = keyOf(it); if (!seen[k]) { seen[k] = 1; out.push(k); } });
+    return out.sort(function (a, b) {
+      if (a === NO_VALUE) return 1; // "none" always sits last
+      if (b === NO_VALUE) return -1;
+      return rank ? rank(a) - rank(b) : a.localeCompare(b);
+    });
+  }
+  var GROUPS = {
+    status: {
+      label: "Status",
+      fixed: true,
+      keyOf: function (i) { return i.status; },
+      keys: function () { return columnsForFocus(); },
+      labelOf: function (k) { return STATUS_LABEL[k] || k; },
+      cls: function (k) { return "col-status-" + k; },
+      write: function (item, k) { changeStatus(item, k); },
+      preset: function (k) { return { status: k }; },
+    },
+    agent: {
+      label: "Agent",
+      keyOf: function (i) { return i.agent || NO_VALUE; },
+      keys: function (items) { return presentKeys(items, this.keyOf); },
+      labelOf: function (k) { return k === NO_VALUE ? "Unrouted" : agentLabel(k); },
+      write: function (item, k) { changeAgent(item, k === NO_VALUE ? null : k); },
+    },
+    repo: {
+      label: "Repo",
+      keyOf: function (i) { return i.repo; },
+      keys: function (items) {
+        var order = {};
+        DATA.sources.forEach(function (s, i) { order[s.repo] = i; });
+        return presentKeys(items, this.keyOf, function (k) { return order[k] == null ? 999 : order[k]; });
+      },
+      labelOf: function (k) { return repoNameOf(k); },
+      tint: function (k) {
+        var s = DATA.sources.filter(function (x) { return x.repo === k; })[0];
+        return s && s.color; // a repo column wears its own colour, like its cards
+      },
+    },
+    priority: {
+      label: "Priority",
+      keyOf: function (i) { return i.priority || NO_VALUE; },
+      keys: function (items) {
+        return presentKeys(items, this.keyOf, function (k) { return PRIORITY_RANK[k]; });
+      },
+      labelOf: function (k) { return k === NO_VALUE ? "No priority" : (PRIORITY_LABEL[k] || k); },
+      write: function (item, k) { changePriority(item, k === NO_VALUE ? null : k); },
+    },
+  };
+  function activeGroup() { return GROUPS[state.group] || GROUPS.status; }
+
+  // Bucket the visible pucks by the active grouping. Returns [{ key, label, items }]
+  // in the group's own order — the one thing both renderers consume.
+  function groupsOf(visible) {
+    var g = activeGroup();
+    var keys = g.keys(visible);
+    var byKey = {};
+    keys.forEach(function (k) { byKey[k] = []; });
+    visible.forEach(function (it) {
+      var k = g.keyOf(it);
+      if (byKey[k]) byKey[k].push(it); // a key outside the list (e.g. a filtered status) is dropped
+    });
+    return keys.map(function (k) { return { key: k, label: g.labelOf(k), items: byKey[k] }; });
+  }
+
+  function renderColumns(groups) {
+    var g = activeGroup();
+    groups.forEach(function (grp) {
+      if (!grp.items.length && !state.showEmpty) return;
+      var col = el("div", "column" + (g.cls ? " " + g.cls(grp.key) : " col-plain"));
+      if (g.tint && g.tint(grp.key)) col.style.setProperty("--tint", g.tint(grp.key));
       var head = el("div", "col-head");
       head.appendChild(el("span", "swatch"));
-      head.appendChild(el("h2", null, STATUS_LABEL[status] || status));
-      head.appendChild(el("span", "count", String(group.length)));
+      head.appendChild(el("h2", null, grp.label));
+      head.appendChild(el("span", "count", String(grp.items.length)));
       col.appendChild(head);
       var cards = el("div", "cards");
-      if (group.length === 0) {
-        cards.appendChild(el("div", "empty", "—"));
-      } else {
-        group.forEach(function (it) { cards.appendChild(card(it)); });
-      }
+      if (grp.items.length === 0) cards.appendChild(el("div", "empty", "—"));
+      else grp.items.forEach(function (it) { cards.appendChild(card(it)); });
       col.appendChild(cards);
-      // in-column "+" — create a puck already in this column (Linear-style)
-      if (ghToken()) {
+      // in-column "+" — only where "new puck already in this column" is expressible
+      if (ghToken() && g.preset) {
         var add = el("button", "col-add", "");
         add.type = "button";
         add.appendChild(icon("plus"));
-        add.setAttribute("aria-label", "New puck in " + (STATUS_LABEL[status] || status));
-        add.addEventListener("click", function () { openNewPuckPanel({ status: status }); });
+        add.setAttribute("aria-label", "New puck in " + grp.label);
+        add.addEventListener("click", function () { openNewPuckPanel(g.preset(grp.key)); });
         col.appendChild(add);
       }
-      // drop target for drag-to-restatus
-      col.addEventListener("dragover", function (e) {
-        if (!dragItem || dragItem.status === status) return;
-        e.preventDefault();
-        if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
-        col.classList.add("drop-target");
-      });
-      col.addEventListener("dragleave", function (e) { if (e.target === col || !col.contains(e.relatedTarget)) col.classList.remove("drop-target"); });
-      col.addEventListener("drop", function (e) {
-        col.classList.remove("drop-target");
-        if (!dragItem || dragItem.status === status) return;
-        e.preventDefault();
-        changeStatus(dragItem, status);
-        dragItem = null;
-      });
+      // Drop = write the grouped field. No writer (repo) → no drop target.
+      if (g.write) {
+        col.addEventListener("dragover", function (e) {
+          if (!dragItem || g.keyOf(dragItem) === grp.key) return;
+          e.preventDefault();
+          if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+          col.classList.add("drop-target");
+        });
+        col.addEventListener("dragleave", function (e) { if (e.target === col || !col.contains(e.relatedTarget)) col.classList.remove("drop-target"); });
+        col.addEventListener("drop", function (e) {
+          col.classList.remove("drop-target");
+          if (!dragItem || g.keyOf(dragItem) === grp.key) return;
+          e.preventDefault();
+          g.write(dragItem, grp.key);
+          dragItem = null;
+        });
+      }
       board.appendChild(col);
     });
   }
 
-  function renderList(visible, statuses) {
-    statuses.forEach(function (status) {
-      var group = visible.filter(function (it) { return it.status === status; });
-      if (group.length === 0) return; // no "—" placeholders in the flat list
-      var section = el("section", "list-group col-status-" + status);
+  function renderList(groups) {
+    var g = activeGroup();
+    groups.forEach(function (grp) {
+      if (!grp.items.length) return; // a flat list has no drop targets, so no empty headers
+      var section = el("section", "list-group" + (g.cls ? " " + g.cls(grp.key) : " col-plain"));
+      if (g.tint && g.tint(grp.key)) section.style.setProperty("--tint", g.tint(grp.key));
       var head = el("div", "list-head");
       head.appendChild(el("span", "swatch"));
-      head.appendChild(el("h2", null, STATUS_LABEL[status] || status));
-      head.appendChild(el("span", "count", String(group.length)));
+      head.appendChild(el("h2", null, grp.label));
+      head.appendChild(el("span", "count", String(grp.items.length)));
       section.appendChild(head);
-      group.forEach(function (it) { section.appendChild(listRow(it)); });
+      grp.items.forEach(function (it) { section.appendChild(listRow(it)); });
       board.appendChild(section);
     });
   }
@@ -1361,13 +1468,14 @@
     board.classList.toggle("as-list", layout === "list");
     activeQuery = activeTerms();
     var visible = DATA.items.filter(matches).sort(sortComparator());
-    var statuses = columnsForFocus();
+    var groups = groupsOf(visible);
 
-    if (layout === "list") renderList(visible, statuses);
-    else renderColumns(visible, statuses);
+    if (layout === "list") renderList(groups);
+    else renderColumns(groups);
 
     var shown = visible.length;
     updateViewHeader(shown);
+    refreshDisplayDot();
     writeUrl(); // every render reflects the view into the URL, so it stays shareable
     document.getElementById("footmeta").textContent =
       shown + " of " + DATA.total + " shown · generated " + DATA.generatedAt.slice(0, 16).replace("T", " ") + " UTC · ";
@@ -1613,33 +1721,121 @@
   applyThemeColor();
   updateThemeButton();
 
-  // ── view toggle (board ⇄ list, remembered) ──
-  var viewBtn = document.getElementById("viewToggle");
-  function updateViewButton() {
-    var isList = state.view === "list";
-    // Icon = the current view (no persistent .active highlight — it read as a
-    // stuck focus ring); the title says what a tap does.
-    viewBtn.innerHTML = "";
-    viewBtn.appendChild(icon(isList ? "grid" : "list"));
-    viewBtn.title = isList ? "Switch to board view" : "Switch to list view";
-    viewBtn.setAttribute("aria-label", viewBtn.title);
+  // ── Display: layout · grouping · ordering · what's included wholesale ────────
+  // One menu for *how* the chosen pucks are presented, so a new display option is
+  // a row here instead of another button in the header. Filter stays next door and
+  // answers *which* pucks — the two never overlap. Filter shows what it's doing
+  // with chips/a count; Display shows a dot when anything differs from default,
+  // because "showing more" must never read as "you have narrowed something".
+  var SORT_LABEL = {
+    default: "Manual", "updated-desc": "Recently updated", priority: "Priority (high→low)",
+    "updated-asc": "Oldest updated", "created-desc": "Newest created",
+    "created-asc": "Oldest created", title: "Title A–Z",
+  };
+  var DISPLAY_DEFAULTS = { view: "board", sort: "default", group: "status", showDone: false, showEmpty: true };
+  if (!GROUPS[state.group]) state.group = DISPLAY_DEFAULTS.group; // a stale saved value
+  var displayBtn = document.getElementById("displayBtn");
+  var displayDot = document.getElementById("displayDot");
+  function displayDirty() {
+    for (var k in DISPLAY_DEFAULTS) if (state[k] !== DISPLAY_DEFAULTS[k]) return true;
+    return false;
   }
-  viewBtn.addEventListener("click", function () {
-    state.view = state.view === "board" ? "list" : "board";
-    try { localStorage.setItem("roadmap-view", state.view); } catch (e) {}
-    updateViewButton();
+  function refreshDisplayDot() { if (displayDot) displayDot.hidden = !displayDirty(); }
+  function setDisplay(key, value, storeAs) {
+    state[key] = value;
+    saveDisplay(storeAs || key, typeof value === "boolean" ? (value ? "1" : "0") : value);
+    refreshDisplayDot();
     renderBoard();
-    viewBtn.blur(); // drop focus so no ring lingers after the tap
-  });
+  }
+  function dpRow(labelText, control) {
+    var row = el("div", "dp-row");
+    row.appendChild(el("span", "dp-label", labelText));
+    row.appendChild(control);
+    return row;
+  }
+  function toggleDisplayMenu() {
+    var wrap = displayBtn && displayBtn.parentNode;
+    if (!wrap) return;
+    var open = wrap.querySelector(".filter-pop");
+    if (open) { open.remove(); displayBtn.setAttribute("aria-expanded", "false"); return; }
+    var pop = el("div", "filter-pop display-pop");
 
-  // ── sort (in the filter panel, remembered) ──
-  var sortSelect = document.getElementById("sortSelect");
-  sortSelect.value = state.sort;
-  sortSelect.addEventListener("change", function () {
-    state.sort = sortSelect.value;
-    try { localStorage.setItem("roadmap-sort", state.sort); } catch (e) {}
-    renderBoard();
-  });
+    // Layout — a segmented control, because it's one choice among a few, not a
+    // toggle that has to be pressed twice to learn what it does.
+    var seg = el("div", "dp-seg");
+    [["list", "list", "List"], ["board", "grid", "Board"]].forEach(function (o) {
+      var b = el("button", "dp-segbtn" + (state.view === o[0] ? " on" : ""));
+      b.type = "button";
+      b.appendChild(icon(o[1]));
+      b.appendChild(el("span", null, o[2]));
+      b.setAttribute("aria-pressed", state.view === o[0] ? "true" : "false");
+      b.addEventListener("click", function () {
+        setDisplay("view", o[0]);
+        Array.prototype.forEach.call(seg.children, function (c) {
+          var on = c === b;
+          c.classList.toggle("on", on);
+          c.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+      });
+      seg.appendChild(b);
+    });
+    pop.appendChild(seg);
+
+    // Grouping — the columns' field. This is the row that turns one board into an
+    // agent queue, a fleet view or (once `target` exists) a timeline.
+    var groupSel = selectEl("np-select", Object.keys(GROUPS).map(function (k) {
+      return { value: k, label: GROUPS[k].label };
+    }), state.group);
+    groupSel.addEventListener("change", function () { setDisplay("group", groupSel.value); });
+    pop.appendChild(dpRow("Grouping", groupSel));
+
+    // Ordering — inside a group. "Manual" is `order` from the puck; every other
+    // mode deliberately ignores it.
+    var sortSel = selectEl("np-select", SORTS.map(function (s) {
+      return { value: s, label: SORT_LABEL[s] || s };
+    }), state.sort);
+    sortSel.addEventListener("change", function () { setDisplay("sort", sortSel.value); });
+    pop.appendChild(dpRow("Ordering", sortSel));
+
+    pop.appendChild(el("div", "dp-rule"));
+
+    // Wholesale inclusion — not filters: these say how complete the list is.
+    var doneRow = el("label", "fp-toggle");
+    var doneCb = document.createElement("input"); doneCb.type = "checkbox"; doneCb.checked = state.showDone;
+    doneCb.addEventListener("change", function () { setDisplay("showDone", doneCb.checked, "done"); });
+    doneRow.appendChild(doneCb); doneRow.appendChild(el("span", null, "Show done & cancelled"));
+    pop.appendChild(doneRow);
+
+    var emptyRow = el("label", "fp-toggle");
+    var emptyCb = document.createElement("input"); emptyCb.type = "checkbox"; emptyCb.checked = state.showEmpty;
+    emptyCb.addEventListener("change", function () { setDisplay("showEmpty", emptyCb.checked, "empty"); });
+    emptyRow.appendChild(emptyCb); emptyRow.appendChild(el("span", null, "Show empty columns"));
+    emptyRow.title = "Board only — an empty column is still a drop target. A list never shows empty groups.";
+    pop.appendChild(emptyRow);
+
+    pop.appendChild(el("div", "dp-rule"));
+    var reset = el("button", "dp-reset", "Reset to default");
+    reset.type = "button";
+    reset.addEventListener("click", function () {
+      for (var k in DISPLAY_DEFAULTS) state[k] = DISPLAY_DEFAULTS[k];
+      saveDisplay("view", state.view); saveDisplay("sort", state.sort); saveDisplay("group", state.group);
+      saveDisplay("done", "0"); saveDisplay("empty", "1");
+      refreshDisplayDot();
+      renderBoard();
+      toggleDisplayMenu();
+    });
+    pop.appendChild(reset);
+
+    wrap.appendChild(pop);
+    displayBtn.setAttribute("aria-expanded", "true");
+    setTimeout(function () {
+      document.addEventListener("click", function closer(e) {
+        if (!wrap.contains(e.target)) { pop.remove(); displayBtn.setAttribute("aria-expanded", "false"); document.removeEventListener("click", closer); }
+      });
+    }, 0);
+  }
+  if (displayBtn) displayBtn.addEventListener("click", function (e) { e.stopPropagation(); toggleDisplayMenu(); });
+  refreshDisplayDot();
 
   // ── search + title suggestions ──
   var searchInput = document.getElementById("search");
@@ -1668,6 +1864,13 @@
     cmds.push({ __cmd: true, label: "Go to Ready", hint: "View", icon: "list", run: function () { setFocus("ready"); } });
     cmds.push({ __cmd: true, label: "Go to Inbox", hint: "View", icon: "list", run: function () { setFocus("inbox"); } });
     if (vc.attention) cmds.push({ __cmd: true, label: "Go to Needs attention", hint: "View", icon: "list", run: function () { setFocus("attention"); } });
+    // Display options belong in the palette too — the palette is the extensibility
+    // surface, so a new display choice never has to become another button.
+    Object.keys(GROUPS).forEach(function (k) {
+      if (k === state.group) return;
+      cmds.push({ __cmd: true, label: "Group by " + GROUPS[k].label.toLowerCase(), hint: "Display", icon: "sliders", run: function () { setDisplay("group", k); } });
+    });
+    cmds.push({ __cmd: true, label: state.view === "list" ? "Layout: board" : "Layout: list", hint: "Display", icon: state.view === "list" ? "grid" : "list", run: function () { setDisplay("view", state.view === "list" ? "board" : "list"); } });
     cmds.push({ __cmd: true, label: "Settings", hint: "Workspace", icon: "sliders", run: function () { openSettingsPanel(); } });
     cmds.push({ __cmd: true, label: "Keyboard shortcuts", hint: "Help", icon: "list", run: function () { toggleShortcutHelp(); } });
     cmds.push({ __cmd: true, label: effectiveIsDark() ? "Switch to light" : "Switch to dark", hint: "Theme", icon: effectiveIsDark() ? "sun" : "moon", run: function () { toggleTheme(); } });
@@ -2034,8 +2237,10 @@
   }, true);
   // ── Filter popover (view-header) — refinements: Show done · Priority · Labels.
   // Sidebar = places (views/agents/repos); this popover = what narrows the view.
+  // Only things that actually narrow the set count here — the archive toggle is
+  // display state and lives in that menu, behind a dot.
   function activeFilterCount() {
-    return (state.showDone ? 1 : 0) + (state.priorityFilter ? 1 : 0) + state.tags.size;
+    return (state.priorityFilter ? 1 : 0) + state.tags.size;
   }
   function refreshFilterBadge() {
     var badge = document.getElementById("filterCount");
@@ -2054,12 +2259,9 @@
     if (open) { open.remove(); filterBtn.setAttribute("aria-expanded", "false"); return; }
     var pop = el("div", "filter-pop");
 
-    // Show done
-    var doneRow = el("label", "fp-toggle");
-    var cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = state.showDone;
-    cb.addEventListener("change", function () { state.showDone = cb.checked; renderBoard(); refreshFilterBadge(); });
-    doneRow.appendChild(cb); doneRow.appendChild(el("span", null, "Show done & cancelled"));
-    pop.appendChild(doneRow);
+    // (The archive toggle lives in Display, not here: it says how complete the list
+    // is, not which pucks were chosen — and counting it as a filter made the button
+    // light up when you'd just shown *more*.)
 
     // Priority
     pop.appendChild(el("div", "fp-label", "Priority"));
@@ -2176,7 +2378,6 @@
   buildRepoChips();
   buildAgentChips();
   buildFocusControl();
-  updateViewButton();
   renderBoard();
 
   // ── mobile drawer: the sidebar slides in over a scrim ──
@@ -2187,6 +2388,7 @@
   // Inject the Feather glyphs into the chrome buttons (label buttons get the icon
   // first, icon-only buttons just get it). Kept in JS so all icons share ICONS.
   [["sideSearch", "search", true], ["sideNew", "plus", true], ["filterBtn", "filter", true],
+   ["displayBtn", "sliders", true],
    ["topSearch", "search", false], ["topNew", "plus", false]].forEach(function (spec) {
     var elm = document.getElementById(spec[0]);
     if (!elm) return;
