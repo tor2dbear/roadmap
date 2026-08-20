@@ -3518,7 +3518,11 @@
   // `parentId` is a board id ("repo/slug") or null to take the puck out.
   function changeParent(item, parentId) {
     parentId = parentId || null;
-    if (parentId === (item.parentRef || null) || !ghToken()) return;
+    if (!ghToken()) return;
+    // Clearing looks at the *raw* field, not the resolved one: a broken link
+    // (parent-missing / parent-cycle) has a `parent:` line but no `parentRef`, and
+    // removing it is precisely what the flag asks for.
+    if (parentId ? parentId === item.parentRef : !item.parentRef && !item.parent) return;
     var target = parentId ? itemById(parentId) : null;
     if (parentId && !target) return;
     if (parentId === item.id) { toast("✗ A puck can’t be its own etapp", true); return; }
