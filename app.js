@@ -1089,13 +1089,36 @@
         help: opts.help,
         onClose: function () { open = null; btn.setAttribute("aria-expanded", "false"); },
         build: function (host, api) {
-          var search = el("input", "fp-search");
+          // The chosen value lives *inside* the field, as a token with its own ✕ —
+          // one control shows the state and takes the query. Single-value fields
+          // (etapp) carry one token, multi-value ones (blockers) carry several.
+          var box = el("div", "tokenbox");
+          var search = el("input", "fp-search token-input");
           search.type = "text";
           search.placeholder = opts.placeholder || "Find a puck\u2026";
           search.autocomplete = "off"; search.spellcheck = false;
-          host.appendChild(search);
+          host.appendChild(box);
           var list = el("div", "pick-list");
           host.appendChild(list);
+
+          function paintBox() {
+            box.innerHTML = "";
+            (opts.tokens ? opts.tokens() : []).forEach(function (t) {
+              var tok = el("span", "token");
+              var dot = el("span", "repo-dot");
+              dot.style.background = t.color || "var(--ink-3)";
+              tok.appendChild(dot);
+              tok.appendChild(el("span", "token-label", t.label));
+              var x = el("button", "token-x", "\u2715");
+              x.type = "button";
+              x.setAttribute("aria-label", "Remove " + t.label);
+              x.addEventListener("click", function () { api.close(); t.onRemove(); });
+              tok.appendChild(x);
+              box.appendChild(tok);
+            });
+            box.appendChild(search);
+          }
+          paintBox();
 
           // Same repo first \u2014 that's where a link usually points \u2014 then the rest,
           // freshest first. An A\u2013Z dump of 138 pucks helps nobody.
@@ -1110,13 +1133,6 @@
           function paint() {
             list.innerHTML = "";
             var q = lower(search.value.trim());
-            if (opts.empty) {
-              var none = el("button", "pick-mi" + (opts.current ? "" : " on"));
-              none.type = "button";
-              none.appendChild(el("span", "prop-muted", opts.empty));
-              none.addEventListener("click", function () { api.close(); opts.onPick(null); });
-              list.appendChild(none);
-            }
             var hits = pool.filter(function (it) {
               return !q || lower(it.title).indexOf(q) !== -1 || it.slug.indexOf(q) !== -1 ||
                 lower(it.repoName).indexOf(q) !== -1;
@@ -4066,6 +4082,20 @@
     if (editable) {
       wrap.appendChild(puckPicker("Add", {
         repo: item.repo,
+        title: "Blocked by",
+        help: "https://github.com/tor2dbear/roadmap/blob/main/CONVENTION.md#dependencies-depends",
+        // Several tokens: everything this puck declared. Removing one from here is
+        // the same write as the ✕ on the row behind.
+        tokens: function () {
+          return (item.depends || []).map(function (ref) {
+            var d = resolveRef(item, ref);
+            return {
+              label: d ? d.title : ref,
+              color: d ? d.repoColor : null,
+              onRemove: function () { removeDepend(item, ref); },
+            };
+          });
+        },
         current: null,
         exclude: blockerCandidates(item),
         placeholder: "Find a blocker…",
@@ -4136,10 +4166,22 @@
     if (editable) {
       wrap.appendChild(puckPicker(item.parent ? "Change" : "Set etapp", {
         repo: item.repo,
+        title: "Etapp",
+        help: "https://github.com/tor2dbear/roadmap/blob/main/CONVENTION.md#the-level-above-parent",
         current: item.parentRef,
         exclude: etappCandidates(item),
         placeholder: "Find an etapp…",
-        empty: item.parent ? "No etapp" : null,
+        // One token: the etapp this puck sits in. Its ✕ takes it out, which is why
+        // the list needs no separate "No etapp" row any more.
+        tokens: function () {
+          if (!item.parent) return [];
+          var cur = parentItem(item);
+          return [{
+            label: cur ? cur.title : item.parent,
+            color: cur ? cur.repoColor : null,
+            onRemove: function () { changeParent(item, null); },
+          }];
+        },
         onPick: function (target) { changeParent(item, target && target.id); },
       }));
     }

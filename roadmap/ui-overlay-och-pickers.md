@@ -141,6 +141,12 @@ när det du skrivit inte finns. Status och priority har medvetet ingen sådan ra
 Valen ligger som tokens *inuti* sökfältet, och skrivningen väntar till stängning:
 tre labels blir ett commit, inte tre.
 
+**Token-i-fält på referensfälten.** `Etapp` bär en token (etappens titel med
+repo-prick), `Blocked by` en per blockerare — alla med eget ✕ som skriver direkt.
+Den separata "No etapp"-raden i listan försvann: token-✕:et *är* vägen ut, och en
+trasig referens syns som en token stavad precis som den skrevs, vilket är det som
+gör den borttagbar.
+
 ### Buggar som bygget tvingade fram
 - **Tangentbordspaddingen sattes vid fokus på vad som helst.** Att trycka på en rad
   gav den fokus, sheeten växte — och eftersom en sheet är förankrad i underkanten
@@ -149,6 +155,10 @@ tre labels blir ett commit, inte tre.
   mobilsviten, inte av mig.
 - **Varje label-toggle committade** → detaljvyn ritades om → ytan revs bort mitt i
   redigeringen. Därav att skrivningen väntar till stängning.
+- **iOS zoomade in vid fokus.** `.fp-search` var 13px, och Safari zoomar hela sidan
+  när ett fokuserat fält är under 16px — utan väg tillbaka annat än att nypa. Alla
+  textkontroller är 16px på mobil nu; testet mäter varje fält en yta kan fokusera.
+  Rapporterad av dig, inte hittad av mig.
 - **Escape-hanteraren tog bort `.pick-menu`-noden direkt.** Med sheets hade det
   lämnat kvar scrimen och låst sidan. Den grenen är borta; `openSurface` stänger sig
   själv i capture-fasen och stoppar eventet där.
