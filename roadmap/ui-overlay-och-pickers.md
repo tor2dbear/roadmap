@@ -294,6 +294,13 @@ tangentbordet; den får växa, annars hade den legat helt bakom det.
   tangentbordet uppe, oavsett vilken yta det gäller. På desktop fokuseras fältet
   som förut.
 
+- **Rader lyste igenom ovanför det fastnitade fältet.** `-webkit-overflow-scrolling:
+  touch` sätter iOS i sitt gamla scrolläge, där ett `position: sticky`-barn tappar
+  fästet under momentum: listan fortsätter röra sig medan fältet släpar en bildruta
+  efter, och raderna ritas *ovanför* det. Momentum är standard sedan iOS 13 och
+  egenskapen är deprecated — det enda den fortfarande köper är den buggen. Borta.
+  (Reproducerades inte i vår headless-motor, där egenskapen är en no-op.)
+
 Verifierat: 97 fall i `surface.mjs` över **båda** viewporterna (390×844 och
 1280×900), plus åtta tidigare sviter som regression.
 

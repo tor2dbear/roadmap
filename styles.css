@@ -1311,7 +1311,12 @@ body.preload * { transition: none !important; }
      keyboard covers the bottom. The pinned field stays put and the scroll position
      survives. `kb` pads the scroll area while a field is focused so the LAST row
      can still be scrolled above the keyboard; without it, it would be unreachable. */
-  .sheet .surface-body { overflow-y: auto; -webkit-overflow-scrolling: touch; gap: 8px; }
+  /* No `-webkit-overflow-scrolling: touch` here, deliberately. It switches iOS into
+     its legacy scrolling mode, where a `position: sticky` child detaches during
+     momentum: the list keeps moving while the pinned field lags a frame behind, and
+     rows draw *above* it. Momentum has been the default since iOS 13 and the
+     property is deprecated, so the only thing it still buys is that bug. */
+  .sheet .surface-body { overflow-y: auto; gap: 8px; }
   .sheet.kb .surface-body { padding-bottom: 42dvh; }
   /* The field is wrapped in .sheet-pin (see openSurface) and that wrapper is what
      stays put — with tokens the input sits inside .tokenbox, so pinning the input
