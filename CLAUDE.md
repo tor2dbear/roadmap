@@ -169,6 +169,13 @@ Two rules the pucks paid for:
 `window.prompt` is not used anywhere: it hands the dialog to the OS, which on iOS
 draws a system sheet in its own shape and colours.
 
+The sheet is draggable — down to dismiss, up to snap to full height — and pins the
+page behind it (`body.scroll-locked`, a fixed body at a negative offset, since
+`overflow: hidden` doesn't hold on iOS). Two rules that gesture cost: a click that
+*began* inside a surface is never an outside click, and the sheet's height is frozen
+for the length of a touch, because letting it re-size mid-gesture moves the row out
+from under the finger.
+
 ## Auto-status signals
 
 So status upkeep isn't purely self-reported, the board flags pucks whose declared

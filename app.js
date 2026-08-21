@@ -937,6 +937,87 @@
   var PHONE = "(max-width: 640px)";
   function isPhone() { return window.matchMedia(PHONE).matches; }
 
+  // While a sheet is up, the page behind it must be inert — scrolling it would move
+  // the thing you are about to come back to. `overflow: hidden` alone doesn't hold
+  // on iOS, so the body is pinned at its current offset and put back afterwards.
+  // Counted, because a sheet can open over the puck modal, which locks too.
+  var scrollLocks = 0, lockedY = 0;
+  function lockScroll() {
+    if (scrollLocks++) return;
+    lockedY = window.scrollY || document.documentElement.scrollTop || 0;
+    document.body.style.top = -lockedY + "px";
+    document.body.classList.add("scroll-locked");
+  }
+  function unlockScroll() {
+    scrollLocks = Math.max(0, scrollLocks - 1);
+    if (scrollLocks) return;
+    document.body.classList.remove("scroll-locked");
+    document.body.style.top = "";
+    void document.body.offsetHeight; // settle the layout before restoring, or the
+    window.scrollTo(0, lockedY);     // scroll lands on a body that is still fixed
+  }
+
+  // Drag the sheet: down far enough closes it, up snaps it to full height, anything
+  // short springs back. Dragging from the body is allowed only when the list is
+  // already at the top and the finger is going down — otherwise that gesture is a
+  // scroll, and stealing it would make the list feel broken.
+  var SHEET_CLOSE = 96, SHEET_SNAP = 56;
+  function draggableSheet(root, body, close) {
+    var startY = 0, dy = 0, pending = false, dragging = false, fromBody = false, h = 0;
+
+    function down(e) {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      fromBody = body.contains(e.target);
+      if (fromBody && body.scrollTop > 0) return;
+      pending = true; dragging = false; startY = e.clientY; dy = 0; h = root.offsetHeight;
+      if (!fromBody) { try { root.setPointerCapture(e.pointerId); } catch (err) { /* older engines */ } }
+      // Pin the height for the whole gesture, from the very first touch. Putting a
+      // finger on the sheet blurs the search field, which drops the keyboard
+      // padding — and a content-sized sheet then shrinks by a third *under the
+      // finger*, leaving the pointer over the scrim instead of the sheet it holds.
+      root.style.height = h + "px";
+      // Capture from the first touch when the gesture starts on the sheet's chrome:
+      // the grip sits a dozen pixels below the top edge, so an upward drag leaves
+      // the sheet at once and its pointermoves would go to the scrim instead. Not
+      // from the list, though — capture retargets the compatibility mouse events
+      // too, so a tap on a row would resolve its click against the sheet and the
+      // row's own handler would never run.
+    }
+    function move(e) {
+      if (!pending && !dragging) return;
+      dy = e.clientY - startY;
+      if (!dragging) {
+        if (Math.abs(dy) < 6) return;
+        if (fromBody && dy < 0) { pending = false; return; } // that's a scroll
+        dragging = true;
+        root.classList.add("dragging");
+        try { root.setPointerCapture(e.pointerId); } catch (err) { /* older engines */ }
+      }
+      // Upward drag only has somewhere to go when the sheet isn't already full.
+      var up = dy < 0;
+      if (up && root.classList.contains("full")) dy = dy / 4; // rubber-band
+      root.style.transform = "translateY(" + Math.max(dy, dy / 4) + "px)";
+      e.preventDefault();
+    }
+    function up() {
+      // Release the pin only after the click has been dispatched: letting the sheet
+      // re-size now would move the row out from under the finger between pointerup
+      // and click, and the tap would land on whatever slid into its place.
+      setTimeout(function () { if (!pending && !dragging) root.style.height = ""; }, 0);
+      if (!dragging) { pending = false; return; }
+      pending = false; dragging = false;
+      root.classList.remove("dragging");
+      root.style.transform = "";
+      if (dy > SHEET_CLOSE) { close(); return; }
+      if (dy < -SHEET_SNAP) root.classList.add("full");
+      else if (dy > SHEET_SNAP) root.classList.remove("full");
+    }
+    root.addEventListener("pointerdown", down);
+    root.addEventListener("pointermove", move);
+    root.addEventListener("pointerup", up);
+    root.addEventListener("pointercancel", up);
+  }
+
   //   opts: { title, anchorWrap, cls, help, onClose, build(body, api) }
   //   → { close }
   function openSurface(opts) {
@@ -950,8 +1031,9 @@
       if (closed) return;
       closed = true;
       document.removeEventListener("click", onDocClick, true);
+      document.removeEventListener("pointerdown", onDocDown, true);
       document.removeEventListener("keydown", onKey, true);
-      if (scrim) scrim.remove();
+      if (scrim) { scrim.remove(); unlockScroll(); }
       root.remove();
       if (opts.onClose) opts.onClose();
     }
@@ -960,7 +1042,15 @@
       e.stopPropagation(); // this layer only — the modal beneath stays open
       close();
     }
+    // A click that *began* inside the surface is never an outside click, wherever it
+    // ends up: dragging the sheet, or selecting text, moves the pointer far from
+    // where it started, and the click then reports their common ancestor — the
+    // body. Judging by where the gesture started is what makes a draggable sheet
+    // survive its own drag.
+    var downInside = false;
+    function onDocDown(e) { downInside = root.contains(e.target); }
     function onDocClick(e) {
+      if (downInside) { downInside = false; return; }
       // A surface rebuilds its own contents, which detaches the clicked node before
       // the event reaches the document — a plain contains() check then reads it as
       // "outside" and closes on every inner click.
@@ -984,6 +1074,8 @@
       root.appendChild(head);
       root.appendChild(body);
       document.body.appendChild(root);
+      lockScroll();
+      draggableSheet(root, body, close);
       // While a *text field* inside is focused the keyboard is up; pad the scroll
       // area so the last row can still be brought above it.
       //
@@ -1009,6 +1101,7 @@
     opts.build(body, { close: close, phone: phone });
     setTimeout(function () {
       document.addEventListener("click", onDocClick, true);
+      document.addEventListener("pointerdown", onDocDown, true);
       document.addEventListener("keydown", onKey, true);
     }, 0);
     return { close: close, el: root };

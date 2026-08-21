@@ -470,6 +470,9 @@ body {
 .modal-body a { color: var(--accent); }
 .modal .card-links { padding-top: 4px; }
 body.modal-open { overflow: hidden; }
+/* Pinned rather than merely `overflow: hidden`, which iOS ignores: the body keeps
+   its place at a negative offset and is put back when the last layer closes. */
+body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: hidden; }
 @media (max-width: 600px) {
   .modal-backdrop { padding: 0; }
   .modal { max-width: none; max-height: 100vh; height: 100%; border-radius: 0; border: none; border-left: none; }
@@ -1254,7 +1257,7 @@ body.preload * { transition: none !important; }
 .surface-body { display: flex; flex-direction: column; }
 
 @media (max-width: 640px) {
-  .sheet-scrim { position: fixed; inset: 0; z-index: 58; background: rgba(0, 0, 0, 0.35); }
+  .sheet-scrim { position: fixed; inset: 0; z-index: 58; background: rgba(0, 0, 0, 0.35); touch-action: none; }
   .sheet {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 59;
     display: flex; flex-direction: column;
@@ -1263,10 +1266,21 @@ body.preload * { transition: none !important; }
     border-radius: 16px 16px 0 0; box-shadow: var(--shadow);
     padding: 6px 10px calc(10px + env(safe-area-inset-bottom));
   }
+  /* The grip is the handle: drag down to dismiss, up to go full height. The whole
+     sheet listens, but only the chrome starts a drag unconditionally — from the
+     list, a downward drag only takes over once the list is already at the top. */
   .sheet-grip {
-    width: 36px; height: 4px; border-radius: 2px; background: var(--line);
-    margin: 4px auto 6px; flex: none;
+    width: 40px; height: 5px; border-radius: 3px; background: var(--line);
+    margin: 4px auto 6px; flex: none; cursor: grab;
   }
+  .sheet { transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1), max-height 0.22s ease; touch-action: pan-y; }
+  .sheet.dragging { transition: none; }        /* the finger owns it while it's down */
+  /* Maximised means *taller*, so it needs a height — a bigger max-height alone does
+     nothing to a sheet that is already sized to its content. */
+  .sheet.full { height: 94dvh; max-height: 94dvh; }
+  .sheet-grip, .sheet-head { touch-action: none; }
+  /* Keep a list's overscroll from chaining out to the page behind the sheet. */
+  .sheet .surface-body { overscroll-behavior: contain; }
   .sheet-head { display: flex; align-items: center; gap: 8px; padding: 0 2px 8px; flex: none; }
   .sheet-title {
     margin: 0 auto; font-size: 14px; font-weight: 600; color: var(--ink);

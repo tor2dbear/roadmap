@@ -147,6 +147,17 @@ Den separata "No etapp"-raden i listan försvann: token-✕:et *är* vägen ut, 
 trasig referens syns som en token stavad precis som den skrevs, vilket är det som
 gör den borttagbar.
 
+**Sheeten går att dra.** Ner förbi ~96 px stänger, upp snäpper till full höjd
+(94dvh), allt däremellan fjädrar tillbaka. Handtaget är greppet, men hela chromet
+lyssnar; från listan tar dragningen bara över när listan redan ligger i topp och
+fingret går nedåt — annars är gesten en scroll och att stjäla den vore fel.
+
+**Sidan bakom är inert.** `body` pinnas på sin plats (`position: fixed` med negativ
+`top`) medan en sheet är uppe och läggs tillbaka efteråt; `overflow: hidden` räcker
+inte på iOS. Räknat, eftersom en sheet kan öppnas ovanpå puck-modalen. Scrimen tar
+`touch-action: none` och listan `overscroll-behavior: contain`, så inget rinner ut
+till sidan under.
+
 ### Buggar som bygget tvingade fram
 - **Tangentbordspaddingen sattes vid fokus på vad som helst.** Att trycka på en rad
   gav den fokus, sheeten växte — och eftersom en sheet är förankrad i underkanten
@@ -159,6 +170,18 @@ gör den borttagbar.
   när ett fokuserat fält är under 16px — utan väg tillbaka annat än att nypa. Alla
   textkontroller är 16px på mobil nu; testet mäter varje fält en yta kan fokusera.
   Rapporterad av dig, inte hittad av mig.
+- **Sheeten krympte mitt i dragningen.** Att ta tag i handtaget flyttar fokus från
+  sökfältet → `kb`-paddingen försvann → en innehållsstyrd sheet blev en tredjedel
+  kortare *under fingret*, och pointern hamnade på scrimen. Höjden pinnas nu från
+  första beröringen och släpps först efter att klicket hunnit avgöras — släpptes den
+  direkt flyttade sig raden mellan pointerup och click i stället.
+- **Ett klick som avslutade en dragning lästes som "utanför".** Klickets mål blir
+  gemensam förfader till mousedown och mouseup — dvs `body` när fingret rört sig långt.
+  Regeln är nu att ett klick som *började* inuti ytan aldrig är ett utanför-klick,
+  vilket också täcker textmarkering som drar ut ur en popover.
+- **Pointer capture retargetar även mus-eventen.** Att fånga vid varje pointerdown
+  gjorde att ett tryck på en rad löste sitt klick mot sheeten i stället för raden, så
+  radens handler aldrig kördes. Nu fångas bara gester som börjar på chromet.
 - **Escape-hanteraren tog bort `.pick-menu`-noden direkt.** Med sheets hade det
   lämnat kvar scrimen och låst sidan. Den grenen är borta; `openSurface` stänger sig
   själv i capture-fasen och stoppar eventet där.
