@@ -921,6 +921,91 @@
     return row;
   }
 
+  // ── overlay primitive ───────────────────────────────────────────────────────
+  // One surface, two presentations: an anchored popover on a wide screen, a bottom
+  // sheet on a phone. The *content* — a list, a calendar, a form — is written once
+  // and knows nothing about which it got; presentation is a parameter, the same
+  // move that made grouping a variable in GROUPS.
+  //
+  // The sheet deliberately does NOT shrink for the keyboard. It keeps its height
+  // and the keyboard covers the bottom of it: no reflow when the keyboard comes and
+  // goes, the scroll position survives, and there is no visualViewport dance. Three
+  // things make that correct rather than sloppy — the field stays pinned at the top,
+  // the first rows sit in the band above the keyboard, and the body gets bottom
+  // padding while a field is focused so the last row can still be scrolled into
+  // view. Without the third, the last option would be unreachable.
+  var PHONE = "(max-width: 640px)";
+  function isPhone() { return window.matchMedia(PHONE).matches; }
+
+  //   opts: { title, anchorWrap, cls, help, onClose, build(body, api) }
+  //   → { close }
+  function openSurface(opts) {
+    var phone = isPhone();
+    var scrim = null;
+    var root = el("div", (phone ? "sheet" : "pop") + (opts.cls ? " " + opts.cls : ""));
+    var body = el("div", "surface-body");
+    var closed = false;
+
+    function close() {
+      if (closed) return;
+      closed = true;
+      document.removeEventListener("click", onDocClick, true);
+      document.removeEventListener("keydown", onKey, true);
+      if (scrim) scrim.remove();
+      root.remove();
+      if (opts.onClose) opts.onClose();
+    }
+    function onKey(e) {
+      if (e.key !== "Escape") return;
+      e.stopPropagation(); // this layer only — the modal beneath stays open
+      close();
+    }
+    function onDocClick(e) {
+      // A surface rebuilds its own contents, which detaches the clicked node before
+      // the event reaches the document — a plain contains() check then reads it as
+      // "outside" and closes on every inner click.
+      if (root.contains(e.target) || !document.contains(e.target)) return;
+      close();
+    }
+
+    if (phone) {
+      scrim = el("div", "sheet-scrim");
+      scrim.addEventListener("click", close);
+      document.body.appendChild(scrim);
+      root.appendChild(el("div", "sheet-grip"));
+      var head = el("div", "sheet-head");
+      if (opts.help) {
+        var h = el("a", "sheet-help", "?");
+        h.href = opts.help; h.target = "_blank"; h.rel = "noopener";
+        h.title = "What is this field?";
+        head.appendChild(h);
+      }
+      head.appendChild(el("h3", "sheet-title", opts.title || ""));
+      root.appendChild(head);
+      root.appendChild(body);
+      document.body.appendChild(root);
+      // While a field inside is focused the keyboard is up; pad the scroll area so
+      // the last row can still be brought above it.
+      root.addEventListener("focusin", function () { root.classList.add("kb"); });
+      root.addEventListener("focusout", function () {
+        setTimeout(function () {
+          if (!root.contains(document.activeElement)) root.classList.remove("kb");
+        }, 0);
+      });
+    } else {
+      root.appendChild(body);
+      (opts.anchorWrap || document.body).appendChild(root);
+      if (!opts.anchorWrap) root.classList.add("pop-center");
+    }
+
+    opts.build(body, { close: close, phone: phone });
+    setTimeout(function () {
+      document.addEventListener("click", onDocClick, true);
+      document.addEventListener("keydown", onKey, true);
+    }, 0);
+    return { close: close, el: root };
+  }
+
   // A Linear-style editable property: a single chip showing the *current* value;
   // click opens a picker popover to change it. Static chip when not editable. This
   // is the growable pattern — a new field is one more propPicker, not a button row.
@@ -931,123 +1016,124 @@
     var chip = el("button", "pick-chip");
     chip.type = "button";
     function paint(node) { chip.innerHTML = ""; chip.appendChild(node); }
-    paint(cur ? opts.valueNode(cur) : el("span", "prop-muted", opts.placeholder || "—"));
+    paint(cur ? opts.valueNode(cur) : el("span", "prop-muted", opts.placeholder || "\u2014"));
     if (!opts.editable) { chip.classList.add("static"); chip.disabled = true; return chip; }
     chip.classList.add("editable");
-    chip.appendChild(el("span", "pick-caret", "▾"));
+    chip.appendChild(el("span", "pick-caret", "\u25be"));
     var wrap = el("div", "prop-pick");
+    var open = null;
     chip.addEventListener("click", function (e) {
       e.stopPropagation();
-      if (wrap.querySelector(".pick-menu")) { closeMenu(); return; }
-      var menu = el("div", "pick-menu");
-      opts.options.forEach(function (o) {
-        var mi = el("button", "pick-mi" + (o.value === opts.current ? " on" : ""));
-        mi.type = "button";
-        mi.appendChild(opts.valueNode(o));
-        if (o.value === opts.current) mi.appendChild(el("span", "pick-check", "✓"));
-        mi.addEventListener("click", function () { closeMenu(); if (o.value !== opts.current) opts.onPick(o.value); });
-        menu.appendChild(mi);
+      if (open) { open.close(); return; }
+      open = openSurface({
+        title: opts.title || "",
+        anchorWrap: wrap,
+        cls: "pick-menu",
+        onClose: function () { open = null; },
+        build: function (list, api) {
+          opts.options.forEach(function (o) {
+            var mi = el("button", "pick-mi" + (o.value === opts.current ? " on" : ""));
+            mi.type = "button";
+            mi.appendChild(opts.valueNode(o));
+            if (o.value === opts.current) mi.appendChild(el("span", "pick-check", "\u2713"));
+            mi.addEventListener("click", function () {
+              api.close();
+              if (o.value !== opts.current) opts.onPick(o.value);
+            });
+            list.appendChild(mi);
+          });
+          // No "create an option" here, on purpose: status and priority are closed
+          // interface fields. An invented value would commit fine and then be
+          // dropped by the harvester's normalize*() — a write that looks like it
+          // worked and disappears an hour later.
+        },
       });
-      wrap.appendChild(menu);
-      setTimeout(function () {
-        document.addEventListener("click", function closer(ev) {
-          if (!wrap.contains(ev.target)) { closeMenu(); document.removeEventListener("click", closer); }
-        });
-      }, 0);
     });
-    function closeMenu() { var m = wrap.querySelector(".pick-menu"); if (m) m.remove(); }
     wrap.appendChild(chip);
     return wrap;
   }
 
-  // A searchable list of pucks — the control for every field whose value is
+  // A searchable list of pucks \u2014 the control for every field whose value is
   // *another puck* (etapp, blockers). Those can't be typed from memory the way a
   // date or an issue number can, and `window.prompt` hands the whole dialog to the
   // browser: on iOS that draws a system sheet in its own shape and colours, which
-  // reads as a different app. This is ours, built from the two patterns already
-  // here — the picker popover and the filter panel's search box.
+  // reads as a different app.
   //
   // Impossible choices are left out rather than refused afterwards: what can't be
   // picked shouldn't be pointable.
-  //   opts: { current, exclude(item) → bool, placeholder, empty, onPick(item|null) }
+  //   opts: { current, repo, exclude(item) \u2192 bool, title, placeholder, empty, onPick(item|null) }
   function puckPicker(label, opts) {
     var wrap = el("div", "prop-pick");
     var btn = el("button", "linklike");
     btn.type = "button";
     btn.textContent = label;
     wrap.appendChild(btn);
+    var open = null;
 
-    function close() {
-      var m = wrap.querySelector(".pick-menu");
-      if (m) m.remove();
-      btn.setAttribute("aria-expanded", "false");
-    }
     btn.addEventListener("click", function (e) {
       e.stopPropagation();
-      if (wrap.querySelector(".pick-menu")) { close(); return; }
-      var menu = el("div", "pick-menu pick-find");
+      if (open) { open.close(); return; }
       btn.setAttribute("aria-expanded", "true");
+      open = openSurface({
+        title: opts.title || "Pick a puck",
+        anchorWrap: wrap,
+        cls: "pick-menu pick-find",
+        help: opts.help,
+        onClose: function () { open = null; btn.setAttribute("aria-expanded", "false"); },
+        build: function (host, api) {
+          var search = el("input", "fp-search");
+          search.type = "text";
+          search.placeholder = opts.placeholder || "Find a puck\u2026";
+          search.autocomplete = "off"; search.spellcheck = false;
+          host.appendChild(search);
+          var list = el("div", "pick-list");
+          host.appendChild(list);
 
-      var search = el("input", "fp-search");
-      search.type = "text";
-      search.placeholder = opts.placeholder || "Find a puck…";
-      search.autocomplete = "off"; search.spellcheck = false;
-      menu.appendChild(search);
-      var list = el("div", "pick-list");
-      menu.appendChild(list);
+          // Same repo first \u2014 that's where a link usually points \u2014 then the rest,
+          // freshest first. An A\u2013Z dump of 138 pucks helps nobody.
+          var pool = DATA.items.filter(function (it) { return it.native && !opts.exclude(it); });
+          pool.sort(function (a, b) {
+            var ar = a.repo === opts.repo ? 0 : 1, br = b.repo === opts.repo ? 0 : 1;
+            return ar - br || (b.updated || "").localeCompare(a.updated || "") ||
+              a.title.localeCompare(b.title);
+          });
 
-      // Same repo first — that's where a link usually points — then the rest.
-      var pool = DATA.items.filter(function (it) { return it.native && !opts.exclude(it); });
-      pool.sort(function (a, b) {
-        var ar = a.repo === opts.repo ? 0 : 1, br = b.repo === opts.repo ? 0 : 1;
-        return ar - br || a.title.localeCompare(b.title);
-      });
-
-      var CAP = 40;
-      function paint() {
-        list.innerHTML = "";
-        var q = lower(search.value.trim());
-        if (opts.empty) {
-          var none = el("button", "pick-mi" + (opts.current ? "" : " on"));
-          none.type = "button";
-          none.appendChild(el("span", "prop-muted", opts.empty));
-          none.addEventListener("click", function () { close(); opts.onPick(null); });
-          list.appendChild(none);
-        }
-        var hits = pool.filter(function (it) {
-          return !q || lower(it.title).indexOf(q) !== -1 || it.slug.indexOf(q) !== -1 ||
-            lower(it.repoName).indexOf(q) !== -1;
-        });
-        hits.slice(0, CAP).forEach(function (it) {
-          var mi = el("button", "pick-mi" + (it.id === opts.current ? " on" : ""));
-          mi.type = "button";
-          var dot = el("span", "repo-dot");
-          dot.style.background = it.repoColor;
-          mi.appendChild(dot);
-          mi.appendChild(el("span", "pick-title", it.title));
-          // The repo is worth naming only when it isn't the one we're writing in.
-          if (it.repo !== opts.repo) mi.appendChild(el("span", "pick-repo", it.repoName));
-          if (it.id === opts.current) mi.appendChild(el("span", "pick-check", "✓"));
-          mi.addEventListener("click", function () { close(); opts.onPick(it); });
-          list.appendChild(mi);
-        });
-        if (!hits.length) list.appendChild(el("div", "fp-empty", q ? "No puck matches" : "Nothing to pick"));
-        else if (hits.length > CAP) list.appendChild(el("div", "fp-empty", "…and " + (hits.length - CAP) + " more — keep typing"));
-      }
-      search.addEventListener("input", paint);
-      paint();
-
-      menu.addEventListener("click", function (ev) { ev.stopPropagation(); });
-      wrap.appendChild(menu);
-      search.focus();
-      setTimeout(function () {
-        document.addEventListener("click", function closer(ev) {
-          if (!wrap.contains(ev.target) || !document.contains(ev.target)) {
-            close();
-            document.removeEventListener("click", closer);
+          var CAP = 40;
+          function paint() {
+            list.innerHTML = "";
+            var q = lower(search.value.trim());
+            if (opts.empty) {
+              var none = el("button", "pick-mi" + (opts.current ? "" : " on"));
+              none.type = "button";
+              none.appendChild(el("span", "prop-muted", opts.empty));
+              none.addEventListener("click", function () { api.close(); opts.onPick(null); });
+              list.appendChild(none);
+            }
+            var hits = pool.filter(function (it) {
+              return !q || lower(it.title).indexOf(q) !== -1 || it.slug.indexOf(q) !== -1 ||
+                lower(it.repoName).indexOf(q) !== -1;
+            });
+            hits.slice(0, CAP).forEach(function (it) {
+              var mi = el("button", "pick-mi" + (it.id === opts.current ? " on" : ""));
+              mi.type = "button";
+              var dot = el("span", "repo-dot");
+              dot.style.background = it.repoColor;
+              mi.appendChild(dot);
+              mi.appendChild(el("span", "pick-title", it.title));
+              // The repo is worth naming only when it isn't the one we're writing in.
+              if (it.repo !== opts.repo) mi.appendChild(el("span", "pick-repo", it.repoName));
+              if (it.id === opts.current) mi.appendChild(el("span", "pick-check", "\u2713"));
+              mi.addEventListener("click", function () { api.close(); opts.onPick(it); });
+              list.appendChild(mi);
+            });
+            if (!hits.length) list.appendChild(el("div", "fp-empty", q ? "No puck matches" : "Nothing to pick"));
+            else if (hits.length > CAP) list.appendChild(el("div", "fp-empty", "\u2026and " + (hits.length - CAP) + " more \u2014 keep typing"));
           }
-        });
-      }, 0);
+          search.addEventListener("input", paint);
+          paint();
+          search.focus();
+        },
+      });
     });
     return wrap;
   }
@@ -3573,12 +3659,125 @@
     } else {
       wrap.appendChild(el("span", "prop-muted", "No target"));
     }
-    if (editable) {
-      var edit = el("button", "linklike", item.target ? "Change" : "Set target");
-      edit.type = "button";
-      edit.addEventListener("click", function () { promptTarget(item); });
-      wrap.appendChild(edit);
-    }
+    if (editable) wrap.appendChild(datePicker(item));
+    return wrap;
+  }
+
+  // ── date picker ─────────────────────────────────────────────────────────────
+  // A field *and* a grid, bound to each other: type the date if you know it, browse
+  // if you don't. Deliberately smaller than the pickers it was modelled on \u2014 no
+  // end date (a range becomes sprint dates), no time, no reminders (that needs a
+  // backend). Clear is here because "no horizon" is a real answer.
+  //
+  // "This month" writes the month's last day, which is what `roadmap target <slug>
+  // 2026-11` already means: `target` is stored exact so it sorts and compares, but a
+  // horizon is not a promise about a Tuesday.
+  var WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  function ymd(d) { return d.toISOString().slice(0, 10); }
+  function datePicker(item) {
+    var wrap = el("div", "prop-pick");
+    var btn = el("button", "linklike", item.target ? "Change" : "Set target");
+    btn.type = "button";
+    wrap.appendChild(btn);
+    var open = null;
+
+    btn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (open) { open.close(); return; }
+      open = openSurface({
+        title: "Target",
+        anchorWrap: wrap,
+        cls: "datepop",
+        help: "https://github.com/tor2dbear/roadmap/blob/main/CONVENTION.md#the-horizon-target",
+        onClose: function () { open = null; },
+        build: function (host, api) {
+          var value = item.target || null;
+          var view = new Date((value || today()) + "T00:00:00Z"); // the month on screen
+
+          var input = el("input", "fp-search date-input");
+          input.type = "text";
+          input.placeholder = "YYYY-MM-DD";
+          input.value = value || "";
+          input.autocomplete = "off"; input.spellcheck = false;
+          host.appendChild(input);
+
+          var cal = el("div", "cal");
+          host.appendChild(cal);
+
+          var foot = el("div", "date-foot");
+          var month = el("button", "date-act", "This month");
+          month.type = "button";
+          month.addEventListener("click", function () {
+            commit(endOfMonth(ymd(view).slice(0, 7)));
+          });
+          var clear = el("button", "date-act date-clear", "Clear");
+          clear.type = "button";
+          clear.addEventListener("click", function () { commit(null); });
+          foot.appendChild(month);
+          foot.appendChild(clear);
+          host.appendChild(foot);
+
+          function commit(date) {
+            api.close();
+            changeTarget(item, date);
+          }
+          function drawCal() {
+            cal.innerHTML = "";
+            var head = el("div", "cal-head");
+            var prev = el("button", "cal-nav", "\u2039"); prev.type = "button";
+            var next = el("button", "cal-nav", "\u203a"); next.type = "button";
+            prev.setAttribute("aria-label", "Previous month");
+            next.setAttribute("aria-label", "Next month");
+            prev.addEventListener("click", function () { view.setUTCMonth(view.getUTCMonth() - 1); drawCal(); });
+            next.addEventListener("click", function () { view.setUTCMonth(view.getUTCMonth() + 1); drawCal(); });
+            head.appendChild(el("span", "cal-month", monthLabel(ymd(view).slice(0, 7))));
+            head.appendChild(prev);
+            head.appendChild(next);
+            cal.appendChild(head);
+
+            var grid = el("div", "cal-grid");
+            WEEKDAYS.forEach(function (w) { grid.appendChild(el("span", "cal-wd", w.slice(0, 2))); });
+            // Monday-first, like the rest of the ISO-shaped data.
+            var first = new Date(Date.UTC(view.getUTCFullYear(), view.getUTCMonth(), 1));
+            var lead = (first.getUTCDay() + 6) % 7;
+            var start = new Date(first);
+            start.setUTCDate(1 - lead);
+            var now = today();
+            for (var i = 0; i < 42; i++) {
+              var d = new Date(start);
+              d.setUTCDate(start.getUTCDate() + i);
+              var iso = ymd(d);
+              var out = d.getUTCMonth() !== view.getUTCMonth();
+              var cell = el("button", "cal-day" + (out ? " out" : "") +
+                (iso === value ? " on" : "") + (iso === now ? " today" : ""), String(d.getUTCDate()));
+              cell.type = "button";
+              cell.setAttribute("aria-label", iso);
+              (function (pick) { cell.addEventListener("click", function () { commit(pick); }); })(iso);
+              grid.appendChild(cell);
+            }
+            cal.appendChild(grid);
+          }
+          // Typing steers the grid: a full date selects it, a bare month browses to it.
+          input.addEventListener("input", function () {
+            var v = input.value.trim();
+            var m = /^(\d{4})-(\d{2})$/.exec(v);
+            if (realDate(v)) { value = v; view = new Date(v + "T00:00:00Z"); drawCal(); }
+            else if (m && Number(m[2]) >= 1 && Number(m[2]) <= 12) { view = new Date(v + "-01T00:00:00Z"); drawCal(); }
+          });
+          input.addEventListener("keydown", function (e) {
+            if (e.key !== "Enter") return;
+            var v = input.value.trim();
+            if (v === "") { commit(null); return; }
+            var m = /^(\d{4})-(\d{2})$/.exec(v);
+            if (m && Number(m[2]) >= 1 && Number(m[2]) <= 12) { commit(endOfMonth(v)); return; }
+            if (realDate(v)) { commit(v); return; }
+            toast("\u2717 Use a real date: YYYY-MM-DD or YYYY-MM", true);
+          });
+          drawCal();
+          if (!isPhone()) input.focus(); // on a phone, don't summon the keyboard over the grid
+        },
+      });
+    });
     return wrap;
   }
 
