@@ -217,7 +217,14 @@ till sidan under.
   fortfarande scroll-låst. Nu ligger städningen i `closeDetail()` — den enda
   utgången ur en puck — plus i varje palettval.
 
-Verifierat: 50 fall i `surface.mjs` över **båda** viewporterna (390×844 och
+- **Scrimen stoppar pekaren, inte tangentbordet.** Sheeten såg modal ut men var det
+  inte: Tab (eller ett switch-reglage, eller en skärmläsare) gick rakt ut i brädet
+  bakom, där man kunde aktivera saker man inte såg. Appen bakom är `inert` nu, Tab
+  vänder i sheeten, och fokus lämnas tillbaka till knappen som öppnade den. Sheeten
+  är `role="dialog"` + `aria-modal`, och tar fokus själv vid öppning — aldrig ett
+  textfält, det hade rest tangentbordet ohyfsat.
+
+Verifierat: 58 fall i `surface.mjs` över **båda** viewporterna (390×844 och
 1280×900), plus åtta tidigare sviter som regression.
 
 ## Open questions

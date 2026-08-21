@@ -1286,6 +1286,10 @@ body.preload * { transition: none !important; }
      nothing to a sheet that is already sized to its content. */
   .sheet.full { height: 94dvh; max-height: 94dvh; }
   .sheet-grip, .sheet-head { touch-action: none; }
+  /* The sheet takes focus itself on open (that is what makes it a dialog to a
+     screen reader), but it isn't a control — so no ring on the container. The
+     controls inside keep theirs. */
+  .sheet:focus { outline: none; }
   /* Keep a list's overscroll from chaining out to the page behind the sheet. */
   .sheet .surface-body { overscroll-behavior: contain; }
   .sheet-head { display: flex; align-items: center; gap: 8px; padding: 0 2px 8px; flex: none; }

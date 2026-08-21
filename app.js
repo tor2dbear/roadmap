@@ -957,6 +957,32 @@
     window.scrollTo(0, lockedY);     // scroll lands on a body that is still fixed
   }
 
+  // The scrim stops the pointer, not the keyboard. A sheet is modal, so the app
+  // behind it goes `inert` — otherwise Tab, a switch control or a screen reader
+  // walks straight out of the sheet into a board nobody can see, and activating
+  // something there edits or navigates behind the surface. `#app` only: the palette
+  // is a sibling and is deliberately allowed on top (see the Escape order).
+  var inertLocks = 0;
+  function setBackgroundInert(on) {
+    var app = document.getElementById("app");
+    if (!app) return;
+    if (on) { if (inertLocks++) return; }
+    else { inertLocks = Math.max(0, inertLocks - 1); if (inertLocks) return; }
+    if ("inert" in app) app.inert = on;
+    // Pre-`inert` browsers get the screen-reader half, which is the part the scrim
+    // can't cover at all. Tab is handled by the trap in openSurface either way.
+    else if (on) app.setAttribute("aria-hidden", "true");
+    else app.removeAttribute("aria-hidden");
+  }
+  // Everything in `root` a Tab can land on, in document order.
+  var FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), ' +
+    'select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  function focusables(root) {
+    var all = root.querySelectorAll(FOCUSABLE), out = [];
+    for (var i = 0; i < all.length; i++) if (all[i].offsetParent !== null) out.push(all[i]);
+    return out;
+  }
+
   // Drag the sheet: down far enough closes it, up snaps it to full height, anything
   // short springs back. Dragging from the body is allowed only when the list is
   // already at the top and the finger is going down — otherwise that gesture is a
@@ -1063,6 +1089,10 @@
   function openSurface(opts) {
     var phone = isPhone();
     var scrim = null;
+    // Where focus came from, so closing hands it back to the control that opened
+    // the surface instead of dropping it on <body> — from where the next Tab starts
+    // over at the top of the page.
+    var lastFocus = document.activeElement;
     var root = el("div", (phone ? "sheet" : "pop") + (opts.cls ? " " + opts.cls : ""));
     var body = el("div", "surface-body");
     var closed = false;
@@ -1076,11 +1106,32 @@
       document.removeEventListener("click", onDocClick, true);
       document.removeEventListener("pointerdown", onDocDown, true);
       document.removeEventListener("keydown", onKey, true);
-      if (scrim) { scrim.remove(); unlockScroll(); }
+      var hadFocus = root.contains(document.activeElement);
+      if (scrim) { scrim.remove(); unlockScroll(); setBackgroundInert(false); }
       root.remove();
+      // Only take focus back if we still had it. Closing usually happens *because*
+      // the user aimed at something else, and pulling focus off that would undo
+      // their click as surely as re-rendering under it does.
+      if (hadFocus && lastFocus && document.contains(lastFocus)) {
+        try { lastFocus.focus(); } catch (e2) {}
+      }
       if (opts.onClose) opts.onClose();
     }
     function onKey(e) {
+      // A sheet is modal, so Tab wraps inside it. `inert` already does this where
+      // it exists; the trap is what makes the older path safe, and it also gives
+      // the wrap-around a real modal has.
+      if (e.key === "Tab" && phone) {
+        var f = focusables(root);
+        if (!f.length) { e.preventDefault(); return; }
+        var first = f[0], last = f[f.length - 1], at = document.activeElement;
+        var out = !root.contains(at);
+        if (e.shiftKey ? (out || at === first) : (out || at === last)) {
+          e.preventDefault();
+          (e.shiftKey ? last : first).focus();
+        }
+        return;
+      }
       if (e.key !== "Escape") return;
       // The palette and the shortcut-help overlay sit above everything; while one
       // of them is up its own Escape wins, or the first press would dismiss a
@@ -1117,6 +1168,11 @@
       scrim = el("div", "sheet-scrim");
       scrim.addEventListener("click", close);
       document.body.appendChild(scrim);
+      root.setAttribute("role", "dialog");
+      root.setAttribute("aria-modal", "true");
+      if (opts.title) root.setAttribute("aria-label", opts.title);
+      root.tabIndex = -1; // focus lands on the sheet itself, never on a text field:
+                          // that would raise the keyboard before anyone asked
       root.appendChild(el("div", "sheet-grip"));
       var head = el("div", "sheet-head");
       if (opts.help) {
@@ -1130,6 +1186,7 @@
       root.appendChild(body);
       document.body.appendChild(root);
       lockScroll();
+      setBackgroundInert(true);
       draggableSheet(root, body, close);
       // While a *text field* inside is focused the keyboard is up; pad the scroll
       // area so the last row can still be brought above it.
@@ -1156,6 +1213,11 @@
     var handle = { close: close, el: root };
     openSurfaces.push(handle);
     opts.build(body, { close: close, phone: phone });
+    // Move focus into the sheet unless the builder already placed it (the desktop
+    // pickers focus their search field; the phone ones deliberately don't).
+    if (phone && !root.contains(document.activeElement)) {
+      try { root.focus({ preventScroll: true }); } catch (e) { root.focus(); }
+    }
     setTimeout(function () {
       document.addEventListener("click", onDocClick, true);
       document.addEventListener("pointerdown", onDocDown, true);
