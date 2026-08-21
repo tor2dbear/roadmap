@@ -196,7 +196,16 @@ till sidan under.
   lämnat kvar scrimen och låst sidan. Den grenen är borta; `openSurface` stänger sig
   själv i capture-fasen och stoppar eventet där.
 
-Verifierat: 40 fall i `surface.mjs` över **båda** viewporterna (390×844 och
+- **Två rättningar födde varsin bugg — båda av samma sort.** Regeln "ett klick som
+  började inuti är aldrig ett utanför-klick" gjorde också triggern till *inuti*, så
+  issue-editorn kunde inte längre stängas med sin egen knapp: ett andra klick
+  staplade en ny ovanpå. Varje trigger håller nu sitt handtag och växlar mot det.
+  Och regeln "rita inte om pucken medan en yta är uppe" sköt upp skrivningen utan att
+  minnas *vems* den var — gick man vidare till nästa puck drog den uppskjutna
+  skrivningen tillbaka den förra, hash och allt. En uppskjuten uppdatering gäller nu
+  bara den puck som fortfarande visas.
+
+Verifierat: 43 fall i `surface.mjs` över **båda** viewporterna (390×844 och
 1280×900), plus åtta tidigare sviter som regression.
 
 ## Open questions

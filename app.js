@@ -1369,6 +1369,14 @@
     // without this the nearest containing block is the main column and the editor
     // opens below the whole page instead of beside the control.
     var wrap = el("span", "issue-cell prop-pick");
+    // One editor per cell. The trigger sits inside the anchor wrapper, so clicking
+    // it no longer counts as an outside click — without a handle to close, a second
+    // click would stack a second editor on top of the first.
+    var openEditor = null;
+    function toggleIssueEditor() {
+      if (openEditor) { openEditor.close(); return; }
+      openEditor = promptIssue(wrap, item, function () { openEditor = null; });
+    }
     if (item.issue) {
       var a = el("a", "issue-link", "#" + item.issue);
       a.href = "https://github.com/" + item.repo + "/issues/" + item.issue;
@@ -1377,12 +1385,12 @@
       if (item.issueState) wrap.appendChild(el("span", "issue-state issue-" + item.issueState, item.issueState));
       if (editable) {
         var ed = el("button", "linklike issue-editbtn", "Edit"); ed.type = "button";
-        ed.addEventListener("click", function () { promptIssue(wrap, item); });
+        ed.addEventListener("click", toggleIssueEditor);
         wrap.appendChild(ed);
       }
     } else if (editable) {
       var link = el("button", "linklike", "Link issue"); link.type = "button";
-      link.addEventListener("click", function () { promptIssue(wrap, item); });
+      link.addEventListener("click", toggleIssueEditor);
       wrap.appendChild(link);
       var mk = el("button", "linklike issue-newbtn", "New issue"); mk.type = "button";
       mk.addEventListener("click", function () { newIssue(item); });
@@ -1392,9 +1400,10 @@
     }
     return wrap;
   }
-  function promptIssue(wrap, item) {
-    inputSurface(wrap, {
+  function promptIssue(wrap, item, onClose) {
+    return inputSurface(wrap, {
       title: "Issue",
+      onClose: onClose,
       value: item.issue ? String(item.issue) : "",
       placeholder: "42 or a full issue URL",
       hint: "The working issue in " + item.repoName + ". Leave blank to unlink.",
@@ -1940,6 +1949,12 @@
   // A puck opens as a full-width page: the board + view-header hide and the detail
   // fills the content area (same on desktop and mobile). The breadcrumb is "back".
   function openDetail(item) {
+    // Claim the pane *before* closing surfaces. A surface's onClose can fire the
+    // write it was holding, and that write asks to refresh the puck it belongs to
+    // — the one we're navigating away from. Naming the new puck first makes that
+    // refresh a no-op instead of a puck popping back over its successor.
+    currentDetailItem = item;
+    pendingRefresh = null;
     // Navigating from the palette calls this directly — pushState fires neither
     // popstate nor hashchange, so syncHash's cleanup never runs and a sheet would
     // stay up over the puck that replaced its own.
@@ -1950,7 +1965,6 @@
     document.body.classList.add("viewing-puck");
     // The mobile topbar becomes the puck's context (Linear-style): Pucks › Title,
     // where "Pucks" is the back action and the title truncates.
-    currentDetailItem = item;
     var tc = document.getElementById("topCrumb");
     if (tc) {
       tc.innerHTML = "";
@@ -1997,6 +2011,8 @@
   function closeDetail() {
     paneRefs();
     selectedId = null;
+    currentDetailItem = null;
+    pendingRefresh = null;
     document.body.classList.remove("viewing-puck");
     if (detailPane) detailPane.hidden = true;
     highlightSelected();
@@ -3774,9 +3790,16 @@
   // popover is anchored to, leaving a picker that looks alive and writes nowhere.
   // Deferred writes make this easy to hit: close the label picker by clicking the
   // status chip, and the save lands *after* the status picker has opened.
+  // "Still showing" means *this* puck, not any puck: a held-off write belongs to the
+  // puck it was made on, and flushing it after the reader moved on would drag that
+  // puck back over the one they're reading, hash and all.
   var pendingRefresh = null;
+  function isOpenPuck(item) {
+    return document.body.classList.contains("viewing-puck") &&
+      !!currentDetailItem && currentDetailItem.id === item.id;
+  }
   function reopenIfOpen(item) {
-    if (!document.body.classList.contains("viewing-puck")) return;
+    if (!isOpenPuck(item)) return;
     if (openSurfaces.length) { pendingRefresh = item; return; }
     pendingRefresh = null;
     openModal(item);
@@ -3785,7 +3808,7 @@
     if (!pendingRefresh || openSurfaces.length) return;
     var it = pendingRefresh;
     pendingRefresh = null;
-    if (document.body.classList.contains("viewing-puck")) openModal(it);
+    if (isOpenPuck(it)) openModal(it);
   }
   function changeStatus(item, status) {
     if (status === item.status || !ghToken()) return;
