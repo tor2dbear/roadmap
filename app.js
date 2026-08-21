@@ -1050,6 +1050,14 @@
     root.addEventListener("pointercancel", up);
   }
 
+  // Every open surface, so navigation and viewport changes can clear them: a sheet
+  // lives on <body>, not inside the puck it belongs to, and would otherwise survive
+  // the puck being swapped out under it.
+  var openSurfaces = [];
+  function closeSurfaces() {
+    openSurfaces.slice().forEach(function (s) { s.close(); });
+  }
+
   //   opts: { title, anchorWrap, cls, help, onClose, build(body, api) }
   //   → { close }
   function openSurface(opts) {
@@ -1062,6 +1070,9 @@
     function close() {
       if (closed) return;
       closed = true;
+      var at = openSurfaces.indexOf(handle);
+      if (at >= 0) openSurfaces.splice(at, 1);
+      setTimeout(flushRefresh, 0); // catch up on any refresh this surface held off
       document.removeEventListener("click", onDocClick, true);
       document.removeEventListener("pointerdown", onDocDown, true);
       document.removeEventListener("keydown", onKey, true);
@@ -1071,6 +1082,10 @@
     }
     function onKey(e) {
       if (e.key !== "Escape") return;
+      // The palette sits above everything; while it is open its own Escape wins,
+      // or the first press would dismiss a surface nobody can see and leave the
+      // visible palette standing.
+      if (cmdkVisible()) return;
       e.stopPropagation(); // this layer only — the modal beneath stays open
       close();
     }
@@ -1130,14 +1145,26 @@
       if (!opts.anchorWrap) root.classList.add("pop-center");
     }
 
+    var handle = { close: close, el: root };
+    openSurfaces.push(handle);
     opts.build(body, { close: close, phone: phone });
     setTimeout(function () {
       document.addEventListener("click", onDocClick, true);
       document.addEventListener("pointerdown", onDocDown, true);
       document.addEventListener("keydown", onKey, true);
     }, 0);
-    return { close: close, el: root };
+    return handle;
   }
+
+  // A surface picks its shell once, at open. Crossing the breakpoint — a phone
+  // rotating into landscape — would leave a sheet with none of its media-scoped
+  // positioning and the body still locked, so close instead of trying to morph.
+  (function () {
+    var mq = window.matchMedia(PHONE);
+    var onChange = function () { closeSurfaces(); };
+    if (mq.addEventListener) mq.addEventListener("change", onChange);
+    else if (mq.addListener) mq.addListener(onChange);
+  })();
 
   // A Linear-style editable property: a single chip showing the *current* value;
   // click opens a picker popover to change it. Static chip when not editable. This
@@ -1247,7 +1274,11 @@
 
           // Same repo first \u2014 that's where a link usually points \u2014 then the rest,
           // freshest first. An A\u2013Z dump of 138 pucks helps nobody.
-          var pool = DATA.items.filter(function (it) { return it.native && !opts.exclude(it); });
+          // Adapted pucks are pickable: the harvester resolves references against
+          // every item on the board, so a native puck may perfectly well depend on
+          // one. What can't be *written to* is a different question from what can
+          // be pointed at — `exclude` is where impossible choices belong.
+          var pool = DATA.items.filter(function (it) { return !opts.exclude(it); });
           pool.sort(function (a, b) {
             var ar = a.repo === opts.repo ? 0 : 1, br = b.repo === opts.repo ? 0 : 1;
             return ar - br || (b.updated || "").localeCompare(a.updated || "") ||
@@ -1327,7 +1358,10 @@
   // The Issue property cell: a link (+ open/closed state) when set, "Link issue"
   // when editable and empty, "—" otherwise. Edit uses a prompt (number or URL).
   function issueValue(item, editable) {
-    var wrap = el("span", "issue-cell");
+    // Positioned, because inputSurface anchors an absolute popover inside it —
+    // without this the nearest containing block is the main column and the editor
+    // opens below the whole page instead of beside the control.
+    var wrap = el("span", "issue-cell prop-pick");
     if (item.issue) {
       var a = el("a", "issue-link", "#" + item.issue);
       a.href = "https://github.com/" + item.repo + "/issues/" + item.issue;
@@ -1408,7 +1442,12 @@
         help: "https://github.com/tor2dbear/roadmap/blob/main/CONVENTION.md#frontmatter-the-interface",
         onClose: function () {
           open = null;
-          if (chosen.join(",") !== was.join(",")) changeTags(item, chosen.slice());
+          if (chosen.join(",") === was.join(",")) return;
+          // Save after the dispatch that closed us finishes. Closing often happens
+          // from a click on another control, and changeTags() re-renders the detail
+          // pane synchronously — that click would then land on a detached node and
+          // appear to do nothing.
+          setTimeout(function () { changeTags(item, chosen.slice()); }, 0);
         },
         build: function (host) {
           // The field holds the chosen labels as tokens and the query at once.
@@ -3718,7 +3757,24 @@
   // Optimistic: flip in-memory + re-render now, commit in the background, revert on failure.
   // Reopen the detail only if it's currently showing (so a status change from the
   // picker refreshes the open puck, but a drag-drop on the board doesn't pop it).
-  function reopenIfOpen(item) { if (document.body.classList.contains("viewing-puck")) openModal(item); }
+  // Refresh the open puck after an optimistic write — but never while a surface is
+  // up. The detail pane is rebuilt wholesale, which would detach the very control a
+  // popover is anchored to, leaving a picker that looks alive and writes nowhere.
+  // Deferred writes make this easy to hit: close the label picker by clicking the
+  // status chip, and the save lands *after* the status picker has opened.
+  var pendingRefresh = null;
+  function reopenIfOpen(item) {
+    if (!document.body.classList.contains("viewing-puck")) return;
+    if (openSurfaces.length) { pendingRefresh = item; return; }
+    pendingRefresh = null;
+    openModal(item);
+  }
+  function flushRefresh() {
+    if (!pendingRefresh || openSurfaces.length) return;
+    var it = pendingRefresh;
+    pendingRefresh = null;
+    if (document.body.classList.contains("viewing-puck")) openModal(it);
+  }
   function changeStatus(item, status) {
     if (status === item.status || !ghToken()) return;
     var prevS = item.status, prevU = item.updated;
@@ -3984,7 +4040,10 @@
           host.appendChild(cal);
 
           var foot = el("div", "date-foot");
-          var month = el("button", "date-act", "This month");
+          // Named for what it does: the month you are looking at, not today's. It
+          // writes that month's last day — the horizon `roadmap target <slug>
+          // 2026-11` already means.
+          var month = el("button", "date-act", "End of month");
           month.type = "button";
           month.addEventListener("click", function () {
             commit(endOfMonth(ymd(view).slice(0, 7)));
@@ -4007,8 +4066,14 @@
             var next = el("button", "cal-nav", "\u203a"); next.type = "button";
             prev.setAttribute("aria-label", "Previous month");
             next.setAttribute("aria-label", "Next month");
-            prev.addEventListener("click", function () { view.setUTCMonth(view.getUTCMonth() - 1); drawCal(); });
-            next.addEventListener("click", function () { view.setUTCMonth(view.getUTCMonth() + 1); drawCal(); });
+            // Step by month from day 1: setUTCMonth keeps the day, so August 31st
+            // "next month" lands on October 1st and the button appears to skip one.
+            function step(by) {
+              view = new Date(Date.UTC(view.getUTCFullYear(), view.getUTCMonth() + by, 1));
+              drawCal();
+            }
+            prev.addEventListener("click", function () { step(-1); });
+            next.addEventListener("click", function () { step(1); });
             head.appendChild(el("span", "cal-month", monthLabel(ymd(view).slice(0, 7))));
             head.appendChild(prev);
             head.appendChild(next);
@@ -4931,6 +4996,10 @@
   // and manual hash edits). Idempotent so popstate + hashchange firing together
   // for one navigation doesn't double-render.
   function syncHash() {
+    // Back/Forward can swap the puck underneath an open sheet — it lives on <body>,
+    // not inside the detail pane — and a picker left standing would write to the
+    // puck you just navigated away from.
+    closeSurfaces();
     var it = itemFromHash();
     if (it) {
       if (!(currentDetailItem && currentDetailItem.id === it.id && document.body.classList.contains("viewing-puck"))) openDetail(it);

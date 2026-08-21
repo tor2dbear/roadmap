@@ -4,43 +4,92 @@
      hand: your changes will be overwritten on the next sync. Edit the roadmap in
      the source repo instead. -->
 
-_Generated 2026-08-21 · 39 items across 6 repos._
+_Generated 2026-08-16 · 117 items across 6 repos._
 
 ## Sources
 
-- **[Etapp](https://github.com/tor2dbear/roadmap)** — 39 items, native pucks. The Etapp tool's own roadmap — the aggregator tracking itself.
-- **[PIA](https://github.com/tor2dbear/pia-terminal)** — 0 items, adapted (pucks). Personal Integrated Applications — a Unix-flavoured terminal in the browser.
-- **[Cadence](https://github.com/tor2dbear/cadence)** — 0 items, adapted (pucks). A motion *system* designer — tokens for timing & easing, not another easing toy.
-- **[Méta-Matic](https://github.com/tor2dbear/meta-matic)** — 0 items, adapted (pucks). A digital drawing machine after Jean Tinguely — infinite works, never anything new.
-- **[Workshop](https://github.com/tor2dbear/tor2dbear.com)** — 0 items, adapted (pucks). The apex site and the rule book for the fleet.
-- **[tor-bjorn.com](https://github.com/tor2dbear/portfolio)** — 0 items, adapted (pucks). Personal Hugo site — design system, typography, terminal, header/footer redesign.
+- **[Etapp](https://github.com/tor2dbear/roadmap)** — 18 items, native pucks. The Etapp tool's own roadmap — the aggregator tracking itself.
+- **[PIA](https://github.com/tor2dbear/pia-terminal)** — 51 items, native pucks. Personal Integrated Applications — a Unix-flavoured terminal in the browser.
+- **[Cadence](https://github.com/tor2dbear/cadence)** — 10 items, native pucks. A motion *system* designer — tokens for timing & easing, not another easing toy.
+- **[Méta-Matic](https://github.com/tor2dbear/meta-matic)** — 18 items, native pucks. A digital drawing machine after Jean Tinguely — infinite works, never anything new.
+- **[Workshop](https://github.com/tor2dbear/tor2dbear.com)** — 1 items, native pucks. The apex site and the rule book for the fleet.
+- **[tor-bjorn.com](https://github.com/tor2dbear/portfolio)** — 19 items, native pucks. Personal Hugo site — design system, typography, terminal, header/footer redesign.
 
-## Now (1)
+## Now (3)
 
-- **UI-ramar: overlay-primitiv och pickers** — Etapp · #ui #product · 2026-08-21  
-  https://github.com/tor2dbear/roadmap/blob/main/roadmap/ui-overlay-och-pickers.md
+- **python i prod — sandbox-CSP tappas av Cloudflare clean-URL** — PIA · #wasm #deploy #bugfix · 2026-08-12  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/python-sandbox-csp-fix.md
+- **AI-kontext via MCP-connector** — PIA · #mcp #ai · 2026-08-09  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/ai-mcp-context.md
+- **brew install: ärlig installationsceremoni** — PIA · #packages #system · 2026-08-08  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/brew-install-progress.md
 
-## Later (6)
+## Next (5)
 
-- **Instant cross-repo sync (opt-in)** — Etapp · #product · 2026-08-17  
-  https://github.com/tor2dbear/roadmap/blob/main/roadmap/instant-cross-repo-sync-opt-in.md
-- **Sign in with GitHub via relay** — Etapp · ↑ high · #product #auth · 2026-08-18  
-  https://github.com/tor2dbear/roadmap/blob/main/roadmap/sign-in-with-github-via-relay.md
-- **Multi-provider (GitLab m.fl.)** — Etapp · #product · 2026-08-17  
-  https://github.com/tor2dbear/roadmap/blob/main/roadmap/multi-provider-gitlab-m-fl.md
-- **Markdown-rendering: genomgång av formateringen** — Etapp · #ui #editing · 2026-08-19  
-  https://github.com/tor2dbear/roadmap/blob/main/roadmap/markdown-rendering-genomgang-av-formateringen.md
-- **Custom workspace icon (upload or use the GitHub avatar)** — Etapp · #product #ui #gui · 2026-08-18  
-  https://github.com/tor2dbear/roadmap/blob/main/roadmap/custom-workspace-icon-upload-or-use-the-github-avatar.md
+- **Lazy email verification (gate claim, not signup)** — PIA · #auth #share · 2026-08-08  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/email-verification-lazy.md
+- **Custom probes: bring your own markup** — Cadence · #bench · 2026-08-15  
+  https://github.com/tor2dbear/cadence/blob/main/roadmap/bring-your-own-markup.md
+- **Parallel sandbox/staging environment for the print shop** — Méta-Matic · #devops #print · 2026-08-13  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/sandbox-staging.md
+- **Seller notification on new print order** — Méta-Matic · #commerce #ops · 2026-08-13  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/seller-order-notifications.md
+- **Roller på delade filer (owner/editor/viewer)** — PIA · #collab #permissions #supabase · 2026-08-08  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/shared-file-roles.md
+
+## Later (15)
+
+- **Opinion-lagret som tjänst (Worker + MCP)** — Cadence · #backend · 2026-08-15  
+  https://github.com/tor2dbear/cadence/blob/main/roadmap/opinion-layer-service.md
+- **Security-header-härdning** — Cadence · #backend #config · 2026-08-15  
+  https://github.com/tor2dbear/cadence/blob/main/roadmap/security-headers.md
+- **Sluta committa genererad data + slå ihop skörd/deploy** — Etapp · #ops #dx · 2026-08-16  
+  https://github.com/tor2dbear/roadmap/blob/main/roadmap/deploy-simplification.md
+- **Redigera pucks direkt i GUI:t** — Etapp · #ui #api #editing · 2026-08-16 · ⛔ blocked by deploy-simplification  
+  https://github.com/tor2dbear/roadmap/blob/main/roadmap/gui-editing.md
+- **Breakpoints-uppdatering** — tor-bjorn.com · #css #layout · 2026-08-16  
+  https://github.com/tor2dbear/portfolio/blob/master/roadmap/breakpoints-update.md
+- **Färgtoken-omstrukturering** — tor-bjorn.com · #css #tokens · 2026-08-16  
+  https://github.com/tor2dbear/portfolio/blob/master/roadmap/color-token-restructure.md
+- **Content markdown-cleanup** — tor-bjorn.com · #content · 2026-08-16  
+  https://github.com/tor2dbear/portfolio/blob/master/roadmap/content-markdown-cleanup.md
 - **Arkivera gamla "done" på tavlan** — Etapp · #ui · 2026-08-15  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/archive-done-column.md
+- **Importera & kritisera en befintlig motion-palett** — Cadence · #export #opinion · 2026-08-15  
+  https://github.com/tor2dbear/cadence/blob/main/roadmap/import-motion-palette.md
+- **On-chain attestation (optional, satire) — mint the joke** — Méta-Matic · #wallet #onchain #satire · 2026-08-13  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/onchain-attestation.md
+- **On-chain NFT mint** — Méta-Matic · #wallet · 2026-08-12  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/nft-mint-onchain.md
+- **Rate-limit /claim** — Méta-Matic · #backend · 2026-08-12  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/claim-rate-limit.md
+- **Server-side wallet signature check** — Méta-Matic · #backend #wallet · 2026-08-12  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/wallet-sig-verification.md
+- **WalletConnect for mobile Safari** — Méta-Matic · #wallet · 2026-08-12  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/walletconnect-mobile.md
+- **Multiplayer — who, msg, gemensamma rum** — PIA · #multiplayer #supabase · 2026-07-17  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/multiplayer-rooms.md
 
-## Inbox (1)
+## Inbox (8)
 
-- **Test** — Etapp · #test · 2026-08-17  
-  https://github.com/tor2dbear/roadmap/blob/main/roadmap/test.md
+- **Per-branch deploy previews (Netlify?)** — Cadence · #backend · 2026-08-15  
+  https://github.com/tor2dbear/cadence/blob/main/roadmap/deploy-previews.md
+- **mount — privata filer från egen server** — PIA · #storage #vfs · 2026-08-12  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/mount-webdav.md
+- **Orphaned certificates** — Méta-Matic · #ownership · 2026-08-12  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/orphaned-certificates.md
+- **AI-värd-persona (och ev. ask-kommandot)** — PIA · #persona #ai · 2026-08-08  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/ai-host-persona.md
+- **paket: pv — pipe viewer (ärlig mätare)** — PIA · #packages · 2026-08-08  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/pkg-pv.md
+- **publish → digital garden (index, styling, RSS)** — PIA · #share #web · 2026-08-08  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/publish-garden.md
+- **terminal: uppdaterbar utdatarad (progress/spinner)** — PIA · #terminal #packages · 2026-08-08  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/live-output-line.md
+- **Paket-roadmap — brew-appar som passar PIA** — PIA · #packages #overview · 2026-07-18  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/package-ideas.md
 
-## Done (31)
+## Done (86)
 
 - **Brand it + split product / instance** — Etapp · #product · 2026-08-16  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/productize.md
@@ -50,57 +99,167 @@ _Generated 2026-08-21 · 39 items across 6 repos._
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/align-with-fleet-cloudflare.md
 - **Agent-kontrakt (+ ev. MCP)** — Etapp · #product #ai · 2026-08-16  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/agent-native-contract.md
-- **Filtermodell: chips, frågespråk, delbara vyer** — Etapp · #ui #ai · 2026-08-20  
-  https://github.com/tor2dbear/roadmap/blob/main/roadmap/fragesprak-delbara-vyer.md
 - **Auto-status från verkligheten** — Etapp · #core #sync · 2026-08-15  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/auto-status-from-reality.md
+- **Draggbar bézier-editor** — Cadence · #editor · 2026-08-15  
+  https://github.com/tor2dbear/cadence/blob/main/roadmap/draggable-bezier-editor.md
 - **Lägg till portfolio (tor-bjorn.com) på tavlan** — Etapp · #sources · 2026-08-15  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/add-portfolio-source.md
 - **Multi-repo roadmap-aggregator + tavla** — Etapp · #core · 2026-08-15  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/multi-repo-board.md
+- **Redesign — header/footer-navigation** — tor-bjorn.com · #design #layout · 2026-08-15  
+  https://github.com/tor2dbear/portfolio/blob/master/roadmap/redesign-header-footer.md
+- **nano: multi-buffer** — PIA · #editor · 2026-07-18  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/nano-multibuffer.md
+- **grep: context-flaggor -A/-B/-C** — PIA · #text #commands · 2026-07-17  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/grep-context.md
 - **Tunn collaboration via GitHub-primitiver** — Etapp · #product · 2026-08-16  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/collaboration-via-github.md
-- **Display-meny + gruppering som variabel** — Etapp · #ui #product · 2026-08-20  
-  https://github.com/tor2dbear/roadmap/blob/main/roadmap/display-meny-och-gruppering.md
-- **Rank: manuellt läge + skriv order från GUI:t** — Etapp · #ui #editing · 2026-08-20  
-  https://github.com/tor2dbear/roadmap/blob/main/roadmap/rank-skriv-order-fran-gui-t.md
 - **Migrera Cadence till native pucks** — Etapp · #sources · 2026-08-16  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/cadence-to-native-pucks.md
+- **Startsida-ombyggnad (Fas 5)** — tor-bjorn.com · #design · 2026-08-16  
+  https://github.com/tor2dbear/portfolio/blob/master/roadmap/homepage-rebuild.md
+- **Redigerbar ladder** — Cadence · #tokens · 2026-08-15  
+  https://github.com/tor2dbear/cadence/blob/main/roadmap/editable-ladder.md
 - **roadmap-CLI — skapa/förädla pucks** — Etapp · #dx · 2026-08-15  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/authoring-cli.md
-- **Sluta committa genererad data + slå ihop skörd/deploy** — Etapp · #ops #dx · 2026-08-16  
-  https://github.com/tor2dbear/roadmap/blob/main/roadmap/deploy-simplification.md
-- **Puck-hierarki: parent + rollup** — Etapp · #core #product · 2026-08-20  
-  https://github.com/tor2dbear/roadmap/blob/main/roadmap/puck-hierarki-parent-rollup.md
-- **Tidsaxel: target-datum** — Etapp · #core #product · 2026-08-20  
-  https://github.com/tor2dbear/roadmap/blob/main/roadmap/tidsaxel-target-horisont.md
-- **Redigera pucks direkt i GUI:t** — Etapp · #ui #editing · 2026-08-18  
-  https://github.com/tor2dbear/roadmap/blob/main/roadmap/gui-editing.md
-- **GitHub Pages-deploy (bara GitHub)** — Etapp · #product #ops · 2026-08-17  
-  https://github.com/tor2dbear/roadmap/blob/main/roadmap/github-pages-deploy-bara-github.md
-- **GUI-evolution: app-känsla, Etapp-identitet** — Etapp · #product #ui · 2026-08-17  
-  https://github.com/tor2dbear/roadmap/blob/main/roadmap/gui-evolution-app-kansla-etapp-identitet.md
-- **AI-first GUI: cockpit, inte kort-editor** — Etapp · #product #ui · 2026-08-19  
-  https://github.com/tor2dbear/roadmap/blob/main/roadmap/ai-first-gui-cockpit-inte-kort-editor.md
+- **Delbart system via URL-state** — Cadence · #share · 2026-08-15  
+  https://github.com/tor2dbear/cadence/blob/main/roadmap/shareable-url-state.md
 - **Beroenden mellan pucks (blocked-by)** — Etapp · #core #product #ai · 2026-08-16  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/puck-dependencies.md
-- **GUI-struktur v3: nav/scope vs vy-filter** — Etapp · → medium · #product #ui · 2026-08-17  
-  https://github.com/tor2dbear/roadmap/blob/main/roadmap/gui-struktur-v3-nav-scope-vs-filter.md
-- **PO-lager: routa tickets till disciplin-agenter** — Etapp · #product #ai · 2026-08-17  
-  https://github.com/tor2dbear/roadmap/blob/main/roadmap/po-lager-routa-tickets-till-disciplin-agenter.md
-- **GUI-struktur v2: Linear-nivå + växbarhet** — Etapp · #product #ui · 2026-08-17  
-  https://github.com/tor2dbear/roadmap/blob/main/roadmap/gui-struktur-v2-linear-niva-vaxbarhet.md
-- **Beroenden: skrivväg + cross-repo** — Etapp · #core #dx #ai · 2026-08-20  
-  https://github.com/tor2dbear/roadmap/blob/main/roadmap/beroenden-skrivvag-cross-repo.md
 - **Listvy-läge (alternativ till kanban)** — Etapp · #ui · 2026-08-16  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/list-view.md
+- **Fler export-mål** — Cadence · #export · 2026-08-15  
+  https://github.com/tor2dbear/cadence/blob/main/roadmap/export-targets.md
 - **Sökförslag / autocomplete** — Etapp · #ui · 2026-08-16  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/search-suggestions.md
+- **Levererat utöver ursprunglig plan** — Cadence · #core · 2026-08-15  
+  https://github.com/tor2dbear/cadence/blob/main/roadmap/shipped-extras.md
 - **Sortering + skapad-datum** — Etapp · #ui · 2026-08-16  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/sort-and-created.md
 - **Dela-länk till en puck** — Etapp · #ui · 2026-08-16  
   https://github.com/tor2dbear/roadmap/blob/main/roadmap/share-link.md
-- **Keyboard shortcuts (Linear-inspirerade)** — Etapp · #ui #editing · 2026-08-19  
-  https://github.com/tor2dbear/roadmap/blob/main/roadmap/keyboard-shortcuts-linear-inspirerade.md
-- **Koppla ett GitHub-issue till en puck från GUI:t** — Etapp · #ui #editing #github · 2026-08-19  
-  https://github.com/tor2dbear/roadmap/blob/main/roadmap/koppla-ett-github-issue-till-en-puck-fran-gui-t.md
+- **Dependency-refresh** — tor-bjorn.com · #tooling · 2026-08-16  
+  https://github.com/tor2dbear/portfolio/blob/master/roadmap/dependency-refresh.md
+- **Footer-omstrukturering** — tor-bjorn.com · #design #layout · 2026-08-16  
+  https://github.com/tor2dbear/portfolio/blob/master/roadmap/footer-restructure.md
+- **Gallery-shortcode för bildgrids** — tor-bjorn.com · #content · 2026-08-16  
+  https://github.com/tor2dbear/portfolio/blob/master/roadmap/gallery-shortcode.md
+- **Hero SEO-title + rollanimation** — tor-bjorn.com · #seo · 2026-08-16  
+  https://github.com/tor2dbear/portfolio/blob/master/roadmap/hero-seo-title.md
+- **Migrera övriga docs/-planer till pucks** — tor-bjorn.com · #roadmap · 2026-08-16  
+  https://github.com/tor2dbear/portfolio/blob/master/roadmap/seed-remaining-plans.md
+- **Morphande brand-mark** — tor-bjorn.com · #design · 2026-08-16  
+  https://github.com/tor2dbear/portfolio/blob/master/roadmap/brand-mark-morph.md
+- **Pantone/palett — CSS-driven refactor** — tor-bjorn.com · #css #tokens · 2026-08-16  
+  https://github.com/tor2dbear/portfolio/blob/master/roadmap/pantone-css-refactor.md
+- **Project info-block** — tor-bjorn.com · #components · 2026-08-16  
+  https://github.com/tor2dbear/portfolio/blob/master/roadmap/project-info-block.md
+- **Schema.org strukturerad data (JSON-LD)** — tor-bjorn.com · #seo · 2026-08-16  
+  https://github.com/tor2dbear/portfolio/blob/master/roadmap/schema-org.md
+- **UI-library-implementation** — tor-bjorn.com · #components · 2026-08-16  
+  https://github.com/tor2dbear/portfolio/blob/master/roadmap/ui-library.md
+- **Utility-class-cleanup** — tor-bjorn.com · #css #refactor · 2026-08-16  
+  https://github.com/tor2dbear/portfolio/blob/master/roadmap/utility-class-cleanup.md
+- **Redirect www to the apex** — Workshop · #infra · 2026-08-15  
+  https://github.com/tor2dbear/tor2dbear.com/blob/main/roadmap/www-redirect.md
+- **Subgrid-migration** — tor-bjorn.com · #css #layout · 2026-08-15  
+  https://github.com/tor2dbear/portfolio/blob/master/roadmap/subgrid-migration.md
+- **Terminal — uppföljningar** — tor-bjorn.com · #terminal · 2026-08-15  
+  https://github.com/tor2dbear/portfolio/blob/master/roadmap/terminal-followups.md
+- **Typografi — plan & skala** — tor-bjorn.com · #typography · 2026-08-15  
+  https://github.com/tor2dbear/portfolio/blob/master/roadmap/typography.md
+- **Print shop — order a physical giclée** — Méta-Matic · #commerce #print · 2026-08-13  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/print-shop.md
+- **Diffusion as a Fourier reveal** — Méta-Matic · #diffusion · 2026-08-12  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/diffusion-reveal.md
+- **Exclusive certificates** — Méta-Matic · #backend #ownership · 2026-08-12 · issue #17  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/exclusive-certificates.md
+- **Inspect & certify, save image** — Méta-Matic · #ownership · 2026-08-12  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/inspect-and-certify.md
+- **Latent conveyor belt** — Méta-Matic · #belt · 2026-08-12  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/latent-belt.md
+- **Reduced-motion mode** — Méta-Matic · #a11y · 2026-08-12  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/reduced-motion.md
+- **Rubberband scrub + screen-space lock** — Méta-Matic · #interaction · 2026-08-12  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/scrub-and-lock.md
+- **sh — kör scriptfiler** — PIA · #shell #terminal · 2026-08-12  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/sh-scripts.md
+- **Social & SEO** — Méta-Matic · #seo · 2026-08-12  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/seo-og.md
+- **The Space — the shared map** — Méta-Matic · #map · 2026-08-12  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/the-space-map.md
+- **Variable-weight ink ribbon** — Méta-Matic · #render · 2026-08-12  
+  https://github.com/tor2dbear/meta-matic/blob/main/roadmap/ink-ribbon.md
+- **påskägg: policy + shortlist** — PIA · #system #packages · 2026-08-08  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/easter-eggs.md
+- **Rättigheter — skrivskyddat systemträd + sudo som escape-hatch** — PIA · #shell #fs #teaching · 2026-08-07  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/permissions.md
+- **Fönster-flikar — tmux-lite multiplexer** — PIA · #terminal #ux · 2026-07-30  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/window-tabs.md
+- **history-persistens — ~/.pia/history (HISTFILE) mellan sessioner** — PIA · #shell #terminal · 2026-07-30  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/history-persistence.md
+- **"Lista uppdaterad"-notiser (coalescade)** — PIA · #collaboration #push · 2026-07-26  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/todo-list-notifications.md
+- **Boot-BIOS — retro-uppstartssekvens** — PIA · #aesthetic #ui · 2026-07-25  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/boot-bios.md
+- **CRT/retro-mode** — PIA · #aesthetic #ui · 2026-07-25  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/crt-retro-mode.md
+- **Konflikthantering vid cloud-sync** — PIA · #storage #supabase · 2026-07-25  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/cloud-sync-conflicts.md
+- **notify on — eget notis-preferenskommando** — PIA · #scheduling #push · 2026-07-25  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/notify-command.md
+- **paket: figlet — stora ASCII-banners** — PIA · #packages #fun · 2026-07-25  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/pkg-figlet.md
+- **paket: piano — Web Audio-synt** — PIA · #packages #audio #fun · 2026-07-25  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/pkg-piano.md
+- **paket: wordle — gissa fembokstavsordet** — PIA · #packages #games · 2026-07-25  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/pkg-wordle.md
+- **Påminnelser som webapp — push till iOS/Android** — PIA · #scheduling #pwa #push · 2026-07-25  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/reminder-push.md
+- **at / crontab — schemalagt (fd "remind")** — PIA · #commands #scheduling · 2026-07-18  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/at-cron-scheduling.md
+- **brew — paket/appar frikopplade från kärnan** — PIA · #packages #architecture · 2026-07-18  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/brew-packages.md
+- **Lyft ut terminal-motorn som fristående paket** — PIA · #terminal #packaging · 2026-07-18  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/terminal-engine-package.md
+- **paket: bc — kalkylator** — PIA · #packages · 2026-07-18  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/pkg-bc.md
+- **paket: cal — månadskalender** — PIA · #packages · 2026-07-18  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/pkg-cal.md
+- **paket: cmatrix — matrix-regn** — PIA · #packages #fun · 2026-07-18  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/pkg-cmatrix.md
+- **paket: fortune — slumpcitat** — PIA · #packages · 2026-07-18  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/pkg-fortune.md
+- **paket: life — Conways livsspel** — PIA · #packages #games · 2026-07-18  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/pkg-life.md
+- **paket: qr — QR-kod som ASCII** — PIA · #packages · 2026-07-18  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/pkg-qr.md
+- **paket: sl — ånglok** — PIA · #packages #fun · 2026-07-18  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/pkg-sl.md
+- **paket: tetris** — PIA · #packages #games · 2026-07-18  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/pkg-tetris.md
+- **paket: tutor — interaktiv terminal-kurs** — PIA · #packages #learning · 2026-07-18  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/pkg-tutor.md
+- **publish — mappar blir en publik sida** — PIA · #share #web · 2026-07-18  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/publish-folder.md
+- **python — kör riktig kod i sandbox (Pyodide/WASM)** — PIA · #apps #wasm · 2026-07-18  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/python-wasm.md
+- **Utseende i ~/.pia/config — egna färger, font, prompt** — PIA · #config #theme · 2026-07-18  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/settings-appearance.md
+- **cp — kopiera filer och mappar** — PIA · #fs #commands · 2026-07-17  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/fs-cp.md
+- **date — visa klocka och datum** — PIA · #system #commands · 2026-07-17  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/date-command.md
+- **Globbing — * och ? på shell-nivå** — PIA · #shell #terminal · 2026-07-17  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/shell-globbing.md
+- **head / tail — se början respektive slutet av en fil** — PIA · #text #commands · 2026-07-17  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/head-tail.md
+- **history — lista och återanvänd tidigare kommandon** — PIA · #shell #terminal · 2026-07-17  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/history-command.md
+- **Kommando-kedjning — && || ;** — PIA · #shell #terminal · 2026-07-17  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/command-chaining.md
+- **less / more — bläddra i lång output** — PIA · #terminal #commands · 2026-07-17  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/pager-less.md
+- **sort / uniq / cut — pipe-kompanjonerna** — PIA · #text #commands · 2026-07-17  
+  https://github.com/tor2dbear/pia-terminal/blob/main/roadmap/text-coreutils.md
