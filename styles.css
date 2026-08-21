@@ -1311,10 +1311,13 @@ body.preload * { transition: none !important; }
      can still be scrolled above the keyboard; without it, it would be unreachable. */
   .sheet .surface-body { overflow-y: auto; -webkit-overflow-scrolling: touch; gap: 8px; }
   .sheet.kb .surface-body { padding-bottom: 42dvh; }
-  /* Whatever the field is wrapped in is what has to stay pinned — with tokens the
-     input sits inside .tokenbox, so making the input sticky pins nothing. */
-  .sheet .surface-body > .fp-search,
-  .sheet .surface-body > .tokenbox { position: sticky; top: 0; z-index: 1; background: var(--panel); }
+  /* The field is wrapped in .sheet-pin (see openSurface) and that wrapper is what
+     stays put — with tokens the input sits inside .tokenbox, so pinning the input
+     itself pins nothing. The padding is the gap before the list: it belongs to the
+     pinned box, so rows scroll *under* it instead of through it. */
+  .sheet .surface-body > .sheet-pin {
+    position: sticky; top: 0; z-index: 1; background: var(--panel); padding-bottom: 12px;
+  }
   .sheet .pick-list { max-height: none; overflow: visible; }
   .sheet .pick-mi { padding: 12px 10px; font-size: 15px; } /* thumb-sized rows */
 }

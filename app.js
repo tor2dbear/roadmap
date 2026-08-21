@@ -1262,6 +1262,22 @@
     var handle = { close: close, el: root };
     openSurfaces.push(handle);
     opts.build(body, { close: close, phone: phone });
+    // Give a sheet's search field breathing room before the list, the way the
+    // reference apps do. The gap has to belong to the *pinned* element, not sit
+    // between it and the list: a margin there is not painted, so rows would scroll
+    // through it. Wrapping the field lets the padding be part of what stays put —
+    // and an <input> can't carry it itself, since padding-bottom on a field moves
+    // its own text instead of adding space beneath it.
+    if (phone) {
+      var head = body.firstElementChild;
+      if (head && (head.classList.contains("fp-search") || head.classList.contains("tokenbox"))) {
+        var held = document.activeElement; // moving a node blurs it — put focus back
+        var pin = el("div", "sheet-pin");
+        body.insertBefore(pin, head);
+        pin.appendChild(head);
+        if (held && pin.contains(held)) { try { held.focus(); } catch (e) {} }
+      }
+    }
     // Move focus into the sheet unless the builder already placed it (the desktop
     // pickers focus their search field; the phone ones deliberately don't).
     if (phone && !root.contains(document.activeElement)) {
@@ -1465,11 +1481,11 @@
         field.addEventListener("keydown", function (e) { if (e.key === "Enter") done(); });
         row.appendChild(save);
         host.appendChild(row);
-        // Focused on every viewport, unlike the pickers. Here the field *is* the
-        // content — there is no list for the keyboard to bury — and this is the
-        // surface that replaced window.prompt, which came up ready to type.
-        field.focus();
-        field.select();
+        // Not on a phone either, though here the field *is* the content and there is
+        // no list to bury: a sheet that opens with the keyboard already up is the
+        // thing that felt wrong, whichever surface does it. One rule beats an
+        // exception that has to be justified every time someone reads it.
+        if (!isPhone()) { field.focus(); field.select(); }
       },
     });
   }

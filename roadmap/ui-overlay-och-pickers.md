@@ -284,7 +284,17 @@ tangentbordet; den får växa, annars hade den legat helt bakom det.
   `inert` spärrar pekare, Tab *och* skärmläsare på en gång, och en femte lager-typ
   ärver regeln utan att någon behöver komma ihåg den.
 
-Verifierat: 94 fall i `surface.mjs` över **båda** viewporterna (390×844 och
+- **Luft under sökfältet, och ingen autofokus alls på mobil.** Två önskemål från
+  dig efter att ha kört den mot Notion. Luften måste tillhöra det *fastnitade*
+  fältet, inte ligga mellan fältet och listan — en marginal där målas inte, så
+  rader hade skrollat genom glappet i stället för under det. Fältet ligger i en
+  `.sheet-pin`-wrapper som bär paddingen (ett `<input>` kan inte bära den själv;
+  `padding-bottom` flyttar dess egen text i stället för att lägga till utrymme
+  under). Undantaget för enfältsredigeraren är borta: en sheet öppnar aldrig med
+  tangentbordet uppe, oavsett vilken yta det gäller. På desktop fokuseras fältet
+  som förut.
+
+Verifierat: 97 fall i `surface.mjs` över **båda** viewporterna (390×844 och
 1280×900), plus åtta tidigare sviter som regression.
 
 ## Open questions
