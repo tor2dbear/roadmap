@@ -3064,7 +3064,12 @@
     var k = e.key.toLowerCase();
 
     // ⌘K / Ctrl-K toggles the palette from anywhere (even while typing).
-    if ((e.metaKey || e.ctrlKey) && k === "k") { e.preventDefault(); cmdkVisible() ? closeCmdk() : openCmdk(); return; }
+    if ((e.metaKey || e.ctrlKey) && k === "k") {
+      // …but not over a panel: a panel owns the screen, and the palette's own
+      // commands open panels — that is the route by which they would stack.
+      if (!cmdkVisible() && anyModalOpen()) return;
+      e.preventDefault(); cmdkVisible() ? closeCmdk() : openCmdk(); return;
+    }
 
     // Escape unwinds exactly one layer: help → palette → (else) the puck detail,
     // which the modal-backdrop's own Escape listener closes. Consume the event for
@@ -4899,18 +4904,31 @@
   // handles the key" bug as a surface eating Escape under a panel. Help and the
   // palette still outrank it; the unwind order is help → palette → panel → surface
   // → puck.
+  // There is exactly one panel at a time. `modal-open` is a single boolean and
+  // Escape wants a single owner, so a second panel would leave both wrong: closing
+  // one by its button clears the class while the other is still on screen, and one
+  // Escape would take them all (stopPropagation doesn't stop a sibling listener on
+  // the same node). Cheaper to make stacking impossible than to make it correct —
+  // and there is no reading of the product where two panels at once is the answer.
+  var openPanel = null;
   function panelCloser(back) {
+    if (openPanel) openPanel();
     function close() {
       document.removeEventListener("keydown", onEsc, true);
+      if (openPanel === close) openPanel = null;
       if (back.parentNode) document.body.removeChild(back);
       document.body.classList.remove("modal-open");
     }
     function onEsc(e) {
       if (e.key !== "Escape" || cmdkVisible() || helpOpen()) return;
-      e.stopPropagation(); // this layer only — the puck beneath stays open
+      // Immediate: this layer owns the press outright. Plain stopPropagation leaves
+      // any other listener on document — a surface's, the puck's — free to act on
+      // the same key.
+      e.stopImmediatePropagation();
       close();
     }
     document.addEventListener("keydown", onEsc, true);
+    openPanel = close;
     return close;
   }
   // priority, agent, labels) is set on the puck page after creation.

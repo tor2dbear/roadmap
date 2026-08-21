@@ -242,7 +242,15 @@ Två testförutsättningar föll med det här: dragtesterna mätte en sheet som 
 nu, och regeln är skriven som den faktiskt gäller — sheeten *krymper* inte för
 tangentbordet; den får växa, annars hade den legat helt bakom det.
 
-Verifierat: 68 fall i `surface.mjs` över **båda** viewporterna (390×844 och
+- **Panelerna kunde stapla på varandra.** Paletten gick att slå upp ovanpå en panel,
+  och dess egna kommandon öppnar paneler. Två samtidiga paneler gör två saker fel på
+  en gång: `modal-open` är en enda boolean, så att stänga den övre med knappen släckte
+  klassen medan den undre stod kvar — och ett Escape tog båda, eftersom
+  `stopPropagation` inte stoppar en syskonlyssnare på samma nod. Billigare att göra
+  stapling omöjlig än att göra den korrekt: ⌘K gör ingenting över en panel, och
+  `panelCloser` stänger en föregående panel innan den öppnar nästa.
+
+Verifierat: 73 fall i `surface.mjs` över **båda** viewporterna (390×844 och
 1280×900), plus åtta tidigare sviter som regression.
 
 ## Open questions
