@@ -259,7 +259,12 @@ tangentbordet; den får växa, annars hade den legat helt bakom det.
   `preventDefault`, så Chrome tog tangenten till adressfältet och drog fokus ut ur
   modalen.
 
-Verifierat: 76 fall i `surface.mjs` över **båda** viewporterna (390×844 och
+- **Fällan räknade sheeten som en av sina egna rader.** Sheeten håller fokus direkt
+  efter öppning, och `root.contains(root)` är sant — så första Shift+Tab tog sig ut
+  bakvägen (framåt landade rätt av en slump, eftersom behållaren ligger före sina barn
+  i tab-ordningen). Behållaren räknas som *utanför* cykeln nu.
+
+Verifierat: 79 fall i `surface.mjs` över **båda** viewporterna (390×844 och
 1280×900), plus åtta tidigare sviter som regression.
 
 ## Open questions

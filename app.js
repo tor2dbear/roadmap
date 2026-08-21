@@ -1129,7 +1129,12 @@
         var f = focusables(root);
         if (!f.length) { e.preventDefault(); return; }
         var first = f[0], last = f[f.length - 1], at = document.activeElement;
-        var out = !root.contains(at);
+        // The sheet itself holds focus right after opening, and it is *not* part of
+        // the cycle: it sits before its own children in tab order, so forward Tab
+        // happens to land inside, but Shift+Tab would step out to whatever precedes
+        // the sheet in the document. Counting the container as outside sends that
+        // first backward press to the last row instead.
+        var out = !root.contains(at) || at === root;
         if (e.shiftKey ? (out || at === first) : (out || at === last)) {
           e.preventDefault();
           (e.shiftKey ? last : first).focus();
