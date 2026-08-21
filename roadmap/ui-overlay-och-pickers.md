@@ -205,7 +205,12 @@ till sidan under.
   skrivningen tillbaka den förra, hash och allt. En uppskjuten uppdatering gäller nu
   bara den puck som fortfarande visas.
 
-Verifierat: 43 fall i `surface.mjs` över **båda** viewporterna (390×844 och
+- **Escape-företrädet gällde bara paletten.** Genvägshjälpen (`?`) är också ett
+  lager ovanpå, och där tog ytans capture-hanterare Escape först: pickern under
+  försvann medan hjälpen stod kvar. Ordningen är nu densamma överallt —
+  hjälp → palett → yta → puck.
+
+Verifierat: 46 fall i `surface.mjs` över **båda** viewporterna (390×844 och
 1280×900), plus åtta tidigare sviter som regression.
 
 ## Open questions

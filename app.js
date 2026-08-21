@@ -1082,10 +1082,11 @@
     }
     function onKey(e) {
       if (e.key !== "Escape") return;
-      // The palette sits above everything; while it is open its own Escape wins,
-      // or the first press would dismiss a surface nobody can see and leave the
-      // visible palette standing.
-      if (cmdkVisible()) return;
+      // The palette and the shortcut-help overlay sit above everything; while one
+      // of them is up its own Escape wins, or the first press would dismiss a
+      // surface nobody can see and leave the visible layer standing. Same unwind
+      // order the global handler uses: help → palette → surface → puck.
+      if (cmdkVisible() || helpOpen()) return;
       e.stopPropagation(); // this layer only — the modal beneath stays open
       close();
     }
