@@ -279,6 +279,11 @@ Verifierat: 84 fall i `surface.mjs` över **båda** viewporterna (390×844 och
 1280×900), plus åtta tidigare sviter som regression.
 
 ## Open questions
+- **Ska navigering flytta fokus till det man kom fram till?** Efter Back hamnar
+  fokus på `<body>`, som i vilken SPA som helst — inte på brädet man ser. Ytan gör
+  rätt (den lämnar inte tillbaka fokus till något som göms), men ingen tar över.
+  Det är fokushantering för navigering i stort, inte en egenskap hos overlay-
+  primitiven, så det hör hemma i en egen puck.
 - **"Hela månaden" i datepickern?** `target` lagras exakt men *visas* grovt, och
   `roadmap target <slug> 2026-11` betyder "i slutet av november". En kalender som bara
   erbjuder dagar puttar mot en precision vi valt bort. Förslag: en "Hela månaden"-knapp
