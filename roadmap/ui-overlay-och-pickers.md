@@ -298,6 +298,14 @@ Verifierat: 97 fall i `surface.mjs` över **båda** viewporterna (390×844 och
 1280×900), plus åtta tidigare sviter som regression.
 
 ## Open questions
+- **iOS flyttar den *visuella* vyn när tangentbordet öppnas.** Vårt scroll-lås
+  (fixerad `body` på negativ offset) håller dokumentet, men iOS scrollar ändå fram
+  det fokuserade fältet — och då följer sidan bakom med, eftersom det är hela den
+  visuella vyn som flyttar sig, inte dokumentet. Att inte autofokusera tar bort
+  fallet där det händer *oombett*; kvar är fallet när man själv trycker i fältet.
+  Botemedlet vore att nita sheeten mot `visualViewport` (position, inte storlek —
+  regeln om att den inte ska *storleksändras* står kvar). Det går inte att verifiera
+  i den headless-motorn vi testar i, så det kräver en runda på riktig telefon.
 - **Ska navigering flytta fokus till det man kom fram till?** Efter Back hamnar
   fokus på `<body>`, som i vilken SPA som helst — inte på brädet man ser. Ytan gör
   rätt (den lämnar inte tillbaka fokus till något som göms), men ingen tar över.

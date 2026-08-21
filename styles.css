@@ -1293,8 +1293,10 @@ body.preload * { transition: none !important; }
      screen reader), but it isn't a control — so no ring on the container. The
      controls inside keep theirs. */
   .sheet:focus { outline: none; }
-  /* Keep a list's overscroll from chaining out to the page behind the sheet. */
-  .sheet .surface-body { overscroll-behavior: contain; }
+  /* Keep overscroll from chaining out to the page behind the sheet — on the sheet
+     itself too, not just its list: a short sheet (the one-field editor) has nothing
+     scrollable inside, so a drag there would otherwise reach the page. */
+  .sheet, .sheet .surface-body { overscroll-behavior: contain; }
   .sheet-head { display: flex; align-items: center; gap: 8px; padding: 0 2px 8px; flex: none; }
   .sheet-title {
     margin: 0 auto; font-size: 14px; font-weight: 600; color: var(--ink);
