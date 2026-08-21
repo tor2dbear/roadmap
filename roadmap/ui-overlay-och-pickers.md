@@ -224,7 +224,25 @@ till sidan under.
   är `role="dialog"` + `aria-modal`, och tar fokus själv vid öppning — aldrig ett
   textfält, det hade rest tangentbordet ohyfsat.
 
-Verifierat: 58 fall i `surface.mjs` över **båda** viewporterna (390×844 och
+- **Väljaren reste tangentbordet vid öppning.** `puckPicker` fokuserade sitt sökfält
+  ovillkorligt, så på mobil kom tangentbordet upp direkt och begravde listan man
+  skulle välja ur (label-väljaren hade redan rätt vakt; det hade inte den här, och
+  inte heller raden-vald-vägen). Undantaget är enfältsredigeraren: där *är* fältet
+  innehållet, det finns ingen lista att skymma, och den kom upp redo att skriva
+  redan när den var en `window.prompt`.
+- **Ingenting ägde Escape ovanför en yta — inte ens panelerna själva.** `C` öppnar
+  New puck ovanpå en öppen picker; Escape stängde då den dolda pickern. Och när
+  ytan väl backade undan föll trycket vidare till puckens egen hanterare och stängde
+  *pucken* bakom den öppna panelen. Panelerna äger Escape nu (en delad
+  `panelCloser`), och de stänger ytor när de öppnas. Ordningen är
+  hjälp → palett → panel → yta → puck.
+
+Två testförutsättningar föll med det här: dragtesterna mätte en sheet som redan
+öppnade med tangentbordspaddingen på, så detenterna låg annorlunda. De drar längre
+nu, och regeln är skriven som den faktiskt gäller — sheeten *krymper* inte för
+tangentbordet; den får växa, annars hade den legat helt bakom det.
+
+Verifierat: 68 fall i `surface.mjs` över **båda** viewporterna (390×844 och
 1280×900), plus åtta tidigare sviter som regression.
 
 ## Open questions

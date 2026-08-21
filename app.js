@@ -1106,12 +1106,16 @@
       document.removeEventListener("click", onDocClick, true);
       document.removeEventListener("pointerdown", onDocDown, true);
       document.removeEventListener("keydown", onKey, true);
-      var hadFocus = root.contains(document.activeElement);
+      // Take focus back when we still hold it — or when nobody does. A layer that
+      // sat on top of us (the palette, a panel) drops focus on <body> when it goes,
+      // and a keyboard user closing the sheet next would otherwise be left at the
+      // top of the page. What we must not do is *steal* it: closing usually happens
+      // because the user aimed at something else, and pulling focus off that target
+      // would undo their click as surely as re-rendering under it does.
+      var at = document.activeElement;
+      var hadFocus = root.contains(at) || !at || at === document.body;
       if (scrim) { scrim.remove(); unlockScroll(); setBackgroundInert(false); }
       root.remove();
-      // Only take focus back if we still had it. Closing usually happens *because*
-      // the user aimed at something else, and pulling focus off that would undo
-      // their click as surely as re-rendering under it does.
       if (hadFocus && lastFocus && document.contains(lastFocus)) {
         try { lastFocus.focus(); } catch (e2) {}
       }
@@ -1133,11 +1137,13 @@
         return;
       }
       if (e.key !== "Escape") return;
-      // The palette and the shortcut-help overlay sit above everything; while one
-      // of them is up its own Escape wins, or the first press would dismiss a
-      // surface nobody can see and leave the visible layer standing. Same unwind
-      // order the global handler uses: help → palette → surface → puck.
-      if (cmdkVisible() || helpOpen()) return;
+      // Anything stacked above a surface owns Escape: the help overlay, the palette,
+      // and the New/Settings/token panels. Otherwise the first press dismisses a
+      // surface nobody can see and leaves the visible layer standing. Asking
+      // "is something above me?" rather than naming each one is what keeps a
+      // future panel from re-opening this hole.
+      // Unwind order: help → palette → panel → surface → puck.
+      if (cmdkVisible() || helpOpen() || anyModalOpen()) return;
       e.stopPropagation(); // this layer only — the modal beneath stays open
       close();
     }
@@ -1381,7 +1387,9 @@
           }
           search.addEventListener("input", paint);
           paint();
-          search.focus();
+          // Not on a phone: here the *list* is the content, and raising the keyboard
+          // on open buries the choices behind it. Same guard the label picker uses.
+          if (!isPhone()) search.focus();
         },
       });
     });
@@ -1414,6 +1422,9 @@
         field.addEventListener("keydown", function (e) { if (e.key === "Enter") done(); });
         row.appendChild(save);
         host.appendChild(row);
+        // Focused on every viewport, unlike the pickers. Here the field *is* the
+        // content — there is no list for the keyboard to bury — and this is the
+        // surface that replaced window.prompt, which came up ready to type.
         field.focus();
         field.select();
       },
@@ -1549,8 +1560,8 @@
             if (i >= 0) chosen.splice(i, 1); else chosen.push(t);
             search.value = "";
             paintBox(); paintList();
-            search.focus();
-          }
+            if (!isPhone()) search.focus(); // desktop keeps typing; a phone would
+          }                                 // raise the keyboard over the list
           function paintBox() {
             box.innerHTML = "";
             chosen.forEach(function (t) {
@@ -4882,11 +4893,33 @@
   // One capture flow for New *and* ⌘K: Title + Repo (+ optional context). Repo is
   // permanent (the file lives there, can't move later), so it's always shown —
   // defaulting to the current scope / this board's repo. Everything else (status,
+  // A panel (New puck / Edit access / Settings) is a modal: it owns Escape while it
+  // is up. Without this the press fell past it to the puck's own backdrop listener
+  // and closed the *puck* behind the panel — the same "a layer nobody aimed at
+  // handles the key" bug as a surface eating Escape under a panel. Help and the
+  // palette still outrank it; the unwind order is help → palette → panel → surface
+  // → puck.
+  function panelCloser(back) {
+    function close() {
+      document.removeEventListener("keydown", onEsc, true);
+      if (back.parentNode) document.body.removeChild(back);
+      document.body.classList.remove("modal-open");
+    }
+    function onEsc(e) {
+      if (e.key !== "Escape" || cmdkVisible() || helpOpen()) return;
+      e.stopPropagation(); // this layer only — the puck beneath stays open
+      close();
+    }
+    document.addEventListener("keydown", onEsc, true);
+    return close;
+  }
   // priority, agent, labels) is set on the puck page after creation.
   function openNewPuckPanel(preset) {
     if (!ghToken()) return;
     preset = preset || {};
+    closeSurfaces(); // a panel owns the screen: no picker left alive underneath it
     var back = el("div", "token-backdrop");
+    var close = panelCloser(back);
     var p = el("div", "token-panel");
     p.appendChild(el("h3", "token-title", "New puck"));
     var defRepo = preset.repo || defaultCaptureRepo() || (DATA.sources[0] && DATA.sources[0].repo);
@@ -4908,7 +4941,6 @@
     var actions = el("div", "token-actions");
     var create = el("button", "tbtn primary", "Create");
     var cancel = el("button", "tbtn", "Cancel");
-    function close() { if (back.parentNode) document.body.removeChild(back); document.body.classList.remove("modal-open"); }
     create.addEventListener("click", function () {
       var t = title.value.trim();
       if (!t) { title.focus(); return; }
@@ -4927,7 +4959,9 @@
   }
 
   function openTokenPanel(after) {
+    closeSurfaces(); // a panel owns the screen: no picker left alive underneath it
     var back = el("div", "token-backdrop");
+    var close = panelCloser(back);
     var p = el("div", "token-panel");
     p.appendChild(el("h3", "token-title", "Edit access"));
     p.appendChild(el("p", "token-note",
@@ -4944,7 +4978,6 @@
     var save = el("button", "tbtn primary", "Save");
     var clear = el("button", "tbtn", "Clear");
     var cancel = el("button", "tbtn", "Cancel");
-    function close() { if (back.parentNode) document.body.removeChild(back); document.body.classList.remove("modal-open"); }
     save.addEventListener("click", function () {
       var v = inp.value.trim(); setGhToken(v); if (after) after(); close();
       toast(v ? "Token saved — open a puck to edit" : "Token cleared");
@@ -5017,7 +5050,9 @@
   // Settings: workspace identity writes through to board.config.json (git-native,
   // the same pen as puck edits); preferences are per-browser.
   function openSettingsPanel() {
+    closeSurfaces(); // a panel owns the screen: no picker left alive underneath it
     var back = el("div", "token-backdrop");
+    var close = panelCloser(back);
     var p = el("div", "token-panel set-panel");
     p.appendChild(el("h3", "token-title", "Settings"));
     var repo = aggregatorRepo();
@@ -5054,7 +5089,6 @@
     var actions = el("div", "token-actions");
     var save = el("button", "tbtn primary", "Save");
     var cancel = el("button", "tbtn", "Close");
-    function close() { if (back.parentNode) document.body.removeChild(back); document.body.classList.remove("modal-open"); }
     save.disabled = !canGit;
     save.addEventListener("click", function () {
       if (!canGit) { close(); return; }
