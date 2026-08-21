@@ -1277,7 +1277,7 @@ body.preload * { transition: none !important; }
      list, a downward drag only takes over once the list is already at the top. */
   .sheet-grip {
     width: 40px; height: 5px; border-radius: 3px; background: var(--line);
-    margin: 4px auto 6px; flex: none; cursor: grab;
+    margin: 4px auto 14px; flex: none; cursor: grab;
   }
   .sheet {
     transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
@@ -1300,7 +1300,9 @@ body.preload * { transition: none !important; }
      itself too, not just its list: a short sheet (the one-field editor) has nothing
      scrollable inside, so a drag there would otherwise reach the page. */
   .sheet, .sheet .surface-body { overscroll-behavior: contain; }
-  .sheet-head { display: flex; align-items: center; gap: 8px; padding: 0 2px 8px; flex: none; }
+  /* The title needs room on both sides of it: pressed up against the grip above and
+     the field below, it read as a label on the field rather than the sheet's name. */
+  .sheet-head { display: flex; align-items: center; gap: 8px; padding: 0 2px 18px; flex: none; }
   .sheet-title {
     margin: 0 auto; font-size: 14px; font-weight: 600; color: var(--ink);
     /* centred like a native sheet title, with the ? pulled out of the flow */
