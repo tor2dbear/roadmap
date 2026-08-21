@@ -2012,8 +2012,15 @@
   function closeDetail() {
     paneRefs();
     selectedId = null;
+    // Give up the puck *before* closing surfaces, for the same reason openDetail
+    // claims the new one first: a surface's onClose can fire the write it held, and
+    // that write must not reopen the puck we're in the middle of leaving.
     currentDetailItem = null;
     pendingRefresh = null;
+    // Every way out of a puck funnels through here — Back, the breadcrumb, the
+    // sidebar, a palette tag. A sheet lives on <body>, so without this it survives
+    // the puck it belonged to and can still commit to it.
+    closeSurfaces();
     document.body.classList.remove("viewing-puck");
     if (detailPane) detailPane.hidden = true;
     highlightSelected();
@@ -2499,6 +2506,7 @@
   // Go to a place: single-select it and reset to its whole board (focus "all"), so a
   // place always shows the same thing regardless of the view you came from.
   function goToPlace(set, key) {
+    closeSurfaces(); // same as goToView — the board changes under whatever is open
     exitPuckView();
     pickScope(set, key);
     state.focus = "all";
@@ -2877,6 +2885,11 @@
   function chooseSuggestion(it) {
     hideSuggestions();
     searchInput.blur();
+    // Every palette choice changes what the screen shows — another puck, the board
+    // under a new filter, a panel. None of the destinations wants the surface that
+    // belonged to where you were, and the branches below reach the board by several
+    // different routes (a tag filters in place without ever entering goToView).
+    closeSurfaces();
     if (it.__cmd) {
       closeCmdk();
       if (typeof it.run === "function") it.run();

@@ -210,7 +210,14 @@ till sidan under.
   försvann medan hjälpen stod kvar. Ordningen är nu densamma överallt —
   hjälp → palett → yta → puck.
 
-Verifierat: 46 fall i `surface.mjs` över **båda** viewporterna (390×844 och
+- **Städningen låg i dörrarna, inte i utgången.** `closeSurfaces()` satt i
+  `openDetail`/`goToView` — men paletten når brädet på fler vägar än så: en
+  etikettförslag filtrerar på plats via `exitPuckView` + `toggleFilterValue` och
+  passerar ingen av dem. Sheeten blev kvar över det filtrerade brädet med sidan
+  fortfarande scroll-låst. Nu ligger städningen i `closeDetail()` — den enda
+  utgången ur en puck — plus i varje palettval.
+
+Verifierat: 50 fall i `surface.mjs` över **båda** viewporterna (390×844 och
 1280×900), plus åtta tidigare sviter som regression.
 
 ## Open questions
