@@ -1146,6 +1146,38 @@
     return wrap;
   }
 
+  // The last thing `window.prompt` was still doing: ask for one value. Same shell as
+  // every other surface, so a phone gets a sheet instead of an OS dialog.
+  //   opts: { title, value, placeholder, hint, action, help, onSave(text) }
+  function inputSurface(anchorWrap, opts) {
+    return openSurface({
+      title: opts.title,
+      anchorWrap: anchorWrap,
+      cls: "inputpop",
+      help: opts.help,
+      onClose: opts.onClose,
+      build: function (host, api) {
+        var field = el("input", "fp-search");
+        field.type = "text";
+        field.value = opts.value || "";
+        field.placeholder = opts.placeholder || "";
+        field.autocomplete = "off"; field.spellcheck = false;
+        host.appendChild(field);
+        if (opts.hint) host.appendChild(el("div", "fp-empty", opts.hint));
+        var row = el("div", "date-foot");
+        var save = el("button", "date-act", opts.action || "Save");
+        save.type = "button";
+        function done() { var v = field.value; api.close(); opts.onSave(v); }
+        save.addEventListener("click", done);
+        field.addEventListener("keydown", function (e) { if (e.key === "Enter") done(); });
+        row.appendChild(save);
+        host.appendChild(row);
+        field.focus();
+        field.select();
+      },
+    });
+  }
+
   // Pull a trailing issue number out of "42", "#42", or a full issue URL.
   function parseIssue(s) {
     var m = String(s).trim().match(/(\d+)\s*$/);
@@ -1163,12 +1195,12 @@
       if (item.issueState) wrap.appendChild(el("span", "issue-state issue-" + item.issueState, item.issueState));
       if (editable) {
         var ed = el("button", "linklike issue-editbtn", "Edit"); ed.type = "button";
-        ed.addEventListener("click", function () { promptIssue(item); });
+        ed.addEventListener("click", function () { promptIssue(wrap, item); });
         wrap.appendChild(ed);
       }
     } else if (editable) {
       var link = el("button", "linklike", "Link issue"); link.type = "button";
-      link.addEventListener("click", function () { promptIssue(item); });
+      link.addEventListener("click", function () { promptIssue(wrap, item); });
       wrap.appendChild(link);
       var mk = el("button", "linklike issue-newbtn", "New issue"); mk.type = "button";
       mk.addEventListener("click", function () { newIssue(item); });
@@ -1178,32 +1210,142 @@
     }
     return wrap;
   }
-  function promptIssue(item) {
-    var val = window.prompt("Link a GitHub issue in " + item.repoName + " — number or URL.\nLeave blank to unlink.", item.issue ? String(item.issue) : "");
-    if (val === null) return; // cancelled
-    val = val.trim();
-    if (val === "") { if (item.issue) changeIssue(item, null); return; }
-    var n = parseIssue(val);
-    if (!n) { toast("✗ Couldn’t read an issue number", true); return; }
-    changeIssue(item, n);
+  function promptIssue(wrap, item) {
+    inputSurface(wrap, {
+      title: "Issue",
+      value: item.issue ? String(item.issue) : "",
+      placeholder: "42 or a full issue URL",
+      hint: "The working issue in " + item.repoName + ". Leave blank to unlink.",
+      action: item.issue ? "Save" : "Link",
+      onSave: function (val) {
+        val = String(val).trim();
+        if (val === "") { if (item.issue) changeIssue(item, null); return; }
+        var n = parseIssue(val);
+        if (!n) { toast("\u2717 Use an issue number or URL", true); return; }
+        changeIssue(item, n);
+      },
+    });
   }
-  // The Labels cell: the tag pills, plus an edit affordance when writable.
+
+  // The Labels cell: the tags as pills, plus the picker when writable.
   function labelsValue(item, editable) {
     var wrap = el("div", "card-tags");
     item.tags.forEach(function (t) { wrap.appendChild(el("span", "tagpill", "#" + t)); });
     if (!item.native) wrap.appendChild(el("span", "adapted-badge", "adapted"));
     if (editable && item.native) {
-      var ed = el("button", "linklike issue-editbtn", item.tags.length ? "Edit" : "Add labels");
-      ed.type = "button";
-      ed.addEventListener("click", function () { promptLabels(item); });
-      wrap.appendChild(ed);
+      wrap.appendChild(labelPicker(item, item.tags.length ? "Edit" : "Add labels"));
     }
     return wrap;
   }
-  function promptLabels(item) {
-    var val = window.prompt("Labels (comma-separated):", (item.tags || []).join(", "));
-    if (val === null) return;
-    changeTags(item, val.split(",").map(function (x) { return slugify(x); }).filter(Boolean));
+
+  // Labels are the one field on a puck whose value set is genuinely OPEN — a tag is
+  // whatever someone wrote — so this is where "create" belongs. The counterpart of
+  // the rule that status and priority get no such row: an invented label survives
+  // the harvest, an invented status does not.
+  //
+  // Multi-select, so the surface stays open while you toggle; the field carries the
+  // chosen labels as tokens and doubles as the search box.
+  function labelPicker(item, label) {
+    var wrap = el("div", "prop-pick");
+    var btn = el("button", "linklike issue-editbtn", label);
+    btn.type = "button";
+    wrap.appendChild(btn);
+    var open = null;
+
+    btn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (open) { open.close(); return; }
+      // Multi-select, so the write waits for the close: toggling committed on every
+      // tap would be three commits for three labels — and each one re-rendered the
+      // detail pane, which tore the surface out of the DOM mid-edit.
+      var was = (item.tags || []).slice();
+      var chosen = was.slice();
+      open = openSurface({
+        title: "Labels",
+        anchorWrap: wrap,
+        cls: "pick-menu pick-find",
+        help: "https://github.com/tor2dbear/roadmap/blob/main/CONVENTION.md#frontmatter-the-interface",
+        onClose: function () {
+          open = null;
+          if (chosen.join(",") !== was.join(",")) changeTags(item, chosen.slice());
+        },
+        build: function (host) {
+          // The field holds the chosen labels as tokens and the query at once.
+          var box = el("div", "tokenbox");
+          var search = el("input", "fp-search token-input");
+          search.type = "text";
+          search.placeholder = "Filter or add a label\u2026";
+          search.autocomplete = "off"; search.spellcheck = false;
+          host.appendChild(box);
+          var list = el("div", "pick-list");
+          host.appendChild(list);
+
+          function known() {
+            var n = {};
+            DATA.items.forEach(function (it) { (it.tags || []).forEach(function (t) { n[t] = (n[t] || 0) + 1; }); });
+            return Object.keys(n).sort(function (a, b) { return n[b] - n[a] || a.localeCompare(b); });
+          }
+          function toggle(t) {
+            var i = chosen.indexOf(t);
+            if (i >= 0) chosen.splice(i, 1); else chosen.push(t);
+            search.value = "";
+            paintBox(); paintList();
+            search.focus();
+          }
+          function paintBox() {
+            box.innerHTML = "";
+            chosen.forEach(function (t) {
+              var tok = el("span", "token");
+              tok.appendChild(el("span", null, "#" + t));
+              var x = el("button", "token-x", "\u2715");
+              x.type = "button";
+              x.setAttribute("aria-label", "Remove label " + t);
+              x.addEventListener("click", function () { toggle(t); });
+              tok.appendChild(x);
+              box.appendChild(tok);
+            });
+            box.appendChild(search);
+          }
+          function paintList() {
+            list.innerHTML = "";
+            var q = slugify(search.value.trim());
+            var hits = known().filter(function (t) { return !q || t.indexOf(q) !== -1; });
+            // Create sits first when what you typed isn't a label yet — the same
+            // shape the reference apps use, allowed here because the set is open.
+            if (q && known().indexOf(q) === -1) {
+              var add = el("button", "pick-mi pick-new");
+              add.type = "button";
+              add.appendChild(el("span", "prop-muted", "Create"));
+              add.appendChild(el("span", "tagpill", "#" + q));
+              add.addEventListener("click", function () { toggle(q); });
+              list.appendChild(add);
+            }
+            hits.forEach(function (t) {
+              var on = chosen.indexOf(t) !== -1;
+              var mi = el("button", "pick-mi" + (on ? " on" : ""));
+              mi.type = "button";
+              mi.appendChild(el("span", "tagpill", "#" + t));
+              if (on) mi.appendChild(el("span", "pick-check", "\u2713"));
+              mi.addEventListener("click", function () { toggle(t); });
+              list.appendChild(mi);
+            });
+            if (!hits.length && !q) list.appendChild(el("div", "fp-empty", "No labels yet"));
+          }
+          search.addEventListener("input", paintList);
+          search.addEventListener("keydown", function (e2) {
+            if (e2.key === "Enter") {
+              var q = slugify(search.value.trim());
+              if (q) { e2.preventDefault(); toggle(q); }
+            } else if (e2.key === "Backspace" && !search.value && chosen.length) {
+              toggle(chosen[chosen.length - 1]); // backspace eats the last token
+            }
+          });
+          paintBox(); paintList();
+          if (!isPhone()) search.focus();
+        },
+      });
+    });
+    return wrap;
   }
 
   // Build the full puck detail into `container` — shared by both surfaces.
@@ -3088,18 +3230,24 @@
       })
       .then(function (r) { assertOk(r, errItem); });
   }
-  function saveCurrentView() {
+  function saveCurrentView(wrap) {
     var params = viewParamObject();
     if (!Object.keys(params).length) { toast("✗ Nothing to save — this is the default board", true); return; }
-    var name = window.prompt("Name this view — it goes in board.config.json and shows in the sidebar.", "");
-    if (name == null) return;
-    name = name.trim();
-    if (!name) return;
-    var views = savedViews().filter(function (v) { return v.name !== name; }); // same name = replace
-    var entry = { name: name };
-    for (var k in params) entry[k] = params[k];
-    views.push(entry);
-    writeViews(views, "roadmap: save view “" + name + "”");
+    inputSurface(wrap || null, {
+      title: "Save view",
+      placeholder: "Name this view",
+      hint: "Goes in board.config.json and shows in the sidebar.",
+      action: "Save",
+      onSave: function (name) {
+        name = String(name).trim();
+        if (!name) return;
+        var views = savedViews().filter(function (v) { return v.name !== name; }); // same name = replace
+        var entry = { name: name };
+        for (var k in params) entry[k] = params[k];
+        views.push(entry);
+        writeViews(views, "roadmap: save view “" + name + "”");
+      },
+    });
   }
   function removeSavedView(v) {
     if (!window.confirm("Remove the saved view “" + v.name + "”?")) return;
@@ -3639,19 +3787,6 @@
   }
   // Ask for a horizon in the same shape the CLI takes: a date, or a month meaning
   // "by the end of it". Blank clears it.
-  function promptTarget(item) {
-    var val = window.prompt("Target horizon for this puck — YYYY-MM-DD, or YYYY-MM for the end of that month.\nLeave blank to clear.", item.target || "");
-    if (val === null) return;
-    val = val.trim();
-    if (val === "") { if (item.target) changeTarget(item, null); return; }
-    var m = /^(\d{4})-(\d{2})$/.exec(val);
-    if (m && (Number(m[2]) < 1 || Number(m[2]) > 12)) { toast("✗ " + val + " is not a real month", true); return; }
-    var date = m ? endOfMonth(val) : val;
-    // Round-trip, like the CLI and the harvester: "2026-02-31" parses fine and
-    // silently becomes March, which would store a horizon nobody typed.
-    if (!realDate(date)) { toast("✗ Use a real date: YYYY-MM-DD or YYYY-MM", true); return; }
-    changeTarget(item, date);
-  }
   // The Target cell in the rail: the horizon, shown exact here (the detail view is
   // where precision belongs) with an edit affordance when writable.
   function targetValue(item, editable) {
