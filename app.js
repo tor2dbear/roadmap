@@ -984,12 +984,20 @@
       root.appendChild(head);
       root.appendChild(body);
       document.body.appendChild(root);
-      // While a field inside is focused the keyboard is up; pad the scroll area so
-      // the last row can still be brought above it.
-      root.addEventListener("focusin", function () { root.classList.add("kb"); });
+      // While a *text field* inside is focused the keyboard is up; pad the scroll
+      // area so the last row can still be brought above it.
+      //
+      // Only text fields: a button takes focus on mousedown too, and padding the
+      // body for that grew the sheet mid-tap. Since the sheet is anchored to the
+      // bottom, growing moves every row upward — so the tap landed on the row above
+      // the one you aimed at, or on nothing at all.
+      var typing = function (n) { return n && (n.tagName === "INPUT" || n.tagName === "TEXTAREA"); };
+      root.addEventListener("focusin", function (e) { if (typing(e.target)) root.classList.add("kb"); });
       root.addEventListener("focusout", function () {
         setTimeout(function () {
-          if (!root.contains(document.activeElement)) root.classList.remove("kb");
+          if (!typing(document.activeElement) || !root.contains(document.activeElement)) {
+            root.classList.remove("kb");
+          }
         }, 0);
       });
     } else {
@@ -2277,13 +2285,18 @@
     row.appendChild(control);
     return row;
   }
+  var displaySurface = null;
   function toggleDisplayMenu() {
     var wrap = displayBtn && displayBtn.parentNode;
     if (!wrap) return;
-    var open = wrap.querySelector(".filter-pop");
-    if (open) { open.remove(); displayBtn.setAttribute("aria-expanded", "false"); return; }
-    var pop = el("div", "filter-pop display-pop");
-
+    if (displaySurface) { displaySurface.close(); return; }
+    displayBtn.setAttribute("aria-expanded", "true");
+    displaySurface = openSurface({
+      title: "Display",
+      anchorWrap: wrap,
+      cls: "filter-pop display-pop",
+      onClose: function () { displaySurface = null; displayBtn.setAttribute("aria-expanded", "false"); },
+      build: function (pop) {
     // Layout — a segmented control, because it's one choice among a few, not a
     // toggle that has to be pressed twice to learn what it does.
     var seg = el("div", "dp-seg");
@@ -2358,13 +2371,8 @@
     });
     pop.appendChild(reset);
 
-    wrap.appendChild(pop);
-    displayBtn.setAttribute("aria-expanded", "true");
-    setTimeout(function () {
-      document.addEventListener("click", function closer(e) {
-        if (!wrap.contains(e.target)) { pop.remove(); displayBtn.setAttribute("aria-expanded", "false"); document.removeEventListener("click", closer); }
-      });
-    }, 0);
+      },
+    });
   }
   if (displayBtn) displayBtn.addEventListener("click", function (e) { e.stopPropagation(); toggleDisplayMenu(); });
   refreshDisplayDot();
@@ -2627,10 +2635,10 @@
     if (k === "escape") {
       if (helpOpen()) { closeShortcutHelp(); e.stopImmediatePropagation(); return; }
       if (cmdkVisible()) { closeCmdk(); e.stopImmediatePropagation(); return; }
-      // An open property picker (status/priority/agent/labels) is the top layer —
-      // dismiss it first instead of letting the backdrop listener close the puck.
-      var openPick = document.querySelector(".pick-menu");
-      if (openPick) { openPick.remove(); e.stopImmediatePropagation(); e.preventDefault(); return; }
+      // An open picker/sheet is the top layer, but openSurface() closes itself from
+      // a capture-phase listener and stops the event there — so by the time this
+      // runs there is no surface left. Removing the node here instead would strand
+      // its scrim on screen and lock the page.
       return; // a bare puck: let the backdrop listener run closeModal()
     }
 
@@ -2899,27 +2907,22 @@
     return n;
   }
 
+  var filterSurface = null;
   function toggleFilterMenu() {
     var wrap = filterBtn && filterBtn.parentNode;
     if (!wrap) return;
-    var open = wrap.querySelector(".filter-pop");
-    if (open) { open.remove(); filterBtn.setAttribute("aria-expanded", "false"); return; }
-    var pop = el("div", "filter-pop");
-    // This panel rebuilds itself in place (field list ⇄ value list), which detaches
-    // the very element you clicked before the event reaches the document. The
-    // outside-click closer would then see a target that is no longer inside the
-    // popover and close it. Keep clicks inside from bubbling at all, and — belt and
-    // braces for any future rebuild — ignore targets that have left the document.
-    pop.addEventListener("click", function (e) { e.stopPropagation(); });
-    renderFieldList(pop);
-    wrap.appendChild(pop);
+    if (filterSurface) { filterSurface.close(); return; }
     filterBtn.setAttribute("aria-expanded", "true");
-    setTimeout(function () {
-      document.addEventListener("click", function closer(e) {
-        if (wrap.contains(e.target) || !document.contains(e.target)) return;
-        pop.remove(); filterBtn.setAttribute("aria-expanded", "false"); document.removeEventListener("click", closer);
-      });
-    }, 0);
+    // The panel rebuilds itself in place (field list to value list), which detaches
+    // the element you just clicked; openSurface's closer ignores targets that have
+    // left the document, so a rebuild can't close the surface out from under you.
+    filterSurface = openSurface({
+      title: "Filter",
+      anchorWrap: wrap,
+      cls: "filter-pop",
+      onClose: function () { filterSurface = null; filterBtn.setAttribute("aria-expanded", "false"); },
+      build: function (body) { renderFieldList(body); },
+    });
   }
   // Level 1: which field. Level 2 replaces it in place (with a way back), so the
   // popover never grows a third column on a phone.

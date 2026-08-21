@@ -986,12 +986,11 @@ body.preload * { transition: none !important; }
 .filter-count[hidden] { display: none; }
 /* Anchored under its own button (Filter and Display both sit at the left of the
    view header), so a popover never opens leftward across the sidebar. */
-.filter-pop {
-  position: absolute; top: calc(100% + 6px); left: 0; z-index: 40;
-  background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
-  box-shadow: var(--shadow); padding: 10px; min-width: 232px; max-width: 300px;
-  display: flex; flex-direction: column; gap: 8px;
-}
+/* Shell (position, background, border, shadow) comes from .pop / .sheet; this is
+   only what the panel itself needs, so the same markup serves both. */
+.filter-pop { padding: 10px; min-width: 232px; max-width: 300px; }
+.filter-pop .surface-body { gap: 8px; }
+@media (max-width: 640px) { .sheet.filter-pop { min-width: 0; max-width: none; } }
 /* Display menu — same shell as the filter popover (one popover language), with
    rows for the choices that shape the presentation. */
 .display-pop { min-width: 260px; }
