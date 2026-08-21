@@ -250,7 +250,16 @@ tangentbordet; den får växa, annars hade den legat helt bakom det.
   stapling omöjlig än att göra den korrekt: ⌘K gör ingenting över en panel, och
   `panelCloser` stänger en föregående panel innan den öppnar nästa.
 
-Verifierat: 73 fall i `surface.mjs` över **båda** viewporterna (390×844 och
+- **En panels asynkrona arbete överlever panelen.** Settings kan bli klar med sitt
+  sparande långt efter att man stängt den och öppnat något annat — och den gamla
+  återuppringningen lämnade då tillbaka `modal-open`, som den nya panelen numera
+  ägde. Stängningen är idempotent nu och släpper delat tillstånd bara så länge den
+  fortfarande äger det.
+- **"Gör ingenting" måste betyda ingenting.** ⌘K över en panel returnerade utan
+  `preventDefault`, så Chrome tog tangenten till adressfältet och drog fokus ut ur
+  modalen.
+
+Verifierat: 76 fall i `surface.mjs` över **båda** viewporterna (390×844 och
 1280×900), plus åtta tidigare sviter som regression.
 
 ## Open questions

@@ -3066,9 +3066,12 @@
     // ⌘K / Ctrl-K toggles the palette from anywhere (even while typing).
     if ((e.metaKey || e.ctrlKey) && k === "k") {
       // …but not over a panel: a panel owns the screen, and the palette's own
-      // commands open panels — that is the route by which they would stack.
+      // commands open panels — that is the route by which they would stack. Still
+      // preventDefault: "does nothing" has to mean nothing, and Chrome would
+      // otherwise take Ctrl-K for its address bar and pull focus out of the modal.
+      e.preventDefault();
       if (!cmdkVisible() && anyModalOpen()) return;
-      e.preventDefault(); cmdkVisible() ? closeCmdk() : openCmdk(); return;
+      cmdkVisible() ? closeCmdk() : openCmdk(); return;
     }
 
     // Escape unwinds exactly one layer: help → palette → (else) the puck detail,
@@ -4913,10 +4916,18 @@
   var openPanel = null;
   function panelCloser(back) {
     if (openPanel) openPanel();
+    var done = false;
     function close() {
+      // Idempotent, and it only gives up the shared state while it still owns it.
+      // A panel's async paths hold this closure: Settings can finish its save long
+      // after the user closed it and opened something else, and a second close then
+      // cleared `modal-open` out from under the panel that had taken over.
+      if (done) return;
+      done = true;
       document.removeEventListener("keydown", onEsc, true);
-      if (openPanel === close) openPanel = null;
       if (back.parentNode) document.body.removeChild(back);
+      if (openPanel !== close) return;
+      openPanel = null;
       document.body.classList.remove("modal-open");
     }
     function onEsc(e) {
