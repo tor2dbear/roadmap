@@ -1094,14 +1094,21 @@
     // where it started, and the click then reports their common ancestor — the
     // body. Judging by where the gesture started is what makes a draggable sheet
     // survive its own drag.
+    // The trigger counts as inside: it sits in the anchor wrapper, not in the
+    // popover, so closing on it would race its own toggle — the handler would find
+    // the surface already gone and open a fresh one, and the control could never be
+    // clicked shut.
+    function inside(node) {
+      return root.contains(node) || !!(opts.anchorWrap && opts.anchorWrap.contains(node));
+    }
     var downInside = false;
-    function onDocDown(e) { downInside = root.contains(e.target); }
+    function onDocDown(e) { downInside = inside(e.target); }
     function onDocClick(e) {
       if (downInside) { downInside = false; return; }
       // A surface rebuilds its own contents, which detaches the clicked node before
       // the event reaches the document — a plain contains() check then reads it as
       // "outside" and closes on every inner click.
-      if (root.contains(e.target) || !document.contains(e.target)) return;
+      if (inside(e.target) || !document.contains(e.target)) return;
       close();
     }
 
@@ -1933,6 +1940,10 @@
   // A puck opens as a full-width page: the board + view-header hide and the detail
   // fills the content area (same on desktop and mobile). The breadcrumb is "back".
   function openDetail(item) {
+    // Navigating from the palette calls this directly — pushState fires neither
+    // popstate nor hashchange, so syncHash's cleanup never runs and a sheet would
+    // stay up over the puck that replaced its own.
+    closeSurfaces();
     paneRefs();
     fillDetail(detailContent, item);
     detailPane.hidden = false;
@@ -2459,6 +2470,7 @@
   // Go to a view: clear any place so the view is global ("pure"), not still scoped
   // to the repo/agent you were last in.
   function goToView(key) {
+    closeSurfaces(); // same as openDetail: the palette gets here without a hash change
     exitPuckView();
     state.focus = key;
     state.repos.clear();
