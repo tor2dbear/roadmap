@@ -119,6 +119,43 @@ Det som inte går att välja ska inte gå att peka på: en puck kan inte bli sin
 etapp, inte hamna i sitt eget barn, inte blockeras av något den redan blockeras av.
 Filtrera bort före, i stället för att vägra efteråt med en röd toast.
 
+## Levererat
+
+**`openSurface()` är primitiven.** Den tar innehållet och väljer skalet: ankrad
+popover ≥640, bottom sheet under. Alla ytor går genom den nu — status/priority/agent,
+puck-väljaren, labels, filterpanelen, Display-menyn, datepickern och det lilla
+enfältsformuläret. `.pop` och `.sheet` äger position, bakgrund och skugga; varje
+picker bidrar bara med sitt innehålls-CSS.
+
+**`window.prompt` finns inte längre någonstans i tavlan.** Issue och "namnge vy"
+flyttade till `inputSurface()`, Target fick en riktig datepicker, Labels och Etapp
+fick väljare. Sviten `saved.mjs` stubbar inte längre `prompt` — den **kastar** om
+något kallar den.
+
+**Datepicker: fält och rutnät, kopplade åt båda håll.** Skriv `2026-09` och
+kalendern bläddrar dit; skriv ett fullt datum och dagen tänds. Plus "This month"
+(månadens sista dag) och Clear. Inget spann, ingen tid, ingen påminnelse.
+
+**Labels visar regeln i praktiken.** Öppen mängd → "Create #ny-label" ligger överst
+när det du skrivit inte finns. Status och priority har medvetet ingen sådan rad.
+Valen ligger som tokens *inuti* sökfältet, och skrivningen väntar till stängning:
+tre labels blir ett commit, inte tre.
+
+### Buggar som bygget tvingade fram
+- **Tangentbordspaddingen sattes vid fokus på vad som helst.** Att trycka på en rad
+  gav den fokus, sheeten växte — och eftersom en sheet är förankrad i underkanten
+  flyttades varje rad uppåt mitt i tryckningen, så den landade på raden ovanför.
+  Bara textfält reser ett tangentbord, alltså bara de padd*ar* nu. Hittad av
+  mobilsviten, inte av mig.
+- **Varje label-toggle committade** → detaljvyn ritades om → ytan revs bort mitt i
+  redigeringen. Därav att skrivningen väntar till stängning.
+- **Escape-hanteraren tog bort `.pick-menu`-noden direkt.** Med sheets hade det
+  lämnat kvar scrimen och låst sidan. Den grenen är borta; `openSurface` stänger sig
+  själv i capture-fasen och stoppar eventet där.
+
+Verifierat: 40 fall i `surface.mjs` över **båda** viewporterna (390×844 och
+1280×900), plus åtta tidigare sviter som regression.
+
 ## Open questions
 - **"Hela månaden" i datepickern?** `target` lagras exakt men *visas* grovt, och
   `roadmap target <slug> 2026-11` betyder "i slutet av november". En kalender som bara
