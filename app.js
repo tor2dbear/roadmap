@@ -962,17 +962,40 @@
   // walks straight out of the sheet into a board nobody can see, and activating
   // something there edits or navigates behind the surface. `#app` only: the palette
   // is a sibling and is deliberately allowed on top (see the Escape order).
-  var inertLocks = 0;
-  function setBackgroundInert(on) {
-    var app = document.getElementById("app");
-    if (!app) return;
-    if (on) { if (inertLocks++) return; }
-    else { inertLocks = Math.max(0, inertLocks - 1); if (inertLocks) return; }
-    if ("inert" in app) app.inert = on;
-    // Pre-`inert` browsers get the screen-reader half, which is the part the scrim
-    // can't cover at all. Tab is handled by the trap in openSurface either way.
-    else if (on) app.setAttribute("aria-hidden", "true");
-    else app.removeAttribute("aria-hidden");
+  // One rule instead of a trap per layer: **the top layer is live, everything else
+  // on <body> is inert.** A stack, because the layers genuinely nest — the palette
+  // opens over a sheet, help over the palette — and the one on top is the only one
+  // the keyboard should be able to reach. Writing a focus trap into each of them
+  // would be three copies of the same logic and a fourth hole the day a fifth layer
+  // arrives.
+  //
+  // A layer names the nodes that stay live: a sheet keeps its scrim, so tapping
+  // outside still dismisses it. Everything else on <body> — the app, the layers
+  // below — goes inert, which blocks the pointer, Tab *and* the screen reader.
+  var layers = [];
+  function pushLayer(nodes) {
+    var layer = { nodes: nodes };
+    layers.push(layer);
+    applyInert();
+    return function () {
+      var at = layers.indexOf(layer);
+      if (at < 0) return;
+      layers.splice(at, 1);
+      applyInert();
+    };
+  }
+  function applyInert() {
+    var top = layers.length ? layers[layers.length - 1].nodes : null;
+    var kids = document.body.children;
+    for (var i = 0; i < kids.length; i++) {
+      var n = kids[i];
+      var off = !!top && top.indexOf(n) === -1;
+      if ("inert" in n) n.inert = off;
+      // Pre-`inert` browsers get the screen-reader half, which is the part a scrim
+      // can't do at all. Tab is handled by the sheet's own trap either way.
+      else if (off) n.setAttribute("aria-hidden", "true");
+      else n.removeAttribute("aria-hidden");
+    }
   }
   // Everything in `root` a Tab can land on, in document order.
   var FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), ' +
@@ -1093,6 +1116,7 @@
     // the surface instead of dropping it on <body> — from where the next Tab starts
     // over at the top of the page.
     var lastFocus = document.activeElement;
+    var popLayer = null;
     var root = el("div", (phone ? "sheet" : "pop") + (opts.cls ? " " + opts.cls : ""));
     var body = el("div", "surface-body");
     var closed = false;
@@ -1114,7 +1138,8 @@
       // would undo their click as surely as re-rendering under it does.
       var at = document.activeElement;
       var hadFocus = root.contains(at) || !at || at === document.body;
-      if (scrim) { scrim.remove(); unlockScroll(); setBackgroundInert(false); }
+      if (popLayer) popLayer();
+      if (scrim) { scrim.remove(); unlockScroll(); }
       root.remove();
       // Deferred, and only to something still on screen. Closing is often the first
       // step of navigating away — Back closes the surfaces, then hides the whole
@@ -1210,7 +1235,7 @@
       root.appendChild(body);
       document.body.appendChild(root);
       lockScroll();
-      setBackgroundInert(true);
+      popLayer = pushLayer([root, scrim]); // the scrim stays live: tap-outside still closes
       draggableSheet(root, body, close);
       // While a *text field* inside is focused the keyboard is up; pad the scroll
       // area so the last row can still be brought above it.
@@ -3017,10 +3042,14 @@
   // Type `status:now` here and it still becomes a filter — it just replaces that
   // field rather than everything.
   var paletteBase = [];
+  var popCmdkLayer = null;
   function openCmdk() {
     if (!cmdkOverlay) return;
     cmdkOverlay.hidden = false;
     document.body.classList.add("cmdk-open");
+    // Takes the top of the stack, so a sheet underneath goes inert and Tab can't
+    // walk out of the palette into it.
+    popCmdkLayer = pushLayer([cmdkOverlay]);
     paletteBase = parseQuery(state.query).filter(function (t) { return t.field !== "text"; });
     searchInput.value = queryText();
     updateSearchClear();
@@ -3032,6 +3061,7 @@
     if (!cmdkOverlay || cmdkOverlay.hidden) return;
     cmdkOverlay.hidden = true;
     document.body.classList.remove("cmdk-open");
+    if (popCmdkLayer) { popCmdkLayer(); popCmdkLayer = null; }
     // The palette is navigation, not a lingering board filter — its free text is
     // dropped on close, as before. Field terms are different: `status:now` typed
     // here is a *filter*, indistinguishable from one built in the panel, so it
@@ -3161,7 +3191,12 @@
     { keys: ["Esc"], desc: "Close / back out" },
     { keys: ["?"], desc: "This help" },
   ];
-  function closeShortcutHelp() { var o = document.querySelector(".shortcut-help"); if (o) o.remove(); }
+  var popHelpLayer = null;
+  function closeShortcutHelp() {
+    var o = document.querySelector(".shortcut-help");
+    if (o) o.remove();
+    if (popHelpLayer) { popHelpLayer(); popHelpLayer = null; }
+  }
   function toggleShortcutHelp() {
     if (helpOpen()) { closeShortcutHelp(); return; }
     var overlay = el("div", "shortcut-help");
@@ -3197,6 +3232,7 @@
     overlay.setAttribute("aria-modal", "true");
     overlay.setAttribute("aria-label", "Keyboard shortcuts");
     overlay.tabIndex = -1;
+    popHelpLayer = pushLayer([overlay]);
     try { overlay.focus({ preventScroll: true }); } catch (e) { overlay.focus(); }
   }
 
@@ -4944,6 +4980,7 @@
   function panelCloser(back) {
     if (openPanel) openPanel();
     var done = false;
+    var popPanelLayer = pushLayer([back]);
     function close() {
       // Idempotent, and it only gives up the shared state while it still owns it.
       // A panel's async paths hold this closure: Settings can finish its save long
@@ -4951,6 +4988,7 @@
       // cleared `modal-open` out from under the panel that had taken over.
       if (done) return;
       done = true;
+      popPanelLayer();
       document.removeEventListener("keydown", onEsc, true);
       if (back.parentNode) document.body.removeChild(back);
       if (openPanel !== close) return;

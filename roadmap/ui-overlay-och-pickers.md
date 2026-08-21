@@ -275,7 +275,16 @@ tangentbordet; den får växa, annars hade den legat helt bakom det.
   det. Återlämningen är uppskjuten ett varv och sker bara till något som fortfarande
   syns — och bara om ingen annan hunnit ta fokus.
 
-Verifierat: 84 fall i `surface.mjs` över **båda** viewporterna (390×844 och
+- **En regel i stället för en fälla per lager.** Att låta sheetens fälla stå ner
+  för paletten löste bara halva saken: paletten och hjälpen fångar inte sitt eget
+  fokus, så Tab förbi sökfältet vandrade ner i sheetens kontroller bakom dem. I
+  stället för tre kopior av samma fälla finns nu en lagerstack: **det översta lagret
+  är levande, allt annat på `<body>` är inert.** Ett lager namnger vad som ska förbli
+  levande — en sheet behåller sin scrim, så tryck-utanför fortfarande stänger.
+  `inert` spärrar pekare, Tab *och* skärmläsare på en gång, och en femte lager-typ
+  ärver regeln utan att någon behöver komma ihåg den.
+
+Verifierat: 94 fall i `surface.mjs` över **båda** viewporterna (390×844 och
 1280×900), plus åtta tidigare sviter som regression.
 
 ## Open questions
