@@ -264,7 +264,18 @@ tangentbordet; den får växa, annars hade den legat helt bakom det.
   bakvägen (framåt landade rätt av en slump, eftersom behållaren ligger före sina barn
   i tab-ordningen). Behållaren räknas som *utanför* cykeln nu.
 
-Verifierat: 79 fall i `surface.mjs` över **båda** viewporterna (390×844 och
+- **Fällan gällde även när något låg ovanför.** Escape-vakten hade lärt sig att
+  backa för hjälpen, paletten och panelerna; Tab hade inte. Från paletten läser fokus
+  som "utanför", så fällan drog tillbaka det ner i sheeten under. Samma vakt gäller
+  båda tangenterna nu. Genvägshjälpen tog dessutom aldrig fokus när den öppnades —
+  den låg bara visuellt överst — så den är `role="dialog"` och tar tangentbordet
+  som paletten gör.
+- **Fokus lämnades tillbaka till något som var på väg bort.** Back stänger ytorna
+  *och* pucken; att ge fokus till knappen inuti den panel som strax döljs strandar
+  det. Återlämningen är uppskjuten ett varv och sker bara till något som fortfarande
+  syns — och bara om ingen annan hunnit ta fokus.
+
+Verifierat: 84 fall i `surface.mjs` över **båda** viewporterna (390×844 och
 1280×900), plus åtta tidigare sviter som regression.
 
 ## Open questions

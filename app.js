@@ -1116,12 +1116,32 @@
       var hadFocus = root.contains(at) || !at || at === document.body;
       if (scrim) { scrim.remove(); unlockScroll(); setBackgroundInert(false); }
       root.remove();
+      // Deferred, and only to something still on screen. Closing is often the first
+      // step of navigating away — Back closes the surfaces, then hides the whole
+      // detail pane — and handing focus to a trigger inside that pane strands it in
+      // a hidden subtree. One turn later we can see which it was, and whether
+      // anything else has claimed focus in the meantime.
       if (hadFocus && lastFocus && document.contains(lastFocus)) {
-        try { lastFocus.focus(); } catch (e2) {}
+        setTimeout(function () {
+          var now = document.activeElement;
+          if (now && now !== document.body) return;              // someone else took it
+          if (!document.contains(lastFocus) || !lastFocus.offsetParent) return; // gone or hidden
+          try { lastFocus.focus(); } catch (e2) {}
+        }, 0);
       }
       if (opts.onClose) opts.onClose();
     }
     function onKey(e) {
+      if (e.key !== "Tab" && e.key !== "Escape") return;
+      // Anything stacked above a surface owns the keyboard: the help overlay, the
+      // palette, and the New/Settings/token panels. Otherwise Escape dismisses a
+      // surface nobody can see and leaves the visible layer standing — and Tab is
+      // worse: the trap would drag focus out of the visible overlay and into the
+      // sheet behind it, since from up there focus reads as "outside". Asking "is
+      // something above me?" rather than naming each one is what keeps a future
+      // panel from re-opening this hole.
+      // Unwind order: help → palette → panel → surface → puck.
+      if (cmdkVisible() || helpOpen() || anyModalOpen()) return;
       // A sheet is modal, so Tab wraps inside it. `inert` already does this where
       // it exists; the trap is what makes the older path safe, and it also gives
       // the wrap-around a real modal has.
@@ -1142,13 +1162,6 @@
         return;
       }
       if (e.key !== "Escape") return;
-      // Anything stacked above a surface owns Escape: the help overlay, the palette,
-      // and the New/Settings/token panels. Otherwise the first press dismisses a
-      // surface nobody can see and leaves the visible layer standing. Asking
-      // "is something above me?" rather than naming each one is what keeps a
-      // future panel from re-opening this hole.
-      // Unwind order: help → palette → panel → surface → puck.
-      if (cmdkVisible() || helpOpen() || anyModalOpen()) return;
       e.stopPropagation(); // this layer only — the modal beneath stays open
       close();
     }
@@ -3176,6 +3189,15 @@
     // Click the backdrop (not the card) to dismiss. Esc is handled globally.
     overlay.addEventListener("mousedown", function (e) { if (e.target === overlay) closeShortcutHelp(); });
     document.body.appendChild(overlay);
+    // Take the keyboard, the way the palette does with its input. Without this the
+    // overlay is only visually on top: focus stays wherever it was — in the sheet
+    // underneath — and Tab walks that sheet's controls behind a panel the reader is
+    // looking at. It also gives a screen reader something to announce.
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-label", "Keyboard shortcuts");
+    overlay.tabIndex = -1;
+    try { overlay.focus({ preventScroll: true }); } catch (e) { overlay.focus(); }
   }
 
   var searchClear = document.getElementById("searchClear");

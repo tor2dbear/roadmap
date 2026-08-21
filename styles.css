@@ -898,6 +898,9 @@ body.preload * { transition: none !important; }
   position: fixed; inset: 0; z-index: 90; background: rgba(0, 0, 0, .4);
   display: flex; align-items: flex-start; justify-content: center; padding: 10vh 16px 16px;
 }
+/* It takes focus on open so the keyboard follows what is on screen, but it is a
+   container, not a control — no ring on it. */
+.shortcut-help:focus { outline: none; }
 .shortcut-help .sc-card {
   width: 100%; max-width: 440px; background: var(--panel); border: 1px solid var(--line);
   border-radius: 12px; box-shadow: var(--shadow); overflow: hidden;
