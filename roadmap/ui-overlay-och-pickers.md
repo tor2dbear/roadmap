@@ -147,10 +147,20 @@ Den separata "No etapp"-raden i listan försvann: token-✕:et *är* vägen ut, 
 trasig referens syns som en token stavad precis som den skrevs, vilket är det som
 gör den borttagbar.
 
-**Sheeten går att dra.** Ner förbi ~96 px stänger, upp snäpper till full höjd
-(94dvh), allt däremellan fjädrar tillbaka. Handtaget är greppet, men hela chromet
-lyssnar; från listan tar dragningen bara över när listan redan ligger i topp och
-fingret går nedåt — annars är gesten en scroll och att stjäla den vore fel.
+**Sheeten går att dra, och följer fingret hela vägen.** Uppåt **växer** den —
+bottenkanten står still och överkanten stiger, vilket är vad en sheet som expanderar
+ser ut som. Att växa (höjd) i stället för att flytta (transform) är hela poängen: en
+flyttad sheet lämnar en glipa under sig och visar samma innehåll förskjutet, medan en
+högre faktiskt avslöjar mer av listan — det man drog upp för att se.
+
+Nedåt kan den inte krympa under sin naturliga höjd, så där övergår gesten i att glida
+bort; från full krymper den alltså först och glider sedan. Släpp förbi ~96 px stänger,
+annars sätter den sig i det närmaste läget — en dragning som kommit nästan hela vägen
+gör klart resan i stället för att fjädra tillbaka.
+
+Handtaget är greppet, men hela chromet lyssnar; från listan tar dragningen bara över
+när listan redan ligger i topp och fingret går nedåt — annars är gesten en scroll och
+att stjäla den vore fel.
 
 **Sidan bakom är inert.** `body` pinnas på sin plats (`position: fixed` med negativ
 `top`) medan en sheet är uppe och läggs tillbaka efteråt; `overflow: hidden` räcker

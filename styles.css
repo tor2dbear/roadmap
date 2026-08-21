@@ -1273,7 +1273,12 @@ body.preload * { transition: none !important; }
     width: 40px; height: 5px; border-radius: 3px; background: var(--line);
     margin: 4px auto 6px; flex: none; cursor: grab;
   }
-  .sheet { transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1), max-height 0.22s ease; touch-action: pan-y; }
+  .sheet {
+    transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+                height 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+                max-height 0.22s ease;
+    touch-action: pan-y;
+  }
   .sheet.dragging { transition: none; }        /* the finger owns it while it's down */
   /* Maximised means *taller*, so it needs a height — a bigger max-height alone does
      nothing to a sheet that is already sized to its content. */

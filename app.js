@@ -961,27 +961,45 @@
   // short springs back. Dragging from the body is allowed only when the list is
   // already at the top and the finger is going down — otherwise that gesture is a
   // scroll, and stealing it would make the list feel broken.
-  var SHEET_CLOSE = 96, SHEET_SNAP = 56;
+  // Drag the sheet: it follows the finger the whole way. Upward it *grows* — the
+  // bottom stays put and the top rises, which is what a sheet expanding looks like
+  // — and past its natural height it can't shrink further, so downward turns into
+  // sliding it off the screen. Let go past the close threshold and it dismisses;
+  // otherwise it settles at whichever detent it is nearest.
+  //
+  // Growing (height) rather than moving (transform) matters: a translated sheet
+  // leaves a gap under it and shows the same content moved, while a taller one
+  // actually reveals more list — the thing you dragged up to see.
+  var SHEET_CLOSE = 96, SHEET_FULL = 0.94;
   function draggableSheet(root, body, close) {
-    var startY = 0, dy = 0, pending = false, dragging = false, fromBody = false, h = 0;
+    var startY = 0, dy = 0, slid = 0, pending = false, dragging = false, fromBody = false;
+    var baseH = 0, naturalH = 0, maxH = 0;
 
+    function heights() {
+      maxH = Math.round(window.innerHeight * SHEET_FULL);
+      // Its content height, measured without the full-height override.
+      if (root.classList.contains("full")) return;
+      naturalH = root.offsetHeight;
+    }
     function down(e) {
       if (e.pointerType === "mouse" && e.button !== 0) return;
       fromBody = body.contains(e.target);
       if (fromBody && body.scrollTop > 0) return;
-      pending = true; dragging = false; startY = e.clientY; dy = 0; h = root.offsetHeight;
-      if (!fromBody) { try { root.setPointerCapture(e.pointerId); } catch (err) { /* older engines */ } }
+      heights();
+      pending = true; dragging = false; startY = e.clientY; dy = 0; slid = 0;
+      baseH = root.offsetHeight;
       // Pin the height for the whole gesture, from the very first touch. Putting a
       // finger on the sheet blurs the search field, which drops the keyboard
       // padding — and a content-sized sheet then shrinks by a third *under the
       // finger*, leaving the pointer over the scrim instead of the sheet it holds.
-      root.style.height = h + "px";
+      root.style.height = baseH + "px";
       // Capture from the first touch when the gesture starts on the sheet's chrome:
       // the grip sits a dozen pixels below the top edge, so an upward drag leaves
       // the sheet at once and its pointermoves would go to the scrim instead. Not
       // from the list, though — capture retargets the compatibility mouse events
       // too, so a tap on a row would resolve its click against the sheet and the
       // row's own handler would never run.
+      if (!fromBody) { try { root.setPointerCapture(e.pointerId); } catch (err) { /* older engines */ } }
     }
     function move(e) {
       if (!pending && !dragging) return;
@@ -993,24 +1011,38 @@
         root.classList.add("dragging");
         try { root.setPointerCapture(e.pointerId); } catch (err) { /* older engines */ }
       }
-      // Upward drag only has somewhere to go when the sheet isn't already full.
-      var up = dy < 0;
-      if (up && root.classList.contains("full")) dy = dy / 4; // rubber-band
-      root.style.transform = "translateY(" + Math.max(dy, dy / 4) + "px)";
+      var want = baseH - dy;              // finger up → taller
+      var floor = Math.min(naturalH, baseH);
+      if (want >= floor) {
+        slid = 0;
+        root.style.height = Math.min(want, maxH) + "px";
+        root.style.transform = "";
+      } else {
+        slid = floor - want;             // no shorter than it started: slide it away
+        root.style.height = floor + "px";
+        root.style.transform = "translateY(" + slid + "px)";
+      }
       e.preventDefault();
     }
     function up() {
-      // Release the pin only after the click has been dispatched: letting the sheet
-      // re-size now would move the row out from under the finger between pointerup
-      // and click, and the tap would land on whatever slid into its place.
-      setTimeout(function () { if (!pending && !dragging) root.style.height = ""; }, 0);
-      if (!dragging) { pending = false; return; }
+      if (!dragging) {
+        pending = false;
+        // Release the pin only after the click has been dispatched: letting the
+        // sheet re-size now would move the row out from under the finger between
+        // pointerup and click, and the tap would land on whatever slid into place.
+        setTimeout(function () { if (!pending && !dragging) root.style.height = ""; }, 0);
+        return;
+      }
       pending = false; dragging = false;
       root.classList.remove("dragging");
+      if (slid > SHEET_CLOSE) { close(); return; }
+      var h = root.offsetHeight;
       root.style.transform = "";
-      if (dy > SHEET_CLOSE) { close(); return; }
-      if (dy < -SHEET_SNAP) root.classList.add("full");
-      else if (dy > SHEET_SNAP) root.classList.remove("full");
+      root.style.height = "";
+      // Settle at the nearer detent, so a drag that got most of the way there
+      // finishes the journey instead of springing back.
+      if (h > (naturalH + maxH) / 2) root.classList.add("full");
+      else root.classList.remove("full");
     }
     root.addEventListener("pointerdown", down);
     root.addEventListener("pointermove", move);
