@@ -811,12 +811,15 @@ body.preload * { transition: none !important; }
 .target-date.past { color: var(--now); }
 .prop-v .card-tags { margin: 0; gap: 5px; }
 .prop-status-edit { display: flex; gap: 5px; flex-wrap: wrap; }
-.sect-label { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); margin: 16px 0 6px; }
+/* The keys in the rail are mono, 11px, muted — a heading in the same voice does not
+   rank above what it groups. More air above, less below (it belongs to what
+   follows), and enough weight to read as a heading. */
+.sect-label { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-2); font-weight: 600; margin: 26px 0 4px; }
 /* A section heading names the column, so the row inside it does not repeat it. */
 .prop-keyless { grid-template-columns: 1fr; }
 .prop-keyless .prop-k { display: none; }
 /* Derived, never edited, and Activity has the same fact in full. */
-.prop-foot { margin: 14px 0 0; font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+.prop-foot { margin: 26px 0 0; font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); opacity: .8; }
 
 /* ── workspace header (leads with the board) + account menu (identity + sign out) ─ */
 .ws-btn {
@@ -1165,22 +1168,31 @@ body.preload * { transition: none !important; }
    an affordance, which is nowhere on a phone — so the shape has to carry it. A set
    value already looks like something (a status pill, a badge); an empty one is
    plain muted text, so that is the one that gets drawn as a chip. */
+/* An empty value is a *state* ("no priority"), not a call to action — and drawing
+   every one of them as an outlined button turned a puck with nothing set into a
+   form full of buttons. So: quiet by default, and the border arrives on reach.
+   The padding stays either way, because it is the touch target. */
 .pick-chip.editable > .prop-muted,
 .prop .linklike {
-  border: 1px solid var(--line); border-radius: 7px; padding: 3px 9px;
-  background: none; font: inherit; font-size: 13px; color: var(--ink-2); cursor: pointer;
+  border: 1px solid transparent; border-radius: 7px; padding: 3px 9px;
+  background: none; font: inherit; font-size: 13px; color: var(--ink-3); cursor: pointer;
 }
-.pick-chip.editable > .prop-muted { padding: 2px 8px; color: var(--ink-3); }
-.prop .linklike:hover { background: var(--panel-2); color: var(--ink); text-decoration: none; }
+.pick-chip.editable > .prop-muted { padding: 2px 8px; }
+.prop .linklike:hover, .prop .linklike:focus-visible,
+.pick-chip.editable:hover > .prop-muted {
+  border-color: var(--line); background: var(--panel-2); color: var(--ink); text-decoration: none;
+}
+/* A finger has no hover, so the press is the feedback there. */
+.prop .linklike:active { border-color: var(--line); background: var(--panel-2); color: var(--ink); }
 /* A trigger that carries the row's value looks like the value, not like a button —
    until you reach for it. */
 .prop .prop-trigger.has-value { border-color: transparent; padding: 3px 7px; margin: -3px -7px; color: var(--ink); }
 .prop .prop-trigger.has-value:hover { border-color: var(--line); }
 /* The secondary form: a value already carries the row and this only changes it. */
 .prop .prop-trigger.quiet { border: 0; padding: 2px 6px; font-size: 15px; line-height: 1; color: var(--ink-3); }
-/* "New issue" is a second, different action — a separator, not another chip. */
-.prop .issue-newbtn { border: 0; padding: 3px 2px; color: var(--accent); }
-.prop .issue-newbtn:hover { background: none; text-decoration: underline; }
+/* The surface's secondary action: a row, the same shape as any other row in a
+   picker, under the field it is an alternative to. */
+.inputpop .alt-act { width: 100%; justify-content: flex-start; color: var(--accent); margin-top: 2px; }
 /* The shell (position, background, border, shadow) comes from .pop / .sheet — this
    carries only what a menu of options needs, so the same markup works in both. */
 .pick-menu { min-width: 190px; padding: 4px; }
@@ -1470,7 +1482,12 @@ body.preload * { transition: none !important; }
 .etapp-chip .icn { width: 11px; height: 11px; flex: none; }
 .etapp-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .col-head .rollup, .list-head .rollup { margin-left: 4px; }
+/* These carried no colour outside the old modal's scope, so in the rail they fell
+   back to the browser's blue underline — the only such link on the page. */
+.prop .blocker-link { color: var(--accent); text-decoration: none; }
+@media (hover: hover) { .prop .blocker-link:hover { text-decoration: underline; } }
 .blocker-link.done { color: var(--ink-3); text-decoration: line-through; }
+.prop .blocker-link.done { color: var(--ink-3); }
 
 /* ── PO-layer: agent routing (card badge + sidebar queues) ──────────────────── */
 .agent-badge {

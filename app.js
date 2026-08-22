@@ -1513,6 +1513,14 @@
         save.addEventListener("click", done);
         field.addEventListener("keydown", function (e) { if (e.key === "Enter") done(); });
         row.appendChild(save);
+        // A second action belongs *in* the surface, not beside the trigger: two
+        // shapes in one row made the rarer action the loudest thing in the block.
+        if (opts.alt) {
+          var alt = el("button", "pick-mi alt-act", opts.alt.label);
+          alt.type = "button";
+          alt.addEventListener("click", function () { api.close(); opts.alt.run(); });
+          host.appendChild(alt);
+        }
         host.appendChild(row);
         // Not on a phone either, though here the field *is* the content and there is
         // no list to bury: a sheet that opens with the keyboard already up is the
@@ -1558,9 +1566,6 @@
       var link = el("button", "linklike", "Link issue"); link.type = "button";
       link.addEventListener("click", toggleIssueEditor);
       wrap.appendChild(link);
-      var mk = el("button", "linklike issue-newbtn", "New issue"); mk.type = "button";
-      mk.addEventListener("click", function () { newIssue(item); });
-      wrap.appendChild(mk);
     } else {
       wrap.appendChild(el("span", "prop-muted", "—"));
     }
@@ -1570,6 +1575,11 @@
     return inputSurface(wrap, {
       title: "Issue",
       onClose: onClose,
+      // "New issue" used to sit next to the trigger as a second, differently
+      // shaped control. It is the rarer action, so it lives one level in.
+      alt: canWrite(item) && !item.issue
+        ? { label: "\u002b  New issue in " + item.repoName, run: function () { newIssue(item); } }
+        : null,
       value: item.issue ? String(item.issue) : "",
       placeholder: "42 or a full issue URL",
       hint: "The working issue in " + item.repoName + ". Leave blank to unlink.",
@@ -1784,6 +1794,9 @@
     function group(label) { var g = { label: label, rows: [] }; groups.push(g); return g; }
     var gAxes = group(null), gPeople = group("People"),
         gRel = group("Relations"), gLabels = group("Labels");
+    // A heading over one row weighs more than it separates: with no assignee,
+    // "People" is a title for `Agent` alone. Then it joins the block above instead.
+    gPeople.mergeIfAlone = true;
     var props = gAxes; // rows are pushed into a group; see the render at the end
 
     var editable = ghToken() && item.native && canWrite(item);
@@ -1879,10 +1892,10 @@
         kidsV.appendChild(ka);
         if (i < item.children.length - 1) kidsV.appendChild(document.createTextNode(", "));
       });
-      var kidsRow = propRow("Pucks", kidsV, "blocked");
-      if (item.progress) kidsRow.querySelector(".prop-k").appendChild(
-        el("span", "prop-muted", " " + item.progress.done + "/" + item.progress.total));
-      gRel.rows.push(kidsRow);
+      // The count is part of the answer, not part of the question: in the key cell
+      // it read as a longer label. Same badge the cards use.
+      if (item.progress) kidsV.insertBefore(progressBadge(item), kidsV.firstChild);
+      gRel.rows.push(propRow("Pucks", kidsV, "blocked"));
     }
 
     // Blocked by: the authored `depends` list, editable. It shows landed blockers
@@ -1905,22 +1918,24 @@
       gRel.rows.push(propRow("Blocks", blocksV, "blocked"));
     }
 
+    var lastBox = null;
     groups.forEach(function (g) {
       if (!g.rows.length) return;
+      if (g.mergeIfAlone && g.rows.length < 2 && lastBox) {
+        g.rows.forEach(function (r) { lastBox.appendChild(r); });
+        return;
+      }
       if (g.label) overview.appendChild(el("div", "sect-label", g.label));
       var box = el("div", "props");
       g.rows.forEach(function (r) { box.appendChild(r); });
       overview.appendChild(box);
+      lastBox = box;
     });
 
     // Created/Updated are derived and never edited, and Activity is the same fact
     // with more detail. A footnote rather than two rows — kept at all because
     // Activity can fail (private repo, rate limit) and `updated` drives the stale
     // flag, so it should not take a round trip to see.
-    var meta = [];
-    if (item.created) meta.push("Created " + item.created);
-    if (item.updated) meta.push("Updated " + item.updated);
-    if (meta.length) overview.appendChild(el("div", "prop-foot", meta.join("  \u00b7  ")));
 
     var sig = signalMessages(item);
     if (sig.length) {
@@ -1971,6 +1986,14 @@
       links.appendChild(delBtn);
     }
     overview.appendChild(links);
+
+    // Created/Updated: metadata about the file, so it rests at the foot of the tab.
+    // Between the rail and the Details heading it sat in the same muted mono voice
+    // as that heading, and the two blurred into one grey block.
+    var meta = [];
+    if (item.created) meta.push("Created " + item.created);
+    if (item.updated) meta.push("Updated " + item.updated);
+    if (meta.length) overview.appendChild(el("div", "prop-foot", meta.join("  \u00b7  ")));
   }
 
   // Activity tab: the git history of this puck's file, read live from GitHub's
