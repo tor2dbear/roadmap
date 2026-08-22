@@ -301,7 +301,20 @@ tangentbordet; den får växa, annars hade den legat helt bakom det.
   egenskapen är deprecated — det enda den fortfarande köper är den buggen. Borta.
   (Reproducerades inte i vår headless-motor, där egenskapen är en no-op.)
 
-Verifierat: 97 fall i `surface.mjs` över **båda** viewporterna (390×844 och
+- **Egenskapsskenan i sektioner, och ett mål per rad.** Tretton rader med en hårfin
+  linje mellan varenda en gav alla samma vikt — ingenting gick att skumma. Nu fyra
+  grupper längs modellens egna leder (de tre axlarna · routing · referenser · den
+  öppna värdemängden), utan linjer inuti en grupp. Tre följdbeslut föll ut av det:
+  **carets bort** (chippen *är* kontrollen; en caret hjälper bara där hover finns,
+  alltså ingenstans på mobil — så formen måste bära det, och ett tomt värde ritas
+  som chip), **värde-plus-länk bort** (`No etapp` + `Set etapp`, `No target` +
+  `Set target`, `Nothing` + `Add` var två träffytor för en sak; satt relation =
+  namnet navigerar och `⋯` redigerar), och **Created/Updated som fotnot** i stället
+  för två tabellrader — de är härledda, aldrig redigerbara, och Activity är samma
+  faktum med mer detalj. Utan skrivrätt står exakt datum kvar i Target-raden: då
+  finns ingen väljare att öppna det i.
+
+Verifierat: 109 fall i `surface.mjs` över **båda** viewporterna (390×844 och
 1280×900), plus åtta tidigare sviter som regression.
 
 ## Open questions

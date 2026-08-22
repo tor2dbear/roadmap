@@ -812,6 +812,11 @@ body.preload * { transition: none !important; }
 .prop-v .card-tags { margin: 0; gap: 5px; }
 .prop-status-edit { display: flex; gap: 5px; flex-wrap: wrap; }
 .sect-label { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); margin: 16px 0 6px; }
+/* A section heading names the column, so the row inside it does not repeat it. */
+.prop-keyless { grid-template-columns: 1fr; }
+.prop-keyless .prop-k { display: none; }
+/* Derived, never edited, and Activity has the same fact in full. */
+.prop-foot { margin: 14px 0 0; font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
 
 /* ── workspace header (leads with the board) + account menu (identity + sign out) ─ */
 .ws-btn {
@@ -1156,7 +1161,26 @@ body.preload * { transition: none !important; }
 }
 .pick-chip.editable:hover { background: var(--panel-2); border-color: var(--line); }
 .pick-chip.static { cursor: default; padding: 0; margin: 0; }
-.pick-caret { color: var(--ink-3); font-size: 10px; flex: none; }
+/* No caret: the chip *is* the control. A caret only helps where hover can reveal
+   an affordance, which is nowhere on a phone — so the shape has to carry it. A set
+   value already looks like something (a status pill, a badge); an empty one is
+   plain muted text, so that is the one that gets drawn as a chip. */
+.pick-chip.editable > .prop-muted,
+.prop .linklike {
+  border: 1px solid var(--line); border-radius: 7px; padding: 3px 9px;
+  background: none; font: inherit; font-size: 13px; color: var(--ink-2); cursor: pointer;
+}
+.pick-chip.editable > .prop-muted { padding: 2px 8px; color: var(--ink-3); }
+.prop .linklike:hover { background: var(--panel-2); color: var(--ink); text-decoration: none; }
+/* A trigger that carries the row's value looks like the value, not like a button —
+   until you reach for it. */
+.prop .prop-trigger.has-value { border-color: transparent; padding: 3px 7px; margin: -3px -7px; color: var(--ink); }
+.prop .prop-trigger.has-value:hover { border-color: var(--line); }
+/* The secondary form: a value already carries the row and this only changes it. */
+.prop .prop-trigger.quiet { border: 0; padding: 2px 6px; font-size: 15px; line-height: 1; color: var(--ink-3); }
+/* "New issue" is a second, different action — a separator, not another chip. */
+.prop .issue-newbtn { border: 0; padding: 3px 2px; color: var(--accent); }
+.prop .issue-newbtn:hover { background: none; text-decoration: underline; }
 /* The shell (position, background, border, shadow) comes from .pop / .sheet — this
    carries only what a menu of options needs, so the same markup works in both. */
 .pick-menu { min-width: 190px; padding: 4px; }

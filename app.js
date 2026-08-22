@@ -1314,7 +1314,6 @@
     paint(cur ? opts.valueNode(cur) : el("span", "prop-muted", opts.placeholder || "\u2014"));
     if (!opts.editable) { chip.classList.add("static"); chip.disabled = true; return chip; }
     chip.classList.add("editable");
-    chip.appendChild(el("span", "pick-caret", "\u25be"));
     var wrap = el("div", "prop-pick");
     var open = null;
     chip.addEventListener("click", function (e) {
@@ -1359,9 +1358,13 @@
   //   opts: { current, repo, exclude(item) \u2192 bool, title, placeholder, empty, onPick(item|null) }
   function puckPicker(label, opts) {
     var wrap = el("div", "prop-pick");
-    var btn = el("button", "linklike");
+    // "\u22ef" is the secondary form — a value is already showing and this only
+    // changes it; anything else is the row's whole control and reads as a chip.
+    var quiet = label === "\u22ef";
+    var btn = el("button", "linklike prop-trigger" + (quiet ? " quiet" : ""));
     btn.type = "button";
     btn.textContent = label;
+    if (quiet) btn.setAttribute("aria-label", "Change");
     wrap.appendChild(btn);
     var open = null;
 
@@ -1741,8 +1744,17 @@
       container.appendChild(overview);
     }
 
-    // ── Overview: properties rail — discrete rows, Linear-style ──
-    var props = el("div", "props");
+    // ── Overview: properties rail, in sections ──
+    // Thirteen rows with a hairline between every one gave each the same weight,
+    // so nothing was scannable. The groups are the model's own joints: the three
+    // orthogonal axes first (when in the queue · when in the calendar · how much it
+    // matters), then routing, then the references, then the one open value set.
+    // A group draws no rules inside itself — the heading does that work.
+    var groups = [];
+    function group(label) { var g = { label: label, rows: [] }; groups.push(g); return g; }
+    var gAxes = group(null), gPeople = group("People"),
+        gRel = group("Relations"), gLabels = group("Labels");
+    var props = gAxes; // rows are pushed into a group; see the render at the end
 
     var editable = ghToken() && item.native && canWrite(item);
     // Signed in, native, but no write access to this repo → say so (once checked).
@@ -1751,7 +1763,7 @@
     }
 
     // Status: current value as a chip; click to pick (editable) — Linear-style.
-    props.appendChild(propRow("Status", propPicker({
+    gAxes.rows.push(propRow("Status", propPicker({
       editable: editable,
       current: item.status,
       options: DATA.statuses.map(function (s) { return { value: s, label: STATUS_LABEL[s] || s }; }),
@@ -1761,7 +1773,7 @@
 
     // Priority: same pattern. Shown when editable or when the puck has one set.
     if (editable || item.priority) {
-      props.appendChild(propRow("Priority", propPicker({
+      gAxes.rows.push(propRow("Priority", propPicker({
         editable: editable,
         current: item.priority || null,
         placeholder: "No priority",
@@ -1781,17 +1793,17 @@
     // Target: the horizon. Shown when editable or when the puck declares one —
     // most pucks won't, and an empty row on every card would be noise.
     if (editable || item.target) {
-      props.appendChild(propRow("Target", targetValue(item, editable)));
+      gAxes.rows.push(propRow("Target", targetValue(item, editable)));
     }
 
-    props.appendChild(propRow("Assignee", item.owner
-      ? ownerEl(item.owner, { name: true, link: true })
-      : el("span", "prop-muted", "—")));
+    // No editor for this field (owner is a frontmatter line, not a picker), so an
+    // empty row could only ever say "—". Show it when there is someone to show.
+    if (item.owner) gPeople.rows.push(propRow("Assignee", ownerEl(item.owner, { name: true, link: true })));
 
     // Agent: the PO-layer routing row — hand this puck to a discipline as easily
     // as a status flip. Shown when editable or already routed.
     if (editable || item.agent) {
-      props.appendChild(propRow("Agent", propPicker({
+      gPeople.rows.push(propRow("Agent", propPicker({
         editable: editable,
         current: item.agent || null,
         placeholder: "Unassigned",
@@ -1810,17 +1822,17 @@
     // Issue: link/unlink a GitHub issue (writes the `issue:` frontmatter line).
     // Thin-via-GitHub — the discussion is the issue; this is just a pointer field.
     if (editable || item.issue) {
-      props.appendChild(propRow("Issue", issueValue(item, editable)));
+      gRel.rows.push(propRow("Issue", issueValue(item, editable)));
     }
 
     if (editable || item.tags.length || !item.native) {
-      props.appendChild(propRow("Labels", labelsValue(item, editable)));
+      gLabels.rows.push(propRow("Labels", labelsValue(item, editable), "keyless"));
     }
 
     // Etapp: the level above. One pointer up, so the row is a link + an edit —
     // there is no epic record to open, just another puck.
     if (editable || item.parentRef || item.parent) {
-      props.appendChild(propRow("Etapp", parentValue(item, editable)));
+      gRel.rows.push(propRow("Etapp", parentValue(item, editable)));
     }
 
     // …and the level below, when this puck *is* an etapp: its pucks, with the
@@ -1837,14 +1849,14 @@
       var kidsRow = propRow("Pucks", kidsV, "blocked");
       if (item.progress) kidsRow.querySelector(".prop-k").appendChild(
         el("span", "prop-muted", " " + item.progress.done + "/" + item.progress.total));
-      props.appendChild(kidsRow);
+      gRel.rows.push(kidsRow);
     }
 
     // Blocked by: the authored `depends` list, editable. It shows landed blockers
     // too (struck through) — `blockedBy` hides them, and you can't remove a
     // dependency the board never showed you.
     if (editable || (item.depends || []).length) {
-      props.appendChild(propRow("Blocked by", dependsValue(item, editable), "blocked"));
+      gRel.rows.push(propRow("Blocked by", dependsValue(item, editable), "blocked"));
     }
 
     // …and the other direction, derived: what this puck is holding up.
@@ -1857,12 +1869,25 @@
         blocksV.appendChild(a);
         if (i < arr.length - 1) blocksV.appendChild(document.createTextNode(", "));
       });
-      props.appendChild(propRow("Blocks", blocksV, "blocked"));
+      gRel.rows.push(propRow("Blocks", blocksV, "blocked"));
     }
 
-    if (item.created) props.appendChild(propRow("Created", el("span", "prop-date", item.created)));
-    if (item.updated) props.appendChild(propRow("Updated", el("span", "prop-date", item.updated)));
-    overview.appendChild(props);
+    groups.forEach(function (g) {
+      if (!g.rows.length) return;
+      if (g.label) overview.appendChild(el("div", "sect-label", g.label));
+      var box = el("div", "props");
+      g.rows.forEach(function (r) { box.appendChild(r); });
+      overview.appendChild(box);
+    });
+
+    // Created/Updated are derived and never edited, and Activity is the same fact
+    // with more detail. A footnote rather than two rows — kept at all because
+    // Activity can fail (private repo, rate limit) and `updated` drives the stale
+    // flag, so it should not take a round trip to see.
+    var meta = [];
+    if (item.created) meta.push("Created " + item.created);
+    if (item.updated) meta.push("Updated " + item.updated);
+    if (meta.length) overview.appendChild(el("div", "prop-foot", meta.join("  \u00b7  ")));
 
     var sig = signalMessages(item);
     if (sig.length) {
@@ -4196,14 +4221,20 @@
   // The Target cell in the rail: the horizon, shown exact here (the detail view is
   // where precision belongs) with an edit affordance when writable.
   function targetValue(item, editable) {
+    // One control, not a value plus a link to change it: the date *is* the button.
+    // Read-only keeps the plain value, and an empty read-only row says "—".
     var wrap = el("span", "issue-cell"); // same inline row shape as the Issue cell
-    if (item.target) {
+    if (editable) {
+      wrap.appendChild(datePicker(item, item.target ? targetEl(item.target, "prop-date") : null));
+    } else if (item.target) {
+      // Read-only: no picker to open, so the exact date has nowhere else to live —
+      // the board shows the horizon coarsely, and this is the one page that says
+      // precisely what the puck declares.
       wrap.appendChild(targetEl(item.target, "prop-date"));
       wrap.appendChild(el("span", "prop-muted", item.target));
     } else {
-      wrap.appendChild(el("span", "prop-muted", "No target"));
+      wrap.appendChild(el("span", "prop-muted", "\u2014"));
     }
-    if (editable) wrap.appendChild(datePicker(item));
     return wrap;
   }
 
@@ -4218,10 +4249,14 @@
   // horizon is not a promise about a Tuesday.
   var WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   function ymd(d) { return d.toISOString().slice(0, 10); }
-  function datePicker(item) {
+  //   content: the node to show inside the trigger (the current target), or null
+  //   for the empty state, which labels itself.
+  function datePicker(item, content) {
     var wrap = el("div", "prop-pick");
-    var btn = el("button", "linklike", item.target ? "Change" : "Set target");
+    var btn = el("button", "linklike prop-trigger" + (content ? " has-value" : ""));
     btn.type = "button";
+    if (content) btn.appendChild(content);
+    else btn.appendChild(document.createTextNode("Set target"));
     wrap.appendChild(btn);
     var open = null;
 
@@ -4477,7 +4512,9 @@
       }
       wrap.appendChild(chip);
     });
-    if (!(item.depends || []).length) wrap.appendChild(el("span", "prop-muted", "Nothing"));
+    // "Nothing" next to "Add" is the same empty-value-plus-link pair the Target and
+    // Etapp rows had: the button already says what the row is for.
+    if (!(item.depends || []).length && !editable) wrap.appendChild(el("span", "prop-muted", "—"));
     if (editable) {
       wrap.appendChild(puckPicker("Add", {
         repo: item.repo,
@@ -4559,11 +4596,15 @@
       wrap.appendChild(a);
     } else if (item.parent) {
       wrap.appendChild(el("span", "prop-muted", item.parent)); // named but unresolved — the flag says why
-    } else {
-      wrap.appendChild(el("span", "prop-muted", "No etapp"));
+    } else if (!editable) {
+      wrap.appendChild(el("span", "prop-muted", "\u2014"));
     }
     if (editable) {
-      wrap.appendChild(puckPicker(item.parent ? "Change" : "Set etapp", {
+      // Set: the name navigates (a relation is a place you go), and the edit sits
+      // behind a quiet secondary control. Empty: one chip that says what it does.
+      // What is gone is the pair — a value that only restated "nothing" next to a
+      // link that did the work.
+      wrap.appendChild(puckPicker(item.parent ? "\u22ef" : "Set etapp", {
         repo: item.repo,
         title: "Etapp",
         help: "https://github.com/tor2dbear/roadmap/blob/main/CONVENTION.md#the-level-above-parent",
