@@ -1,0 +1,62 @@
+---
+title: "Polering av egenskapsskenan"
+status: now
+tags: [ui]
+updated: 2026-08-22
+created: 2026-08-22
+order: 5
+depends: [ui-overlay-och-pickers]
+---
+
+## Goal
+Ta skenan från "strukturerad" till "polerad", och stäng de granskningsfynd som
+kom in efter att `ui-overlay-och-pickers` mergats.
+
+## Research
+Sektioneringen bär — sidan går att skumma, tre block i stället för tretton
+likvärdiga rader. Men chip-regeln sköt över målet: sju identiska konturer i rad
+gjorde att en tom puck såg ut som ett **formulär** i stället för som en puck vars
+fält råkar vara tomma.
+
+Felet var att två betydelser fick samma kläder. `No priority` och `Unassigned` är
+*tillstånd* — fältet har inget värde. `Set target`, `Link issue`, `Add` är
+*uppmaningar*. Att rita bägge som knappar gör tillståndet till en uppmaning.
+
+## Delivered
+- **Tomma värden är tysta.** Dämpad text i vila, ram vid hover/fokus/tryck.
+  Paddingen står kvar — den är träffytan. En delvis reträtt från gårdagens beslut,
+  och rätt sådan: pilen behövde ersättas, men inte med sju lådor.
+- **Rubrikerna rankar över nycklarna.** Samma mono-röst som nyckelkolumnen gjorde
+  att `PEOPLE` läste som ännu en radnyckel. Mer luft ovanför, mindre under, och
+  vikt. Och en rubrik över **en enda rad** väger mer än den separerar: utan
+  assignee ansluter `Agent` till blocket ovanför i stället.
+- **Rollupen sitter i värdet.** `Pucks 0/1` i nyckelcellen lästes som en längre
+  etikett; nu samma `rollup`-bricka som korten använder, i värdet.
+- **Relationslänkarna hade tappat sin färg.** `.blocker-link` färgades bara under
+  `.modal-blocked` — den gamla modalens scope — så i skenan föll de tillbaka på
+  webbläsarens blå understrykning. Sidans enda default-länk. Riktig regression.
+- **`New issue` flyttade in i ytan.** En chip plus en accentfärgad textlänk gjorde
+  den ovanligaste handlingen till det mest framträdande i Relations-blocket. Nu en
+  rad i issue-ytan: `+ New issue in <repo>`. En kontroll färre i skenan.
+- **Fotnoten vilar sist.** Mellan skenan och `DETAILS` låg den i samma dämpade
+  mono-röst som rubriken och de smälte ihop till ett grått block. Metadata om filen
+  hör hemma längst ned i fliken.
+
+### Granskningsfynden från #9
+- **Ytorna saknade namn.** `status`/`priority`/`agent` skickade ingen titel, så en
+  skärmläsare hörde "dialog" utan att få veta vilket fält.
+- **Fokusfällan låg i sheeten, inte i lagerstacken.** Där `inert` saknas ger
+  `aria-hidden` ingen tab-spärr — och paletten, hjälpen och panelerna hade ingen
+  egen fälla. Nu äger stacken fällan, en gång, för varje lager.
+- **`.sheet-pin` nitade bara en gång.** Filterpanelen bygger listan först och
+  skjuter in sitt sökfält senare (fält med >8 värden), så det fältet nitades
+  aldrig. En `MutationObserver` på ytans kropp nitar det som dyker upp.
+- **Fältgenvägarna staplade ytor.** `S`/`P`/`A`/`L` nådde den globala hanteraren
+  även med en yta uppe.
+- **Fokus återvände inte efter en skrivning.** Att bekräfta ett värde ritar om
+  detaljpanelen, så knappen vi mindes var frånkopplad när återlämningen kördes. Nu
+  minns vi *vilken rad* det var och tar dess nya kontroll.
+
+## Open questions
+- Nyckelkolumnen är 92px. Med chippar borta känns avståndet nyckel→värde stort;
+  värt att prova 76px.

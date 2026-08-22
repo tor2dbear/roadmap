@@ -984,6 +984,26 @@
       applyInert();
     };
   }
+  // `inert` is what actually removes a layer from the tab order — but where it is
+  // missing we only get `aria-hidden`, which a screen reader honours and Tab does
+  // not. So the stack keeps its own trap: one listener for every layer, instead of
+  // the sheet having one and the palette, help and panels having none.
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Tab" || !layers.length) return;
+    var top = layers[layers.length - 1].nodes.filter(Boolean);
+    var f = [];
+    top.forEach(function (n) { f = f.concat(focusables(n)); });
+    if (!f.length) { e.preventDefault(); return; } // nothing to land on: stay put
+    var first = f[0], last = f[f.length - 1], at = document.activeElement;
+    // A layer's own container is not part of its cycle: it holds focus right after
+    // opening and sits before its children in tab order, so forward Tab lands
+    // inside by itself while Shift+Tab would step out of the dialog.
+    var out = !top.some(function (n) { return n.contains(at) && at !== n; });
+    if (e.shiftKey ? (out || at === first) : (out || at === last)) {
+      e.preventDefault();
+      (e.shiftKey ? last : first).focus();
+    }
+  }, true);
   function applyInert() {
     var top = layers.length ? layers[layers.length - 1].nodes : null;
     var kids = document.body.children;
@@ -1114,9 +1134,17 @@
     var scrim = null;
     // Where focus came from, so closing hands it back to the control that opened
     // the surface instead of dropping it on <body> — from where the next Tab starts
-    // over at the top of the page.
+    // over at the top of the page. The node alone is not enough: committing a value
+    // rebuilds the detail pane, so the trigger we remember is detached by the time
+    // we look. Remember which row it was in, and take the replacement.
     var lastFocus = document.activeElement;
+    var lastField = null;
+    if (lastFocus && lastFocus.closest) {
+      var owner = lastFocus.closest(".prop");
+      if (owner) lastField = owner.dataset.field;
+    }
     var popLayer = null;
+    var onDestroy = [];
     var root = el("div", (phone ? "sheet" : "pop") + (opts.cls ? " " + opts.cls : ""));
     var body = el("div", "surface-body");
     var closed = false;
@@ -1138,6 +1166,7 @@
       // would undo their click as surely as re-rendering under it does.
       var at = document.activeElement;
       var hadFocus = root.contains(at) || !at || at === document.body;
+      onDestroy.forEach(function (fn) { fn(); });
       if (popLayer) popLayer();
       if (scrim) { scrim.remove(); unlockScroll(); }
       root.remove();
@@ -1149,44 +1178,28 @@
       if (hadFocus && lastFocus && document.contains(lastFocus)) {
         setTimeout(function () {
           var now = document.activeElement;
-          if (now && now !== document.body) return;              // someone else took it
-          if (!document.contains(lastFocus) || !lastFocus.offsetParent) return; // gone or hidden
-          try { lastFocus.focus(); } catch (e2) {}
+          if (now && now !== document.body) return;   // someone else took it
+          var back = lastFocus;
+          if (!document.contains(back) && lastField) {
+            // Redrawn: find the same row's control in the pane that replaced it.
+            var row = document.querySelector('.prop[data-field="' + lastField + '"]');
+            back = row ? focusables(row)[0] : null;
+          }
+          if (!back || !document.contains(back) || !back.offsetParent) return; // gone or hidden
+          try { back.focus(); } catch (e2) {}
         }, 0);
       }
       if (opts.onClose) opts.onClose();
     }
     function onKey(e) {
-      if (e.key !== "Tab" && e.key !== "Escape") return;
+      if (e.key !== "Escape") return; // Tab is the layer stack's job, for every layer
       // Anything stacked above a surface owns the keyboard: the help overlay, the
       // palette, and the New/Settings/token panels. Otherwise Escape dismisses a
-      // surface nobody can see and leaves the visible layer standing — and Tab is
-      // worse: the trap would drag focus out of the visible overlay and into the
-      // sheet behind it, since from up there focus reads as "outside". Asking "is
+      // surface nobody can see and leaves the visible layer standing. Asking "is
       // something above me?" rather than naming each one is what keeps a future
       // panel from re-opening this hole.
       // Unwind order: help → palette → panel → surface → puck.
       if (cmdkVisible() || helpOpen() || anyModalOpen()) return;
-      // A sheet is modal, so Tab wraps inside it. `inert` already does this where
-      // it exists; the trap is what makes the older path safe, and it also gives
-      // the wrap-around a real modal has.
-      if (e.key === "Tab" && phone) {
-        var f = focusables(root);
-        if (!f.length) { e.preventDefault(); return; }
-        var first = f[0], last = f[f.length - 1], at = document.activeElement;
-        // The sheet itself holds focus right after opening, and it is *not* part of
-        // the cycle: it sits before its own children in tab order, so forward Tab
-        // happens to land inside, but Shift+Tab would step out to whatever precedes
-        // the sheet in the document. Counting the container as outside sends that
-        // first backward press to the last row instead.
-        var out = !root.contains(at) || at === root;
-        if (e.shiftKey ? (out || at === first) : (out || at === last)) {
-          e.preventDefault();
-          (e.shiftKey ? last : first).focus();
-        }
-        return;
-      }
-      if (e.key !== "Escape") return;
       e.stopPropagation(); // this layer only — the modal beneath stays open
       close();
     }
@@ -1268,15 +1281,32 @@
     // through it. Wrapping the field lets the padding be part of what stays put —
     // and an <input> can't carry it itself, since padding-bottom on a field moves
     // its own text instead of adding space beneath it.
+    // A builder is not required to produce its field up front — the filter panel
+    // renders a plain list first and only inserts a search box once a field has
+    // more than eight values. So watch the body rather than pinning once: whatever
+    // arrives at the top gets pinned when it arrives.
     if (phone) {
-      var head = body.firstElementChild;
-      if (head && (head.classList.contains("fp-search") || head.classList.contains("tokenbox"))) {
-        var held = document.activeElement; // moving a node blurs it — put focus back
-        var pin = el("div", "sheet-pin");
-        body.insertBefore(pin, head);
-        pin.appendChild(head);
-        if (held && pin.contains(held)) { try { held.focus(); } catch (e) {} }
+      pinField();
+      var watch = new MutationObserver(pinField);
+      watch.observe(body, { childList: true });
+      onDestroy.push(function () { watch.disconnect(); });
+    }
+    // Pin the field *and whatever leads up to it* — the filter panel puts a back
+    // button above its search box, and pinning the box alone would leave that to
+    // scroll away on its own. Anything past the field is the list, and scrolls.
+    function pinField() {
+      var kids = body.children;
+      if (!kids.length || kids[0].classList.contains("sheet-pin")) return;
+      var at = -1;
+      for (var i = 0; i < kids.length && i < 3; i++) {
+        if (kids[i].classList.contains("fp-search") || kids[i].classList.contains("tokenbox")) { at = i; break; }
       }
+      if (at < 0) return;
+      var held = document.activeElement; // moving a node blurs it — put focus back
+      var pin = el("div", "sheet-pin");
+      body.insertBefore(pin, kids[0]);
+      while (body.children[1] && pin.children.length <= at) pin.appendChild(body.children[1]);
+      if (held && pin.contains(held)) { try { held.focus(); } catch (e) {} }
     }
     // Move focus into the sheet unless the builder already placed it (the desktop
     // pickers focus their search field; the phone ones deliberately don't).
@@ -1483,6 +1513,14 @@
         save.addEventListener("click", done);
         field.addEventListener("keydown", function (e) { if (e.key === "Enter") done(); });
         row.appendChild(save);
+        // A second action belongs *in* the surface, not beside the trigger: two
+        // shapes in one row made the rarer action the loudest thing in the block.
+        if (opts.alt) {
+          var alt = el("button", "pick-mi alt-act", opts.alt.label);
+          alt.type = "button";
+          alt.addEventListener("click", function () { api.close(); opts.alt.run(); });
+          host.appendChild(alt);
+        }
         host.appendChild(row);
         // Not on a phone either, though here the field *is* the content and there is
         // no list to bury: a sheet that opens with the keyboard already up is the
@@ -1528,9 +1566,6 @@
       var link = el("button", "linklike", "Link issue"); link.type = "button";
       link.addEventListener("click", toggleIssueEditor);
       wrap.appendChild(link);
-      var mk = el("button", "linklike issue-newbtn", "New issue"); mk.type = "button";
-      mk.addEventListener("click", function () { newIssue(item); });
-      wrap.appendChild(mk);
     } else {
       wrap.appendChild(el("span", "prop-muted", "—"));
     }
@@ -1540,6 +1575,11 @@
     return inputSurface(wrap, {
       title: "Issue",
       onClose: onClose,
+      // "New issue" used to sit next to the trigger as a second, differently
+      // shaped control. It is the rarer action, so it lives one level in.
+      alt: canWrite(item) && !item.issue
+        ? { label: "\u002b  New issue in " + item.repoName, run: function () { newIssue(item); } }
+        : null,
       value: item.issue ? String(item.issue) : "",
       placeholder: "42 or a full issue URL",
       hint: "The working issue in " + item.repoName + ". Leave blank to unlink.",
@@ -1754,6 +1794,9 @@
     function group(label) { var g = { label: label, rows: [] }; groups.push(g); return g; }
     var gAxes = group(null), gPeople = group("People"),
         gRel = group("Relations"), gLabels = group("Labels");
+    // A heading over one row weighs more than it separates: with no assignee,
+    // "People" is a title for `Agent` alone. Then it joins the block above instead.
+    gPeople.mergeIfAlone = true;
     var props = gAxes; // rows are pushed into a group; see the render at the end
 
     var editable = ghToken() && item.native && canWrite(item);
@@ -1764,6 +1807,7 @@
 
     // Status: current value as a chip; click to pick (editable) — Linear-style.
     gAxes.rows.push(propRow("Status", propPicker({
+      title: "Status", // the sheet is a dialog; an unnamed one tells a screen reader nothing
       editable: editable,
       current: item.status,
       options: DATA.statuses.map(function (s) { return { value: s, label: STATUS_LABEL[s] || s }; }),
@@ -1774,6 +1818,7 @@
     // Priority: same pattern. Shown when editable or when the puck has one set.
     if (editable || item.priority) {
       gAxes.rows.push(propRow("Priority", propPicker({
+        title: "Priority", // the sheet is a dialog; an unnamed one tells a screen reader nothing
         editable: editable,
         current: item.priority || null,
         placeholder: "No priority",
@@ -1804,6 +1849,7 @@
     // as a status flip. Shown when editable or already routed.
     if (editable || item.agent) {
       gPeople.rows.push(propRow("Agent", propPicker({
+        title: "Agent", // the sheet is a dialog; an unnamed one tells a screen reader nothing
         editable: editable,
         current: item.agent || null,
         placeholder: "Unassigned",
@@ -1846,10 +1892,10 @@
         kidsV.appendChild(ka);
         if (i < item.children.length - 1) kidsV.appendChild(document.createTextNode(", "));
       });
-      var kidsRow = propRow("Pucks", kidsV, "blocked");
-      if (item.progress) kidsRow.querySelector(".prop-k").appendChild(
-        el("span", "prop-muted", " " + item.progress.done + "/" + item.progress.total));
-      gRel.rows.push(kidsRow);
+      // The count is part of the answer, not part of the question: in the key cell
+      // it read as a longer label. Same badge the cards use.
+      if (item.progress) kidsV.insertBefore(progressBadge(item), kidsV.firstChild);
+      gRel.rows.push(propRow("Pucks", kidsV, "blocked"));
     }
 
     // Blocked by: the authored `depends` list, editable. It shows landed blockers
@@ -1872,22 +1918,24 @@
       gRel.rows.push(propRow("Blocks", blocksV, "blocked"));
     }
 
+    var lastBox = null;
     groups.forEach(function (g) {
       if (!g.rows.length) return;
+      if (g.mergeIfAlone && g.rows.length < 2 && lastBox) {
+        g.rows.forEach(function (r) { lastBox.appendChild(r); });
+        return;
+      }
       if (g.label) overview.appendChild(el("div", "sect-label", g.label));
       var box = el("div", "props");
       g.rows.forEach(function (r) { box.appendChild(r); });
       overview.appendChild(box);
+      lastBox = box;
     });
 
     // Created/Updated are derived and never edited, and Activity is the same fact
     // with more detail. A footnote rather than two rows — kept at all because
     // Activity can fail (private repo, rate limit) and `updated` drives the stale
     // flag, so it should not take a round trip to see.
-    var meta = [];
-    if (item.created) meta.push("Created " + item.created);
-    if (item.updated) meta.push("Updated " + item.updated);
-    if (meta.length) overview.appendChild(el("div", "prop-foot", meta.join("  \u00b7  ")));
 
     var sig = signalMessages(item);
     if (sig.length) {
@@ -1938,6 +1986,14 @@
       links.appendChild(delBtn);
     }
     overview.appendChild(links);
+
+    // Created/Updated: metadata about the file, so it rests at the foot of the tab.
+    // Between the rail and the Details heading it sat in the same muted mono voice
+    // as that heading, and the two blurred into one grey block.
+    var meta = [];
+    if (item.created) meta.push("Created " + item.created);
+    if (item.updated) meta.push("Updated " + item.updated);
+    if (meta.length) overview.appendChild(el("div", "prop-foot", meta.join("  \u00b7  ")));
   }
 
   // Activity tab: the git history of this puck's file, read live from GitHub's
@@ -3201,8 +3257,12 @@
       if (jumped) { e.preventDefault(); return; }
     }
 
-    // Field shortcuts only make sense with a puck open.
-    if (detailOpen()) {
+    // Field shortcuts only make sense with a puck open — and only when no surface
+    // is up. Otherwise S/P/A/L stacks a second sheet on the first, and one Escape
+    // takes them both (a capture listener does not stop its siblings on document).
+    // The layers above a surface keep their keys: "?" and the palette are meant to
+    // open on top of one, which is why this sits here and not in the guard above.
+    if (detailOpen() && !openSurfaces.length) {
       if (k === "s") { if (triggerField("status")) e.preventDefault(); return; }
       if (k === "p") { if (triggerField("priority")) e.preventDefault(); return; }
       if (k === "a") { if (triggerField("agent")) e.preventDefault(); return; }
