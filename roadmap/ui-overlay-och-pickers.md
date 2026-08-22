@@ -317,6 +317,24 @@ tangentbordet; den får växa, annars hade den legat helt bakom det.
 Verifierat: 109 fall i `surface.mjs` över **båda** viewporterna (390×844 och
 1280×900), plus åtta tidigare sviter som regression.
 
+### Efter #9 — fem fynd till
+- **Ytorna hade inget namn.** Status/priority/agent skickade ingen `title`, så en
+  skärmläsare hörde "dialog" och inget mer. De heter något nu.
+- **Fokusfällan låg i sheeten, inte i lagret.** Där `inert` saknas får vi bara
+  `aria-hidden`, som en skärmläsare respekterar men Tab inte — och paletten,
+  hjälpen och panelerna hade ingen egen fälla. Fällan flyttade in i lagerstacken:
+  en lyssnare för varje lager i stället för en i sheeten och noll i de andra.
+- **Fältgenvägarna staplade ytor.** `S`/`P`/`A`/`L` med en yta uppe öppnade en till,
+  och ett Escape tog båda. Spärrad — men bara för fältgenvägarna: `?` och paletten
+  ska fortfarande gå att öppna ovanpå, vilket är hela poängen med lagerordningen.
+- **Fastnitningen kördes en gång.** Filterpanelen ritar sin lista först och lägger
+  in ett sökfält först när fältet har fler än åtta värden, så det fältet blev aldrig
+  nitat. Nu bevakas kroppen: det som dyker upp överst nitas när det dyker upp — och
+  tillbaka-knappen ovanför fältet följer med, annars skrollade den bort för sig.
+- **Fokus efter en skrivning.** Att välja ett värde bygger om detaljvyn, så knappen
+  vi kom ifrån är borttagen när återlämningen körs. Vi minns vilken *rad* det var
+  och tar dess nya kontroll.
+
 ## Open questions
 - **iOS flyttar den *visuella* vyn när tangentbordet öppnas.** Vårt scroll-lås
   (fixerad `body` på negativ offset) håller dokumentet, men iOS scrollar ändå fram
