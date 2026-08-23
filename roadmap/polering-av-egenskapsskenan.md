@@ -65,6 +65,23 @@ Felet var att två betydelser fick samma kläder. `No priority` och `Unassigned`
   spanen *inuti* chippen till chippen själv. Mätt, inte bedömt: ett test kräver att
   varje rads vänstra kant är densamma.
 
+- **`Etapp` / `Pucks` var två obesläktade substantiv för en kant.** Ett typnamn och
+  en generisk plural för de två ändarna av `parent`/`children`, så raden lästes som
+  ett eget fält i stället för som andra halvan av paret under. Nu **`Part of`** och
+  **`Contains`** — ett förhållande i två riktningar, som `Blocked by`/`Blocks`
+  redan läses. Ordet *etapp* bor kvar där det hör hemma: på **värdet**, i väljarens
+  rubrik och i tavlans Etapp-gruppering — inte som fältnamn i en produkt som redan
+  heter Etapp. `data-field` behåller modellens ord (`etapp`, `pucks`), så etiketten
+  är fri att ändras utan att genvägar och tester hänger på den.
+- **`Etapps` som vy.** Nästan gratis: `is:etapp` fanns redan som härlett predikat, så
+  vyn är en fråga och ingen ny posttyp — samma trick som varje annan vy. `G` sedan
+  `E` hoppar dit, och raden visas bara när det finns etapper (en permanent nolla i
+  sidomenyn är inte navigation).
+  Testet mot riktig data hittade direkt ett fel i den: en etapp kan sitta i vilken
+  status som helst, inklusive `inbox` som den committade tavlan döljer — så räknaren
+  sa 1 och tavlan visade 0. Precis den drift `viewCounts` finns till för att
+  förhindra. Ett test kräver nu att siffran i sidomenyn är samma som antalet kort.
+
 ## Open questions
 - Nyckelkolumnen är 92px. Med chippar borta känns avståndet nyckel→värde stort;
   värt att prova 76px.

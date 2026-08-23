@@ -386,7 +386,9 @@
   // The sidebar views are queries, not special cases in the filter — the same
   // strings a saved view or an agent would write. ("all" = the committed board;
   // inbox has its own space, and the archive is added below unless it's shown.)
-  var VIEWS = { all: "-status:inbox", ready: "is:ready", inbox: "status:inbox", attention: "is:flagged" };
+  // `is:etapp` is derived (a puck with children *is* the etapp), so the view is a
+  // query and not a new record type — the same trick every other view uses.
+  var VIEWS = { all: "-status:inbox", ready: "is:ready", inbox: "status:inbox", etapps: "is:etapp", attention: "is:flagged" };
   var NOT_DONE = { field: "is", op: "is", values: ["done"], neg: true };
 
   // Places and the filter popover, projected into terms. A place is just a filter
@@ -911,9 +913,12 @@
   }
 
   // A property row: mono key + value node. Add a field = add a row (growable).
-  function propRow(k, valNode, cls) {
+  //   field: the model's name for the row, when it differs from the reader's word.
+  //   The label is free to change; `data-field` is what the shortcuts and the tests
+  //   hang on, so it stays the name the data uses.
+  function propRow(k, valNode, cls, field) {
     var row = el("div", "prop" + (cls ? " prop-" + cls : ""));
-    row.dataset.field = String(k).toLowerCase(); // lets keyboard shortcuts target a field
+    row.dataset.field = String(field || k).toLowerCase();
     row.appendChild(el("span", "prop-k", k));
     var v = el("div", "prop-v");
     if (valNode != null) v.appendChild(valNode);
@@ -1878,7 +1883,12 @@
     // Etapp: the level above. One pointer up, so the row is a link + an edit —
     // there is no epic record to open, just another puck.
     if (editable || item.parentRef || item.parent) {
-      gRel.rows.push(propRow("Etapp", parentValue(item, editable)));
+      // "Etapp" up and "Pucks" down were two unrelated nouns for the two ends of one
+      // edge — a type name and a generic plural — so the row read as its own field
+      // rather than as the other half of the pair below. One verb, two directions,
+      // the way Blocked by / Blocks already reads. The word "etapp" stays where it
+      // belongs: on the *value*, and in the board's Etapp grouping.
+      gRel.rows.push(propRow("Part of", parentValue(item, editable), null, "etapp"));
     }
 
     // …and the level below, when this puck *is* an etapp: its pucks, with the
@@ -1895,7 +1905,7 @@
       // The count is part of the answer, not part of the question: in the key cell
       // it read as a longer label. Same badge the cards use.
       if (item.progress) kidsV.insertBefore(progressBadge(item), kidsV.firstChild);
-      gRel.rows.push(propRow("Pucks", kidsV, "blocked"));
+      gRel.rows.push(propRow("Contains", kidsV, "blocked", "pucks"));
     }
 
     // Blocked by: the authored `depends` list, editable. It shows landed blockers
@@ -2589,6 +2599,13 @@
     if (state.focus === "inbox") return ["inbox"];
     if (state.focus === "ready") return ["now", "next"];
     if (state.focus === "attention") return DATA.statuses; // flagged can be any status
+    // An etapp is any puck that holds others, so it can sit anywhere — including
+    // inbox, which the committed board hides. Without this the sidebar counted one
+    // and the board showed none, which is exactly the drift viewCounts exists to
+    // prevent. Done still follows the toggle.
+    if (state.focus === "etapps") {
+      return DATA.statuses.filter(function (s) { return !TERMINAL[s] || state.showDone; });
+    }
     // "all" = the committed board: now/next/later (+done/cancelled when shown), never inbox.
     return DATA.statuses.filter(function (s) {
       return s !== "inbox" && (!TERMINAL[s] || state.showDone);
@@ -2596,7 +2613,7 @@
   }
 
   // The consistent view-header reflects the current focus + how many are shown.
-  var VIEW_TITLES = { all: "All pucks", ready: "Ready to take", inbox: "Inbox", attention: "Needs attention" };
+  var VIEW_TITLES = { all: "All pucks", ready: "Ready to take", inbox: "Inbox", etapps: "Etapps", attention: "Needs attention" };
   function repoNameOf(repo) {
     for (var i = 0; i < DATA.sources.length; i++) if (DATA.sources[i].repo === repo) return DATA.sources[i].name;
     return repo.split("/").pop();
@@ -2755,6 +2772,9 @@
       { key: "ready", label: "Ready", title: "Unblocked now/next — pick one up or hand it to an agent" },
       { key: "inbox", label: "Inbox", title: "Raw ideas to triage — nothing here is a promise yet" },
     ];
+    // Only when there are any: on a board with no hierarchy the row would be a
+    // permanent zero, and the sidebar is navigation, not a feature list.
+    if (counts.etapps) defs.push({ key: "etapps", label: "Etapps", title: "The pucks that hold other pucks — each with its rollup" });
     if (counts.attention) defs.push({ key: "attention", label: "Needs attention", title: "Pucks whose declared status disagrees with reality" });
     // A view reads as active only when we're not inside a place — otherwise the
     // sidebar would highlight both "All pucks" and the repo you navigated into.
@@ -3251,6 +3271,7 @@
       if (k === "a") setFocus("all");
       else if (k === "r") setFocus("ready");
       else if (k === "i") setFocus("inbox");
+      else if (k === "e") setFocus("etapps");
       else if (k === "t") setFocus("attention");
       else jumped = false;
       clearG();
@@ -3284,6 +3305,7 @@
     { keys: ["G", "then", "A"], desc: "Go to All pucks" },
     { keys: ["G", "then", "R"], desc: "Go to Ready" },
     { keys: ["G", "then", "I"], desc: "Go to Inbox" },
+    { keys: ["G", "then", "E"], desc: "Go to Etapps" },
     { keys: ["G", "then", "T"], desc: "Go to Needs attention" },
     { keys: ["S"], desc: "Set status (open puck)" },
     { keys: ["P"], desc: "Set priority (open puck)" },
