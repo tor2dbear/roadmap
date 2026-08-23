@@ -1171,25 +1171,30 @@ body.preload * { transition: none !important; }
 /* An empty value is a *state* ("no priority"), not a call to action — and drawing
    every one of them as an outlined button turned a puck with nothing set into a
    form full of buttons. So: quiet by default, and the border arrives on reach.
-   The padding stays either way, because it is the touch target. */
-.pick-chip.editable > .prop-muted,
+   The padding stays either way, because it is the touch target — but it is paid
+   back with a negative margin, or the text would sit 9px right of the values that
+   carry no control, and the column's left edge would move from row to row
+   depending on whether that field happens to be set. The chip already worked this
+   way; the empty state has to as well, which is why the padding lives on the chip
+   and not on the muted span inside it. */
 .prop .linklike {
-  border: 1px solid transparent; border-radius: 7px; padding: 3px 9px;
+  border: 1px solid transparent; border-radius: 7px; padding: 3px 9px; margin: -3px -9px;
   background: none; font: inherit; font-size: 13px; color: var(--ink-3); cursor: pointer;
 }
-.pick-chip.editable > .prop-muted { padding: 2px 8px; }
 .prop .linklike:hover, .prop .linklike:focus-visible,
-.pick-chip.editable:hover > .prop-muted {
+.pick-chip.editable:hover, .pick-chip.editable:focus-visible {
   border-color: var(--line); background: var(--panel-2); color: var(--ink); text-decoration: none;
 }
 /* A finger has no hover, so the press is the feedback there. */
-.prop .linklike:active { border-color: var(--line); background: var(--panel-2); color: var(--ink); }
+.prop .linklike:active, .pick-chip.editable:active {
+  border-color: var(--line); background: var(--panel-2); color: var(--ink);
+}
 /* A trigger that carries the row's value looks like the value, not like a button —
    until you reach for it. */
-.prop .prop-trigger.has-value { border-color: transparent; padding: 3px 7px; margin: -3px -7px; color: var(--ink); }
+.prop .prop-trigger.has-value { border-color: transparent; color: var(--ink); }
 .prop .prop-trigger.has-value:hover { border-color: var(--line); }
 /* The secondary form: a value already carries the row and this only changes it. */
-.prop .prop-trigger.quiet { border: 0; padding: 2px 6px; font-size: 15px; line-height: 1; color: var(--ink-3); }
+.prop .prop-trigger.quiet { border: 0; padding: 2px 6px; margin: 0; font-size: 15px; line-height: 1; color: var(--ink-3); }
 /* The surface's secondary action: a row, the same shape as any other row in a
    picker, under the field it is an alternative to. */
 .inputpop .alt-act { width: 100%; justify-content: flex-start; color: var(--accent); margin-top: 2px; }

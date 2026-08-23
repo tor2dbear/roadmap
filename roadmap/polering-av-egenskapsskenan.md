@@ -57,6 +57,14 @@ Felet var att två betydelser fick samma kläder. `No priority` och `Unassigned`
   detaljpanelen, så knappen vi mindes var frånkopplad när återlämningen kördes. Nu
   minns vi *vilken rad* det var och tar dess nya kontroll.
 
+- **Värdekolumnen hade ingen vänsterkant.** Följdfel av punkt ett: ramen försvann
+  men paddingen stod kvar, så en kontrolls text låg 9px in medan ett rent värde låg
+  flush. Kanten flyttade sig alltså 10px beroende på om fältet råkade vara *satt* —
+  `Alfa` på 124, `Set etapp` på 134. Paddingen betalas nu tillbaka med negativ
+  marginal (samma grepp chippen redan använde), och den flyttades från den dämpade
+  spanen *inuti* chippen till chippen själv. Mätt, inte bedömt: ett test kräver att
+  varje rads vänstra kant är densamma.
+
 ## Open questions
 - Nyckelkolumnen är 92px. Med chippar borta känns avståndet nyckel→värde stort;
   värt att prova 76px.
