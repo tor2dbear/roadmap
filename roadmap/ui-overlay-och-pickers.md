@@ -336,6 +336,19 @@ Verifierat: 109 fall i `surface.mjs` över **båda** viewporterna (390×844 och
   vi kom ifrån är borttagen när återlämningen körs. Vi minns vilken *rad* det var
   och tar dess nya kontroll.
 
+- **Ett tomt sökfält sökte efter `item`.** Etikettväljaren normaliserade sin sökning
+  med `slugify()`, och den slutar på `|| "item"` — reservvärdet finns så att en puck
+  med titeln `"???"` ändå får ett filnamn. Med tomt fält blev frågan alltså `"item"`:
+  `Create #item` erbjöds innan en tangent tryckts, alla 81 verkliga etiketter
+  filtrerades bort (ingen innehåller "item"), listan såg tom ut, och `Enter` i ett
+  tomt fält hade lagt till etiketten `#item`.
+  Felet var att använda en **filnamnsmakare som frågenormaliserare**. De är nu två
+  funktioner: `slugChars()` är omvandlingen, `slugify()` är omvandlingen *plus*
+  garantin att det blir något. Den som vill ha ett filnamn tar den senare; den som
+  vill ha "det som skrevs, normaliserat" tar den förra och bestämmer själv vad tomt
+  betyder. Testet täcker bägge — att ett tomt fält listar etiketterna utan
+  create-rad, och att `"???"` fortfarande ger `roadmap/item.md`.
+
 ## Open questions
 - **iOS flyttar den *visuella* vyn när tangentbordet öppnas.** Vårt scroll-lås
   (fixerad `body` på negativ offset) håller dokumentet, men iOS scrollar ändå fram

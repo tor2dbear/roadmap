@@ -1809,7 +1809,7 @@
           }
           function paintList() {
             list.innerHTML = "";
-            var q = slugify(search.value.trim());
+            var q = slugChars(search.value.trim()); // empty query stays empty — see slugify
             var hits = known().filter(function (t) { return !q || t.indexOf(q) !== -1; });
             // Create sits first when what you typed isn't a label yet — the same
             // shape the reference apps use, allowed here because the set is open.
@@ -1835,7 +1835,7 @@
           search.addEventListener("input", paintList);
           search.addEventListener("keydown", function (e2) {
             if (e2.key === "Enter") {
-              var q = slugify(search.value.trim());
+              var q = slugChars(search.value.trim());
               if (q) { e2.preventDefault(); toggle(q); }
             } else if (e2.key === "Backspace" && !search.value && chosen.length) {
               toggle(chosen[chosen.length - 1]); // backspace eats the last token
@@ -5367,10 +5367,22 @@
 
   // slugify — a byte-for-byte copy of scripts/lib/adapters.mjs so a GUI-created
   // puck lands at the same path the harvester derives from the title.
-  function slugify(s) {
+  // The slug transform, and the filename guarantee, as two things.
+  //
+  // `slugify` ends in `|| "item"` so a puck titled "???" still gets a filename —
+  // right for a filename, wrong for a query, where empty has to stay empty. The
+  // labels box normalised its search text with slugify() and so searched for "item"
+  // the moment the field was empty: `Create #item` was offered before a key was
+  // pressed, all 81 real labels were filtered away (none contains "item"), and
+  // Enter on an empty field would have added the label `#item`.
+  //
+  // Callers that need a filename take `slugify`; callers that need "what was typed,
+  // normalised" take `slugChars` and decide for themselves what empty means.
+  function slugChars(s) {
     return s.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "item";
+      .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
   }
+  function slugify(s) { return slugChars(s) || "item"; }
 
   // The new-puck file body — mirrors `roadmap new` in scripts/roadmap.mjs.
   // New-puck body skeleton: a spiked-but-driftable structure. Config-driven via
