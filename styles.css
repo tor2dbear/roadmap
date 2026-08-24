@@ -186,16 +186,19 @@ body {
   max-height: 320px;
   overflow-y: auto;
 }
-.suggest-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: var(--r-md);
+/* ── row: the one selectable line ──────────────────────────────────────────────
+   A picker option, a menu item and a search suggestion were three classes with
+   the same job and three sets of numbers (7/9 · r6, 7/9 · r6, 8/10 · r7). They
+   are one component; where a row *sits* only decides its size, which is what the
+   sheet's thumb-sized override is. */
+.row {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  font: inherit; font-size: var(--fs-md); text-align: left; color: var(--ink);
+  background: none; border: 0; border-radius: var(--r-sm); padding: 7px 9px;
   cursor: pointer;
 }
-.suggest-item[aria-selected="true"] { background: var(--panel-2); }
-@media (hover: hover) { .suggest-item:hover { background: var(--panel-2); } }
+.row:hover, .row[aria-selected="true"], .row.on { background: var(--panel-2); }
+.row.danger { color: var(--danger); }
 .suggest-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 .suggest-title {
   flex: 1;
@@ -386,9 +389,28 @@ body {
 /* Row 3 — tags. Badges are STATIC (flat, rounded-rect, no border, default cursor);
    the round bordered pills in the filter bar (.chip) are the CLICKABLE ones. */
 .card-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
-.tagpill { font-size: var(--fs-sm); color: var(--ink-3); background: var(--panel-2); border-radius: var(--r-sm); padding: 1px 7px; cursor: default; }
+/* ── badge: a small labelled mark ──────────────────────────────────────────────
+   Six classes carried six sets of numbers for one family — three radii, four font
+   sizes, four paddings — and two of them (`.rollup`, `.agent-badge`) were byte
+   identical. One base, and each name keeps only what genuinely differs. `.badge`
+   is the name new code should reach for; the six stay as aliases so the markup
+   they are in does not have to move to get the alignment. */
+.badge, .status-pill, .issue-state, .rollup, .agent-badge, .tagpill, .adapted-badge, .token {
+  display: inline-flex; align-items: center; gap: 3px; flex: none;
+  font-size: var(--fs-xs); color: var(--ink-2);
+  background: var(--panel-2); border: 1px solid var(--line);
+  border-radius: var(--r-sm); padding: 1px 7px;
+}
+.badge--pill, .status-pill, .rollup, .agent-badge { border-radius: var(--r-pill); }
+/* Takes its colour from the value it stands for, so the border follows the text. */
+.badge--outline, .status-pill, .issue-state { background: none; border-color: currentColor; }
+.badge--mono, .rollup, .agent-badge { font-family: var(--mono); }
+.badge--quiet, .tagpill { border-color: transparent; }
+.badge--dashed, .adapted-badge { background: none; border-style: dashed; }
+
+.tagpill { font-size: var(--fs-sm); color: var(--ink-3); cursor: default; }
 .updated { font-size: var(--fs-sm); color: var(--ink-3); font-variant-numeric: tabular-nums; margin-left: auto; }
-.adapted-badge { font-size: var(--fs-xs); color: var(--ink-3); border: 1px dashed var(--line); border-radius: var(--r-sm); padding: 0 5px; }
+.adapted-badge { color: var(--ink-3); padding: 0 5px; }
 .warn-badge { color: var(--later); font-size: var(--fs-md); line-height: 1; cursor: help; flex: none; }
 .block-badge { font-size: var(--fs-md); line-height: 1; cursor: help; flex: none; }
 .owner { display: inline-flex; align-items: center; gap: 5px; flex: none; text-decoration: none; color: var(--ink-2); }
@@ -421,7 +443,11 @@ body {
 .card-body a { color: var(--accent); }
 .card-links { margin-top: 10px; display: flex; gap: 12px; font-size: var(--fs-base); }
 .card-links a { color: var(--accent); text-decoration: none; }
-.card-links .linklike { background: none; border: 0; padding: 0; margin: 0; font: inherit; color: var(--accent); cursor: pointer; }
+/* `.linklike` only ever existed in three scoped variants, so one outside them —
+   "Edit body" — fell back to the browser's own button type (13.33px), the single
+   size on the page that came from nowhere. The base is the base. */
+.linklike { font: inherit; font-size: var(--fs-md); background: none; border: 0; padding: 0; margin: 0; color: var(--accent); cursor: pointer; }
+.card-links .linklike { background: none; border: 0; padding: 0; margin: 0; font: inherit; font-size: var(--fs-md); color: var(--accent); cursor: pointer; }
 .card-links .linklike.danger { color: var(--danger); margin-left: auto; }
 @media (hover: hover) { .card-links a:hover, .card-links .linklike:hover { text-decoration: underline; } }
 
@@ -482,7 +508,7 @@ body {
 .modal-blocked { margin-top: 12px; font-size: var(--fs-md); color: var(--ink-2); }
 .modal-blocked .blocker-link { color: var(--accent); text-decoration: none; }
 @media (hover: hover) { .modal-blocked .blocker-link:hover { text-decoration: underline; } }
-.status-pill { font-size: var(--fs-sm); border-radius: var(--r-pill); padding: 1px 9px; border: 1px solid currentColor; text-transform: uppercase; letter-spacing: 0.04em; }
+.status-pill { font-size: var(--fs-sm); padding: 1px 9px; text-transform: uppercase; letter-spacing: 0.04em; }
 .status-pill.status-now { color: var(--now); }
 .status-pill.status-next { color: var(--next); }
 .status-pill.status-later { color: var(--later); }
@@ -831,7 +857,7 @@ body.preload * { transition: none !important; }
 .issue-cell .linklike:hover { text-decoration: underline; }
 .issue-editbtn { font-size: var(--fs-base); color: var(--ink-3); }
 .issue-newbtn::before { content: "·"; color: var(--ink-3); margin: 0 6px 0 -2px; }
-.issue-state { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .05em; border-radius: var(--r-sm); padding: 1px 6px; border: 1px solid currentColor; }
+.issue-state { text-transform: uppercase; letter-spacing: .05em; padding: 1px 6px; }
 .issue-state.issue-open { color: var(--next); }
 .issue-state.issue-closed { color: var(--done); }
 .prop-date { font-family: var(--mono); font-size: var(--fs-base); color: var(--ink-2); }
@@ -878,9 +904,6 @@ body.preload * { transition: none !important; }
 .ws-menu-head { display: flex; align-items: center; gap: 8px; padding: 7px 9px 8px; margin-bottom: 4px; border-bottom: 1px solid var(--line); }
 .ws-menu-who { font-size: var(--fs-md); font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); }
 .ws-menu-head.bad .ws-menu-who { color: var(--danger); }
-.user-mi { text-align: left; background: none; border: 0; padding: 7px 9px; border-radius: var(--r-sm); color: var(--ink); font-size: var(--fs-md); cursor: pointer; }
-.user-mi:hover { background: var(--panel-2); }
-.user-mi.danger { color: var(--danger); }
 
 /* ── v2 consistent view-header ─────────────────────────────────────────────── */
 .vhead { display: flex; align-items: center; gap: 10px; padding: 11px 20px; border-bottom: 1px solid var(--line); }
@@ -1224,13 +1247,7 @@ body.preload * { transition: none !important; }
    carries only what a menu of options needs, so the same markup works in both. */
 .pick-menu { min-width: 190px; padding: 4px; }
 .pick-menu .surface-body { gap: 1px; }
-.pick-mi {
-  display: flex; align-items: center; gap: 8px; font: inherit; font-size: var(--fs-md);
-  background: none; border: 0; border-radius: var(--r-sm); padding: 7px 9px; color: var(--ink);
-  cursor: pointer; text-align: left; width: 100%;
-}
-.pick-mi:hover { background: var(--panel-2); }
-.pick-mi.on { background: var(--panel-2); }
+
 .pick-check { margin-left: auto; color: var(--accent); flex: none; }
 
 /* ── mobile: view title moves into the topbar (fills the ☰ … 🔍 dead band) ──── */
@@ -1392,7 +1409,7 @@ body.preload * { transition: none !important; }
     position: sticky; top: 0; z-index: 1; background: var(--panel); padding-bottom: 12px;
   }
   .sheet .pick-list { max-height: none; overflow: visible; }
-  .sheet .pick-mi { padding: 12px 10px; font-size: var(--fs-xl); } /* thumb-sized rows */
+  .sheet .row { padding: 12px 10px; font-size: var(--fs-xl); } /* thumb-sized rows */
 }
 
 /* ── date picker: a field and a grid, bound to each other ───────────────────── */
@@ -1441,11 +1458,7 @@ body.preload * { transition: none !important; }
   flex: 1 1 90px; min-width: 90px; border: 0; background: none; padding: 3px 2px; margin: 0;
 }
 .tokenbox .token-input:focus { outline: none; }
-.token {
-  display: inline-flex; align-items: center; gap: 3px; flex: none;
-  font-size: var(--fs-sm); color: var(--ink-2); background: var(--panel);
-  border: 1px solid var(--line); border-radius: var(--r-sm); padding: 1px 4px 1px 6px;
-}
+.token { font-size: var(--fs-sm); background: var(--panel); padding: 1px 4px 1px 6px; }
 .token-x { font: inherit; font-size: var(--fs-xs); line-height: 1; background: none; border: 0; padding: 2px; color: var(--ink-3); cursor: pointer; }
 @media (hover: hover) { .token-x:hover { color: var(--ink); } }
 .pick-new .tagpill { background: var(--panel-2); }
@@ -1468,7 +1481,7 @@ body.preload * { transition: none !important; }
 .pick-list { display: flex; flex-direction: column; gap: 1px; max-height: 46vh; overflow-y: auto; }
 .pick-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pick-repo { margin-left: auto; padding-left: 8px; color: var(--ink-3); font-size: var(--fs-sm); flex: none; }
-.pick-mi .repo-dot { flex: none; }
+.row .repo-dot { flex: none; }
 .pick-find .fp-empty { padding: 8px 9px; color: var(--ink-3); font-size: var(--fs-base); }
 
 /* On a phone every surface is a bottom sheet (see the overlay primitive), so the
@@ -1492,9 +1505,6 @@ body.preload * { transition: none !important; }
 /* An etapp is a puck with children, so its marks live on the same card meta row
    as every other badge — no second card type, no second visual language. */
 .rollup {
-  display: inline-flex; align-items: center; gap: 3px; flex: none;
-  font-family: var(--mono); font-size: var(--fs-xs); color: var(--ink-2);
-  background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r-pill); padding: 1px 7px;
   cursor: help;
 }
 .rollup .icn { width: 11px; height: 11px; }
@@ -1515,11 +1525,6 @@ body.preload * { transition: none !important; }
 .prop .blocker-link.done { color: var(--ink-3); }
 
 /* ── PO-layer: agent routing (card badge + sidebar queues) ──────────────────── */
-.agent-badge {
-  display: inline-flex; align-items: center; gap: 3px; flex: none;
-  font-family: var(--mono); font-size: var(--fs-xs); color: var(--ink-2);
-  background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r-pill); padding: 1px 7px;
-}
 .agent-arrow { color: var(--accent); font-weight: 700; }
 .agent-inline { display: inline-flex; align-items: center; }
 .side-repos .chip.agent { color: var(--ink-2); gap: 5px; }

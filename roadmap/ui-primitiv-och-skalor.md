@@ -62,6 +62,22 @@ Flikarna är däremot rätt: `.tab-btn` (understruken, innehåll) och `.focusbtn
   kräver för att inte zooma in ett fokuserat fält. Det står i kommentaren, för det
   är inte uppenbart av namnet.
 
+- **`.row` — den enda valbara raden.** En väljarrad, en menyrad och ett sökförslag
+  var tre klasser med samma jobb och tre uppsättningar siffror (7/9 · r6, 7/9 · r6,
+  8/10 · r7). Nu en komponent; *var* raden sitter avgör bara storleken, vilket är
+  precis vad sheetens tumstora override är. De gamla namnen står kvar i markup som
+  krokar — samma princip som `data-field`: namnet koden hänger på ändras inte när
+  utseendet flyttar.
+- **`.badge` — en bas, sex delta.** `.rollup` och `.agent-badge` var byte-identiska;
+  de sex delade en familj men hade tre radier, fyra typstorlekar och fyra paddings.
+  Nu bär basen allt gemensamt och varje namn bara sin skillnad. En fälla på vägen:
+  basen låg efter två av deltana i filen, så källordningen vann och `.tagpill` föll
+  från 11 till 10px. Basen ligger först nu.
+- **`.linklike` saknade bas.** Den fanns bara i tre *scopade* varianter, så en
+  utanför dem — "Edit body" — ärvde webbläsarens egen knapptyp, 13.33px. Sidans
+  enda storlek som kom från ingenstans. Hittad av testet som kräver att varje
+  typstorlek i puckvyn ligger på stegen.
+
 ## Open questions
 - Ska `.badge` och `.btn` ta färgen som modifierare (`.badge--status-now`) eller
   som `currentColor` från en förälder? Statuspillret gör redan det senare.

@@ -1366,7 +1366,7 @@
         onClose: function () { open = null; },
         build: function (list, api) {
           opts.options.forEach(function (o) {
-            var mi = el("button", "pick-mi" + (o.value === opts.current ? " on" : ""));
+            var mi = el("button", "row pick-mi" + (o.value === opts.current ? " on" : ""));
             mi.type = "button";
             mi.appendChild(opts.valueNode(o));
             if (o.value === opts.current) mi.appendChild(el("span", "pick-check", "\u2713"));
@@ -1472,7 +1472,7 @@
                 lower(it.repoName).indexOf(q) !== -1;
             });
             hits.slice(0, CAP).forEach(function (it) {
-              var mi = el("button", "pick-mi" + (it.id === opts.current ? " on" : ""));
+              var mi = el("button", "row pick-mi" + (it.id === opts.current ? " on" : ""));
               mi.type = "button";
               var dot = el("span", "repo-dot");
               dot.style.background = it.repoColor;
@@ -1526,7 +1526,7 @@
         // A second action belongs *in* the surface, not beside the trigger: two
         // shapes in one row made the rarer action the loudest thing in the block.
         if (opts.alt) {
-          var alt = el("button", "pick-mi alt-act", opts.alt.label);
+          var alt = el("button", "row pick-mi alt-act", opts.alt.label);
           alt.type = "button";
           alt.addEventListener("click", function () { api.close(); opts.alt.run(); });
           host.appendChild(alt);
@@ -1695,7 +1695,7 @@
             // Create sits first when what you typed isn't a label yet — the same
             // shape the reference apps use, allowed here because the set is open.
             if (q && known().indexOf(q) === -1) {
-              var add = el("button", "pick-mi pick-new");
+              var add = el("button", "row pick-mi pick-new");
               add.type = "button";
               add.appendChild(el("span", "prop-muted", "Create"));
               add.appendChild(el("span", "tagpill", "#" + q));
@@ -1704,7 +1704,7 @@
             }
             hits.forEach(function (t) {
               var on = chosen.indexOf(t) !== -1;
-              var mi = el("button", "pick-mi" + (on ? " on" : ""));
+              var mi = el("button", "row pick-mi" + (on ? " on" : ""));
               mi.type = "button";
               mi.appendChild(el("span", "tagpill", "#" + t));
               if (on) mi.appendChild(el("span", "pick-check", "\u2713"));
@@ -3083,7 +3083,7 @@
       return;
     }
     suggestItems.forEach(function (it, idx) {
-      var li = el("li", "suggest-item" + (it.__tag ? " suggest-tag" : "") + (it.__create ? " suggest-create" : "") + (it.__cmd ? " suggest-cmd" : ""));
+      var li = el("li", "row suggest-item" + (it.__tag ? " suggest-tag" : "") + (it.__create ? " suggest-create" : "") + (it.__cmd ? " suggest-cmd" : ""));
       li.setAttribute("role", "option");
       li.setAttribute("aria-selected", idx === suggestIndex ? "true" : "false");
       if (it.__cmd) {
@@ -5064,7 +5064,7 @@
     var menu = el("div", "ws-menu user-menu");
     menu.setAttribute("role", "menu");
     function settingsItem() {
-      var s = el("button", "user-mi", "Settings");
+      var s = el("button", "row user-mi", "Settings");
       s.type = "button";
       s.addEventListener("click", function () { menu.remove(); openSettingsPanel(); });
       return s;
@@ -5090,17 +5090,17 @@
           } else { name.textContent = "token invalid"; head.classList.add("bad"); }
         })
         .catch(function () { name.textContent = "signed in"; });
-      var change = el("button", "user-mi", "Change token");
+      var change = el("button", "row user-mi", "Change token");
       change.type = "button";
       change.addEventListener("click", function () { menu.remove(); openTokenPanel(afterAuth); });
-      var out = el("button", "user-mi danger", "Sign out");
+      var out = el("button", "row user-mi danger", "Sign out");
       out.type = "button";
       out.addEventListener("click", function () { menu.remove(); setGhToken(""); afterAuth(); });
       menu.appendChild(change);
       menu.appendChild(out);
     } else {
       menu.appendChild(settingsItem());
-      var signin = el("button", "user-mi", "Sign in to edit");
+      var signin = el("button", "row user-mi", "Sign in to edit");
       signin.type = "button";
       signin.addEventListener("click", function () { menu.remove(); openTokenPanel(afterAuth); });
       menu.appendChild(signin);
