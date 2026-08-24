@@ -1084,12 +1084,16 @@ body.preload * { transition: none !important; }
    view header), so a popover never opens leftward across the sidebar. */
 /* Shell (position, background, border, shadow) comes from .pop / .sheet; this is
    only what the panel itself needs, so the same markup serves both. */
-.filter-pop { padding: 10px; min-width: 232px; max-width: 300px; }
+/* Width and padding are the *popover's* geometry: a sheet is full-width and carries
+   the page's own inset. Scoped to .pop rather than undone per class afterwards —
+   three of these five already had a `.sheet.<x>` rule cancelling the widths, and the
+   padding was forgotten in all of them, so every picker sheet sat at 6-10px while
+   the page (and the sheets without an override) sat at 20. */
+.pop.filter-pop { padding: 10px; min-width: 232px; max-width: 300px; }
 .filter-pop .surface-body { gap: 8px; }
-@media (max-width: 640px) { .sheet.filter-pop { min-width: 0; max-width: none; } }
 /* Display menu — same shell as the filter popover (one popover language), with
    rows for the choices that shape the presentation. */
-.display-pop { min-width: 260px; }
+.pop.display-pop { min-width: 260px; }
 .display-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); display: inline-block; }
 .dp-seg { display: flex; gap: 4px; background: var(--sunk, transparent); }
 .dp-segbtn {
@@ -1297,7 +1301,7 @@ body.preload * { transition: none !important; }
 .inputpop .alt-act { width: 100%; justify-content: flex-start; color: var(--accent); margin-top: 2px; }
 /* The shell (position, background, border, shadow) comes from .pop / .sheet — this
    carries only what a menu of options needs, so the same markup works in both. */
-.pick-menu { min-width: 190px; padding: 4px; }
+.pop.pick-menu { min-width: 190px; padding: 4px; }
 .pick-menu .surface-body { gap: 1px; }
 
 .pick-check { margin-left: auto; color: var(--accent); flex: none; }
@@ -1494,10 +1498,15 @@ body.preload * { transition: none !important; }
     position: sticky; top: 0; z-index: 1; background: var(--panel); padding-bottom: 12px;
   }
   .sheet .pick-list { max-height: none; overflow: visible; }
-  /* Thumb-sized rows — and the highlight pays the sheet's inset back with a negative
-     margin so it still bleeds toward the edge while the *text* lands on the page's
-     20px grid. Same trick the property rail's value column uses. */
-  .sheet .row { padding: 12px; margin: 0 -11px; font-size: var(--fs-xl); }
+  /* Thumb-sized rows, sitting *in* the content box. An earlier version pulled them
+     out with a negative margin so the highlight would bleed toward the edge; at a
+     20px inset that put the selected row 9px from the screen edge, reading as no
+     padding at all — and in the pickers, whose inset was still 6px, it put the row
+     at −5 and clipped it. The horizontal padding matches `.fp-search`'s, so a row's
+     text and the search field's land on the same line without either leaving the box. */
+  .sheet .row { padding: 12px 9px; font-size: var(--fs-xl); }
+  /* Rules span the content, like the rows they separate. */
+  .sheet .menu-rule { margin: 6px 0; }
   /* Every control in a sheet is thumb-sized, not just the list rows. These two were
      20px and 18px tall inside a menu whose other rows are 37 — the toggle read as
      half a row, and "Reset to default" was a text-height target against the screen
@@ -1508,7 +1517,7 @@ body.preload * { transition: none !important; }
 }
 
 /* ── date picker: a field and a grid, bound to each other ───────────────────── */
-.datepop { min-width: 268px; padding: 8px; }
+.pop.datepop { min-width: 268px; padding: 8px; }
 .datepop .surface-body { gap: 8px; }
 .date-input { font-variant-numeric: tabular-nums; }
 .cal-head { display: flex; align-items: center; gap: 4px; padding: 2px 2px 6px; }
@@ -1558,16 +1567,15 @@ body.preload * { transition: none !important; }
 .token-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 15ch; }
 
 /* ── one-field surface: what window.prompt used to do, in our own shell ─────── */
-.inputpop { min-width: 260px; max-width: min(340px, calc(100vw - 32px)); padding: 8px; }
+.pop.inputpop { min-width: 260px; max-width: min(340px, calc(100vw - 32px)); padding: 8px; }
 .inputpop .surface-body { gap: 8px; }
 .inputpop .fp-empty { padding: 0 2px; color: var(--ink-3); font-size: var(--fs-sm); line-height: 1.4; }
-@media (max-width: 640px) { .sheet.inputpop { min-width: 0; max-width: none; } }
 
 /* ── puck picker: the control for a field whose value is another puck ───────── */
 /* Ours, not the browser's: window.prompt hands the dialog to the OS, which on iOS
    draws a system sheet in its own shape and colours. This borrows the picker
    popover's shell and the filter panel's search box, so it reads as one app. */
-.pick-find { min-width: 260px; max-width: min(340px, calc(100vw - 32px)); padding: 6px; }
+.pop.pick-find { min-width: 260px; max-width: min(340px, calc(100vw - 32px)); padding: 6px; }
 .pick-find .surface-body { gap: 6px; }
 .pick-find .fp-search { margin-bottom: 2px; }
 .pick-list { display: flex; flex-direction: column; gap: 1px; max-height: 46vh; overflow-y: auto; }
@@ -1579,15 +1587,26 @@ body.preload * { transition: none !important; }
 /* On a phone every surface is a bottom sheet (see the overlay primitive), so the
    width/height caps above apply to the popover only. */
 @media (max-width: 640px) {
-  .sheet.pick-find { min-width: 0; max-width: none; }
 }
 
 /* ── an etapp's members ────────────────────────────────────────────────────────
    A comma-separated line works for two pucks and collapses at eight. These are
    rows, so the etapp page is where the etapp is run. */
 .sect-with-badge { display: flex; align-items: center; gap: 8px; }
-.members { display: flex; flex-direction: column; gap: 1px; margin-top: 2px; }
+/* The rows pay their own padding back, so a member title lands on the page's content
+   line (22px) with every heading and paragraph in the section, and the trailing pill
+   ends on the right one. Without it the list sat 9px in from everything around it. */
+.members { display: flex; flex-direction: column; gap: 1px; margin: 2px -9px 0; }
 .member { gap: 9px; }
+/* A badge is right for *one* value on a page — the rail, the picker. Five outlined
+   capsules down a column become the loudest thing in the section, and the section is
+   a list, not five buttons. The word and its colour do the work here; the outline is
+   what made it a badge and is what has to go. (`.badge--quiet` says the same thing
+   for tags: same family, same escape hatch.) */
+.member .status-pill {
+  border-color: transparent; background: none; padding-right: 0;
+  font-size: var(--fs-xs); letter-spacing: 0.06em;
+}
 /* Natural width, and last in the row — see memberRow. A fixed width clipped Inbox
    and would have had to be 87px for Cancelled. */
 .member .status-pill { flex: none; }

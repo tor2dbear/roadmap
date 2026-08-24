@@ -166,3 +166,26 @@ Felet var att två betydelser fick samma kläder. `No priority` och `Unassigned`
   kontroll utanför skalan — så den är ritad nu: 18px, `--r-xs`, accentfylld med en
   ritad bock (ett `✓`-tecken rider på typsnittets baslinje och sitter lågt i rutan
   oavsett vad line-height säger).
+
+- **Indraget nådde inte fram — och den negativa marginalen var fel idé.** Tre fel i
+  samma ändring, alla rapporterade från telefonen och alla mätta:
+  - **Popover-geometri läckte in i sheeten.** `.pick-find`, `.pick-menu`,
+    `.filter-pop`, `.datepop` och `.inputpop` satte bredd *och* padding, och tre av
+    dem hade redan en `.sheet.<x>`-regel som tog tillbaka bredderna — paddingen var
+    glömd i alla fem. Pickarna satt alltså kvar på 6px medan sidan och de andra
+    sheeten låg på 20. Reglerna är scopade till `.pop` nu, där de hör hemma; undantagen
+    behövs inte längre.
+  - **Markeringen bleddade ut ur rutan.** Jag lät raden betala tillbaka indraget med
+    `margin: 0 -11px` för att markeringen skulle nå mot kanten. Vid 20px indrag
+    hamnade den valda raden 9px från skärmkanten — vilket läser som *ingen* padding —
+    och i pickarna, som fortfarande hade 6px, hamnade den på **−5** och klipptes.
+    Ingen negativ marginal nu: raden ligger i innehållsrutan och dess egen padding
+    (9px, samma som `.fp-search`) sätter texten på samma linje som fältets.
+  - **Medlemsraden låg 9px in från sidan.** Samma padding, motsatt riktning: här är
+    raden *innehåll* och ska linjera med rubrikerna, så `.members` betalar tillbaka
+    paddingen i stället. Och pillret: en bricka är rätt för **ett** värde på en sida,
+    men fem konturkapslar i kolumn blev sektionens tyngsta element. Ordet och färgen
+    gör jobbet; konturen var det som gjorde den till en bricka och är det som fick gå.
+  Testet mäter nu indraget på **varje** sheet-variant (status, target, etapp, labels,
+  filter, display) och kräver att ingen rad spiller ut ur innehållsrutan — det var
+  precis felet med att bara titta på den yta jag råkade ha framför mig.
