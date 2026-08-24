@@ -78,6 +78,16 @@ Flikarna är däremot rätt: `.tab-btn` (understruken, innehåll) och `.focusbtn
   enda storlek som kom från ingenstans. Hittad av testet som kräver att varje
   typstorlek i puckvyn ligger på stegen.
 
+- **`.btn` — en bas, sju delta.** Sju klasser bar sju uppsättningar siffror för en
+  familj. Nu bär basen radie, ramtjocklek och form; varje namn bara sin storlek och
+  ton.
+  **En rättelse till min egen genomlysning:** jag skrev att två knappar byter
+  storlek beroende på var de sitter, och att det alltid är fel. Det stämde bara för
+  den ena. `.datepop .date-act` ligger i `@media (max-width: 640px)` — det är
+  tumstorlek på telefon, alltså samma regel som `.sheet .row` följer, och den är
+  rätt. `.side-views .focusbtn` var den verkliga: en andra variant av en kontroll
+  som bara har ett hem. Den är infälld i `.focusbtn` nu, för det *är* kontrollen.
+
 ## Open questions
 - Ska `.badge` och `.btn` ta färgen som modifierare (`.badge--status-now`) eller
   som `currentColor` från en förälder? Statuspillret gör redan det senare.

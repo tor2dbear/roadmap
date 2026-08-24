@@ -284,10 +284,30 @@ body {
 .card.dragging { opacity: .5; }
 .column.drop-target { background: color-mix(in srgb, var(--accent) 8%, transparent); outline: 1.5px dashed color-mix(in srgb, var(--accent) 45%, transparent); outline-offset: -2px; }
 /* in-column "+" — add a puck already in this column */
+/* ── btn: the pressable rectangle ──────────────────────────────────────────────
+   Seven classes carried seven sets of numbers for one family. One base with what
+   they share; each name keeps only its difference, and `.btn` is what new code
+   reaches for. Size is a modifier, never a parent selector — except where the
+   parent *is* the reason (a phone wants thumb-sized controls), which is the same
+   rule `.sheet .row` follows. */
+.btn, .tbtn, .newbtn, .iconbtn, .date-act, .focusbtn, .edit-btn, .col-add {
+  display: inline-flex; align-items: center; gap: 6px;
+  font: inherit; font-size: var(--fs-md); line-height: 1.2;
+  padding: 6px 12px; border-radius: var(--r-md);
+  border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+  cursor: pointer; white-space: nowrap;
+}
+.btn--sm, .date-act, .edit-btn { font-size: var(--fs-base); padding: 5px 10px; }
+.btn--lg, .tbtn { padding: 7px 14px; }
+.btn--ghost, .date-act, .col-add { background: none; color: var(--ink-2); }
+.btn--quiet, .focusbtn { background: none; border-color: transparent; color: var(--ink-2); }
+.btn--pill, .edit-btn { border-radius: var(--r-pill); }
+.btn--dashed, .col-add { border-style: dashed; color: var(--ink-3); }
+.btn--solid, 
+
 .col-add {
   margin-top: 10px; width: 100%; display: flex; align-items: center; justify-content: center;
-  padding: 7px; border: 1px dashed var(--line); border-radius: var(--r-md); background: none;
-  color: var(--ink-3); cursor: pointer; opacity: 0; transition: opacity .12s;
+  padding: 7px; opacity: 0; transition: opacity .12s;
 }
 .column:hover .col-add, .col-add:focus-visible { opacity: 1; }
 .col-add:hover { color: var(--accent); border-color: var(--accent); }
@@ -582,9 +602,7 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 /* ── GUI editing: token control, status editor, toast ─────────────────────
    All of this is inert until a token is set; the read-only board is unchanged. */
 .iconbtn {
-  background: var(--panel); border: 1px solid var(--line); color: var(--ink);
-  border-radius: var(--r-md); cursor: pointer; font-size: var(--fs-xl); line-height: 1;
-  padding: 6px 8px; display: inline-flex; align-items: center;
+  font-size: var(--fs-xl); line-height: 1; padding: 6px 8px;
 }
 .iconbtn:hover { border-color: var(--ink-3); }
 .tokenbtn.on { border-color: var(--now); box-shadow: 0 0 0 1px var(--now) inset; }
@@ -597,9 +615,7 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 }
 .edit-label { font-size: var(--fs-base); color: var(--ink-2); margin-right: 2px; }
 .edit-btn {
-  font: inherit; font-size: var(--fs-base); padding: 4px 10px; border-radius: var(--r-pill);
-  border: 1px solid var(--line); background: var(--panel); color: var(--ink-2);
-  cursor: pointer;
+  padding: 4px 10px; background: var(--panel);
 }
 .edit-btn:hover:not(:disabled) { color: var(--ink); border-color: currentColor; }
 .edit-btn.active {
@@ -651,10 +667,7 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 }
 .token-input:focus { outline: none; border-color: var(--accent); }
 .token-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
-.tbtn {
-  font: inherit; font-size: var(--fs-md); padding: 7px 14px; border-radius: var(--r-md);
-  border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer;
-}
+
 .tbtn:hover { border-color: var(--ink-3); }
 .tbtn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .tbtn.primary:hover { filter: brightness(1.05); }
@@ -725,10 +738,7 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
   display: inline-flex; background: var(--panel-2); border: 1px solid var(--line);
   border-radius: var(--r-md); padding: 2px; gap: 2px; flex: none;
 }
-.focusbtn {
-  font-family: var(--mono); font-size: var(--fs-base); letter-spacing: .02em; color: var(--ink-2);
-  background: none; border: 0; padding: 5px 13px; border-radius: var(--r-md); cursor: pointer; white-space: nowrap;
-}
+.focusbtn { font-family: var(--mono); letter-spacing: .02em; }
 @media (hover: hover) { .focusbtn:hover { color: var(--ink); } }
 .focusbtn.on { background: var(--panel); color: var(--ink); box-shadow: var(--shadow); }
 .focusbtn.focus-ready.on { color: var(--next); }
@@ -789,9 +799,11 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 
 /* focus switcher → vertical nav in the sidebar */
 .side-views .focusseg { display: flex; flex-direction: column; background: none; border: 0; padding: 0; gap: 1px; }
-.side-views .focusbtn {
-  text-align: left; justify-content: flex-start; font-size: var(--fs-md);
-  font-family: var(--sans); letter-spacing: 0; padding: 7px 10px; border-radius: var(--r-md);
+/* The sidebar is the switcher's only home, so this is not a variant — it is the
+   control. Folded in rather than kept as a second size under a parent selector. */
+.focusbtn {
+  text-align: left; justify-content: flex-start;
+  font-family: var(--sans); letter-spacing: 0; padding: 7px 10px;
 }
 .side-views .focusbtn.on { box-shadow: none; background: var(--panel-2); }
 
@@ -913,7 +925,7 @@ body.preload * { transition: none !important; }
 .vhead .view-title { max-width: 55ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .view-count { font-family: var(--mono); font-size: var(--fs-sm); color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .vopts { margin-left: auto; display: flex; align-items: center; gap: 8px; }
-.newbtn { display: inline-flex; align-items: center; gap: 5px; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r-md); padding: 6px 12px; color: var(--ink); font-size: var(--fs-md); cursor: pointer; white-space: nowrap; }
+.newbtn { gap: 5px; background: var(--panel-2); }
 .newbtn:hover { border-color: var(--ink-3); }
 /* filter popover: no empty band when closed (padding/border live on the chips) */
 .filters { padding: 0; border: 0; }
@@ -1437,10 +1449,7 @@ body.preload * { transition: none !important; }
 .cal-day.on { background: var(--accent); color: var(--bg); }
 @media (hover: hover) { .cal-day:hover:not(.on) { background: var(--panel-2); } }
 .date-foot { display: flex; align-items: center; gap: 6px; padding-top: 4px; border-top: 1px solid var(--line); }
-.date-act {
-  font: inherit; font-size: var(--fs-base); background: none; border: 1px solid var(--line);
-  border-radius: var(--r-md); padding: 5px 10px; color: var(--ink-2); cursor: pointer;
-}
+
 @media (hover: hover) { .date-act:hover { color: var(--ink); border-color: var(--accent); } }
 .date-clear { margin-left: auto; border-color: transparent; color: var(--ink-3); }
 @media (max-width: 640px) {
