@@ -127,3 +127,15 @@ Felet var att två betydelser fick samma kläder. `No priority` och `Unassigned`
   etiketten och ryms utan brytning; testet mäter `scrollWidth > clientWidth` över
   varje nyckel på en puck som har alla rader, i stället för att lita på ögat — så
   en framtida längre etikett fäller testet i stället för att klippas tyst.
+
+- **Layouten är den man valde, i varje vy.** `renderBoard()` tvingade Ready och
+  Inbox till listan *"whatever the toggle says"* — medan Display fortsatte visa
+  Board som valt läge. Kontrollen påstod alltså ett val som aldrig inträffade, och
+  den board-bara raden `Show empty columns` dök upp ovanför en lista.
+  Två fel i ett: premissen "en fokuserad kö läser bättre som lista" gäller bara
+  under *status*-gruppering, där Inbox är en kolumn och Ready två. Grupperat på repo
+  eller agent har de lika många kolumner som vilken vy som helst — och ett bräde är
+  då precis vad man vill ha.
+  Att en vy läser bättre som lista är ett skäl att välja List (och det valet består),
+  inte ett skäl att köra över den som valde Board. Samma familj som de tre döda
+  kontrollerna ovanför: en kontroll får inte ljuga om vad den gör.

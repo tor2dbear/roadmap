@@ -2753,9 +2753,19 @@
 
   function renderBoard() {
     board.innerHTML = "";
-    // Ready and Inbox are focused queues → always the grouped list, whatever the toggle says.
-    var queue = state.focus === "ready" || state.focus === "inbox";
-    var layout = queue ? "list" : state.view;
+    // The layout is whatever the toggle says — in every view.
+    //
+    // Ready and Inbox used to be forced to the list "whatever the toggle says",
+    // on the grounds that a focused queue reads better as one. Two things were
+    // wrong with that. The premise only holds under *status* grouping, where Inbox
+    // is one column and Ready is two — group by repo or agent and those views have
+    // as many columns as any other. And the override was silent: Display went on
+    // showing Board as the selected layout, so the control claimed a choice that
+    // never took effect. (It also let the board-only "Show empty columns" row
+    // appear over a list.) A view that reads better as a list is a reason to pick
+    // List — and that choice persists — not a reason to overrule the person who
+    // picked Board.
+    var layout = state.view;
     board.classList.toggle("as-list", layout === "list");
     activeQuery = activeTerms();
     var visible = DATA.items.filter(matches).sort(sortComparator());
