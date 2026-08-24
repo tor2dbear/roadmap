@@ -91,6 +91,24 @@ Felet var att två betydelser fick samma kläder. `No priority` och `Unassigned`
   (deras statusar är aldrig terminala) och `attention` *ska* nå det — en flaggad
   landad puck är precis vad den vyn finns för.
 
+- **En kontroll som inte kan ändra något erbjuds inte.** Tre döda kontroller, alla
+  med regeln redan skriven någon annanstans i koden:
+  - **Arkivväxeln i en vy som aldrig når arkivet.** `ARCHIVABLE` säger redan att
+    `inbox` och `ready` har statusar som aldrig blir terminala — Display-menyn läste
+    bara aldrig den. Nu grindad på samma tabell.
+  - **`Show empty columns` i listläge.** Den läses bara av `renderColumns`;
+    `renderList` släpper tomma grupper villkorslöst. Rutan var alltså ikryssad och
+    inert i *varje* vy så snart man stod i lista. Board-only nu, och raden ritas om
+    när man byter layout med menyn öppen — annars visar menyn en kontroll den just
+    gjort meningsfull, en omgång försent.
+  - **Filtervärden som inte kan träffa.** I inkorgen erbjöds alla sex statusar;
+    `status:now` där ger noll. Etapp-fältet följde redan regeln i sin egen
+    `values()` (*"a value that matches nothing would be a trap"*) — nu är den
+    panelens regel i stället för ett fälts, och ett fält vars alla värden är
+    onåbara göms helt. Nåbarheten mäts mot **vyn**, aldrig mot filtren man redan
+    satt, så värden försvinner inte under handen medan man kryssar; ett aktivt
+    värde står alltid kvar, annars gick det inte att kryssa av.
+
 ## Open questions
 - Nyckelkolumnen är 92px. Med chippar borta känns avståndet nyckel→värde stort;
   värt att prova 76px.

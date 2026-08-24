@@ -76,6 +76,21 @@ Fem fynd, i fallande ordning av hur mycket de skymde:
   är vyn enda vägen dit), Standalone bara när den *skiljer sig* från All pucks.
   Hittat genom att titta på den renderade sidomenyn, inte i koden.
 
+- **Tre fynd som bara riktig data kunde ge.** Efter att repots egna pucks delats i
+  tre etapper (`gui-hantverk` 0/5, `gui-editing` 2/2, `productize` 2/3):
+  - **`Ready` erbjöd en etapp.** `gui-hantverk` deklarerar inga `depends:` och var
+    därför oblockerad — samtidigt som fyra av fem medlemmar väntade på varandra.
+    Vyn *agenter läser för att välja arbete* erbjöd det enda man inte kan välja, och
+    dolde att innehållet stod stilla. `is:ready` kräver nu också att pucken saknar
+    barn: en etapp är inte arbete man plockar upp, det är dess delar som är det.
+  - **En etapps status kunde motsäga sina delar utan att någon sa något.**
+    `productize` stod `done` med 2/3. Nu två flaggor, samma par och samma skäl som
+    issue-driften: `rollup-open` (klar med öppna delar) och `rollup-done` (alla delar
+    landade, etappen inte). En puck utan barn träffas aldrig av regeln.
+  - **`Contains` listade i slug-ordning.** Harvestern sorterar `children[]` på id
+    *"for stable output — the board sorts them for display itself"* och `childItems()`
+    sorterade inte. Kommentaren var ett löfte koden inte höll. Nu status → rank →
+    titel, alltså den ordning man arbetar dem i.
 - **Beslutat: brädet förblir platt.** `all` blir *inte* `-status:inbox -is:member`.
   Skälet är vad en kolumn ska mäta: platt mäter kolumnen **arbetsmängd**, som karta
   hade den mätt **antal initiativ**. Bägge är rimliga, men bara den första svarar på

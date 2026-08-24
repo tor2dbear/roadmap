@@ -136,7 +136,20 @@
   // from the `parent:` fields — never a stored second copy, so a lookup is all the
   // board needs.
   function parentItem(item) { return item.parentRef ? itemById(item.parentRef) : null; }
-  function childItems(item) { return (item.children || []).map(itemById).filter(Boolean); }
+  // Members in the order you'd work them: by status column, then by manual rank,
+  // then by title. The harvester sorts `children[]` by id "for stable output" and
+  // says the board sorts them for display — this is the board keeping that promise.
+  // Without it an etapp you're running listed its parts alphabetically by slug,
+  // with the one `next` puck sitting in the middle of the `now` ones.
+  function childItems(item) {
+    return (item.children || []).map(itemById).filter(Boolean).sort(function (a, b) {
+      var sa = DATA.statuses.indexOf(a.status), sb = DATA.statuses.indexOf(b.status);
+      if (sa !== sb) return sa - sb;
+      var oa = a.order == null ? Infinity : a.order, ob = b.order == null ? Infinity : b.order;
+      if (oa !== ob) return oa - ob;
+      return a.title.localeCompare(b.title);
+    });
+  }
   function signalMessages(item) {
     return (item.signals || []).map(function (s) {
       if (s.type === "stale") {
@@ -157,6 +170,12 @@
       if (s.type === "dependency-cycle") return "In a dependency loop — these pucks wait for each other, so none of them is ready.";
       if (s.type === "parent-missing") return 'Etapp "' + item.parent + '" doesn’t exist — typo, or the puck was renamed?';
       if (s.type === "parent-cycle") return 'Etapp "' + item.parent + '" closes a loop — the link is ignored.';
+      if (s.type === "rollup-open") {
+        var open = item.progress.total - item.progress.done;
+        return "Marked " + (STATUS_LABEL[item.status] || item.status).toLowerCase() + " but " + open +
+          " of " + item.progress.total + " parts " + (open === 1 ? "is" : "are") + " still open.";
+      }
+      if (s.type === "rollup-done") return "Every part is done — mark the etapp done?";
       return s.type;
     });
   }
@@ -282,7 +301,16 @@
   // data (by the harvester or here), so giving each its own field would invent a
   // second truth. Negate with `-is:blocked`.
   var IS_STATES = {
-    ready: function (i) { return (i.status === "now" || i.status === "next") && !(i.blockedBy || []).length; },
+    // Ready is "pick one up, or hand it to an agent" — and an etapp is neither. It
+    // has no work of its own; what you take is one of its parts. Dog-fooding made
+    // that concrete: `gui-hantverk` was unblocked (it declares no `depends:`) and
+    // therefore Ready, while four of its five members were waiting on each other.
+    // The view agents read to choose work was offering the one thing that can't be
+    // chosen, and hiding that its contents were stalled.
+    ready: function (i) {
+      return (i.status === "now" || i.status === "next") &&
+        !(i.blockedBy || []).length && !(i.children || []).length;
+    },
     blocked: function (i) { return !!(i.blockedBy || []).length; },
     flagged: function (i) { return isFlagged(i); },
     stale: function (i) { return (i.signals || []).some(function (s) { return s.type === "stale"; }); },
@@ -427,11 +455,15 @@
   }
   // The filter half of the view — what goes in ?q= and, later, on the chip row.
   function filterTerms() { return controlTerms().concat(parseQuery(state.query)); }
-  function activeTerms() {
+  // What the view itself says, before any filter the user added. Split out because
+  // two questions need it separately: "what does the board show" (below) and "what
+  // could this view ever show" (the filter panel, deciding which values are real).
+  function viewTerms() {
     var t = parseQuery(VIEWS[state.focus] || VIEWS.all);
     if (ARCHIVABLE[state.focus] && !state.showDone) t.push(NOT_DONE);
-    return t.concat(filterTerms());
+    return t;
   }
+  function activeTerms() { return viewTerms().concat(filterTerms()); }
 
   // Recomputed once per render (renderBoard) so the query isn't parsed per item.
   var activeQuery = null;
@@ -3072,6 +3104,7 @@
           c.classList.toggle("on", on);
           c.setAttribute("aria-pressed", on ? "true" : "false");
         });
+        paintWholesale(); // the empty-columns row is board-only
       });
       seg.appendChild(b);
     });
@@ -3093,21 +3126,38 @@
     sortSel.addEventListener("change", function () { setDisplay("sort", sortSel.value); });
     pop.appendChild(dpRow("Ordering", sortSel));
 
-    pop.appendChild(el("div", "dp-rule"));
-
-    // Wholesale inclusion — not filters: these say how complete the list is.
-    var doneRow = el("label", "fp-toggle");
-    var doneCb = document.createElement("input"); doneCb.type = "checkbox"; doneCb.checked = state.showDone;
-    doneCb.addEventListener("change", function () { setDisplay("showDone", doneCb.checked, "done"); });
-    doneRow.appendChild(doneCb); doneRow.appendChild(el("span", null, "Show done & cancelled"));
-    pop.appendChild(doneRow);
-
-    var emptyRow = el("label", "fp-toggle");
-    var emptyCb = document.createElement("input"); emptyCb.type = "checkbox"; emptyCb.checked = state.showEmpty;
-    emptyCb.addEventListener("change", function () { setDisplay("showEmpty", emptyCb.checked, "empty"); });
-    emptyRow.appendChild(emptyCb); emptyRow.appendChild(el("span", null, "Show empty columns"));
-    emptyRow.title = "Board only — an empty column is still a drop target. A list never shows empty groups.";
-    pop.appendChild(emptyRow);
+    // Wholesale inclusion — not filters: these say how complete the list is. Each is
+    // offered only where it can change something, which is the rule this menu was
+    // breaking twice over: the archive toggle can't matter in a view whose statuses
+    // are never terminal (that's what ARCHIVABLE already says), and empty columns
+    // are read by renderColumns alone — renderList drops empty groups unconditionally,
+    // so in list layout the box was checked and inert in *every* view.
+    // Its own container and repainted by the layout toggle above, because one of the
+    // two conditions is the layout: flipping to List while the menu is open has to
+    // take the empty-columns row with it, or the menu shows a control it has just
+    // made inert.
+    var wholeHost = el("div", "dp-wholesale");
+    pop.appendChild(wholeHost);
+    paintWholesale();
+    function paintWholesale() {
+      wholeHost.innerHTML = "";
+      var rows = [];
+      if (ARCHIVABLE[state.focus]) rows.push(["showDone", "done", "Show done & cancelled", null]);
+      if (state.view === "board") {
+        rows.push(["showEmpty", "empty", "Show empty columns", "An empty column is still a drop target."]);
+      }
+      if (!rows.length) return;
+      wholeHost.appendChild(el("div", "dp-rule"));
+      rows.forEach(function (w) {
+        var row = el("label", "fp-toggle");
+        var cb = document.createElement("input");
+        cb.type = "checkbox"; cb.checked = state[w[0]];
+        cb.addEventListener("change", function () { setDisplay(w[0], cb.checked, w[1]); });
+        row.appendChild(cb); row.appendChild(el("span", null, w[2]));
+        if (w[3]) row.title = w[3];
+        wholeHost.appendChild(row);
+      });
+    }
 
     pop.appendChild(el("div", "dp-rule"));
     // "Save as view" is Linear's "Set default for everyone", git-native: it writes
@@ -3676,11 +3726,37 @@
           { value: "stale", label: "Stale" },
           { value: "adapted", label: "Adapted source" },
           { value: "etapp", label: "Is an etapp" },
-          { value: "orphan", label: "Outside every etapp" },
+          { value: "member", label: "In an etapp" },
+          { value: "standalone", label: "In no etapp" },
         ];
       },
     },
   ];
+  // Can this value match anything at all in this view? One that can't is a trap: it
+  // commits, the board empties, and nothing says why. In Inbox that was every status
+  // but `inbox`, plus `is:ready` and `is:done`. The Etapp field already followed this
+  // rule inside its own `values()` — this makes it the panel's rule instead of one
+  // field's.
+  //
+  // Judged against the *view*, never against the filters already set, so ticking one
+  // box never makes other values vanish from under your hand. (`countFor` answers a
+  // different question — how many pucks the click would leave — and models the
+  // toggle, so it stays non-zero for a value that matches nothing.) An active value
+  // always survives, or there would be no way to un-tick it.
+  function valueReachable(field, value) {
+    var probe = viewTerms();
+    probe.push(field === "is"
+      ? { field: "is", op: "is", values: [value], neg: false }
+      : { field: field, op: "in", values: [value], neg: false });
+    for (var i = 0; i < DATA.items.length; i++) if (runQuery(DATA.items[i], probe)) return true;
+    return false;
+  }
+  function reachableValues(f) {
+    var active = filterValues(f.key, false).concat(filterValues(f.key, true));
+    return f.values().filter(function (v) {
+      return active.indexOf(v.value) !== -1 || valueReachable(f.key, v.value);
+    });
+  }
   function fieldByKey(k) {
     for (var i = 0; i < FILTER_FIELDS.length; i++) if (FILTER_FIELDS[i].key === k) return FILTER_FIELDS[i];
     return null;
@@ -3732,6 +3808,7 @@
     pop.innerHTML = "";
     pop.appendChild(el("div", "fp-label", "Add filter"));
     FILTER_FIELDS.forEach(function (f) {
+      if (!reachableValues(f).length) return; // nothing here could change this view
       var row = el("button", "fp-row");
       row.type = "button";
       row.appendChild(el("span", null, f.label));
@@ -3751,7 +3828,7 @@
     back.addEventListener("click", function () { renderFieldList(pop); });
     pop.appendChild(back);
 
-    var all = f.values();
+    var all = reachableValues(f);
     var box = el("div", "fp-values");
     var searchBox = null;
     if (f.search && all.length > 8) {
