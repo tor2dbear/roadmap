@@ -139,3 +139,12 @@ Felet var att två betydelser fick samma kläder. `No priority` och `Unassigned`
   Att en vy läser bättre som lista är ett skäl att välja List (och det valet består),
   inte ett skäl att köra över den som valde Board. Samma familj som de tre döda
   kontrollerna ovanför: en kontroll får inte ljuga om vad den gör.
+
+- **Gruppering på ett fält vyn redan låst erbjuds inte.** I inkorgen gav
+  `group=status` en enda kolumn som hette samma sak som vyn — `INBOX 11` under en
+  rubrik som säger `Inbox 11`. Villkoret är härlett ur hur många statuskolumner vyn
+  kan visa (`columnsForFocus().length > 1`), inte ur vyns namn, så en framtida
+  enstatusvy får samma behandling utan att stå med i någon lista.
+  Det är den **effektiva** grupperingen som faller tillbaka på `repo`; `state.group`
+  behåller det man valde. Ett besök i inkorgen skriver alltså inte över
+  grupperingen man satt någon annanstans, och URL:en bär fortfarande valet.

@@ -2586,7 +2586,17 @@
       write: function (item, k) { changePriority(item, k === NO_VALUE ? null : k); },
     },
   };
-  function activeGroup() { return GROUPS[state.group] || GROUPS.status; }
+  // Grouping by a field the view has already fixed makes one group named after the
+  // view — "INBOX 11" under a header that says "Inbox 11". Derived from the columns
+  // the view can show rather than from the view's name, so a future single-status
+  // view gets the same treatment without being listed anywhere.
+  //
+  // The *effective* group falls back; `state.group` keeps what you chose. Visiting
+  // the inbox therefore doesn't overwrite the grouping you set elsewhere, and the
+  // URL still carries the choice you made.
+  function groupUsable(k) { return k !== "status" || columnsForFocus().length > 1; }
+  function effectiveGroup() { return groupUsable(state.group) ? state.group : "repo"; }
+  function activeGroup() { return GROUPS[effectiveGroup()] || GROUPS.status; }
   // "Manual" is the only ordering where a hand-placed position means anything —
   // every other mode derives it from a field (see sortComparator).
   function manualRank() { return state.sort === "default"; }
@@ -3252,9 +3262,9 @@
 
     // Grouping — the columns' field. This is the row that turns one board into an
     // agent queue, a fleet view or (once `target` exists) a timeline.
-    var groupSel = selectEl("np-select", Object.keys(GROUPS).map(function (k) {
+    var groupSel = selectEl("np-select", Object.keys(GROUPS).filter(groupUsable).map(function (k) {
       return { value: k, label: GROUPS[k].label };
-    }), state.group);
+    }), effectiveGroup());
     groupSel.addEventListener("change", function () { setDisplay("group", groupSel.value); });
     pop.appendChild(dpRow("Grouping", groupSel));
 
@@ -3356,8 +3366,8 @@
     });
     // Display options belong in the palette too — the palette is the extensibility
     // surface, so a new display choice never has to become another button.
-    Object.keys(GROUPS).forEach(function (k) {
-      if (k === state.group) return;
+    Object.keys(GROUPS).filter(groupUsable).forEach(function (k) {
+      if (k === effectiveGroup()) return;
       cmds.push({ __cmd: true, label: "Group by " + GROUPS[k].label.toLowerCase(), hint: "Display", icon: "sliders", run: function () { setDisplay("group", k); } });
     });
     cmds.push({ __cmd: true, label: state.view === "list" ? "Layout: board" : "Layout: list", hint: "Display", icon: state.view === "list" ? "grid" : "list", run: function () { setDisplay("view", state.view === "list" ? "board" : "list"); } });
