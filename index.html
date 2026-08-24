@@ -33,8 +33,10 @@
             <button id="sideNew" class="head-act" type="button" aria-label="New puck" hidden></button>
           </div>
         </div>
+        <!-- The group headings are emitted by JS, not written here: which groups
+             exist is a property of the views (see VIEW_GROUPS), and a heading in
+             the markup would outlive the rows it names. -->
         <div class="side-section">
-          <div class="side-eyebrow">Views</div>
           <nav class="side-views" id="sideViews" aria-label="Views"></nav>
         </div>
         <!-- Saved views: named queries from board.config.json (config, not truth);

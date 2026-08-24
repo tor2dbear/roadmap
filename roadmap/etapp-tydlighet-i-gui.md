@@ -2,7 +2,7 @@
 title: "Etapp: tydlighet i GUI:t"
 status: now
 tags: [ui, product]
-updated: 2026-08-23
+updated: 2026-08-24
 created: 2026-08-23
 order: 5
 depends: [ui-primitiv-och-skalor]
@@ -51,7 +51,41 @@ Fem fynd, i fallande ordning av hur mycket de skymde:
 - **Rollupen räknar direkta barn.** Beslutat: det komponerar — varje nivå svarar för
   sitt eget, och en underetapp visar sin egen `N/M` i medlemslistan.
 
+- **Navigationen fick två jobb i stället för ett.** Sidomenyn blandade två sorters
+  rad. Nu tre block: **Inbox** överst för sig (ett rum man går till för att *tömma*
+  — koden sa det redan, `all` är bokstavligen `-status:inbox`; bara presentationen
+  sa något annat), **Views** = utsnittet man valt (All pucks · Etapps · Standalone),
+  **Signals** = brädets egen åsikt (Ready · ⚠ Needs attention).
+- **`Standalone` — den lösa pucken, som vy.** Predikatet fanns redan som
+  `is:orphan`; det saknades bara en dörr till det. Med `is:member` (ny) blir de tre
+  lägena kompletta: `is:etapp` + `is:member` + `is:standalone` täcker varje puck, och
+  det enda som räknas två gånger är underetapperna — som *är* bägge. `is:standalone`
+  är alias för `is:orphan`, så frågespråket säger samma ord som knappen.
+  Det här är den billiga vägen till "etapper och lösa pucks som två vyer": `all`
+  behöver inte börja ljuga genom att gömma medlemmar, och beslutet om den ska göra
+  det kan tas när det finns riktiga etapper att titta på.
+- **Vyerna definieras en gång.** `VIEW_DEFS`/`VIEW_GROUPS` läses av både sidomenyn
+  och ⌘K-paletten. Innan dess var palettens lista handskriven — och Etapps saknades
+  där, en drift som uppstod i samma stund raden lades till i sidomenyn.
+- **En rad tjänar sin plats på det den tillför, inte på hierarki i allmänhet.**
+  Första försöket grindade både Etapps och Standalone på `counts.etapps`, och
+  renderade *All pucks 31 / Standalone 31* — samma lista under två namn, exakt vad
+  kommentaren ovanför sa att grinden skulle hindra. Vår enda etapp låg i inkorgen.
+  Rätt grind: Etapps visas så snart en etapp finns (den kan ligga i inkorgen, och då
+  är vyn enda vägen dit), Standalone bara när den *skiljer sig* från All pucks.
+  Hittat genom att titta på den renderade sidomenyn, inte i koden.
+
 ## Open questions
+- Ska `all` bli `-status:inbox -is:member` — alltså brädet som karta, en etapp som
+  ett kort? Det ändrar vad man *ser*, inte bara vad man kan *fråga efter*: `now`
+  tappar arbete (medlemmar), `Ready` måste behålla dem, och "All pucks" slutar vara
+  alla pucks. Avvaktar tills det finns en riktig etapp med fyra–sex medlemmar; idag
+  skulle ändringen påverka ett kort, och en strukturregel beslutad på ett urval av
+  ett är en regel man river upp.
+- Sparade vyer bär redan sin basvy i tupeln (`view`; saknas den = `all`), men
+  sidomenyn använder inte det. Kandidat: gör *vytiteln* till switchen — den renderas
+  redan på båda bredder — och lägg inbyggda + sparade vyer i samma `openSurface`,
+  tillsammans med `Save as view`. Då bor handlingen och dess resultat på samma ställe.
 - Progressringen (fynd 2) återstår. Den bör vänta tills medlemslistan använts ett
   tag: en ring säger *andel*, och det är först med riktiga etapper man ser om andel
   eller antal är det man faktiskt jämför.

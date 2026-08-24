@@ -292,8 +292,16 @@
     // etapp, and one with neither parent nor children stands outside every etapp.
     blocking: function (i) { return !!(i.blocks || []).length; },
     etapp: function (i) { return !!(i.children || []).length; },
-    orphan: function (i) { return !i.parentRef && !(i.children || []).length; },
+    member: function (i) { return !!i.parentRef; },
+    // `standalone` is what the sidebar row is called, `orphan` is what it was called
+    // first; same predicate, so the query language says what the button says.
+    orphan: isStandalone,
+    standalone: isStandalone,
   };
+  // The three states cover every puck between them, and the only ones counted twice
+  // are the sub-etapps — which genuinely are both. That's the check that the split
+  // is the right one: `is:etapp` + `is:member` + `is:standalone` leaves nothing out.
+  function isStandalone(i) { return !i.parentRef && !(i.children || []).length; }
 
   // Split on whitespace, but keep "quoted phrases" whole so free text can contain spaces.
   function tokenize(str) {
@@ -388,12 +396,19 @@
   // inbox has its own space, and the archive is added below unless it's shown.)
   // `is:etapp` is derived (a puck with children *is* the etapp), so the view is a
   // query and not a new record type — the same trick every other view uses.
-  var VIEWS = { all: "-status:inbox", ready: "is:ready", inbox: "status:inbox", etapps: "is:etapp", attention: "is:flagged" };
+  // Etapps carries no `-status:inbox`: an etapp can sit anywhere, inbox included,
+  // and hiding it there would make the sidebar's count disagree with the board.
+  // Standalone does carry it — an inbox puck is standalone by definition, and
+  // without the exclusion the row would just re-count the inbox.
+  var VIEWS = {
+    all: "-status:inbox", ready: "is:ready", inbox: "status:inbox",
+    etapps: "is:etapp", standalone: "-status:inbox is:standalone", attention: "is:flagged",
+  };
   // Which views can reach the archive at all, and therefore have to obey the toggle.
   // `ready` and `inbox` can't (their statuses are never terminal), and `attention`
-  // *wants* to — a flagged done puck is exactly what that view is for. `all` and
-  // `etapps` are the two that would otherwise show landed work unasked.
-  var ARCHIVABLE = { all: 1, etapps: 1 };
+  // *wants* to — a flagged done puck is exactly what that view is for. The rest are
+  // the ones that would otherwise show landed work unasked.
+  var ARCHIVABLE = { all: 1, etapps: 1, standalone: 1 };
   var NOT_DONE = { field: "is", op: "is", values: ["done"], neg: true };
 
   // Places and the filter popover, projected into terms. A place is just a filter
@@ -2704,7 +2719,10 @@
   }
 
   // The consistent view-header reflects the current focus + how many are shown.
-  var VIEW_TITLES = { all: "All pucks", ready: "Ready to take", inbox: "Inbox", etapps: "Etapps", attention: "Needs attention" };
+  var VIEW_TITLES = {
+    all: "All pucks", ready: "Ready to take", inbox: "Inbox",
+    etapps: "Etapps", standalone: "Standalone", attention: "Needs attention",
+  };
   function repoNameOf(repo) {
     for (var i = 0; i < DATA.sources.length; i++) if (DATA.sources[i].repo === repo) return DATA.sources[i].name;
     return repo.split("/").pop();
@@ -2873,36 +2891,74 @@
     });
     return c;
   }
+  // The views, named once and read by both the sidebar and the ⌘K palette — a new
+  // view can't now appear in one and be missing from the other, which is exactly
+  // what happened to Etapps (a sidebar row with no command).
+  var VIEW_DEFS = {
+    inbox: { label: "Inbox", title: "Raw ideas to triage — nothing here is a promise yet" },
+    all: { label: "All pucks", title: "The committed board — now/next/later" },
+    etapps: { label: "Etapps", title: "The pucks that hold other pucks — each with its rollup" },
+    standalone: { label: "Standalone", title: "Pucks in no etapp — the loose ones" },
+    ready: { label: "Ready", title: "Unblocked now/next — pick one up or hand it to an agent" },
+    attention: { label: "Needs attention", title: "Pucks whose declared status disagrees with reality" },
+  };
+  // Two kinds of row, answering two different questions — *Views* is the slice you
+  // chose to look at, *Signals* is the board's own opinion about it. Inbox is
+  // neither: it's a room you go to in order to empty it, so it stands above both
+  // and its number reads as a to-do rather than as a size. (It is also the one
+  // status excluded from every other view — `all` is literally `-status:inbox` —
+  // so it was already a room; only the presentation said otherwise.)
+  var VIEW_GROUPS = [
+    { label: null, keys: ["inbox"] },
+    { label: "Views", keys: ["all", "etapps", "standalone"] },
+    { label: "Signals", keys: ["ready", "attention"] },
+  ];
+  // Which rows this board has earned — the sidebar is navigation, not a feature
+  // list. Each row is gated on the thing it actually adds, not on hierarchy in
+  // general: Etapps earns its place as soon as one exists (it may sit in the inbox,
+  // which the committed board hides — the Etapps view is then the only way to see
+  // it), while Standalone earns its place only when it *differs* from All pucks,
+  // i.e. when at least one member is on the committed board. Gating both on
+  // `counts.etapps` looked right and rendered "All pucks 31 / Standalone 31" — one
+  // list under two names — because the only etapp we had was an inbox one.
+  function viewsShown(counts) {
+    return VIEW_GROUPS.map(function (g) {
+      return {
+        label: g.label,
+        keys: g.keys.filter(function (k) {
+          if (k === "etapps") return !!counts.etapps;
+          if (k === "standalone") return counts.standalone !== counts.all;
+          if (k === "attention") return !!counts.attention;
+          return true;
+        }),
+      };
+    }).filter(function (g) { return g.keys.length; });
+  }
   function buildFocusControl() {
     var counts = viewCounts();
-    var seg = el("div", "focusseg");
-    seg.setAttribute("role", "group");
-    seg.setAttribute("aria-label", "Views");
-    var defs = [
-      { key: "all", label: "All pucks", title: "The committed board — now/next/later" },
-      { key: "ready", label: "Ready", title: "Unblocked now/next — pick one up or hand it to an agent" },
-      { key: "inbox", label: "Inbox", title: "Raw ideas to triage — nothing here is a promise yet" },
-    ];
-    // Only when there are any: on a board with no hierarchy the row would be a
-    // permanent zero, and the sidebar is navigation, not a feature list.
-    if (counts.etapps) defs.push({ key: "etapps", label: "Etapps", title: "The pucks that hold other pucks — each with its rollup" });
-    if (counts.attention) defs.push({ key: "attention", label: "Needs attention", title: "Pucks whose declared status disagrees with reality" });
     // A view reads as active only when we're not inside a place — otherwise the
     // sidebar would highlight both "All pucks" and the repo you navigated into.
     var inPlace = placeActive();
-    defs.forEach(function (d) {
-      var on = state.focus === d.key && !inPlace;
-      var b = el("button", "focusbtn focus-" + d.key + (on ? " on" : ""));
-      b.type = "button";
-      b.title = d.title;
-      b.setAttribute("aria-pressed", on ? "true" : "false");
-      b.appendChild(el("span", "focus-label", d.label));
-      if (counts[d.key]) b.appendChild(el("span", "focus-n", String(counts[d.key])));
-      b.addEventListener("click", function () { goToView(d.key); });
-      seg.appendChild(b);
-    });
     var host = document.getElementById("sideViews") || document.getElementById("filters");
-    host.appendChild(seg);
+    viewsShown(counts).forEach(function (g) {
+      if (g.label) host.appendChild(el("div", "side-eyebrow", g.label));
+      var seg = el("div", "focusseg");
+      seg.setAttribute("role", "group");
+      seg.setAttribute("aria-label", g.label || "Inbox");
+      g.keys.forEach(function (key) {
+        var d = VIEW_DEFS[key];
+        var on = state.focus === key && !inPlace;
+        var b = el("button", "focusbtn focus-" + key + (on ? " on" : ""));
+        b.type = "button";
+        b.title = d.title;
+        b.setAttribute("aria-pressed", on ? "true" : "false");
+        b.appendChild(el("span", "focus-label", d.label));
+        if (counts[key]) b.appendChild(el("span", "focus-n", String(counts[key])));
+        b.addEventListener("click", function () { goToView(key); });
+        seg.appendChild(b);
+      });
+      host.appendChild(seg);
+    });
   }
   // Switch the active view (used by the ⌘K palette). Same as a sidebar view click:
   // clears any place so the view is global.
@@ -3103,10 +3159,14 @@
   function paletteCommands() {
     var cmds = [], signedIn = !!ghToken(), vc = viewCounts();
     if (signedIn) cmds.push({ __cmd: true, label: "New puck…", hint: "Create", icon: "plus", run: function () { openNewPuckPanel(); } });
-    cmds.push({ __cmd: true, label: "Go to All pucks", hint: "View", icon: "list", run: function () { setFocus("all"); } });
-    cmds.push({ __cmd: true, label: "Go to Ready", hint: "View", icon: "list", run: function () { setFocus("ready"); } });
-    cmds.push({ __cmd: true, label: "Go to Inbox", hint: "View", icon: "list", run: function () { setFocus("inbox"); } });
-    if (vc.attention) cmds.push({ __cmd: true, label: "Go to Needs attention", hint: "View", icon: "list", run: function () { setFocus("attention"); } });
+    // Straight off the sidebar's own definition, in the same order and under the
+    // same conditions — the palette can't fall behind a view the sidebar has.
+    viewsShown(vc).forEach(function (g) {
+      g.keys.forEach(function (key) {
+        cmds.push({ __cmd: true, label: "Go to " + VIEW_DEFS[key].label, hint: "View", icon: "list",
+          run: function () { setFocus(key); } });
+      });
+    });
     // Display options belong in the palette too — the palette is the extensibility
     // surface, so a new display choice never has to become another button.
     Object.keys(GROUPS).forEach(function (k) {

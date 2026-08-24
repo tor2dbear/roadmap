@@ -804,6 +804,9 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 
 /* focus switcher → vertical nav in the sidebar */
 .side-views .focusseg { display: flex; flex-direction: column; background: none; border: 0; padding: 0; gap: 1px; }
+/* The nav now holds several groups, so a heading that follows rows needs the same
+   air the sidebar puts between its sections (gap: 18px) — the first one doesn't. */
+.side-views .focusseg + .side-eyebrow { margin-top: 18px; }
 /* The sidebar is the switcher's only home, so this is not a variant — it is the
    control. Folded in rather than kept as a second size under a parent selector. */
 .focusbtn {
