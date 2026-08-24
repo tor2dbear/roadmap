@@ -1260,12 +1260,22 @@
       // detail pane — and handing focus to a trigger inside that pane strands it in
       // a hidden subtree. One turn later we can see which it was, and whether
       // anything else has claimed focus in the meantime.
-      if (hadFocus && lastFocus && document.contains(lastFocus)) {
+      // No `document.contains(lastFocus)` here. A review read this as a live bug —
+      // "the redraw detaches the trigger, so the guard skips the very case the
+      // branch inside was written for" — and it isn't one: propPicker calls
+      // `api.close()` *before* `onPick()`, so the trigger is still attached when
+      // this runs. Verified by running the restore-after-commit test against the
+      // unmodified code; it passed.
+      // The guard goes anyway, because it states a requirement the code doesn't
+      // have: the branch inside handles a detached node on purpose, so demanding an
+      // attached one here is a trap for the first caller that rebuilds before it
+      // closes. It also covers `lastFocus` being null while the row is known.
+      if (hadFocus && (lastFocus || lastField)) {
         setTimeout(function () {
           var now = document.activeElement;
           if (now && now !== document.body) return;   // someone else took it
           var back = lastFocus;
-          if (!document.contains(back) && lastField) {
+          if ((!back || !document.contains(back)) && lastField) {
             // Redrawn: find the same row's control in the pane that replaced it.
             var row = document.querySelector('.prop[data-field="' + lastField + '"]');
             back = row ? focusables(row)[0] : null;
@@ -2863,8 +2873,11 @@
   // counted with that view's query, not with the source's grand total. The old
   // number came straight from the harvester and counted the archive too, so "PIA
   // 52" landed you on six cards. Same rule the views already hold themselves to.
+  // Archive-aware for the same reason the view counts are: `goToPlace()` keeps
+  // `state.showDone`, so with the toggle on a repo click shows its landed cards
+  // while the chip's number excluded them. A place counts what its click shows.
   function placeCounts() {
-    var q = parseQuery(VIEWS.all).concat(NOT_DONE);
+    var q = parseQuery(VIEWS.all).concat(state.showDone ? [] : [NOT_DONE]);
     var repo = {}, agent = {};
     DATA.items.forEach(function (it) {
       if (!runQuery(it, q)) return;
@@ -4474,6 +4487,19 @@
     return document.body.classList.contains("viewing-puck") &&
       !!currentDetailItem && currentDetailItem.id === item.id;
   }
+  // What every optimistic edit owes the rest of the interface: the board, the
+  // navigation (counts move when a puck changes status or etapp), and the open puck
+  // — whichever end of the edit it happens to be. Written once because each of the
+  // three has been forgotten separately.
+  function afterEdit(/* …items whose page may be open */) {
+    renderBoard();
+    refreshNav();
+    for (var i = 0; i < arguments.length; i++) {
+      var it = arguments[i];
+      if (typeof it === "string") it = itemById(it);
+      if (it) reopenIfOpen(it);
+    }
+  }
   function reopenIfOpen(item) {
     if (!isOpenPuck(item)) return;
     if (openSurfaces.length) { pendingRefresh = item; return; }
@@ -4491,15 +4517,20 @@
     var prevS = item.status, prevU = item.updated;
     item.status = status; item.updated = today();
     recountEtapp(item.parentRef); // the etapp's rollup follows its pucks
-    renderBoard(); reopenIfOpen(item);
+    syncRollupSignals(item);      // …and its own flag follows its status
+    // refreshNav too: moving a puck between active and terminal changes what a repo
+    // chip, an agent queue and every view row count. Without it the sidebar kept
+    // counting a puck that clicking it no longer shows, until unrelated navigation.
+    afterEdit(item);
     toast("Saving…");
     commitStatus(item, status)
       .then(function () { toast("✓ Saved — live in ~1 min"); })
       .catch(function (err) {
         item.status = prevS; item.updated = prevU;
         recountEtapp(item.parentRef);
+        syncRollupSignals(item);
         noteWriteError(item, err);
-        renderBoard(); reopenIfOpen(item);
+        afterEdit(item);
         toast("✗ " + err.message, true);
       });
   }
@@ -4875,6 +4906,27 @@
     p.progress = kids.length
       ? { done: kids.filter(function (k) { return !!TERMINAL[k.status]; }).length, total: kids.length }
       : null;
+    syncRollupSignals(p);
+  }
+  // The rollup pair is a pure function of a puck's own status and its progress, and
+  // the board already maintains both optimistically — so it can be recomputed here
+  // instead of waiting for the next harvest, an hour away. Without it, following a
+  // `rollup-done` warning and marking the etapp done left the warning standing and
+  // the etapp sitting in Needs attention until the harvest caught up.
+  //
+  // The rule is stated twice (here and in harvest.mjs), which is the same trade
+  // `relink`/`recountEtapp` already make for `children`/`progress`: an optimistic
+  // edit has to derive what the harvester derives, or the board contradicts itself
+  // between an edit and the next sync.
+  function syncRollupSignals(item) {
+    if (!item) return;
+    var out = (item.signals || []).filter(function (s) { return s.type.indexOf("rollup-") !== 0; });
+    if (item.progress && item.progress.total) {
+      var closed = item.progress.done === item.progress.total;
+      if (TERMINAL[item.status] && !closed) out.push({ type: "rollup-open" });
+      if (!TERMINAL[item.status] && closed) out.push({ type: "rollup-done" });
+    }
+    item.signals = out;
   }
   // Move a puck between etapps locally (the same derivation the harvester does).
   function relink(item, parentId, raw) {
@@ -5042,7 +5094,10 @@
     var prevRef = item.parentRef, prevRaw = item.parent, prevU = item.updated;
     relink(item, parentId, raw);
     item.updated = today();
-    renderBoard(); reopenIfOpen(item);
+    // Both ends changed, and the etapp is as likely to be the page you're on: adding
+    // from `＋ Add puck` writes the *child*, so refreshing only that left the
+    // Contains list and its rollup stale on the etapp you were looking at.
+    afterEdit(item, prevRef, parentId);
     toast("Saving…");
     commitParent(item, raw)
       .then(function () { toast(raw ? "✓ In etapp " + target.title + " — live in ~1 min" : "✓ Out of its etapp — live in ~1 min"); })
@@ -5050,7 +5105,7 @@
         relink(item, prevRef, prevRaw);
         item.updated = prevU;
         noteWriteError(item, err);
-        renderBoard(); reopenIfOpen(item);
+        afterEdit(item, prevRef, parentId);
         toast("✗ " + err.message, true);
       });
   }
@@ -5062,7 +5117,11 @@
   function memberRow(k) {
     var r = el("button", "row member" + (TERMINAL[k.status] ? " done" : ""));
     r.type = "button";
-    r.appendChild(el("span", "status-dot status-" + k.status));
+    // The status pill, not a coloured dot. Now, Next and Later differed by hue
+    // alone, and the row's `title` is a hover tooltip — nothing a colour-blind
+    // reader on a touch screen can reach. The pill is the component that already
+    // says a status *in words*, on every card, so this is one less thing to draw.
+    r.appendChild(el("span", "status-pill status-" + k.status, STATUS_LABEL[k.status] || k.status));
     var t = el("span", "member-title", k.title);
     r.appendChild(t);
     if (k.progress) r.appendChild(progressBadge(k));
@@ -5080,8 +5139,13 @@
       title: "Add a puck to " + item.title,
       current: null,
       repo: item.repo,
+      // `!canWrite(other)` because this picker writes the *chosen* puck's file, not
+      // this one's: on a multi-repo board a token can own this etapp's repo and not
+      // the candidate's, and picking one would commit, fail and roll back — then go
+      // on offering the same impossible choice.
       exclude: function (other) {
-        return other === item || other.parentRef === item.id || !other.native || wouldLoop(other, item.id);
+        return other === item || other.parentRef === item.id || !other.native ||
+          !canWrite(other) || wouldLoop(other, item.id);
       },
       onPick: function (chosen) { if (chosen) changeParent(chosen, item.id); },
     });

@@ -123,6 +123,32 @@ Fem fynd, i fallande ordning av hur mycket de skymde:
   om samma vy. En siffra som hoppar förklaras av knappen man just tryckte; två olika
   siffror för en vy förklaras aldrig. Räknaren lyder växeln nu, och ett test kräver
   att sidomenyn, vyhuvudet och antalet kort är samma tal i bägge lägena.
+- **En optimistisk ändring når hela gränssnittet.** Fyra granskningsfynd som alla
+  hade samma form: en ändring uppdaterade *en* del av vyn och lämnade resten kvar.
+  - `＋ Add puck` skriver **barnet**, så bara barnet ritades om — Contains-listan och
+    rollupen på etappsidan man faktiskt stod på stod kvar tills man stängde och
+    öppnade igen.
+  - En statusändring rörde inte navigationen, så sidomenyn kunde fortsätta räkna en
+    puck som ett klick inte längre visade.
+  - `placeCounts()` pinnade ut arkivet medan `goToPlace()` bevarar växeln, så ett
+    repo-chip sa ett tal och klicket visade ett annat.
+  - Rollup-flaggorna räknas bara vid skörd, så följde man en `rollup-done`-varning
+    och markerade etappen klar stod varningen kvar en timme.
+  Nu en `afterEdit()` som varje skrivning går genom — bräde, navigation och den
+  öppna pucken, *vilken ände av ändringen den än är* — plus `syncRollupSignals()`
+  som härleder paret av egen status och progress, precis som `recountEtapp` redan
+  härleder progressen. Regeln står på två ställen (här och i harvestern), vilket är
+  samma pris `relink` redan betalar: en optimistisk ändring måste härleda det
+  harvestern härleder, annars motsäger tavlan sig själv fram till nästa synk.
+- **Väljaren erbjuder inget den inte kan skriva.** `＋ Add puck` skriver den *valda*
+  puckens fil, inte etappens — så på en flerrepo-tavla kunde den erbjuda pucks ur ett
+  repo token inte äger. Valet hade committat, misslyckats, rullats tillbaka, och
+  sedan erbjudits igen.
+- **Medlemmens status står i ord.** Prickens kulör var enda skillnaden mellan Now,
+  Next och Later, och radens `title` är en hover-tooltip som en färgblind läsare på
+  touch aldrig når. Nu samma statuspill som korten använder — komponenten som redan
+  finns för att säga en status *i ord*. `.status-dot` var dess enda användning och är
+  borta.
 
 ## Open questions
 - Progressringen (fynd 2) återstår. Den bör vänta tills medlemslistan använts ett
