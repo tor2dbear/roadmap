@@ -109,6 +109,20 @@ Felet var att två betydelser fick samma kläder. `No priority` och `Unassigned`
     satt, så värden försvinner inte under handen medan man kryssar; ett aktivt
     värde står alltid kvar, annars gick det inte att kryssa av.
 
+- **Statusväljaren visar tre sorter, inte sex steg.** `now · next · later ─ inbox ─
+  done · cancelled`. De sex läste som en enda stege där `inbox` råkade ligga mellan
+  `later` och `done`, alltså som ett stadium *efter* "senare". Modellen säger redan
+  motsatsen på två oberoende ställen — `TERMINAL` namnger det avgjorda paret och
+  `VIEWS.all` är bokstavligen `-status:inbox` — så indelningen är härledd ur de två
+  och inte utskriven. En ny status hamnar i rätt grupp av vad den *är*.
+  Ordningen inuti är STATUSES egen, alltså tavlans kolumnordning. Att lägga `inbox`
+  först hade läst kronologiskt och matchat sidomenyn, men gett appen en andra
+  ordning på samma lista och tryckt ner de tre vanligaste målen ett steg; att stängsla
+  den där den står säger samma sak billigare.
+  Väljarprimitiven fick `{ sep: true }` som optionsform — den ritar `.menu-rule`,
+  samma linje som ⋯-menyn. Väljaren lär sig alltså aldrig vad sorterna *är*; bara
+  den som bygger listan vet det. Prioritet är en ordnad skala och delas inte.
+
 ## Open questions
 - Nyckelkolumnen är 92px. Med chippar borta känns avståndet nyckel→värde stort;
   värt att prova 76px.

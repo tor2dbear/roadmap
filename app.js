@@ -1403,13 +1403,46 @@
     else if (mq.addListener) mq.addListener(onChange);
   })();
 
+  // The six statuses are not one scale, and the model already says so in two
+  // independent places: `TERMINAL` names the settled pair, and `VIEWS.all` is
+  // literally `-status:inbox` — the one status excluded from every board view.
+  // Three kinds, then: the queue (where in the order of work), the inbox (not a
+  // promise yet), the archive (settled). Drawn flat they read as six steps of one
+  // ladder, with `inbox` sitting between `later` and `done` as though it came after
+  // "later" and before "done".
+  //
+  // Derived from those two properties rather than written out, so a status added to
+  // STATUSES lands in a group by what it *is*. `inbox` is the only one named here,
+  // and it was already special by name in `VIEWS.all`.
+  //
+  // The order inside is STATUSES' own — the board's column order. Putting `inbox`
+  // first would read chronologically and match the sidebar, but it would give the
+  // app a second ordering of one list and push the three common targets down a row;
+  // fencing it where it stands says the same thing for less.
+  function statusOptions() {
+    var kind = function (s) { return s === "inbox" ? 1 : TERMINAL[s] ? 2 : 0; };
+    var out = [], last = null;
+    DATA.statuses.forEach(function (s) {
+      var k = kind(s);
+      if (last !== null && k !== last) out.push({ sep: true });
+      last = k;
+      out.push({ value: s, label: STATUS_LABEL[s] || s });
+    });
+    return out;
+  }
+
   // A Linear-style editable property: a single chip showing the *current* value;
   // click opens a picker popover to change it. Static chip when not editable. This
   // is the growable pattern — a new field is one more propPicker, not a button row.
-  //   opts: { editable, current, options:[{value,label}], valueNode(o), onPick(v) }
+  //   opts: { editable, current, options:[{value,label}|{sep:true}], valueNode(o), onPick(v) }
+  // An option carrying `sep: true` draws a rule instead of a row — the same rule the
+  // ⋯ menu uses. It lets a list say "these are different kinds of thing" without the
+  // picker learning what the kinds are; only the caller that builds the options knows.
   function propPicker(opts) {
     var cur = null;
-    for (var i = 0; i < opts.options.length; i++) if (opts.options[i].value === opts.current) cur = opts.options[i];
+    for (var i = 0; i < opts.options.length; i++) {
+      if (!opts.options[i].sep && opts.options[i].value === opts.current) cur = opts.options[i];
+    }
     var chip = el("button", "pick-chip");
     chip.type = "button";
     function paint(node) { chip.innerHTML = ""; chip.appendChild(node); }
@@ -1428,6 +1461,7 @@
         onClose: function () { open = null; },
         build: function (list, api) {
           opts.options.forEach(function (o) {
+            if (o.sep) { list.appendChild(el("div", "menu-rule")); return; }
             var mi = el("button", "row pick-mi" + (o.value === opts.current ? " on" : ""));
             mi.type = "button";
             mi.appendChild(opts.valueNode(o));
@@ -1969,7 +2003,7 @@
       title: "Status", // the sheet is a dialog; an unnamed one tells a screen reader nothing
       editable: editable,
       current: item.status,
-      options: DATA.statuses.map(function (s) { return { value: s, label: STATUS_LABEL[s] || s }; }),
+      options: statusOptions(),
       valueNode: function (o) { return el("span", "status-pill status-" + o.value, o.label); },
       onPick: function (v) { changeStatus(item, v); },
     })));
