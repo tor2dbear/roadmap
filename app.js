@@ -1800,7 +1800,7 @@
   // away and can carry a rule above it; the rail keeps every value edit.
   function puckMenu(item) {
     var wrap = el("div", "prop-pick puck-more");
-    var btn = el("button", "btn btn--quiet btn--icon");
+    var btn = el("button", "btn btn--icon");
     btn.type = "button";
     btn.title = "More actions";
     btn.setAttribute("aria-label", "More actions");

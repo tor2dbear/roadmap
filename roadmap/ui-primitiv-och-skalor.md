@@ -106,6 +106,15 @@ Flikarna är däremot rätt: `.tab-btn` (understruken, innehåll) och `.focusbtn
   som kunde bli fel. Den säger härkomst nu — `145 pucks · generated <tid>` plus de
   tre maskinutgångarna — och göms på puckvyn.
 
+- **⋯ fick dela-knappens form.** Den ritades först som `btn--quiet` — ingen
+  fyllning, transparent ram, `--ink-3` — och var praktiskt taget osynlig: ingenting
+  sa att den gick att trycka på, och två läsare i rad hittade inte `Delete` inuti
+  den. Den bär nu `.btn`-basens fyllning, hårfina ram och radie, alltså exakt samma
+  form som topbarens dela-knapp, för det *är* samma sorts sak: sidans enda kontroll
+  som gör något med filen i stället för med ett fält. En aning mindre (28px mot
+  38px), för den sitter bland flikarna och inte i chromet. Testet mäter formen mot
+  dela-knappen i stället för mot literaler, så de kan inte glida isär.
+
 ## Open questions
 - Ska `.badge` och `.btn` ta färgen som modifierare (`.badge--status-now`) eller
   som `currentColor` från en förälder? Statuspillret gör redan det senare.

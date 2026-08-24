@@ -1314,9 +1314,18 @@ body.preload * { transition: none !important; }
   margin: 20px 0 24px; border-bottom: 1px solid var(--line);
 }
 .tab-list { display: flex; gap: 2px; min-width: 0; }
+/* Same shape as the topbar's share button — panel fill, hairline border, the same
+   radius — because it is the same kind of thing: the one control on this page that
+   acts on the file rather than on a field. Drawn as a quiet borderless glyph first,
+   it was invisible: nothing said it was pressable, and two readers in a row failed
+   to find Delete inside it. A shade smaller than share, since it sits beside the
+   tabs rather than in the chrome. */
 .puck-more { margin-bottom: 4px; }
-.puck-more .btn { color: var(--ink-3); }
-.puck-more .btn:hover { color: var(--ink); background: var(--panel-2); }
+.puck-more .btn { color: var(--ink-2); }
+.puck-more .btn svg { width: 16px; height: 16px; }
+@media (hover: hover) {
+  .puck-more .btn:hover { border-color: var(--accent); color: var(--ink); }
+}
 .tab-btn {
   font: inherit; font-size: var(--fs-md); background: none; border: 0;
   border-bottom: 2px solid transparent; margin-bottom: -1px; padding: 8px 10px;
