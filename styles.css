@@ -33,6 +33,13 @@
   --inbox: #5f6590;
   --done: #8f887c;
   --cancelled: #b0a89c;
+  /* Three reds with three jobs, named so they stop being literals: a destructive
+     *word* (Delete), the urgent priority *mark*, and the one solid surface that
+     carries white text. The link red and the menu-item red were the same job in two
+     shades, forty lines apart. */
+  --danger: #c0564f;
+  --urgent: #d64545;
+  --danger-solid: #b91c1c;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
@@ -53,6 +60,9 @@
     --inbox: #8b93c0;
     --done: #8f887c;
     --cancelled: #7e776c;
+    --danger: #d98d84;
+    --urgent: #e07070;
+    --danger-solid: #a83232;
     color-scheme: dark;
   }
 }
@@ -73,10 +83,19 @@
   --inbox: #8b93c0;
   --done: #8f887c;
   --cancelled: #7e776c;
+  --danger: #d98d84;
+  --urgent: #e07070;
+  --danger-solid: #a83232;
   color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
+/* `hidden` means hidden. The browser's own rule is `[hidden] { display: none }`,
+   which any class that sets `display` outranks — so every component that lays
+   itself out had to carry its own `[hidden]` exception, and seventeen of them did.
+   The eighteenth (`.side-section`) never got one, and the Agents heading showed
+   above an empty list. One rule, and nothing can forget it. */
+[hidden] { display: none !important; }
 html, body { margin: 0; }
 body {
   background: var(--bg);
@@ -130,7 +149,6 @@ body {
   line-height: 1;
   cursor: pointer;
 }
-.search-clear[hidden] { display: none; }
 @media (hover: hover) { .search-clear:hover { color: var(--ink); border-color: var(--accent); } }
 
 /* ── search suggestions dropdown ── */
@@ -150,7 +168,6 @@ body {
   max-height: 320px;
   overflow-y: auto;
 }
-.suggest[hidden] { display: none; }
 .suggest-item {
   display: flex;
   align-items: center;
@@ -208,7 +225,6 @@ body {
 .filter-sort select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 .filter-group { display: flex; gap: 6px; flex-wrap: wrap; }
 .filter-chips { flex-basis: 100%; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
-.filter-chips[hidden] { display: none; }
 .ghost.active { border-color: var(--accent); color: var(--accent); }
 .chip {
   border: 1px solid var(--line);
@@ -388,7 +404,7 @@ body {
 .card-links { margin-top: 10px; display: flex; gap: 12px; font-size: 12px; }
 .card-links a { color: var(--accent); text-decoration: none; }
 .card-links .linklike { background: none; border: 0; padding: 0; margin: 0; font: inherit; color: var(--accent); cursor: pointer; }
-.card-links .linklike.danger { color: #c0564f; margin-left: auto; }
+.card-links .linklike.danger { color: var(--danger); margin-left: auto; }
 @media (hover: hover) { .card-links a:hover, .card-links .linklike:hover { text-decoration: underline; } }
 
 /* ── detail modal ── */
@@ -402,7 +418,6 @@ body {
   padding: 24px;
   z-index: 50;
 }
-.modal-backdrop[hidden] { display: none; }
 .modal {
   position: relative;
   display: flex;
@@ -565,7 +580,7 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
   transition: opacity .18s ease, transform .18s ease; z-index: 10000; max-width: 90vw;
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
-.toast.err { background: #b91c1c; color: #fff; }
+.toast.err { background: var(--danger-solid); color: #fff; }
 
 /* token panel */
 .token-backdrop {
@@ -643,7 +658,6 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 .np-sug-n { color: var(--ink-3); font-family: var(--mono); font-size: 10px; margin-left: 4px; }
 
 /* fix: the `hidden` attribute must win over .iconbtn's display */
-.iconbtn[hidden] { display: none !important; }
 
 /* body editing */
 .body-edit { margin-top: 8px; }
@@ -687,7 +701,6 @@ body.viewing-puck .vhead { display: none; }
   background: var(--bg);
   padding: 16px 22px 56px; display: flex; flex-direction: column;
 }
-.detail-pane[hidden] { display: none; }
 .detail-close { display: none; }
 .detail-content { max-width: 760px; width: 100%; margin: 0 auto; }
 .detail-content .card-links { padding-top: 4px; }
@@ -780,7 +793,6 @@ body.preload * { transition: none !important; }
   .app.menu-open .sidebar { transform: none; box-shadow: 2px 0 24px rgba(0, 0, 0, .34); }
   .menu-toggle { display: inline-flex; align-items: center; justify-content: center; }
   .scrim { position: fixed; inset: 0; background: rgba(0, 0, 0, .45); z-index: 55; }
-  .scrim[hidden] { display: none; }
 }
 @media (min-width: 900px) { .scrim { display: none; } }
 @media (prefers-reduced-motion: reduce) { .sidebar { transition: none; } }
@@ -838,7 +850,6 @@ body.preload * { transition: none !important; }
 }
 .head-act:hover { background: var(--panel-2); color: var(--ink); }
 .head-act svg { width: 17px; height: 17px; }
-.head-act[hidden] { display: none; }
 .user-av { width: 22px; height: 22px; border-radius: 50%; background: var(--panel-2); overflow: hidden; flex: none; }
 .user-av-img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .user-menu {
@@ -848,10 +859,10 @@ body.preload * { transition: none !important; }
 }
 .ws-menu-head { display: flex; align-items: center; gap: 8px; padding: 7px 9px 8px; margin-bottom: 4px; border-bottom: 1px solid var(--line); }
 .ws-menu-who { font-size: 13px; font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); }
-.ws-menu-head.bad .ws-menu-who { color: #cc6149; }
+.ws-menu-head.bad .ws-menu-who { color: var(--danger); }
 .user-mi { text-align: left; background: none; border: 0; padding: 7px 9px; border-radius: 6px; color: var(--ink); font-size: 13px; cursor: pointer; }
 .user-mi:hover { background: var(--panel-2); }
-.user-mi.danger { color: #cc6149; }
+.user-mi.danger { color: var(--danger); }
 
 /* ── v2 consistent view-header ─────────────────────────────────────────────── */
 .vhead { display: flex; align-items: center; gap: 10px; padding: 11px 20px; border-bottom: 1px solid var(--line); }
@@ -862,7 +873,6 @@ body.preload * { transition: none !important; }
 .vopts { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .newbtn { display: inline-flex; align-items: center; gap: 5px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; color: var(--ink); font-size: 13px; cursor: pointer; white-space: nowrap; }
 .newbtn:hover { border-color: var(--ink-3); }
-.newbtn[hidden] { display: none; }
 /* filter popover: no empty band when closed (padding/border live on the chips) */
 .filters { padding: 0; border: 0; }
 .filter-chips { padding: 12px 20px; border-bottom: 1px solid var(--line); }
@@ -890,7 +900,6 @@ body.preload * { transition: none !important; }
   position: fixed; inset: 0; z-index: 80; background: rgba(0, 0, 0, .4);
   display: flex; align-items: flex-start; justify-content: center; padding: 12vh 16px 16px;
 }
-.cmdk-overlay[hidden] { display: none; }
 .cmdk-box {
   width: 100%; max-width: 560px; background: var(--panel); border: 1px solid var(--line);
   border-radius: 12px; box-shadow: var(--shadow); overflow: hidden;
@@ -949,13 +958,13 @@ body.preload * { transition: none !important; }
 .pri.pri-medium .pri-bar.on { background: var(--later); }
 .pri.pri-high .pri-bar.on { background: var(--now); }
 .pri.pri-urgent {
-  width: 13px; height: 13px; border-radius: 3px; background: #d64545; color: #fff;
+  width: 13px; height: 13px; border-radius: 3px; background: var(--urgent); color: #fff;
   font-size: 10px; font-weight: 700; align-items: center; justify-content: center;
 }
 /* detail rail: static badge + label */
 .pri-inline { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); }
 /* detail rail: editable priority chips share .edit-btn; active gets a filled color */
-.edit-btn.active.pri-urgent { background: #d64545; }
+.edit-btn.active.pri-urgent { background: var(--urgent); }
 .edit-btn.active.pri-high { background: var(--now); }
 .edit-btn.active.pri-medium { background: var(--later); }
 .edit-btn.active.pri-low { background: var(--ink-3); }
@@ -969,7 +978,6 @@ body.preload * { transition: none !important; }
   font-family: var(--mono); font-size: 11px; color: var(--ink-3);
   border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; background: var(--panel-2);
 }
-.cmdk-hint[hidden] { display: none; }
 
 /* topbar: desktop hides it (actions live in the sidebar); mobile shows ☰ + 🔍 */
 /* Desktop shares the same contextual header (title / breadcrumb + share). Search
@@ -997,7 +1005,6 @@ body.preload * { transition: none !important; }
   font-family: var(--mono); font-size: 10px; background: var(--accent); color: #fff;
   border-radius: 999px; min-width: 16px; text-align: center; padding: 0 4px;
 }
-.filter-count[hidden] { display: none; }
 /* Anchored under its own button (Filter and Display both sit at the left of the
    view header), so a popover never opens leftward across the sidebar. */
 /* Shell (position, background, border, shadow) comes from .pop / .sheet; this is
@@ -1009,7 +1016,6 @@ body.preload * { transition: none !important; }
    rows for the choices that shape the presentation. */
 .display-pop { min-width: 260px; }
 .display-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); display: inline-block; }
-.display-dot[hidden] { display: none; }
 .dp-seg { display: flex; gap: 4px; background: var(--sunk, transparent); }
 .dp-segbtn {
   flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
@@ -1053,7 +1059,6 @@ body.preload * { transition: none !important; }
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
   padding: 0 24px 10px; border-bottom: 1px solid var(--line);
 }
-.chiprow[hidden] { display: none; }
 .fchip {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 3px 4px 3px 9px; border: 1px solid var(--line); border-radius: 999px;
@@ -1100,7 +1105,7 @@ body.preload * { transition: none !important; }
 }
 .fp-chip:hover { color: var(--ink); border-color: var(--ink-3); }
 .fp-chip.on { color: #fff; border-color: transparent; background: var(--accent); font-weight: 600; }
-.fp-chip.on.pri-urgent { background: #d64545; }
+.fp-chip.on.pri-urgent { background: var(--urgent); }
 .fp-chip.on.pri-high { background: var(--now); }
 .fp-chip.on.pri-medium { background: var(--later); }
 /* disciplines filter: search + scrollable chip list */
@@ -1121,7 +1126,6 @@ body.preload * { transition: none !important; }
 .fp-empty { color: var(--ink-3); font-size: 12px; padding: 4px 0; }
 .fp-more { align-self: flex-start; background: none; border: 0; padding: 2px 0; margin-top: 2px; font-size: 12px; color: var(--accent); cursor: pointer; }
 .fp-more:hover { text-decoration: underline; }
-.fp-more[hidden] { display: none; }
 
 /* read-only note on the puck detail (signed in, but no write access to this repo) */
 .detail-note {
@@ -1233,7 +1237,6 @@ body.preload * { transition: none !important; }
 }
 .topbar .ghost { justify-content: center; }
 .top-new svg { width: 18px; height: 18px; }
-.top-new[hidden] { display: none; }
 
 /* ── mobile: keep the app header above the puck overlay ─────────────────────── */
 /* The overlay backdrop is z-index 50; the topbar sits just above it (but below the
@@ -1255,7 +1258,6 @@ body.preload * { transition: none !important; }
 }
 .tab-btn:hover { color: var(--ink-2); }
 .tab-btn.on { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
-.tab-panel[hidden] { display: none; }
 
 .activity-loading, .activity-empty { color: var(--ink-3); font-size: 13px; padding: 12px 0; }
 .activity-list { list-style: none; margin: 4px 0 0; padding: 0; }

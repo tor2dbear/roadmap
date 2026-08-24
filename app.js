@@ -2655,10 +2655,27 @@
   }
 
   // ── filter chips ──
+  // What a *place* is worth: clicking a repo or a discipline goes through
+  // goToPlace, which resets to the All-pucks board — so the chip's number has to be
+  // counted with that view's query, not with the source's grand total. The old
+  // number came straight from the harvester and counted the archive too, so "PIA
+  // 52" landed you on six cards. Same rule the views already hold themselves to.
+  function placeCounts() {
+    var q = parseQuery(VIEWS.all).concat(NOT_DONE);
+    var repo = {}, agent = {};
+    DATA.items.forEach(function (it) {
+      if (!runQuery(it, q)) return;
+      repo[it.repo] = (repo[it.repo] || 0) + 1;
+      if (it.agent) agent[it.agent] = (agent[it.agent] || 0) + 1;
+    });
+    return { repo: repo, agent: agent };
+  }
+
   function buildRepoChips() {
     var wrap = document.getElementById("repoFilters");
     if (!wrap) return;
     wrap.innerHTML = ""; // idempotent — refreshNav rebuilds this on every nav change
+    var live = placeCounts().repo;
     DATA.sources.forEach(function (s) {
       var chip = el("button", "chip repo");
       chip.dataset.repo = s.repo;
@@ -2667,7 +2684,9 @@
       dot.style.background = s.color;
       chip.appendChild(dot);
       chip.appendChild(document.createTextNode(s.name));
-      var n = el("span", "n", String(s.count));
+      // A repo is a permanent place, so its zero is worth showing — unlike a view,
+      // which hides its count when empty because an empty view is not navigation.
+      var n = el("span", "n", String(live[s.repo] || 0));
       chip.appendChild(n);
       chip.title = s.blurb + (s.native ? "" : " — adapted from " + s.adapter);
       chip.addEventListener("click", function () { goToPlace(state.repos, s.repo); });
@@ -2684,8 +2703,9 @@
     var section = document.getElementById("agentSection");
     if (!wrap) return;
     wrap.innerHTML = "";
-    var counts = {};
-    DATA.items.forEach(function (it) { if (it.agent) counts[it.agent] = (counts[it.agent] || 0) + 1; });
+    // The queue is live work, not history: a discipline whose pucks have all landed
+    // has an empty queue, and the same count-is-what-you-land-on rule applies.
+    var counts = placeCounts().agent;
     state.agents.forEach(function (a) { if (!counts[a]) state.agents.delete(a); }); // prune stale filters
     var agents = Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a] || a.localeCompare(b); });
     if (section) section.hidden = agents.length === 0;
