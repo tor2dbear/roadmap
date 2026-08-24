@@ -6,6 +6,7 @@ updated: 2026-08-24
 created: 2026-08-23
 order: 5
 depends: [ui-primitiv-och-skalor]
+parent: gui-hantverk
 ---
 
 ## Goal
@@ -75,13 +76,17 @@ Fem fynd, i fallande ordning av hur mycket de skymde:
   är vyn enda vägen dit), Standalone bara när den *skiljer sig* från All pucks.
   Hittat genom att titta på den renderade sidomenyn, inte i koden.
 
+- **Beslutat: brädet förblir platt.** `all` blir *inte* `-status:inbox -is:member`.
+  Skälet är vad en kolumn ska mäta: platt mäter kolumnen **arbetsmängd**, som karta
+  hade den mätt **antal initiativ**. Bägge är rimliga, men bara den första svarar på
+  frågan man ställer när man tittar på `now`. Och kostnaderna är verkliga — `Ready`
+  måste ändå behålla medlemmarna (man plockar upp en medlem, inte en etapp), så de
+  två vyerna hade slutat vara delmängder av varandra; "All pucks" hade slutat vara
+  alla pucks; och underetapper, som är både etapp och medlem, hade fallit bort.
+  `Standalone` ger samma uppdelning som en **lins man går in i och ut ur**, utan att
+  låsa fast vad brädet betyder. Det är den billigare formen av samma sak.
+
 ## Open questions
-- Ska `all` bli `-status:inbox -is:member` — alltså brädet som karta, en etapp som
-  ett kort? Det ändrar vad man *ser*, inte bara vad man kan *fråga efter*: `now`
-  tappar arbete (medlemmar), `Ready` måste behålla dem, och "All pucks" slutar vara
-  alla pucks. Avvaktar tills det finns en riktig etapp med fyra–sex medlemmar; idag
-  skulle ändringen påverka ett kort, och en strukturregel beslutad på ett urval av
-  ett är en regel man river upp.
 - Sparade vyer bär redan sin basvy i tupeln (`view`; saknas den = `all`), men
   sidomenyn använder inte det. Kandidat: gör *vytiteln* till switchen — den renderas
   redan på båda bredder — och lägg inbyggda + sparade vyer i samma `openSurface`,

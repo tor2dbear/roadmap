@@ -2,9 +2,10 @@
 title: "Rank: manuellt läge + skriv order från GUI:t"
 status: done
 tags: [ui, editing]
-updated: 2026-08-20
+updated: 2026-08-24
 created: 2026-08-19
 order: 20
+parent: gui-editing
 ---
 
 ## Goal

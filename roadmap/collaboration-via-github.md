@@ -2,9 +2,10 @@
 title: Tunn collaboration via GitHub-primitiver
 status: done
 tags: [product]
-updated: 2026-08-16
+updated: 2026-08-24
 owner: tor2dbear
 order: 12
+parent: productize
 ---
 
 ## Levererat

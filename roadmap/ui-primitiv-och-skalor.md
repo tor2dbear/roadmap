@@ -6,6 +6,7 @@ updated: 2026-08-24
 created: 2026-08-23
 order: 5
 depends: [polering-av-egenskapsskenan]
+parent: gui-hantverk
 ---
 
 ## Goal

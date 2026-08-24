@@ -2,8 +2,9 @@
 title: Fungera utanför mina egna repon
 status: done
 tags: [product]
-updated: 2026-08-16
+updated: 2026-08-24
 order: 5
+parent: productize
 ---
 
 ## Mål

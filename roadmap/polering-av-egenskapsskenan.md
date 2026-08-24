@@ -2,10 +2,11 @@
 title: "Polering av egenskapsskenan"
 status: now
 tags: [ui]
-updated: 2026-08-23
+updated: 2026-08-24
 created: 2026-08-22
 order: 5
 depends: [ui-overlay-och-pickers]
+parent: gui-hantverk
 ---
 
 ## Goal
