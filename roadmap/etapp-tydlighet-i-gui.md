@@ -149,6 +149,13 @@ Fem fynd, i fallande ordning av hur mycket de skymde:
   touch aldrig når. Nu samma statuspill som korten använder — komponenten som redan
   finns för att säga en status *i ord*. `.status-dot` var dess enda användning och är
   borta.
+  **Och en rättelse till mig själv, en timme senare:** jag lade pillret *först* i
+  raden med `width: 62px` för att titlarna skulle stå i kolumn — och klippte `Inbox`.
+  En fast bredd är fel för ett ord: etiketterna går från 49px (`Now`) till 87px
+  (`Cancelled`). Pillret ligger sist nu, i sin naturliga bredd; då linjerar titlarna
+  på sin vänsterkant, vilket är bättre än vad prefixkolumnen gav, och statusen sitter
+  där ögat ändå söker den. Testet renderar alla sex statusarna och kräver att ingen
+  klipps.
 
 ## Open questions
 - Progressringen (fynd 2) återstår. Den bör vänta tills medlemslistan använts ett

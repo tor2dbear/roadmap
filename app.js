@@ -5117,15 +5117,20 @@
   function memberRow(k) {
     var r = el("button", "row member" + (TERMINAL[k.status] ? " done" : ""));
     r.type = "button";
-    // The status pill, not a coloured dot. Now, Next and Later differed by hue
-    // alone, and the row's `title` is a hover tooltip — nothing a colour-blind
-    // reader on a touch screen can reach. The pill is the component that already
-    // says a status *in words*, on every card, so this is one less thing to draw.
-    r.appendChild(el("span", "status-pill status-" + k.status, STATUS_LABEL[k.status] || k.status));
     var t = el("span", "member-title", k.title);
     r.appendChild(t);
     if (k.progress) r.appendChild(progressBadge(k));
     if (k.target) r.appendChild(targetEl(k.target, "member-date"));
+    // The status pill, not a coloured dot: Now, Next and Later differed by hue
+    // alone, and the row's `title` is a hover tooltip — nothing a colour-blind
+    // reader on a touch screen can reach.
+    //
+    // Last in the row, at natural width. Leading it took a fixed width to keep the
+    // titles in a column, and a fixed width is wrong for a word: the labels run
+    // from 49px (Now) to 87px (Cancelled), and 62px clipped Inbox. Trailing, the
+    // titles align on the left edge — better than any prefix column managed — and
+    // the pill sits where the eye already goes for state.
+    r.appendChild(el("span", "status-pill status-" + k.status, STATUS_LABEL[k.status] || k.status));
     r.title = STATUS_LABEL[k.status] || k.status;
     r.addEventListener("click", function () { openModal(k); });
     return r;

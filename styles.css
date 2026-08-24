@@ -1588,9 +1588,9 @@ body.preload * { transition: none !important; }
 .sect-with-badge { display: flex; align-items: center; gap: 8px; }
 .members { display: flex; flex-direction: column; gap: 1px; margin-top: 2px; }
 .member { gap: 9px; }
-/* The pill keeps a fixed width so the member titles line up in a column rather than
-   stepping in and out with the length of each status word. */
-.member .status-pill { flex: none; width: 62px; text-align: center; padding: 1px 0; }
+/* Natural width, and last in the row — see memberRow. A fixed width clipped Inbox
+   and would have had to be 87px for Cancelled. */
+.member .status-pill { flex: none; }
 .member-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .member.done .member-title { color: var(--ink-3); text-decoration: line-through; }
 .member-date { font-family: var(--mono); font-size: var(--fs-xs); color: var(--ink-3); flex: none; }
