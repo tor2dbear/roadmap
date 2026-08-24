@@ -49,6 +49,19 @@ Flikarna är däremot rätt: `.tab-btn` (understruken, innehåll) och `.focusbtn
   (prioritetsmärket) och `--danger-solid` (den enda fyllda ytan med vit text). De
   hade dessutom ingen mörk variant: en hårdkodad röd följer inte temat.
 
+- **Två skalor i stället för trettio beslut.** Radien har fem steg (`--r-xs` … 
+  `--r-pill`) och typen nio (`--fs-xs` … `--fs-4xl`). Varje literal i filen är
+  borta utom tre som förtjänar att vara literaler: `50%` för prickar, sheetens
+  `16px 16px 0 0`, och `0.92em` för kod inuti brödtext — den sista är ett
+  *förhållande*, inte ett steg, och ska följa texten den sitter i.
+  Sju storlekar försvann (`9`, `10.5`, `11.5`, `12.5`, `13.5`, `14.5`, `17`) och
+  elva radier. Tre former som egentligen var piller — draghandtaget,
+  prioritetsstaplarna och filterstrecket — hade små radier i stället för
+  `--r-pill`; de säger vad de är nu.
+  Ett värde är semantiskt och inte bara estetiskt: `--fs-2xl: 16px` är golvet iOS
+  kräver för att inte zooma in ett fokuserat fält. Det står i kommentaren, för det
+  är inte uppenbart av namnet.
+
 ## Open questions
 - Ska `.badge` och `.btn` ta färgen som modifierare (`.badge--status-now`) eller
   som `currentColor` från en förälder? Statuspillret gör redan det senare.
