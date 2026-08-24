@@ -148,3 +148,21 @@ Felet var att två betydelser fick samma kläder. `No priority` och `Unassigned`
   Det är den **effektiva** grupperingen som faller tillbaka på `repo`; `state.group`
   behåller det man valde. Ett besök i inkorgen skriver alltså inte över
   grupperingen man satt någon annanstans, och URL:en bär fortfarande valet.
+
+- **Sheeten mättes mot sig själv, inte mot sidan.** Tre fel i samma yta, alla mätta:
+  - **Indraget var 10px** där sidan använder 20 (topbaren) och 24 (kolumner, footer).
+    Sheeten läste som en smalare spalt än allt bakom den. Nu 20 — och `.sheet .row`
+    betalar tillbaka indraget med negativ marginal, så markeringen fortfarande blöder
+    mot kanten medan *texten* landar på sidans rutnät. Samma grepp som värdekolumnen.
+  - **Sista kontrollen slutade 10px över skärmkanten**, alltså där hemindikatorn är
+    och tummen inte. Botten är 24px + safe-area nu, och `Reset to default` gick från
+    18px hög till 40 — regeln "allt i en sheet är tumstort" gällde bara `.row`.
+  - **Växeln var 20px hög** i en meny vars andra rader är 37, vilket är vad som såg
+    skevt ut (rutan var faktiskt centrerad — mitt 722 mot etikettens 722).
+- **Kryssruta, inte switch — och ritad.** En switch säger *slå på en funktion*; en
+  kryssruta säger *ta med i mängden*, och det är precis vad de två gör. Menyn har
+  dessutom redan tre sätt att välja (segmentkontroll, två selects); en switch hade
+  blivit ett fjärde. Den native rutan var 13px bredvid 15px text — sidans enda
+  kontroll utanför skalan — så den är ritad nu: 18px, `--r-xs`, accentfylld med en
+  ritad bock (ett `✓`-tecken rider på typsnittets baslinje och sitter lågt i rutan
+  oavsett vad line-height säger).
