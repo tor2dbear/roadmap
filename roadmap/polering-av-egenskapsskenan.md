@@ -2,7 +2,7 @@
 title: "Polering av egenskapsskenan"
 status: now
 tags: [ui]
-updated: 2026-08-22
+updated: 2026-08-23
 created: 2026-08-22
 order: 5
 depends: [ui-overlay-och-pickers]
@@ -81,6 +81,14 @@ Felet var att två betydelser fick samma kläder. `No priority` och `Unassigned`
   status som helst, inklusive `inbox` som den committade tavlan döljer — så räknaren
   sa 1 och tavlan visade 0. Precis den drift `viewCounts` finns till för att
   förhindra. Ett test kräver nu att siffran i sidomenyn är samma som antalet kort.
+
+- **Arkivväxeln nådde inte Etapps-vyn.** Följdfel av kolumnfixen ovan: jag dolde
+  landade etappers *kolumn*, men frågan matchade dem fortfarande — så kortet syntes
+  rakt av under varje annan gruppering (repo, agent, target, parent, priority) och
+  räknades i sidomenyn. Vilka vyer som kan nå arkivet är nu en egen lista
+  (`ARCHIVABLE`): `all` och `etapps` lyder växeln, `ready`/`inbox` kan inte nå det
+  (deras statusar är aldrig terminala) och `attention` *ska* nå det — en flaggad
+  landad puck är precis vad den vyn finns för.
 
 ## Open questions
 - Nyckelkolumnen är 92px. Med chippar borta känns avståndet nyckel→värde stort;

@@ -2,7 +2,7 @@
 title: "UI-ramar: overlay-primitiv och pickers"
 status: now
 tags: [ui, product]
-updated: 2026-08-21
+updated: 2026-08-22
 created: 2026-08-21
 order: 5
 ---

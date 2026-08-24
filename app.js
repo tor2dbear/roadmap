@@ -389,6 +389,11 @@
   // `is:etapp` is derived (a puck with children *is* the etapp), so the view is a
   // query and not a new record type — the same trick every other view uses.
   var VIEWS = { all: "-status:inbox", ready: "is:ready", inbox: "status:inbox", etapps: "is:etapp", attention: "is:flagged" };
+  // Which views can reach the archive at all, and therefore have to obey the toggle.
+  // `ready` and `inbox` can't (their statuses are never terminal), and `attention`
+  // *wants* to — a flagged done puck is exactly what that view is for. `all` and
+  // `etapps` are the two that would otherwise show landed work unasked.
+  var ARCHIVABLE = { all: 1, etapps: 1 };
   var NOT_DONE = { field: "is", op: "is", values: ["done"], neg: true };
 
   // Places and the filter popover, projected into terms. A place is just a filter
@@ -409,7 +414,7 @@
   function filterTerms() { return controlTerms().concat(parseQuery(state.query)); }
   function activeTerms() {
     var t = parseQuery(VIEWS[state.focus] || VIEWS.all);
-    if (state.focus === "all" && !state.showDone) t.push(NOT_DONE);
+    if (ARCHIVABLE[state.focus] && !state.showDone) t.push(NOT_DONE);
     return t.concat(filterTerms());
   }
 
@@ -2751,11 +2756,11 @@
   function viewCounts() {
     var c = {}, qs = {};
     // Counted with the views' own queries, so a row's number can never drift from
-    // what clicking it shows. "All pucks" always excludes the archive, whatever the
-    // toggle says, so the count doesn't jump when you show done.
+    // what clicking it shows. The archive-reaching views always exclude it here,
+    // whatever the toggle says, so the count doesn't jump when you show done.
     Object.keys(VIEWS).forEach(function (k) {
       c[k] = 0;
-      qs[k] = parseQuery(VIEWS[k]).concat(k === "all" ? [NOT_DONE] : []);
+      qs[k] = parseQuery(VIEWS[k]).concat(ARCHIVABLE[k] ? [NOT_DONE] : []);
     });
     DATA.items.forEach(function (it) {
       Object.keys(qs).forEach(function (k) { if (runQuery(it, qs[k])) c[k]++; });
