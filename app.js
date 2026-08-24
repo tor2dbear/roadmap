@@ -654,6 +654,12 @@
     edit: ["M6.875 2.5H2.5a1.25 1.25 0 0 0 -1.25 1.25v8.75a1.25 1.25 0 0 0 1.25 1.25h8.75a1.25 1.25 0 0 0 1.25 -1.25v-4.375", "M11.5625 1.5625a1.325625 1.325625 0 0 1 1.875 1.875L7.5 9.375l-2.5 0.625 0.625 -2.5 5.9375 -5.9375z"],
     // git-commit — a puck is a commit-like unit in git (our "project" glyph)
     commit: ["M5 7.5a2.5 2.5 0 1 0 5 0 2.5 2.5 0 1 0 -5 0", "M0.65625 7.5 4.375 7.5", "m10.631250000000001 7.5 3.71875 0"],
+    // An etapp is several pucks on one track — the commit mark, twice. It has to
+    // differ from `commit` at 12px, which is why it is two dots and not a container
+    // outline: at that size an outline is a smudge and a count of dots still reads.
+    etapp: ["M3.125 7.5a1.5625 1.5625 0 1 0 3.125 0 1.5625 1.5625 0 1 0 -3.125 0",
+            "M8.75 7.5a1.5625 1.5625 0 1 0 3.125 0 1.5625 1.5625 0 1 0 -3.125 0",
+            "M0.9375 7.5 3.125 7.5", "M6.25 7.5 8.75 7.5", "M11.875 7.5 14.0625 7.5"],
     // git-merge — the Etapp brand mark: two stages meeting on one line
     merge: ["M9.5833 11.5a1.9167 1.9167 0 1 0 3.8333 0 1.9167 1.9167 0 1 0 -3.8333 0", "M1.9167 3.8333a1.9167 1.9167 0 1 0 3.8333 0 1.9167 1.9167 0 1 0 -3.8333 0", "M3.8333 13.4167V5.75a5.75 5.75 0 0 0 5.75 5.75"],
     // trash-2 (Feather), scaled to the 16 viewBox
@@ -702,7 +708,7 @@
   function progressBadge(item) {
     var p = item.progress;
     var b = el("span", "rollup" + (p.done === p.total ? " full" : ""));
-    b.appendChild(icon("merge"));
+    b.appendChild(icon("etapp"));
     b.appendChild(el("span", "rollup-n", p.done + "/" + p.total));
     b.title = "Etapp: " + p.done + " of " + p.total + " pucks done";
     b.setAttribute("aria-label", b.title);
@@ -722,11 +728,16 @@
   // The puck's identity mark: a git-commit glyph tinted with the repo colour —
   // like Linear's project icon, which is coloured by the project's identity (not
   // status). It's the single colour marker, so the meta shows just the repo name.
+  // The identity mark, tinted with the repo. A puck that holds other pucks gets a
+  // different one: an etapp was indistinguishable from a member on the board, and
+  // "which of these is an etapp?" is the first question the board should answer
+  // without being read.
   function puckGlyph(item) {
-    var g = el("span", "puck-glyph");
+    var etapp = (item.children || []).length > 0;
+    var g = el("span", "puck-glyph" + (etapp ? " is-etapp" : ""));
     g.style.color = item.repoColor;
-    g.title = item.repoName;
-    g.appendChild(icon("commit"));
+    g.title = etapp ? "Etapp \u00b7 " + item.repoName : item.repoName;
+    g.appendChild(icon(etapp ? "etapp" : "commit"));
     return g;
   }
 
@@ -1742,15 +1753,28 @@
     home.title = "Back to the board";
     home.addEventListener("click", function () { closeModal(); });
     crumb.appendChild(home);
+    // The etapp sits in the path, not only in a field far down the rail: a
+    // breadcrumb is where a reader learns the shape of things, and it puts the
+    // level above one tap away instead of a scroll.
+    var up = parentItem(item);
+    if (up) {
+      crumb.appendChild(el("span", "crumb-sep", "›"));
+      var upLink = el("button", "crumb-back", up.title);
+      upLink.type = "button";
+      upLink.title = "Etapp: " + up.title;
+      upLink.addEventListener("click", function () { openModal(up); });
+      crumb.appendChild(upLink);
+    }
     crumb.appendChild(el("span", "crumb-sep", "›"));
     crumb.appendChild(el("span", "crumb-cur", item.repoName + " · " + item.slug));
     container.appendChild(crumb);
 
-    // Puck glyph (git-commit) — Etapp's answer to Linear's project icon, tinted
-    // with the repo (project) colour. The single colour marker on the page.
+    // Puck glyph — Etapp's answer to Linear's project icon, tinted with the repo
+    // (project) colour. The single colour marker on the page, and it makes the same
+    // etapp/member distinction the cards do.
     var pic = el("div", "detail-icon");
     pic.style.color = item.repoColor;
-    pic.appendChild(icon("commit"));
+    pic.appendChild(icon((item.children || []).length ? "etapp" : "commit"));
     container.appendChild(pic);
 
     container.appendChild(el("h2", "modal-title", item.title));
@@ -1896,21 +1920,12 @@
       gRel.rows.push(propRow("Part of", parentValue(item, editable), null, "etapp"));
     }
 
-    // …and the level below, when this puck *is* an etapp: its pucks, with the
-    // rollup the harvester counted.
-    if ((item.children || []).length) {
-      var kidsV = el("div", "prop-blockers");
-      childItems(item).forEach(function (k, i) {
-        var ka = el("a", "blocker-link" + (TERMINAL[k.status] ? " done" : ""), k.title);
-        ka.href = "#" + k.id;
-        ka.addEventListener("click", function (e) { e.preventDefault(); openModal(k); });
-        kidsV.appendChild(ka);
-        if (i < item.children.length - 1) kidsV.appendChild(document.createTextNode(", "));
-      });
-      // The count is part of the answer, not part of the question: in the key cell
-      // it read as a longer label. Same badge the cards use.
-      if (item.progress) kidsV.insertBefore(progressBadge(item), kidsV.firstChild);
-      gRel.rows.push(propRow("Contains", kidsV, "blocked", "pucks"));
+    // …and the level below. With members it becomes a section of its own further
+    // down (a comma-separated line works for two pucks and collapses at eight);
+    // without them the rail keeps one quiet control, so an etapp can be *started*
+    // from the parent side instead of only from each child.
+    if (!(item.children || []).length && editable) {
+      gRel.rows.push(propRow("Contains", addPuckPicker(item), "blocked", "pucks"));
     }
 
     // Blocked by: the authored `depends` list, editable. It shows landed blockers
@@ -1946,6 +1961,21 @@
       overview.appendChild(box);
       lastBox = box;
     });
+
+    // ── Contains: the etapp's members, as rows ──
+    // The page where you *run* an etapp, not just read that it has one. Direct
+    // members only — a sub-etapp shows its own count and answers for its subtree,
+    // which is what makes the number compose at any depth.
+    if ((item.children || []).length) {
+      var head = el("div", "sect-label sect-with-badge");
+      head.appendChild(document.createTextNode("Contains"));
+      if (item.progress) head.appendChild(progressBadge(item));
+      overview.appendChild(head);
+      var members = el("div", "members");
+      childItems(item).forEach(function (k) { members.appendChild(memberRow(k)); });
+      if (editable) members.appendChild(addPuckPicker(item));
+      overview.appendChild(members);
+    }
 
     // Created/Updated are derived and never edited, and Activity is the same fact
     // with more detail. A footnote rather than two rows — kept at all because
@@ -4687,6 +4717,36 @@
   // Which pucks could be this one's etapp: anything but itself and its own
   // descendants (that would close a loop). Excluded up front, so the loop refusal
   // in changeParent() is a backstop rather than something you meet by clicking.
+  // A member of an etapp, as a row: the status it is in, its title, and its own
+  // rollup when it is an etapp too.
+  function memberRow(k) {
+    var r = el("button", "row member" + (TERMINAL[k.status] ? " done" : ""));
+    r.type = "button";
+    r.appendChild(el("span", "status-dot status-" + k.status));
+    var t = el("span", "member-title", k.title);
+    r.appendChild(t);
+    if (k.progress) r.appendChild(progressBadge(k));
+    if (k.target) r.appendChild(targetEl(k.target, "member-date"));
+    r.title = STATUS_LABEL[k.status] || k.status;
+    r.addEventListener("click", function () { openModal(k); });
+    return r;
+  }
+
+  // The relation is authored on the *child* (`parent:`), so adding from here is
+  // the same single-field write with the arguments swapped — no second direction
+  // in the data, just one in the interface.
+  function addPuckPicker(item) {
+    return puckPicker("\uff0b  Add puck", {
+      title: "Add a puck to " + item.title,
+      current: null,
+      repo: item.repo,
+      exclude: function (other) {
+        return other === item || other.parentRef === item.id || !other.native || wouldLoop(other, item.id);
+      },
+      onPick: function (chosen) { if (chosen) changeParent(chosen, item.id); },
+    });
+  }
+
   function etappCandidates(item) {
     return function (other) { return other === item || wouldLoop(item, other.id); };
   }

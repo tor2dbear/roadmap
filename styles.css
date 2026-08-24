@@ -509,12 +509,13 @@ body {
 .modal-blocked .blocker-link { color: var(--accent); text-decoration: none; }
 @media (hover: hover) { .modal-blocked .blocker-link:hover { text-decoration: underline; } }
 .status-pill { font-size: var(--fs-sm); padding: 1px 9px; text-transform: uppercase; letter-spacing: 0.04em; }
-.status-pill.status-now { color: var(--now); }
-.status-pill.status-next { color: var(--next); }
-.status-pill.status-later { color: var(--later); }
-.status-pill.status-inbox { color: var(--inbox); }
-.status-pill.status-done { color: var(--done); }
+.status-pill.status-now, .status-dot.status-now { color: var(--now); }
+.status-pill.status-next, .status-dot.status-next { color: var(--next); }
+.status-pill.status-later, .status-dot.status-later { color: var(--later); }
+.status-pill.status-inbox, .status-dot.status-inbox { color: var(--inbox); }
+.status-pill.status-done, .status-dot.status-done { color: var(--done); }
 .status-pill.status-cancelled { color: var(--cancelled); text-decoration: line-through; }
+.status-dot.status-cancelled { color: var(--cancelled); }
 .modal-body { margin-top: 14px; font-size: var(--fs-lg); color: var(--ink-2); overflow-wrap: anywhere; }
 .modal-body :is(h2, h3, h4) { font-size: var(--fs-lg); margin: 16px 0 6px; color: var(--ink); }
 .modal-body :is(h2, h3, h4):first-child { margin-top: 0; }
@@ -1489,6 +1490,20 @@ body.preload * { transition: none !important; }
 @media (max-width: 640px) {
   .sheet.pick-find { min-width: 0; max-width: none; }
 }
+
+/* ── an etapp's members ────────────────────────────────────────────────────────
+   A comma-separated line works for two pucks and collapses at eight. These are
+   rows, so the etapp page is where the etapp is run. */
+.sect-with-badge { display: flex; align-items: center; gap: 8px; }
+.members { display: flex; flex-direction: column; gap: 1px; margin-top: 2px; }
+.member { gap: 9px; }
+.member-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.member.done .member-title { color: var(--ink-3); text-decoration: line-through; }
+.member-date { font-family: var(--mono); font-size: var(--fs-xs); color: var(--ink-3); flex: none; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: none; }
+/* The add control sits in the list as its own row, not as a chip beside it. */
+.members .prop-pick { display: block; }
+.members .prop-trigger { width: 100%; text-align: left; padding: 7px 9px; margin: 0; color: var(--ink-3); }
 
 /* ── dependencies: the Blocked by / Blocks rows ─────────────────────────────── */
 /* `depends:` is the only authored half; the row edits it in place, one chip per
