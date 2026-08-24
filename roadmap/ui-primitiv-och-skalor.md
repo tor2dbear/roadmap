@@ -115,6 +115,14 @@ Flikarna är däremot rätt: `.tab-btn` (understruken, innehåll) och `.focusbtn
   38px), för den sitter bland flikarna och inte i chromet. Testet mäter formen mot
   dela-knappen i stället för mot literaler, så de kan inte glida isär.
 
+- **Färgfrågan var felställd — svaret är bägge, efter en regel.** Frågan löd om
+  `.badge`/`.btn` ska ta färgen som modifierare eller som `currentColor`. Den
+  avgörs inte av komponenten utan av **var betydelsen bor**:
+  - Bär märket sin egen betydelse → **modifierare**. Ett statuspill säger `NOW`
+    oavsett vad det ligger i, så färgen hör till märket.
+  - Ärver märket betydelse från sin rad → **`currentColor`**. Papperskorgsikonen i
+    ⋯-menyn är röd för att *raden* är farlig, inte för att en soptunna är röd; en
+    modifierare där hade dubblerat samma påstående på två ställen.
+  Bägge fanns redan och bägge följer regeln. Det som saknades var regeln.
+
 ## Open questions
-- Ska `.badge` och `.btn` ta färgen som modifierare (`.badge--status-now`) eller
-  som `currentColor` från en förälder? Statuspillret gör redan det senare.

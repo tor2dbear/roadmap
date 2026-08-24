@@ -866,7 +866,7 @@ body.preload * { transition: none !important; }
 .detail-crumb { font-family: var(--mono); font-size: var(--fs-sm); color: var(--ink-3); display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
 .detail-crumb .repo-dot { width: 7px; height: 7px; }
 .props { display: flex; flex-direction: column; margin: 12px 0 4px; }
-.prop { display: grid; grid-template-columns: 92px 1fr; align-items: center; gap: 10px; min-height: 34px; padding: 6px 0; border-top: 1px solid var(--line); }
+.prop { display: grid; grid-template-columns: 76px 1fr; align-items: center; gap: 10px; min-height: 34px; padding: 6px 0; border-top: 1px solid var(--line); }
 .prop:first-child { border-top: 0; }
 .prop-k { font-family: var(--mono); font-size: var(--fs-sm); color: var(--ink-3); }
 .prop-v { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: var(--fs-md); color: var(--ink); }
@@ -928,6 +928,20 @@ body.preload * { transition: none !important; }
 
 /* ── v2 consistent view-header ─────────────────────────────────────────────── */
 .vhead { display: flex; align-items: center; gap: 10px; padding: 11px 20px; border-bottom: 1px solid var(--line); }
+/* The title *is* the view switcher — one control on both widths, opening the same
+   surface the overlay primitive gives every other menu. It replaces nothing: the
+   sidebar list stays, and both are built from viewsShown(), so they cannot drift. */
+.view-switch { position: relative; display: inline-flex; min-width: 0; margin: 0; }
+.view-switch-btn {
+  display: inline-flex; align-items: baseline; gap: 8px; min-width: 0;
+  font: inherit; background: none; border: 0; border-radius: var(--r-sm);
+  padding: 3px 6px; margin: -3px -6px; color: inherit; cursor: pointer; text-align: left;
+}
+.view-switch-btn:hover { background: var(--panel-2); }
+.view-switch-btn:hover .vs-caret { color: var(--ink-2); }
+.vs-caret { font-size: var(--fs-sm); color: var(--ink-3); flex: none; }
+.vs-section { padding: 8px 9px 4px; }
+.vs-section:first-child { padding-top: 4px; }
 .view-title { font-size: var(--fs-lg); font-weight: 600; margin: 0; letter-spacing: -0.01em; }
 /* keep a long composed "view · scope" title from pushing the view-options off */
 .vhead .view-title { max-width: 55ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1276,7 +1290,7 @@ body.preload * { transition: none !important; }
 .top-title .view-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* The title lives in the topbar on every width now, so the vhead carries only the
    view-options (filter / sort / layout) — the "body" toolbar. */
-.vhead .view-title, .vhead .view-count { display: none; }
+.vhead .view-switch { display: none; }
 .vhead .vopts { margin-left: 0; }
 
 /* ── uniform control height across the topbar + view-header ─────────────────── */
@@ -1573,8 +1587,17 @@ body.preload * { transition: none !important; }
 .rollup-n { font-variant-numeric: tabular-nums; }
 .etapp-chip {
   display: inline-flex; align-items: center; gap: 3px; min-width: 0; flex: 0 1 auto;
-  font-size: var(--fs-sm); color: var(--ink-3); cursor: help;
+  font: inherit; font-size: var(--fs-sm); background: none; border: 0; padding: 0;
+  color: var(--ink-3); cursor: help;
 }
+.etapp-link { cursor: pointer; }
+@media (hover: hover) { .etapp-link:hover { color: var(--accent); } }
+/* On a card the repo name sits immediately before this, and in a repo that is itself
+   called Etapp the two read as one phrase ("Etapp ⑂ GUI-hantverk"). The meta row
+   separates its parts by gap alone, so the chip brings its own divider — the same one
+   `.issue-newbtn` uses. Not in the list row, where the chip follows the title and the
+   repo has a cell of its own. */
+.card-meta .etapp-chip::before { content: "·"; color: var(--ink-3); margin-right: 3px; }
 .etapp-chip .icn { width: 11px; height: 11px; flex: none; }
 .etapp-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .col-head .rollup, .list-head .rollup { margin-left: 4px; }

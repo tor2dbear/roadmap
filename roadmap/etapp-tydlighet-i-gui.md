@@ -101,11 +101,30 @@ Fem fynd, i fallande ordning av hur mycket de skymde:
   `Standalone` ger samma uppdelning som en **lins man går in i och ut ur**, utan att
   låsa fast vad brädet betyder. Det är den billigare formen av samma sak.
 
+- **Titeln är vy-switchen.** Att spara en vy skedde i Display-menyn uppe till höger
+  och resultatet dök upp i sidomenyn längst till vänster — bakom en låda på telefon.
+  Två hörn för en handling och dess resultat, och koden erkände det: spara-hinten
+  *måste* säga "and shows in the sidebar". Bägge bor bakom titeln nu, som redan är
+  namnet på vyn man står i. Ett tapp i stället för en låda.
+  Raderna kommer från `viewsShown()`, samma anrop sidomenyn gör, så de två listorna
+  kan inte säga olika om vilka vyer som finns — driften som gav en palett utan
+  Etapps och "All pucks 31 / Standalone 31".
+- **Etapp-chippen är en väg dit, inte en etikett.** På ett platt bräde kan ett kort
+  och dess etapp ligga kolumner isär, så den enda plats där relationen *står* på
+  tavlan gjorde ingenting — den upprepade ett namn med `cursor: help`. Nu en knapp
+  som öppnar etappen (och stoppar klicket från kortet under, som öppnar pucken
+  själv). Saknas etappen finns ingen chip att klicka på, och då är den text igen.
+- **Reponamnet och chippen läste som en fras.** `Etapp ⑂ GUI-hantverk` — det första
+  ordet är *repot*, resten är medlemskapet, och meta-raden skiljer sina delar med
+  bara ett mellanrum. Chippen bär en egen avdelare på kortet nu. Ett problem som
+  bara syns i ett repo som självt heter Etapp, alltså bara med riktig data.
+- **En vy har ett antal, inte två.** Sidomenyn pinnade ut arkivet oavsett växeln
+  *"so the count doesn't jump"*, så med Show done på sa sidomenyn 2 och vyhuvudet 4
+  om samma vy. En siffra som hoppar förklaras av knappen man just tryckte; två olika
+  siffror för en vy förklaras aldrig. Räknaren lyder växeln nu, och ett test kräver
+  att sidomenyn, vyhuvudet och antalet kort är samma tal i bägge lägena.
+
 ## Open questions
-- Sparade vyer bär redan sin basvy i tupeln (`view`; saknas den = `all`), men
-  sidomenyn använder inte det. Kandidat: gör *vytiteln* till switchen — den renderas
-  redan på båda bredder — och lägg inbyggda + sparade vyer i samma `openSurface`,
-  tillsammans med `Save as view`. Då bor handlingen och dess resultat på samma ställe.
 - Progressringen (fynd 2) återstår. Den bör vänta tills medlemslistan använts ett
   tag: en ring säger *andel*, och det är först med riktiga etapper man ser om andel
   eller antal är det man faktiskt jämför.

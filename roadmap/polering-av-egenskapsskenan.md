@@ -123,6 +123,7 @@ Felet var att två betydelser fick samma kläder. `No priority` och `Unassigned`
   samma linje som ⋯-menyn. Väljaren lär sig alltså aldrig vad sorterna *är*; bara
   den som bygger listan vet det. Prioritet är en ordnad skala och delas inte.
 
-## Open questions
-- Nyckelkolumnen är 92px. Med chippar borta känns avståndet nyckel→värde stort;
-  värt att prova 76px.
+- **Nyckelkolumnen är 76px.** Provat och behållet. `Blocked by` är den längsta
+  etiketten och ryms utan brytning; testet mäter `scrollWidth > clientWidth` över
+  varje nyckel på en puck som har alla rader, i stället för att lita på ögat — så
+  en framtida längre etikett fäller testet i stället för att klippas tyst.

@@ -766,13 +766,26 @@
     return b;
   }
   // Membership chip on a child card: which etapp this puck belongs to.
+  // Membership, on a card. Clickable when the etapp is on the board: the crumb
+  // already goes up and the members list goes down, but this — the one place the
+  // relation is stated on the board itself — did nothing but repeat a name. On a
+  // flat board a card and its etapp can be columns apart, so the tie has to be a
+  // link or it is only a label.
   function etappChip(item) {
     var p = parentItem(item);
-    var c = el("span", "etapp-chip");
+    var name = p ? p.title : item.parentRef;
+    var c = el(p ? "button" : "span", "etapp-chip" + (p ? " etapp-link" : ""));
+    if (p) c.type = "button";
     c.appendChild(icon("merge"));
-    c.appendChild(el("span", "etapp-name", p ? p.title : item.parentRef));
-    c.title = "Etapp: " + (p ? p.title : item.parentRef);
+    c.appendChild(el("span", "etapp-name", name));
+    c.title = "Etapp: " + name;
     c.setAttribute("aria-label", c.title);
+    if (p) {
+      c.addEventListener("click", function (e) {
+        e.stopPropagation(); // the card underneath opens *this* puck; the chip opens its etapp
+        openModal(p);
+      });
+    }
     return c;
   }
 
@@ -2946,11 +2959,16 @@
   function viewCounts() {
     var c = {}, qs = {};
     // Counted with the views' own queries, so a row's number can never drift from
-    // what clicking it shows. The archive-reaching views always exclude it here,
-    // whatever the toggle says, so the count doesn't jump when you show done.
+    // what clicking it shows — the archive toggle included.
+    //
+    // This used to pin the archive out whatever the toggle said, "so the count
+    // doesn't jump". Turning on Show done then left the sidebar saying 2 and the
+    // header saying 4 for one view, which only became visible once two of three
+    // etapps were done. A number that jumps is explained by the switch you just
+    // flipped; two different numbers for one view are never explained.
     Object.keys(VIEWS).forEach(function (k) {
       c[k] = 0;
-      qs[k] = parseQuery(VIEWS[k]).concat(ARCHIVABLE[k] ? [NOT_DONE] : []);
+      qs[k] = parseQuery(VIEWS[k]).concat(ARCHIVABLE[k] && !state.showDone ? [NOT_DONE] : []);
     });
     DATA.items.forEach(function (it) {
       Object.keys(qs).forEach(function (k) { if (runQuery(it, qs[k])) c[k]++; });
@@ -3029,6 +3047,84 @@
   // Switch the active view (used by the ⌘K palette). Same as a sidebar view click:
   // clears any place so the view is global.
   function setFocus(key) { goToView(key); }
+
+  // ── the view switcher: the title is the control ─────────────────────────────
+  // Saving a view happened in the Display menu (top right) and the result appeared
+  // in the sidebar (far left, behind a drawer on a phone) — two corners for one
+  // action and its result, and the code admitted it: the save hint had to say "and
+  // shows in the sidebar". Both now live behind the title, which is already the
+  // name of the current view on every width. Switching is one tap instead of
+  // opening a drawer.
+  //
+  // The rows come from viewsShown(), the same call the sidebar makes, so the two
+  // lists cannot disagree about which views exist — the drift that produced a
+  // palette without Etapps, and "All pucks 31 / Standalone 31".
+  function buildViewSwitch() {
+    ["viewTitleBtn", "topTitleBtn"].forEach(function (id) {
+      var btn = document.getElementById(id);
+      if (!btn) return;
+      var wrap = btn.parentNode;
+      var open = null;
+      btn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        if (open) { open.close(); return; }
+        btn.setAttribute("aria-expanded", "true");
+        open = openSurface({
+          title: "Views",
+          anchorWrap: wrap,
+          cls: "pick-menu view-menu",
+          onClose: function () { open = null; btn.setAttribute("aria-expanded", "false"); },
+          build: function (host, api) {
+            var counts = viewCounts(), inPlace = placeActive();
+            viewsShown(counts).forEach(function (g, gi) {
+              if (gi) host.appendChild(el("div", "menu-rule"));
+              g.keys.forEach(function (key) {
+                var on = state.focus === key && !inPlace;
+                var r = el("button", "row" + (on ? " on" : ""));
+                r.type = "button";
+                r.title = VIEW_DEFS[key].title;
+                r.appendChild(el("span", "focus-label", VIEW_DEFS[key].label));
+                if (counts[key]) r.appendChild(el("span", "focus-n", String(counts[key])));
+                if (on) r.appendChild(el("span", "pick-check", "✓"));
+                r.addEventListener("click", function () { api.close(); goToView(key); });
+                host.appendChild(r);
+              });
+            });
+            var saved = savedViews();
+            if (saved.length) {
+              host.appendChild(el("div", "menu-rule"));
+              host.appendChild(el("div", "vs-section fp-label", "Saved"));
+              var now = viewParamObject();
+              saved.forEach(function (v) {
+                var on = sameParams(paramsOf(v), now);
+                var r = el("button", "row" + (on ? " on" : ""));
+                r.type = "button";
+                r.title = v.q || "Saved view";
+                r.appendChild(el("span", "focus-label", v.name));
+                if (on) r.appendChild(el("span", "pick-check", "✓"));
+                r.addEventListener("click", function () { api.close(); applySavedView(v); });
+                host.appendChild(r);
+              });
+            }
+            if (ghToken()) {
+              host.appendChild(el("div", "menu-rule"));
+              var save = el("button", "row vs-save", "Save this view…");
+              save.type = "button";
+              save.addEventListener("click", function () {
+                api.close();
+                // After the dispatch that closed us: saveCurrentView opens a surface
+                // of its own, and anchoring it inside one that is still unwinding
+                // would attach it to a detached node.
+                setTimeout(function () { saveCurrentView(wrap); }, 0);
+              });
+              host.appendChild(save);
+            }
+          },
+        });
+      });
+    });
+  }
+  buildViewSwitch();
 
   // ── theme ──
   var root = document.documentElement;
@@ -3194,14 +3290,11 @@
     }
 
     pop.appendChild(el("div", "dp-rule"));
-    // "Save as view" is Linear's "Set default for everyone", git-native: it writes
-    // board.config.json, and repo permissions decide who may.
-    if (ghToken()) {
-      var save = el("button", "dp-reset dp-save", "Save as view…");
-      save.type = "button";
-      save.addEventListener("click", function () { toggleDisplayMenu(); saveCurrentView(); });
-      pop.appendChild(save);
-    }
+    // "Save as view" used to sit here, and the saved view then appeared in the
+    // sidebar — the action in one corner, its result in another. It lives behind
+    // the title now, next to the views it joins. (It is still Linear's "set default
+    // for everyone", git-native: it writes board.config.json and repo permissions
+    // decide who may.)
     var reset = el("button", "dp-reset", "Reset to default");
     reset.type = "button";
     reset.addEventListener("click", function () {
@@ -4007,7 +4100,7 @@
     inputSurface(wrap || null, {
       title: "Save view",
       placeholder: "Name this view",
-      hint: "Goes in board.config.json and shows in the sidebar.",
+      hint: "Saved to board.config.json as a commit — it joins the list behind the title.",
       action: "Save",
       onSave: function (name) {
         name = String(name).trim();
