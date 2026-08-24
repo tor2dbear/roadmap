@@ -666,6 +666,10 @@
     trash: ["M2 4h12", "M12.667 4v9.333a1.333 1.333 0 0 1 -1.333 1.333H4.667a1.333 1.333 0 0 1 -1.333 -1.333V4", "M5.333 4V2.667a1.333 1.333 0 0 1 1.333 -1.333h2.667a1.333 1.333 0 0 1 1.333 1.333V4", "M6.667 7.333v4", "M9.333 7.333v4"],
     // sliders (Feather) — settings/command
     sliders: ["M2.6667 14v-4.6667", "M2.6667 6.6667V2", "M8 14v-6", "M8 5.3333V2", "M13.3333 14v-3.3333", "M13.3333 8V2", "M0.6667 9.3333h4", "M6 5.3333h4", "M11.3333 10.6667h4"],
+    // more-horizontal — three dots, drawn the way `list` draws its bullets: a
+    // zero-length line with a round cap, so they scale with the stroke like
+    // every other mark here instead of being circles with their own radius.
+    more: ["m2.8125 7.5 0.00625 0", "m7.5 7.5 0.00625 0", "m12.1875 7.5 0.00625 0"],
     list: ["m5 3.75 8.125 0", "m5 7.5 8.125 0", "m5 11.25 8.125 0", "m1.875 3.75 0.00625 0", "m1.875 7.5 0.00625 0", "m1.875 11.25 0.00625 0"],
     grid: ["M1.875 1.875h4.375v4.375H1.875Z", "M8.75 1.875h4.375v4.375h-4.375Z", "M8.75 8.75h4.375v4.375h-4.375Z", "M1.875 8.75h4.375v4.375H1.875Z"],
     key: ["m13.125 1.25 -1.25 1.25m-4.7562500000000005 4.7562500000000005a3.4375 3.4375 0 1 1 -4.86125 4.86125 3.4375 3.4375 0 0 1 4.860625 -4.860625zm0 0L9.6875 4.6875m0 0 1.875 1.875L13.75 4.375l-1.875 -1.875m-2.1875 2.1875L11.875 2.5"],
@@ -1741,8 +1745,74 @@
     return wrap;
   }
 
+  // The puck's own ⋯ menu, at the right end of the tab strip. What lives here is
+  // everything you do *to the file* rather than to the fields: open it on GitHub,
+  // copy a link to it, delete it. They used to sit in a link row under the body —
+  // which put a destructive action at the end of a scroll, told apart from two
+  // navigation links by colour alone. In a menu the delete is one deliberate step
+  // away and can carry a rule above it; the rail keeps every value edit.
+  function puckMenu(item) {
+    var wrap = el("div", "prop-pick puck-more");
+    var btn = el("button", "btn btn--quiet btn--icon");
+    btn.type = "button";
+    btn.title = "More actions";
+    btn.setAttribute("aria-label", "More actions");
+    btn.setAttribute("aria-haspopup", "true");
+    btn.setAttribute("aria-expanded", "false");
+    btn.appendChild(icon("more"));
+    var open = null;
+    btn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (open) { open.close(); return; }
+      btn.setAttribute("aria-expanded", "true");
+      open = openSurface({
+        title: "Actions",
+        anchorWrap: wrap,
+        cls: "pick-menu menu-right",
+        onClose: function () { open = null; btn.setAttribute("aria-expanded", "false"); },
+        build: function (host, api) {
+          var src = el("a", "row");
+          src.href = item.sourceUrl; src.target = "_blank"; src.rel = "noopener";
+          src.appendChild(icon("external"));
+          src.appendChild(el("span", null, "Open source"));
+          src.addEventListener("click", function () { api.close(); });
+          host.appendChild(src);
+
+          var copy = el("button", "row");
+          copy.type = "button";
+          copy.appendChild(icon("share"));
+          var copyLabel = el("span", null, "Copy link");
+          copy.appendChild(copyLabel);
+          copy.addEventListener("click", function () {
+            copyText(location.origin + location.pathname + "#" + item.id, function () {
+              copyLabel.textContent = "Copied";
+              setTimeout(api.close, 700);
+            });
+          });
+          host.appendChild(copy);
+
+          // Same gate as every other write in the rail (`editable`): signed in,
+          // native, and not known read-only. The old link row skipped the token
+          // check, so a signed-out reader was offered a Delete that could only
+          // fail — canWrite() alone means "not known to be read-only", not "may".
+          if (ghToken() && item.native && canWrite(item)) {
+            host.appendChild(el("div", "menu-rule"));
+            var del = el("button", "row danger");
+            del.type = "button";
+            del.appendChild(icon("trash"));
+            del.appendChild(el("span", null, "Delete puck"));
+            del.addEventListener("click", function () { api.close(); confirmDeletePuck(item); });
+            host.appendChild(del);
+          }
+        },
+      });
+    });
+    wrap.appendChild(btn);
+    return wrap;
+  }
+
   // Build the full puck detail into `container` — shared by both surfaces.
-  // Structure: breadcrumb → title → properties rail → details (body) → links.
+  // Structure: breadcrumb → title → tab strip (+ ⋯ menu) → properties rail → body.
   function fillDetail(container, item) {
     container.innerHTML = "";
     container.style.setProperty("--repo", item.repoColor);
@@ -1788,11 +1858,20 @@
       extraTabs.push({ key: "activity", label: "Activity", load: loadActivity });
       if (item.issue) extraTabs.push({ key: "discussion", label: "Discussion", load: loadDiscussion });
     }
+    // The strip under the title carries the tabs on the left and the ⋯ menu on the
+    // right. It is drawn even when there is only one face to show (an adapted
+    // source has no Activity or Discussion): the menu has to live somewhere, and
+    // the rule is what separates the heading from the page's content either way.
+    var strip = el("div", "detail-tabs");
+    var tabList = el("div", "tab-list");
+    strip.appendChild(tabList);
+    strip.appendChild(puckMenu(item));
+    container.appendChild(strip);
+
     if (extraTabs.length) {
       var defs = [{ key: "overview", label: "Overview", panel: overview }].concat(
         extraTabs.map(function (t) { t.panel = el("div", "tab-panel"); t.panel.hidden = true; return t; }));
-      var tabs = el("div", "detail-tabs");
-      tabs.setAttribute("role", "tablist");
+      tabList.setAttribute("role", "tablist");
       var tabBtns = {};
       var loadedSet = {};
       var pick = function (name) {
@@ -1810,9 +1889,8 @@
         b.setAttribute("aria-selected", d.key === "overview" ? "true" : "false");
         b.addEventListener("click", function () { pick(d.key); });
         tabBtns[d.key] = b;
-        tabs.appendChild(b);
+        tabList.appendChild(b);
       });
-      container.appendChild(tabs);
       defs.forEach(function (d) { container.appendChild(d.panel); });
     } else {
       container.appendChild(overview);
@@ -2002,35 +2080,9 @@
       overview.appendChild(editBtn);
     }
 
-    var links = el("div", "card-links");
-    var srcLink = linkEl("source", item.sourceUrl);
-    srcLink.insertBefore(icon("external", "inline"), srcLink.firstChild);
-    links.appendChild(srcLink);
-    if (item.issue) {
-      links.appendChild(linkEl("issue #" + item.issue, "https://github.com/" + item.repo + "/issues/" + item.issue));
-    }
-    var copyBtn = el("button", "linklike");
-    copyBtn.type = "button";
-    copyBtn.appendChild(icon("share", "inline"));
-    var copyLabel = el("span", null, "Copy link");
-    copyBtn.appendChild(copyLabel);
-    copyBtn.addEventListener("click", function () {
-      var url = location.origin + location.pathname + "#" + item.id;
-      copyText(url, function () {
-        copyLabel.textContent = "Copied";
-        setTimeout(function () { copyLabel.textContent = "Copy link"; }, 1500);
-      });
-    });
-    links.appendChild(copyBtn);
-    if (canWrite(item) && item.native) {
-      var delBtn = el("button", "linklike danger");
-      delBtn.type = "button";
-      delBtn.appendChild(icon("trash", "inline"));
-      delBtn.appendChild(el("span", null, "Delete"));
-      delBtn.addEventListener("click", function () { confirmDeletePuck(item); });
-      links.appendChild(delBtn);
-    }
-    overview.appendChild(links);
+    // Source, Copy link and Delete used to be a link row here. They act on the
+    // file rather than on this page's content, so they live in the ⋯ menu at the
+    // top now — and the issue they also linked is already a link in the rail.
 
     // Created/Updated: metadata about the file, so it rests at the foot of the tab.
     // Between the rail and the Details heading it sat in the same muted mono voice
@@ -2624,8 +2676,12 @@
     buildSavedViews(); // its "active" state tracks the board, like the view rows
     refreshDisplayDot();
     writeUrl(); // every render reflects the view into the URL, so it stays shareable
+    // The footer says where the data came from, not what the view is showing: the
+    // count of the current view is already in the view header and the sidebar, and
+    // a third copy under the fold was the only one that could go stale (it stayed
+    // put, reading "1 of 145 shown", while a puck page covered the board).
     document.getElementById("footmeta").textContent =
-      shown + " of " + DATA.total + " shown · generated " + DATA.generatedAt.slice(0, 16).replace("T", " ") + " UTC · ";
+      DATA.total + " pucks · generated " + DATA.generatedAt.slice(0, 16).replace("T", " ") + " UTC · ";
   }
 
   // Which status groups the current view shows. Inbox is its own space, so it's

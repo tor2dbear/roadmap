@@ -195,7 +195,7 @@ body {
   display: flex; align-items: center; gap: 8px; width: 100%;
   font: inherit; font-size: var(--fs-md); text-align: left; color: var(--ink);
   background: none; border: 0; border-radius: var(--r-sm); padding: 7px 9px;
-  cursor: pointer;
+  cursor: pointer; text-decoration: none; /* a row can be an <a> — see the ⋯ menu */
 }
 .row:hover, .row[aria-selected="true"], .row.on { background: var(--panel-2); }
 .row.danger { color: var(--danger); }
@@ -283,7 +283,6 @@ body {
 .card[draggable="true"] { cursor: grab; }
 .card.dragging { opacity: .5; }
 .column.drop-target { background: color-mix(in srgb, var(--accent) 8%, transparent); outline: 1.5px dashed color-mix(in srgb, var(--accent) 45%, transparent); outline-offset: -2px; }
-/* in-column "+" — add a puck already in this column */
 /* ── btn: the pressable rectangle ──────────────────────────────────────────────
    Seven classes carried seven sets of numbers for one family. One base with what
    they share; each name keeps only its difference, and `.btn` is what new code
@@ -303,8 +302,10 @@ body {
 .btn--quiet, .focusbtn { background: none; border-color: transparent; color: var(--ink-2); }
 .btn--pill, .edit-btn { border-radius: var(--r-pill); }
 .btn--dashed, .col-add { border-style: dashed; color: var(--ink-3); }
-.btn--solid, 
+/* square: an icon carries the meaning, so there is no label to pad around */
+.btn--icon { padding: 5px; }
 
+/* in-column "+" — add a puck already in this column */
 .col-add {
   margin-top: 10px; width: 100%; display: flex; align-items: center; justify-content: center;
   padding: 7px; opacity: 0; transition: opacity .12s;
@@ -750,7 +751,11 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 /* A puck opens as a full-width page (same on desktop + mobile): the board and the
    view-header hide, and the detail fills the content area as a centered,
    document-width column. The breadcrumb "← All pucks" is the back action. */
+/* The footer belongs to the board: it counts and dates the harvest behind it. On a
+   puck page there is no board under it, so it hid nothing and only reported on a
+   view the reader had left. */
 body.viewing-puck #board,
+body.viewing-puck .foot,
 body.viewing-puck .vhead { display: none; }
 .detail-pane {
   background: var(--bg);
@@ -1298,7 +1303,17 @@ body.preload * { transition: none !important; }
 /* The two gaps that set the page's rhythm: title → tabs, and the rule under the
    tabs → the first property. Both were tight enough that the title read as part
    of the tab strip and the rule as part of the table under it. */
-.detail-tabs { display: flex; gap: 2px; margin: 20px 0 24px; border-bottom: 1px solid var(--line); }
+/* The strip is one row: tabs left, the puck's ⋯ menu right. `align-items: flex-end`
+   is what lets the active tab's 2px underline sit on the rule while a taller
+   control on the right keeps its own height. */
+.detail-tabs {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 8px;
+  margin: 20px 0 24px; border-bottom: 1px solid var(--line);
+}
+.tab-list { display: flex; gap: 2px; min-width: 0; }
+.puck-more { margin-bottom: 4px; }
+.puck-more .btn { color: var(--ink-3); }
+.puck-more .btn:hover { color: var(--ink); background: var(--panel-2); }
 .tab-btn {
   font: inherit; font-size: var(--fs-md); background: none; border: 0;
   border-bottom: 2px solid transparent; margin-bottom: -1px; padding: 8px 10px;
@@ -1351,6 +1366,16 @@ body.preload * { transition: none !important; }
   box-shadow: var(--shadow);
 }
 .pop-center { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+/* A popover hangs from the left edge of its trigger by default. A trigger sitting
+   at the right edge of its own row needs the mirror, or the menu runs off-page. */
+/* `.pop.` and not `.menu-right` alone: on a phone the same surface is a `.sheet`,
+   which owns left/right itself — a bare class here would edge it off-screen. */
+.pop.menu-right { left: auto; right: -1px; }
+.menu-rule { height: 1px; background: var(--line); margin: 4px 6px; }
+/* A menu row's icon is the quiet half of the pair — except on a danger row, where
+   the whole row is one colour and a grey glyph would read as disabled. */
+.pick-menu .row > .icn { width: 15px; height: 15px; color: var(--ink-3); }
+.pick-menu .row.danger > .icn { color: currentColor; }
 .surface-body { display: flex; flex-direction: column; }
 
 @media (max-width: 640px) {

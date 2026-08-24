@@ -2,7 +2,7 @@
 title: "UI-primitiv och skalor"
 status: now
 tags: [ui, dx]
-updated: 2026-08-23
+updated: 2026-08-24
 created: 2026-08-23
 order: 5
 depends: [polering-av-egenskapsskenan]
@@ -87,6 +87,23 @@ Flikarna är däremot rätt: `.tab-btn` (understruken, innehåll) och `.focusbtn
   tumstorlek på telefon, alltså samma regel som `.sheet .row` följer, och den är
   rätt. `.side-views .focusbtn` var den verkliga: en andra variant av en kontroll
   som bara har ett hem. Den är infälld i `.focusbtn` nu, för det *är* kontrollen.
+
+- **En ⋯-meny vid flikarna, och en footer som slutade räkna.** Puckens sida hade en
+  länkrad under brödtexten — `source ↗`, `Copy link`, `Delete` — alltså en
+  destruktiv åtgärd i slutet av en skrollning, skild från två navigationslänkar
+  bara av färg. De tre gör något med *filen*, inte med sidans innehåll, så de
+  ligger i en ⋯-meny i flikstrippen nu, med radera under en linje. Skenan behåller
+  varje fältredigering och `Edit body` stannar hos brödtexten.
+  Två fynd på vägen: länkraden visade `Delete` även utan token, eftersom den
+  grindade på `canWrite()` ensam — och det betyder "inte känt skrivskyddad", inte
+  "får skriva"; nu samma grind som skenan (`ghToken() && native && canWrite`).
+  Och `.btn--solid` var en hängande selektor med ett efterföljande komma, så den
+  ärvde `.col-add`s regler (`opacity: 0`, full bredd). Ingen använde den; borta.
+- **Footern hörde till tavlan.** Den doldes inte när en puck täckte brädet, så
+  "1 of 145 shown" stod kvar och beskrev en vy läsaren hade lämnat. Vyns antal
+  fanns redan på två ställen (vyhuvudet och sidomenyn) och footerns var det enda
+  som kunde bli fel. Den säger härkomst nu — `145 pucks · generated <tid>` plus de
+  tre maskinutgångarna — och göms på puckvyn.
 
 ## Open questions
 - Ska `.badge` och `.btn` ta färgen som modifierare (`.badge--status-now`) eller
