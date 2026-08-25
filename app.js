@@ -1266,9 +1266,13 @@
       // somewhere to go itself. Downward: only from its top. Upward: only while the
       // sheet is already full — below that there is sheet left to reveal, and
       // revealing it is what the finger meant.
-      atTop = body.scrollTop <= 0;
       wasFull = root.classList.contains("full");
-      if (fromBody && !atTop && wasFull) return;
+      // "At its top" means "has nothing to give this gesture", and below full height a
+      // list that cannot scroll at all never has anything to give — whatever offset it
+      // is holding. Asking only about the offset discarded the drag on a collapsed
+      // sheet whose list still remembered where it stood.
+      atTop = !wasFull || body.scrollTop <= 0;
+      if (fromBody && !atTop) return;
       heights();
       pending = true; dragging = false; mode = ""; startY = e.clientY; dy = 0; slid = 0;
       startTop = body.scrollTop; lastY = e.clientY; lastT = clock(); vy = 0;
@@ -1354,7 +1358,14 @@
       // Settle at the nearer detent, so a drag that got most of the way there
       // finishes the journey instead of springing back.
       if (h > (naturalH + maxH) / 2) root.classList.add("full");
-      else root.classList.remove("full");
+      else {
+        // Give the list back its top on the way down. Below full height the body is
+        // `overflow: hidden` but still holds whatever offset it had, so the rows above
+        // it would be clipped out of a box that can no longer be scrolled — gone until
+        // the sheet is expanded again.
+        root.classList.remove("full");
+        body.scrollTop = 0;
+      }
       syncPan();
     }
     // A hand-rolled fling, for the one gesture the browser isn't allowed to have:
