@@ -2,7 +2,7 @@
 title: "Polering av egenskapsskenan"
 status: now
 tags: [ui]
-updated: 2026-08-24
+updated: 2026-08-25
 created: 2026-08-22
 order: 5
 depends: [ui-overlay-och-pickers]
@@ -189,3 +189,19 @@ Felet var att två betydelser fick samma kläder. `No priority` och `Unassigned`
   Testet mäter nu indraget på **varje** sheet-variant (status, target, etapp, labels,
   filter, display) och kräver att ingen rad spiller ut ur innehållsrutan — det var
   precis felet med att bara titta på den yta jag råkade ha framför mig.
+
+- **Ett indrag för hela sidan (`--pad`), och en markering som får gå utanför.**
+  "Linjera sheeten med sidan" hade inget svar att ge: sidan hade **fem** olika
+  sidoindrag — 20 i topbaren och vyhuvudet, 22 i puckvyn, 24 i chipraden, brädet och
+  footern. Nu en token, och en yta ärver den i stället för att gissa vilken av de fem
+  den skulle matcha.
+  Och markeringen: **texten** är innehåll och hör på linjen; **markeringen** är ett
+  tillstånd, och att boxa in den innanför linjen får den att läsa som ännu ett element
+  i stället för som att raden lyser. Raden går 10px utanför linjen åt bägge håll,
+  mätt *från linjen* och inte från skärmkanten — det var det som fick den att hamna
+  på 9px (och −5 i pickarna) i går.
+  Två fel i min egen ändring, bägge fångade av testet jag skrev till den: `.row` sätter
+  `width: 100%`, så negativa marginaler **flyttade** raden i stället för att vidga
+  den (10px ut åt vänster, 10px för kort åt höger) — och chipraden hade jag missat
+  när jag bytte ut literalerna. Testet mäter mot sidans egen linje i stället för mot
+  ett tal, så den sortens miss kan inte passera igen.

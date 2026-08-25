@@ -31,6 +31,11 @@
   --r-md: 8px;    /* controls: buttons, fields, chips, popovers */
   --r-lg: 12px;   /* panels and cards */
   --r-pill: 999px;
+  /* The page's content line. Five different numbers lived here — 20 in the topbar
+     and view-header, 22 in the puck page, 24 in the chip row, the board and the
+     footer — so "line the sheet up with the page" had no answer to give. One token,
+     and a surface can inherit it instead of guessing which of the five to match. */
+  --pad: 22px;
   --fs-xs: 10px;  /* badges, eyebrows, counters */
   --fs-sm: 11px;  /* the meta line under a card */
   --fs-base: 12px;
@@ -229,7 +234,7 @@ body {
   gap: 16px;
   align-items: center;
   flex-wrap: wrap;
-  padding: 4px 24px 14px;
+  padding: 4px var(--pad) 14px;
   border-bottom: 1px solid var(--line);
 }
 .filter-sort { display: flex; align-items: center; gap: 8px; }
@@ -274,7 +279,7 @@ body {
   grid-auto-flow: column;
   grid-auto-columns: minmax(280px, 1fr);
   gap: 16px;
-  padding: 18px 24px 40px;
+  padding: 18px var(--pad) 40px;
   overflow-x: auto;
   align-items: start;
 }
@@ -580,7 +585,7 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 
 .empty { color: var(--ink-3); font-size: var(--fs-md); padding: 8px 2px; }
 .foot {
-  padding: 16px 24px 28px;
+  padding: 16px var(--pad) 28px;
   border-top: 1px solid var(--line);
   color: var(--ink-3);
   font-size: var(--fs-md);
@@ -758,7 +763,7 @@ body.viewing-puck .foot,
 body.viewing-puck .vhead { display: none; }
 .detail-pane {
   background: var(--bg);
-  padding: 16px 22px 56px; display: flex; flex-direction: column;
+  padding: 16px var(--pad) 56px; display: flex; flex-direction: column;
 }
 .detail-close { display: none; }
 .detail-content { max-width: 760px; width: 100%; margin: 0 auto; }
@@ -831,7 +836,7 @@ body.col-resizing { cursor: col-resize; user-select: none; }
    and so its content lines up with the sidebar's workspace-header band. */
 .topbar {
   justify-content: flex-start; align-items: center; gap: 12px;
-  height: var(--topbar-h); box-sizing: border-box; padding: 0 20px;
+  height: var(--topbar-h); box-sizing: border-box; padding: 0 var(--pad);
   position: sticky; top: 0; z-index: 20;
   background: var(--bg); border-bottom: 1px solid var(--line);
 }
@@ -926,7 +931,7 @@ body.preload * { transition: none !important; }
 .ws-menu-head.bad .ws-menu-who { color: var(--danger); }
 
 /* ── v2 consistent view-header ─────────────────────────────────────────────── */
-.vhead { display: flex; align-items: center; gap: 10px; padding: 11px 20px; border-bottom: 1px solid var(--line); }
+.vhead { display: flex; align-items: center; gap: 10px; padding: 11px var(--pad); border-bottom: 1px solid var(--line); }
 /* The title *is* the view switcher — one control on both widths, opening the same
    surface the overlay primitive gives every other menu. It replaces nothing: the
    sidebar list stays, and both are built from viewsShown(), so they cannot drift. */
@@ -1136,7 +1141,7 @@ body.preload * { transition: none !important; }
    filter's display — which is why the Filter button needs no count of its own. */
 .chiprow {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
-  padding: 0 24px 10px; border-bottom: 1px solid var(--line);
+  padding: 0 var(--pad) 10px; border-bottom: 1px solid var(--line);
 }
 .fchip {
   display: inline-flex; align-items: center; gap: 6px;
@@ -1437,7 +1442,7 @@ body.preload * { transition: none !important; }
        a narrower column than everything behind it. The bottom is deliberately
        larger than the sides: the last control used to end 10px above the screen
        edge, where the home indicator is and a thumb isn't. */
-    padding: 6px 20px calc(24px + env(safe-area-inset-bottom));
+    padding: 6px var(--pad) calc(24px + env(safe-area-inset-bottom));
   }
   /* The grip is the handle: drag down to dismiss, up to go full height. The whole
      sheet listens, but only the chrome starts a drag unconditionally — from the
@@ -1498,13 +1503,21 @@ body.preload * { transition: none !important; }
     position: sticky; top: 0; z-index: 1; background: var(--panel); padding-bottom: 12px;
   }
   .sheet .pick-list { max-height: none; overflow: visible; }
-  /* Thumb-sized rows, sitting *in* the content box. An earlier version pulled them
-     out with a negative margin so the highlight would bleed toward the edge; at a
-     20px inset that put the selected row 9px from the screen edge, reading as no
-     padding at all — and in the pickers, whose inset was still 6px, it put the row
-     at −5 and clipped it. The horizontal padding matches `.fp-search`'s, so a row's
-     text and the search field's land on the same line without either leaving the box. */
-  .sheet .row { padding: 12px 9px; font-size: var(--fs-xl); }
+  /* Thumb-sized rows whose *text* sits on the page's content line, with the
+     selected row's background reaching 10px past it. Two different things want two
+     different edges: the text is content and belongs on the line; the highlight is
+     a state, and boxing it inside the line makes it read as another element rather
+     than as the row being lit.
+     An earlier attempt at the same bleed measured it from the *screen* edge instead
+     of from the content line, which put the row at 9px (and at −5 in the pickers,
+     whose inset had not been fixed yet). Measured from the line, it can't clip. */
+  .sheet .row {
+    /* `width: auto`, not the base's 100%: with a fixed width the negative margins
+       shift the row left instead of widening it, so it bled 10px on one side and
+       fell 10px short on the other. Auto lets the flex column stretch it, and the
+       margins then push both edges out by the same amount. */
+    width: auto; margin: 0 -10px; padding: 12px 10px; font-size: var(--fs-xl);
+  }
   /* Rules span the content, like the rows they separate. */
   .sheet .menu-rule { margin: 6px 0; }
   /* Every control in a sheet is thumb-sized, not just the list rows. These two were
