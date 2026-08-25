@@ -2,7 +2,7 @@
 title: "Etapp: tydlighet i GUI:t"
 status: now
 tags: [ui, product]
-updated: 2026-08-24
+updated: 2026-08-25
 created: 2026-08-23
 order: 5
 depends: [ui-primitiv-och-skalor]
@@ -156,6 +156,30 @@ Fem fynd, i fallande ordning av hur mycket de skymde:
   på sin vänsterkant, vilket är bättre än vad prefixkolumnen gav, och statusen sitter
   där ögat ändå söker den. Testet renderar alla sex statusarna och kräver att ingen
   klipps.
+- **Sex följdfel av gårdagens fixar — fem av dem mina.** Granskningen fortsatte
+  medan jag rättade, och pekade på precis de vägar in jag hade missat:
+  - **Drag-vakten läste `state.group`, inte den effektiva.** Inkorgen faller tillbaka
+    på repo medan det lagrade valet står kvar på status — så status-droppzonen var
+    aktiv över repo-kolumner och räknade en rang mot ett annat repos kort.
+  - **`setDisplay` byggde inte om navigationen.** Så snart sidomenyns siffror började
+    läsa `state.showDone` blev arkivväxeln en ändring som flyttar dem — och den ritade
+    bara om brädet. Nu är regeln "en display-ändring uppdaterar chromet", inte en
+    lista över vilka som gör det.
+  - **`changeOrder` gick förbi härledningen.** Ett släpp mellan statuskolumner *är* en
+    statusändring med en rang på köpet; jag dirigerade bara väljarens väg.
+  - **`afterEdit` ritade innan den städade.** `buildAgentChips()` rensar en tömd
+    agent ur `state.agents`, och den mängden är en del av frågan brädet renderar —
+    så ordningen måste vara navigation först, bräde sedan.
+  - **`＋ Add puck` grindades på fel repo.** Den skriver **barnets** `parent:`-rad, så
+    det är barnets skrivbarhet som avgör. En token som äger ett annat källrepo kan nu
+    lägga till därifrån till en etapp den aldrig kunde redigera själv. Predikatet
+    (`memberCandidate`) frågas två gånger — en gång för att avgöra om kontrollen ska
+    finnas, en gång för att fylla den.
+  - **`AGENTS.md` dokumenterade inte `etapps`/`standalone` som vyer.** `is:`-tabellen
+    hade jag uppdaterat; URL-kontraktet glömde jag.
+  Mönstret är detsamma hela vägen: jag skrev `afterEdit()` för att *"varje skrivning
+  är skyldig resten av gränssnittet detta"* — och missade sedan två av vägarna in i
+  den. Att skriva regeln räcker inte om man inte också letar upp alla anropare.
 
 ## Open questions
 - Progressringen (fynd 2) återstår. Den bör vänta tills medlemslistan använts ett

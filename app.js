@@ -2106,7 +2106,7 @@
     // down (a comma-separated line works for two pucks and collapses at eight);
     // without them the rail keeps one quiet control, so an etapp can be *started*
     // from the parent side instead of only from each child.
-    if (!(item.children || []).length && editable) {
+    if (!(item.children || []).length && canAddMember(item)) {
       gRel.rows.push(propRow("Contains", addPuckPicker(item), "blocked", "pucks"));
     }
 
@@ -2155,7 +2155,10 @@
       overview.appendChild(head);
       var members = el("div", "members");
       childItems(item).forEach(function (k) { members.appendChild(memberRow(k)); });
-      if (editable) members.appendChild(addPuckPicker(item));
+      // Not `editable`: that asks whether *this* puck's file is writable, and adding
+      // a member writes the **child's** `parent:` line. A token that owns another
+      // source repo can add from it to an etapp it could never edit itself.
+      if (canAddMember(item)) members.appendChild(addPuckPicker(item));
       overview.appendChild(members);
     }
 
@@ -2660,7 +2663,11 @@
       // priority-grouped neighbours would compute a number against pucks from other
       // statuses and quietly reshuffle the real board. Those groupings keep the
       // plain column drop below, which writes their own field.
-      if (manualRank() && ghToken() && state.group === "status") {
+      // `effectiveGroup()`, not `state.group`: a view that cannot group by status
+      // falls back to repo while the stored choice stays `status`, and reading the
+      // stored one enabled the status-only drop handler over repo columns — which
+      // computed a rank against another repo's cards and snapped the card back.
+      if (manualRank() && ghToken() && effectiveGroup() === "status") {
         cards.addEventListener("dragover", function (e) {
           if (!dragItem) return;
           e.preventDefault();
@@ -3231,6 +3238,11 @@
     state[key] = value;
     saveDisplay(storeAs || key, typeof value === "boolean" ? (value ? "1" : "0") : value);
     refreshDisplayDot();
+    // The sidebar's numbers read `state.showDone` now, so a display change can move
+    // them — and which rows exist at all, since a view whose count is zero is not
+    // navigation. Rebuilding for a layout or sort change costs nothing and means the
+    // rule is "a display change refreshes the chrome", not a list of which ones do.
+    refreshNav();
     renderBoard();
   }
   function dpRow(labelText, control) {
@@ -4458,7 +4470,11 @@
       label = keyField + " " + (value == null ? "cleared" : value);
     }
     item.order = order; item.updated = today();
-    renderBoard();
+    // A drop between status columns is a status change that happens to also carry a
+    // rank, so it owes the same derivation the picker's path does — the etapp's
+    // rollup and the puck's own flags. Routing only `changeStatus` left a dragged
+    // etapp with a stale `N/M` and a `rollup-*` warning until the next harvest.
+    afterOrderEdit(item, keyField);
     toast("Saving…");
     commitFields(item, fields, "roadmap: " + item.slug + " " + label)
       .then(function () { toast("✓ Moved — live in ~1 min"); })
@@ -4466,9 +4482,19 @@
         item.order = prevOrder; item.updated = prevU;
         if (keyField) item[keyField] = prevKey;
         noteWriteError(item, err);
-        renderBoard();
+        afterOrderEdit(item, keyField);
         toast("✗ " + err.message, true);
       });
+  }
+
+  // A dropped card only touches the hierarchy when the field it landed in *is* the
+  // status; every other grouping writes its own field and leaves the rollup alone.
+  function afterOrderEdit(item, keyField) {
+    if (keyField === "status") {
+      recountEtapp(item.parentRef);
+      syncRollupSignals(item);
+    }
+    afterEdit(item);
   }
 
   // Optimistic: flip in-memory + re-render now, commit in the background, revert on failure.
@@ -4492,8 +4518,12 @@
   // — whichever end of the edit it happens to be. Written once because each of the
   // three has been forgotten separately.
   function afterEdit(/* …items whose page may be open */) {
-    renderBoard();
+    // Navigation first, board second. `buildAgentChips()` prunes a place that has
+    // just been emptied out of `state.agents` — and `state.agents` is part of the
+    // query the board renders. Rendering first therefore drew an empty board for a
+    // scope that was about to be removed, and nothing rendered again afterwards.
     refreshNav();
+    renderBoard();
     for (var i = 0; i < arguments.length; i++) {
       var it = arguments[i];
       if (typeof it === "string") it = itemById(it);
@@ -5139,19 +5169,27 @@
   // The relation is authored on the *child* (`parent:`), so adding from here is
   // the same single-field write with the arguments swapped — no second direction
   // in the data, just one in the interface.
+  // Who could join this etapp: a native puck that isn't already in it, isn't itself,
+  // and wouldn't close a loop — and whose *own* file we can write, because that is
+  // the file this writes. One predicate, asked twice: once to decide whether to
+  // offer the control at all, once to fill it.
+  function memberCandidate(item, other) {
+    return other !== item && other.parentRef !== item.id && other.native &&
+      canWrite(other) && !wouldLoop(other, item.id);
+  }
+  function canAddMember(item) {
+    if (!ghToken()) return false;
+    for (var i = 0; i < DATA.items.length; i++) {
+      if (memberCandidate(item, DATA.items[i])) return true;
+    }
+    return false;
+  }
   function addPuckPicker(item) {
     return puckPicker("\uff0b  Add puck", {
       title: "Add a puck to " + item.title,
       current: null,
       repo: item.repo,
-      // `!canWrite(other)` because this picker writes the *chosen* puck's file, not
-      // this one's: on a multi-repo board a token can own this etapp's repo and not
-      // the candidate's, and picking one would commit, fail and roll back — then go
-      // on offering the same impossible choice.
-      exclude: function (other) {
-        return other === item || other.parentRef === item.id || !other.native ||
-          !canWrite(other) || wouldLoop(other, item.id);
-      },
+      exclude: function (other) { return !memberCandidate(item, other); },
       onPick: function (chosen) { if (chosen) changeParent(chosen, item.id); },
     });
   }
