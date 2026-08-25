@@ -1406,13 +1406,26 @@
     // fingerresan — `overscroll-behavior: none` tog bort studsen — så vi tar den. Ingen
     // `preventDefault` behövs eller vore möjlig; vi tävlar inte om gesten, vi ärver den
     // när den lagts ned.
-    var handY = 0, handOn = false;
+    var handY = 0, handOn = false, handArmed = false;
+    // Ankaret måste sättas när fingret landar. Utan det stod `handY` kvar på 0 —
+    // skärmens överkant — och första röresen räknades som femhundra pixlars resa
+    // nedåt: arket föll ihop till vilohöjd och sköts av skärmen, för att sedan klättra
+    // tillbaka med fingret. (Mätt: 506@469 → 654@190 under ett drag *uppåt*.)
+    body.addEventListener("touchstart", function (e) {
+      var t = e.touches && e.touches.length === 1 && e.touches[0];
+      handY = t ? t.clientY : 0; handOn = false; handArmed = false;
+    }, { passive: true });
     function handoff(e) {
       var t = e.touches && e.touches.length === 1 && e.touches[0];
       if (!t) return;
       if (handOn) { applySheet(t.clientY); return; }
       if (pending || dragging) return;                 // gesten är redan vår
-      if (!root.classList.contains("full") || body.scrollTop > 0) { handY = t.clientY; return; }
+      if (!root.classList.contains("full")) { handY = t.clientY; return; }
+      // Armera bara på en gest listan faktiskt har tagit. Deklinerar pointer-vägen av
+      // andra skäl — ett drag uppåt i en lista som inte kan scrolla — finns ingen gest
+      // att ärva, och överlämningen ska hålla sig utanför den.
+      if (body.scrollTop > 0) { handArmed = true; handY = t.clientY; return; }
+      if (!handArmed) return;
       // Listan står på sin topp. Räkna resan härifrån, och bara nedåt: uppåt finns
       // ingenting att ge arket, och då ska handY följa med så en vändning mäts rätt.
       if (t.clientY - handY < 8) { if (t.clientY < handY) handY = t.clientY; return; }

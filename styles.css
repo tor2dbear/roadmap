@@ -1637,8 +1637,16 @@ body.preload * { transition: none !important; }
      It also reaches back out to the clip edge (and pads its own content back in), so
      the rows scrolling under it are hidden across the sheet's full width — otherwise
      a lit row would show through in the 14px band beside the field. */
+  /* `top: -1px` med en pixels egen padding och marginal tillbaka: nålen hänger en
+     pixel ut över scrollerns klippkant, innehållet står kvar på samma rad. Sömmen
+     mellan klippkanten och nålens målade överkant avrundas till olika enhetspixlar vid
+     en bråkdels scrollposition — vilket en tröghetsscroll ger hela tiden — och listan
+     blinkade fram i hårfinan. Går inte att återskapa i Chromium (0 genomlysande
+     enhetspixelrader i 2x och 3x, vid åtta bråkdelslägen), så överhänget är
+     försiktighet mot WebKits sticky-komposition, inte en mätt rättelse. */
   .sheet .surface-body > .sheet-pin {
-    position: sticky; top: 0; z-index: 1; background: var(--panel); padding-bottom: 12px;
+    position: sticky; top: -1px; z-index: 1; background: var(--panel); padding-bottom: 12px;
+    margin-top: -1px; padding-top: 1px;
     margin-inline: calc(var(--sheet-gap) - var(--pad));
     padding-inline: calc(var(--pad) - var(--sheet-gap));
   }
