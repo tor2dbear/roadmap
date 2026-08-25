@@ -748,6 +748,7 @@
     "chev-right": ["m5.625 11.25 3.75 -3.75 -3.75 -3.75"],
     "chev-left": ["m9.375 11.25 -3.75 -3.75 3.75 -3.75"],
     "chev-down": ["m3.75 5.625 3.75 3.75 3.75 -3.75"],
+    check: ["M12.5 3.75 5.625 10.625l-3.125 -3.125"],
     "chev-up": ["m11.25 9.375 -3.75 -3.75 -3.75 3.75"],
     // rotate-ccw — undo an arrangement, not undo a write
     reset: ["m0.625 2.5 0 3.75 3.75 0",
@@ -1588,7 +1589,7 @@
             // wording does.
             if (o.value != null) mi.setAttribute("data-value", String(o.value));
             mi.appendChild(opts.valueNode(o));
-            if (o.value === opts.current) mi.appendChild(el("span", "pick-check", "\u2713"));
+            if (o.value === opts.current) mi.appendChild(icon("check", "pick-check"));
             mi.addEventListener("click", function () {
               api.close();
               if (o.value !== opts.current) opts.onPick(o.value);
@@ -1699,7 +1700,7 @@
               mi.appendChild(el("span", "pick-title", it.title));
               // The repo is worth naming only when it isn't the one we're writing in.
               if (it.repo !== opts.repo) mi.appendChild(el("span", "pick-repo", it.repoName));
-              if (it.id === opts.current) mi.appendChild(el("span", "pick-check", "\u2713"));
+              if (it.id === opts.current) mi.appendChild(icon("check", "pick-check"));
               mi.addEventListener("click", function () { api.close(); opts.onPick(it); });
               list.appendChild(mi);
             });
@@ -1926,7 +1927,7 @@
               var mi = el("button", "row pick-mi" + (on ? " on" : ""));
               mi.type = "button";
               mi.appendChild(el("span", "tagpill", "#" + t));
-              if (on) mi.appendChild(el("span", "pick-check", "\u2713"));
+              if (on) mi.appendChild(icon("check", "pick-check"));
               mi.addEventListener("click", function () { toggle(t); });
               list.appendChild(mi);
             });
@@ -3256,7 +3257,7 @@
                 if (VIEW_DEFS[key].icon) r.appendChild(icon(VIEW_DEFS[key].icon, "focus-icn"));
                 r.appendChild(el("span", "focus-label", VIEW_DEFS[key].label));
                 if (counts[key]) r.appendChild(el("span", "focus-n", String(counts[key])));
-                if (on) r.appendChild(el("span", "pick-check", "✓"));
+                if (on) r.appendChild(icon("check", "pick-check"));
                 r.addEventListener("click", function () { api.close(); goToView(key); });
                 host.appendChild(r);
               });
@@ -3272,7 +3273,7 @@
                 r.type = "button";
                 r.title = v.q || "Saved view";
                 r.appendChild(el("span", "focus-label", v.name));
-                if (on) r.appendChild(el("span", "pick-check", "✓"));
+                if (on) r.appendChild(icon("check", "pick-check"));
                 r.addEventListener("click", function () { api.close(); applySavedView(v); });
                 host.appendChild(r);
               });
@@ -3521,7 +3522,7 @@
       row.type = "button";
       row.setAttribute("data-value", o.value);
       row.appendChild(el("span", null, o.label));
-      if (o.value === cur) row.appendChild(el("span", "pick-check", "\u2713"));
+      if (o.value === cur) row.appendChild(icon("check", "pick-check"));
       row.addEventListener("click", function () {
         if (o.value !== cur) setDisplay(f.key, o.value);
         renderDisplayRoot(pop);
@@ -4344,16 +4345,13 @@
   var chipRow = document.getElementById("chipRow");
   function chipsData() {
     var out = [];
-    if (state.repos.size) {
-      var repos = [];
-      state.repos.forEach(function (r) { repos.push(repoNameOf(r)); });
-      out.push({ label: "Repo: " + repos.join(", "), place: true, remove: function () { state.repos.clear(); } });
-    }
-    if (state.agents.size) {
-      var ags = [];
-      state.agents.forEach(function (a) { ags.push(agentLabel(a)); });
-      out.push({ label: "Agent: " + ags.join(", "), place: true, remove: function () { state.agents.clear(); } });
-    }
+    // Places are deliberately absent. A repo or a discipline queue is somewhere you
+    // *navigated to*, not a predicate you added: the sidebar marks the row you are on
+    // and the title says its name, so a third statement of the same fact — worded as
+    // `Repo: PIA ×`, in the row that lists what you have narrowed — read as a filter
+    // you had accidentally left on. The way out of a place is the way in: the sidebar
+    // row, or the title switcher's All pucks. (`Clear all` still releases them, since
+    // that one means "put everything back".)
     var terms = parseQuery(state.query);
     terms.forEach(function (t, i) {
       var f = fieldByKey(t.field);
@@ -4384,15 +4382,12 @@
     chipRow.hidden = !chips.length;
     if (!chips.length) return;
     chips.forEach(function (c) {
-      var chip = el("span", "fchip" + (c.place ? " place" : ""));
+      var chip = el("span", "fchip");
       chip.appendChild(el("span", "fchip-label", c.label));
       var x = el("button", "fchip-x", "✕");
       x.type = "button";
       x.setAttribute("aria-label", "Remove filter " + c.label);
-      x.addEventListener("click", function () {
-        c.remove();
-        if (c.place) { refreshNav(); renderBoard(); } // a place also owns the sidebar
-      });
+      x.addEventListener("click", function () { c.remove(); });
       chip.appendChild(x);
       chipRow.appendChild(chip);
     });

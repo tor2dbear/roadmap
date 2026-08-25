@@ -1214,9 +1214,6 @@ body.preload * { transition: none !important; }
   padding: 3px 4px 3px 9px; border: 1px solid var(--line); border-radius: var(--r-pill);
   background: var(--panel); font-size: var(--fs-base); color: var(--ink-2);
 }
-/* A place came from the sidebar, not the panel — tinted so the difference is
-   visible without being a second concept. */
-.fchip.place { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
 .fchip-label { white-space: nowrap; }
 .fchip-x {
   background: none; border: 0; padding: 0 4px; cursor: pointer;
@@ -1395,7 +1392,9 @@ body.preload * { transition: none !important; }
 .pop.pick-menu { min-width: 190px; padding: 4px; }
 .pick-menu .surface-body { gap: 1px; }
 
-.pick-check { margin-left: auto; color: var(--accent); flex: none; }
+/* Sized in `em` like the other marks that sit in a line of text: the same check
+   appears in a 13px desktop menu row and a 15px sheet row. */
+.pick-check { margin-left: auto; color: var(--accent); flex: none; width: 1.15em; height: 1.15em; }
 
 /* ── mobile: view title moves into the topbar (fills the ☰ … 🔍 dead band) ──── */
 .top-title { display: flex; align-items: baseline; gap: 8px; min-width: 0; flex: 1; }

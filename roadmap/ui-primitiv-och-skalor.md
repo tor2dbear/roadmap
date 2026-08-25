@@ -255,4 +255,18 @@ Flikarna är däremot rätt: `.tab-btn` (understruken, innehåll) och `.focusbtn
   chevronens egen måste ge vika. Två `auto`-marginaler **delar** ledigt utrymme, så
   värdet parkerade mitt i raden i stället för i dess ände.
 
+- **Bocken ur setet, och platsernas chip borta.** `✓` var det sista typografiska
+  tecknet som gjorde ett märkes jobb — sex ställen ritade det som text. Det är
+  `check` ur samma Feather-set nu, satt i `em` som de andra märkena som sitter i en
+  textrad: samma bock i en 13px-menyrad och en 15px-arkrad.
+- **En plats är inget filter.** Chipraden är filtrets egen redovisning — den listar
+  vad man har smalnat av med, och att den kan tömmas är hela dess poäng. Men ett repo
+  eller en disciplinkö är något man *navigerat till*: sidomenyn markerar raden och
+  titeln bär namnet, så `Repo: PIA ×` var ett tredje påstående om samma sak, formulerat
+  som ett filter man glömt kvar. Borta. Vägen ut är vägen in — samma sidomenyrad igen,
+  eller *All pucks* i titelväxlaren; mätt: ett andra klick släpper platsen och tömmer
+  URL:en. `Clear all` släpper dem fortfarande, för den betyder "sätt tillbaka allt".
+  Med chipet borta är `.fchip.place` och hela `place`-grenen i chip-byggaren död kod
+  och tagen.
+
 ## Open questions
