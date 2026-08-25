@@ -36,6 +36,9 @@
      footer — so "line the sheet up with the page" had no answer to give. One token,
      and a surface can inherit it instead of guessing which of the five to match. */
   --pad: 22px;
+  /* What a sheet's row-highlight leaves untouched at the screen edge. The row's text
+     stays on `--pad`; only the lit background reaches past it. */
+  --sheet-gap: 8px;
   --fs-xs: 10px;  /* badges, eyebrows, counters */
   --fs-sm: 11px;  /* the meta line under a card */
   --fs-base: 12px;
@@ -1512,11 +1515,19 @@ body.preload * { transition: none !important; }
      of from the content line, which put the row at 9px (and at −5 in the pickers,
      whose inset had not been fixed yet). Measured from the line, it can't clip. */
   .sheet .row {
-    /* `width: auto`, not the base's 100%: with a fixed width the negative margins
-       shift the row left instead of widening it, so it bled 10px on one side and
-       fell 10px short on the other. Auto lets the flex column stretch it, and the
-       margins then push both edges out by the same amount. */
-    width: auto; margin: 0 -10px; padding: 12px 10px; font-size: var(--fs-xl);
+    /* The bleed is expressed as *what is left at the screen edge*, not as a nudge:
+       the highlight runs to `--sheet-gap` from the edge, and the text still lands on
+       `--pad`. Written this way the number means something you can look at — 8px of
+       untouched sheet on either side — instead of a delta whose result you have to
+       work out from two other values.
+       `width: auto`, not the base's 100%: with a fixed width the negative margins
+       shift the row left instead of widening it, so it bled on one side and fell
+       short on the other. Auto lets the flex column stretch it, and the margins then
+       push both edges out by the same amount. */
+    width: auto;
+    margin: 0 calc(var(--sheet-gap) - var(--pad));
+    padding: 12px calc(var(--pad) - var(--sheet-gap));
+    font-size: var(--fs-xl);
   }
   /* Rules span the content, like the rows they separate. */
   .sheet .menu-rule { margin: 6px 0; }

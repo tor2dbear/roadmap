@@ -205,3 +205,16 @@ Felet var att två betydelser fick samma kläder. `No priority` och `Unassigned`
   den (10px ut åt vänster, 10px för kort åt höger) — och chipraden hade jag missat
   när jag bytte ut literalerna. Testet mäter mot sidans egen linje i stället för mot
   ett tal, så den sortens miss kan inte passera igen.
+
+- **Blödningen säger vad som blir kvar, inte hur långt den går.** Markeringen nådde
+  10px utanför linjen, alltså 12px från skärmkanten — nära nog kanten för att läsa
+  som att den *saknar* padding. Nu en egen token, `--sheet-gap: 8px`, och regeln är
+  skriven i den: markeringen lämnar exakt 8px orörd sheet vid kanten och texten
+  ligger kvar på `--pad`. Skillnaden är inte kosmetisk — `margin: 0 -10px` är ett
+  tal vars *resultat* man måste räkna ut ur två andra värden, medan `calc(var(
+  --sheet-gap) - var(--pad))` är påståendet självt. Testet kräver samma sak i samma
+  ord: mätt över status-, etapp- och labels-sheeten är avståndet 8/8 mot
+  `--sheet-gap` 8.
+  Att jag först gissade på en gammal deploy var fel väg in — svaret låg i
+  skärmdumpen: pillret mätte 21.7 CSS-px, alltså exakt den `--pad` bygget redan
+  hade. Det var inte gammal kod, det var för lite luft.
