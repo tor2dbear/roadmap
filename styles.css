@@ -1615,9 +1615,12 @@ body.preload * { transition: none !important; }
      `touch-action: pan-y`, som bjuder in webbläsaren att ta det vertikala draget —
      och tar den det, kommer `pointercancel` innan arket hunnit röra sig. Med
      scrollningen avstängd i samma regel hade draget då sett ut att göra ingenting,
-     medan draghandtaget (`touch-action: none`) fungerade. `pan-y` kommer tillbaka
-     när `.full` gjort kroppen scrollbar och panoreringen har någonstans att ta vägen. */
-  .sheet.full .surface-body { touch-action: pan-y; }
+     medan draghandtaget (`touch-action: none`) fungerade.
+     Grundvärdet är därför `none` även vid full höjd: panoreringen lämnas tillbaka
+     till listan av `syncPan()` i app.js, som skriver `pan-y` inline först när
+     listans scrollposition bevisar att den har någonstans att ta vägen. Regeln kan
+     inte stå här, för den beror på ett mätvärde som ändras medan arket lever. */
+  .sheet.full .surface-body { touch-action: none; }
   .sheet.kb .surface-body { padding-bottom: 42dvh; }
   /* The field is wrapped in .sheet-pin (see openSurface) and that wrapper is what
      stays put — with tokens the input sits inside .tokenbox, so pinning the input

@@ -1240,8 +1240,14 @@
   var SHEET_CLOSE = 96, SHEET_FULL = 0.94;
   function draggableSheet(root, body, close) {
     var startY = 0, dy = 0, slid = 0, pending = false, dragging = false, fromBody = false;
-    var atTop = true, wasFull = false;
+    var atTop = true, wasFull = false, mode = "";
     var baseH = 0, naturalH = 0, maxH = 0;
+    var startTop = 0, lastY = 0, lastT = 0, vy = 0, glide = 0;
+    var clock = window.performance && performance.now
+      ? function () { return performance.now(); }
+      : function () { return +new Date(); };
+
+    function canScroll() { return body.scrollHeight > body.clientHeight + 1; }
 
     function heights() {
       maxH = Math.round(window.innerHeight * SHEET_FULL);
@@ -1251,6 +1257,7 @@
     }
     function down(e) {
       if (e.pointerType === "mouse" && e.button !== 0) return;
+      if (glide) { cancelAnimationFrame(glide); glide = 0; }
       fromBody = body.contains(e.target);
       // A drag that starts in the list is still the sheet's, unless the list has
       // somewhere to go itself. Downward: only from its top. Upward: only while the
@@ -1260,7 +1267,8 @@
       wasFull = root.classList.contains("full");
       if (fromBody && !atTop && wasFull) return;
       heights();
-      pending = true; dragging = false; startY = e.clientY; dy = 0; slid = 0;
+      pending = true; dragging = false; mode = ""; startY = e.clientY; dy = 0; slid = 0;
+      startTop = body.scrollTop; lastY = e.clientY; lastT = clock(); vy = 0;
       baseH = root.offsetHeight;
       // Pin the height for the whole gesture, from the very first touch. Putting a
       // finger on the sheet blurs the search field, which drops the keyboard
@@ -1283,11 +1291,24 @@
         // Up from the list is a scroll only once the sheet is full; down only once
         // the list is at its own top. Two guards, because they are two questions —
         // the old code asked neither for the upward case and simply gave it away.
-        if (fromBody && dy < 0 && wasFull) { pending = false; return; }
-        if (fromBody && dy > 0 && !atTop) { pending = false; return; }
+        if (fromBody && dy < 0 && wasFull) {
+          // The list has `touch-action: none` while it sits at its top (syncPan),
+          // so this scroll is nobody's unless we do it. See the note there.
+          if (!canScroll()) { pending = false; return; }
+          mode = "list";
+        } else if (fromBody && dy > 0 && !atTop) { pending = false; return; }
+        else mode = "sheet";
         dragging = true;
-        root.classList.add("dragging");
+        if (mode === "sheet") root.classList.add("dragging");
         try { root.setPointerCapture(e.pointerId); } catch (err) { /* older engines */ }
+      }
+      if (mode === "list") {
+        var t = clock();
+        if (t > lastT) vy = (e.clientY - lastY) / (t - lastT);
+        lastY = e.clientY; lastT = t;
+        body.scrollTop = startTop - dy;
+        e.preventDefault();
+        return;
       }
       var want = baseH - dy;              // finger up → taller
       var floor = Math.min(naturalH, baseH);
@@ -1312,6 +1333,12 @@
         return;
       }
       pending = false; dragging = false;
+      if (mode === "list") {
+        mode = "";
+        root.style.height = "";
+        coast();
+        return;
+      }
       root.classList.remove("dragging");
       if (slid > SHEET_CLOSE) { close(); return; }
       var h = root.offsetHeight;
@@ -1321,29 +1348,57 @@
       // finishes the journey instead of springing back.
       if (h > (naturalH + maxH) / 2) root.classList.add("full");
       else root.classList.remove("full");
+      syncPan();
+    }
+    // A hand-rolled fling, for the one gesture the browser isn't allowed to have:
+    // the first upward drag from the list's top. Every later one is native again —
+    // the moment the offset leaves 0, panning is the list's and momentum with it.
+    function coast() {
+      var v = vy;                                  // px/ms, finger direction
+      syncPan();
+      if (Math.abs(v) < 0.05) return;
+      var last = clock();
+      var step = function () {
+        var t = clock(), dt = Math.min(t - last, 32);
+        last = t;
+        body.scrollTop -= v * dt;                  // finger up (v < 0) → offset grows
+        v *= Math.pow(0.995, dt);
+        var live = Math.abs(v) > 0.02 && body.scrollTop > 0
+          && body.scrollTop < body.scrollHeight - body.clientHeight - 1;
+        glide = live ? requestAnimationFrame(step) : 0;
+        if (!live) syncPan();
+      };
+      glide = requestAnimationFrame(step);
     }
     root.addEventListener("pointerdown", down);
     root.addEventListener("pointermove", move);
     root.addEventListener("pointerup", up);
     root.addEventListener("pointercancel", up);
-    // Panning belongs to the list only while the list can actually pan.
+    // Panoreringen är listans bara när listan har någonstans att ta vägen *åt det
+    // håll webbläsaren låser sig vid*.
     //
-    // At full height the body carries `touch-action: pan-y` so it can scroll — and
-    // that let the browser take a *downward* drag on a list with nothing to scroll
-    // to, rubber-banding it instead of closing the sheet. `touch-action` cannot tell
-    // the two apart on its own: it is read at touch-start, before a direction exists.
-    // A non-passive `touchmove` can see the direction, but not in time — Chromium
-    // dispatches `pointermove` first and has already committed to the pan by then
-    // (measured: preventDefault on the first touchmove, `pointercancel` two moves
-    // later anyway).
+    // `touch-action` läses en gång, vid touch-start, innan någon riktning finns. Den
+    // kan alltså inte koda en riktning — bara något som redan är sant då. Ett
+    // icke-passivt `touchmove` ser riktningen men kommer för sent: Chromium skickar
+    // `pointermove` först och har redan bestämt sig för panoreringen (mätt:
+    // preventDefault på första touchmove, `pointercancel` två drag senare ändå).
     //
-    // What is decidable up front is whether the list has anywhere to go at all. When
-    // it hasn't, panning is nobody's and the gesture is the sheet's — which is the
-    // case in the photograph: a short list at full height that rubber-banded when it
-    // should have closed. Re-checked whenever the sheet's size or content changes.
+    // Förra regeln frågade bara *om* listan kunde scrolla. Den räckte för en kort
+    // lista, och gick sönder på exakt det fall användaren körde: tolv etiketter som
+    // verkligen svämmar över, arket på full höjd, listan vid sin topp — `pan-y`, och
+    // det nedåtgående draget gick till webbläsaren som studsade listan i stället för
+    // att stänga arket. (Testet höll med, för jag hade skrivit in fel förväntan.)
+    //
+    // Det som *är* avgjort vid touch-start är listans scrollposition. Vid toppen
+    // tillhör nedåt arket, och då får listan inte gesten alls — den uppåtgående
+    // scrollen kör vi själva den gången (se `coast`). Så fort positionen lämnat 0 är
+    // panoreringen listans igen, med webbläsarens egen tröghet. Räknas om när arket
+    // ändrar storlek, innehåll eller scrollposition.
     function syncPan() {
-      body.style.touchAction = body.scrollHeight > body.clientHeight + 1 ? "" : "none";
+      var scrollable = root.classList.contains("full") && canScroll();
+      body.style.touchAction = scrollable && body.scrollTop > 0 ? "pan-y" : "none";
     }
+    body.addEventListener("scroll", syncPan, { passive: true });
     root.__syncPan = syncPan;
     syncPan();
     // Två observatörer, för `scrollHeight` kan ändras utan att rutan gör det.
