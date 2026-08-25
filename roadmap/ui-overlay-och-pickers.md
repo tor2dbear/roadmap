@@ -2,7 +2,7 @@
 title: "UI-ramar: overlay-primitiv och pickers"
 status: now
 tags: [ui, product]
-updated: 2026-08-24
+updated: 2026-08-25
 created: 2026-08-21
 order: 5
 parent: gui-hantverk
@@ -348,6 +348,26 @@ Verifierat: 109 fall i `surface.mjs` över **båda** viewporterna (390×844 och
   vill ha "det som skrevs, normaliserat" tar den förra och bestämmer själv vad tomt
   betyder. Testet täcker bägge — att ett tomt fält listar etiketterna utan
   create-rad, och att `"???"` fortfarande ger `roadmap/item.md`.
+
+- **Arket rör sig först, listan sedan.** Två fel som var samma fel.
+  `.fp-values` hade `max-height: 46vh; overflow-y: auto` — en scrollruta *inuti*
+  arkets egen scrollruta. Regeln fanns redan för `.pick-list` (`max-height: none;
+  overflow: visible` på telefon); värdelistan var samma sorts lista och missades. En
+  scrollruta i en scrollruta ger fingret två ställen att landa och inget av dem hela
+  sträckan.
+  Och vilodetenten var 88dvh mot `.full` 94 — sex punkters skillnad. Ett drag uppåt
+  hade alltså nästan ingenting att fälla ut, och koden gav bort gesten därefter:
+  `if (fromBody && dy < 0) return` behandlade varje uppåtdrag i listan som en scroll.
+  Nu vilar arket på **60dvh**, och gesten betyder något: uppåt växer arket tills det
+  är fullt, och först då scrollar innehållet. Nedåt är oförändrat — bara från listans
+  egen topp.
+  Att listan inte scrollar under full höjd är inte artighet utan **det enda sättet att
+  göra gesten entydig**: med bägge levande panorerar webbläsaren listan med samma
+  finger som arket läser, och `preventDefault` kan inte ta tillbaka en panorering som
+  redan börjat. Så arket är det enda som kan röra sig tills det inte finns mer ark att
+  fälla ut.
+  Mätt över hela cykeln: vila 506 → drag upp → full 793 med `overflow: auto` → drag
+  ner → 506.
 
 ## Open questions
 - **iOS flyttar den *visuella* vyn när tangentbordet öppnas.** Vårt scroll-lås

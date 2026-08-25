@@ -1246,6 +1246,14 @@ body.preload * { transition: none !important; }
 .fp-back .fp-chev { margin-right: -4px; }
 .fp-back { color: var(--ink-2); font-weight: 600; }
 .fp-values { display: flex; flex-direction: column; gap: 2px; max-height: 46vh; overflow-y: auto; }
+/* On a phone the values are not a box inside the sheet — they *are* the sheet's
+   content, and the one scrolling region runs from under the pinned field to the
+   screen edge. `.pick-list` already had this rule; `.fp-values` is the same kind of
+   list and was simply missed. A scroller inside a scroller gives the finger two
+   places to land and neither of them the whole distance. */
+@media (max-width: 640px) {
+  .sheet .fp-values { max-height: none; overflow: visible; }
+}
 .fp-val {
   display: flex; align-items: center; gap: 8px; padding: 5px 4px; border-radius: var(--r-sm);
   font-size: var(--fs-md); color: var(--ink); cursor: pointer;
@@ -1526,7 +1534,11 @@ body.preload * { transition: none !important; }
   .sheet {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 59;
     display: flex; flex-direction: column;
-    max-height: 88dvh;
+    /* The resting detent. It used to be 88dvh, six points under `.full` — so a sheet
+       already stood at nearly full height and "drag up to see more" had almost
+       nothing to reveal. A medium rest is what makes the gesture mean something:
+       the sheet grows to full first, and only then does its content scroll. */
+    max-height: 60dvh;
     background: var(--panel); border-top: 1px solid var(--line);
     border-radius: 16px 16px 0 0; box-shadow: var(--shadow);
     /* The sheet's own edge inset is `--sheet-gap`, not `--pad`: the widest thing it
@@ -1593,6 +1605,12 @@ body.preload * { transition: none !important; }
      which is also its clip edge — reaches all the way out to `--sheet-gap`, so a row
      that bleeds that far is painted instead of cut off. */
   .sheet .surface-body { overflow-y: auto; gap: 8px; padding-inline: calc(var(--pad) - var(--sheet-gap)); }
+  /* Below the full detent the list does not scroll: a drag there grows the sheet.
+     This is not politeness, it is the only way the gesture can be unambiguous — with
+     both live, the browser pans the list from the same finger the sheet is reading,
+     and `preventDefault` cannot take a pan back once it has begun. So the sheet is
+     the only thing that can move until there is no sheet left to reveal. */
+  .sheet:not(.full) .surface-body { overflow-y: hidden; }
   .sheet.kb .surface-body { padding-bottom: 42dvh; }
   /* The field is wrapped in .sheet-pin (see openSurface) and that wrapper is what
      stays put — with tokens the input sits inside .tokenbox, so pinning the input

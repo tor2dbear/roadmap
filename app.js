@@ -1240,6 +1240,7 @@
   var SHEET_CLOSE = 96, SHEET_FULL = 0.94;
   function draggableSheet(root, body, close) {
     var startY = 0, dy = 0, slid = 0, pending = false, dragging = false, fromBody = false;
+    var atTop = true, wasFull = false;
     var baseH = 0, naturalH = 0, maxH = 0;
 
     function heights() {
@@ -1251,7 +1252,13 @@
     function down(e) {
       if (e.pointerType === "mouse" && e.button !== 0) return;
       fromBody = body.contains(e.target);
-      if (fromBody && body.scrollTop > 0) return;
+      // A drag that starts in the list is still the sheet's, unless the list has
+      // somewhere to go itself. Downward: only from its top. Upward: only while the
+      // sheet is already full — below that there is sheet left to reveal, and
+      // revealing it is what the finger meant.
+      atTop = body.scrollTop <= 0;
+      wasFull = root.classList.contains("full");
+      if (fromBody && !atTop && wasFull) return;
       heights();
       pending = true; dragging = false; startY = e.clientY; dy = 0; slid = 0;
       baseH = root.offsetHeight;
@@ -1273,7 +1280,11 @@
       dy = e.clientY - startY;
       if (!dragging) {
         if (Math.abs(dy) < 6) return;
-        if (fromBody && dy < 0) { pending = false; return; } // that's a scroll
+        // Up from the list is a scroll only once the sheet is full; down only once
+        // the list is at its own top. Two guards, because they are two questions —
+        // the old code asked neither for the upward case and simply gave it away.
+        if (fromBody && dy < 0 && wasFull) { pending = false; return; }
+        if (fromBody && dy > 0 && !atTop) { pending = false; return; }
         dragging = true;
         root.classList.add("dragging");
         try { root.setPointerCapture(e.pointerId); } catch (err) { /* older engines */ }
