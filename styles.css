@@ -689,9 +689,26 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 .set-eyebrow:first-of-type { margin-top: 10px; }
 .set-note { margin: 0 0 4px; font-size: var(--fs-md); color: var(--ink-2); line-height: 1.4; }
 .set-note.warn { color: var(--later); }
-.set-seg { display: inline-flex; gap: 2px; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r-md); padding: 2px; }
-.set-seg-btn { font: inherit; font-size: var(--fs-base); padding: 5px 12px; border: 0; border-radius: var(--r-sm); background: none; color: var(--ink-2); cursor: pointer; }
-.set-seg-btn.on { background: var(--panel); color: var(--ink); box-shadow: var(--shadow); }
+/* ── .segmented — one value out of a small closed set ───────────────────────── */
+/* One frame around the group, never one around each option: a border per option
+   reads as several buttons that happen to be adjacent, a single frame as one control
+   with N positions. The layout switch drew the first and the theme switch a filled
+   track; they are the same control and wear the same clothes now.
+   Not for tabs — `.tab-btn` switches what the page *shows* and stays underlined. */
+.segmented {
+  display: inline-flex; align-self: flex-start; padding: 2px; gap: 2px;
+  border: 1px solid var(--line); border-radius: var(--r-md); background: var(--panel-2);
+}
+.segmented-btn {
+  flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  font: inherit; font-size: var(--fs-base); padding: 5px 12px; white-space: nowrap;
+  border: 0; border-radius: var(--r-sm); background: none; color: var(--ink-2); cursor: pointer;
+}
+.segmented-btn .icn { width: 14px; height: 14px; }
+.segmented-btn:hover { color: var(--ink); }
+/* The chosen position is a raised surface inside the track, so the frame stays the
+   control's outline and the fill stays the answer to "which one". */
+.segmented-btn.on { background: var(--panel); color: var(--ink); box-shadow: var(--shadow); font-weight: 600; }
 .set-linkbtn { display: block; margin-top: 12px; font-size: var(--fs-md); background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; }
 .set-linkbtn:hover { text-decoration: underline; }
 
@@ -1125,15 +1142,17 @@ body.preload * { transition: none !important; }
    rows for the choices that shape the presentation. */
 .pop.display-pop { min-width: 260px; }
 .display-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); display: inline-block; }
-.dp-seg { display: flex; gap: 4px; background: var(--sunk, transparent); }
-.dp-segbtn {
-  flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  padding: 6px 8px; font-size: var(--fs-base); cursor: pointer; color: var(--ink-2);
-  background: transparent; border: 1px solid var(--line); border-radius: var(--r-md);
-}
-.dp-segbtn svg { width: 14px; height: 14px; }
-.dp-segbtn:hover { color: var(--ink); border-color: var(--ink-3); }
-.dp-segbtn.on { color: var(--ink); border-color: var(--accent); background: var(--panel-2, transparent); font-weight: 600; }
+/* The layout switch is a `.segmented`; the only thing it adds is that it spans the
+   menu's width instead of hugging its labels. `dp-seg`/`dp-segbtn` remain as hooks. */
+.dp-seg { display: flex; align-self: stretch; }
+/* The board-only rows are rebuilt as a group (see paintWholesale), so the rule that
+   introduces them has to live *inside* the group — outside it, it would linger when
+   the group empties. That made it the one rule on the surface with nothing under it:
+   the surface spaces its children with `gap`, and a plain <div> passes none of that
+   on, so it sat flush on the first checkbox while its twin below kept the rhythm.
+   `gap: inherit` takes the surface's own spacing rather than restating the number,
+   so the group cannot drift from the surface it sits in. */
+.dp-wholesale { display: flex; flex-direction: column; gap: inherit; }
 .dp-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .dp-label { font-size: var(--fs-md); color: var(--ink-2); }
 .dp-row select { max-width: 60%; }
@@ -1573,7 +1592,20 @@ body.preload * { transition: none !important; }
      half a row, and "Reset to default" was a text-height target against the screen
      edge. */
   .sheet .fp-toggle { min-height: 40px; }
-  .sheet .dp-reset { min-height: 40px; align-items: center; display: inline-flex; font-size: var(--fs-md); }
+  .sheet .dp-reset { min-height: 40px; align-items: center; display: inline-flex; }
+  /* A sheet is a thumb surface, and that governs its *text* as much as its targets.
+     The rows already stepped up to --fs-xl; the labels and controls beside them kept
+     the desktop's --fs-md, so the one control with a floor it may not go under — a
+     native <select>, which makes iOS zoom the page below 16px — read as the only
+     large thing on the surface. One step for all of them, and that floor is then a
+     pixel away instead of three. */
+  .sheet .dp-label,
+  .sheet .dp-reset,
+  .sheet .segmented-btn,
+  .sheet .fp-toggle,
+  .sheet .fp-row,
+  .sheet .fp-back,
+  .sheet .fp-val { font-size: var(--fs-xl); }
   .sheet .dp-rule { margin: 6px 0; }
 }
 

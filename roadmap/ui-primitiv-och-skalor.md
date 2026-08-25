@@ -177,4 +177,26 @@ Flikarna är däremot rätt: `.tab-btn` (understruken, innehåll) och `.focusbtn
   där överflödet är garanterat — både före och efter en scroll, för det var precis
   den kombinationen som inte fanns i någon mätning tidigare.
 
+- **`.segmented` — en kontroll, inte flera knappar bredvid varandra.** Layoutväxeln
+  och temaväxeln hade samma jobb, samma klicka-och-måla-om-dans och två olika utseenden:
+  den ena ritade en ram runt *varje* val, den andra ett fyllt spår med en upphöjd pill.
+  Avslöjaren är ramen — **en ram per val läser som flera knappar som råkar ligga
+  bredvid varandra, en ram runt gruppen som en kontroll med N lägen.** Bägge är det
+  senare. Nu en builder (`segmented()`) och en komponent; `dp-seg`/`set-seg` står kvar
+  i markup som krokar.
+  Flikarna är fortfarande med flit inte detta: `Overview | Activity` byter vad sidan
+  *visar*, alltså understruken. Det är den enda av de tre där valet byter ytan under.
+- **`<select>` var 16px för att iOS kräver det, resten av sheeten 13.** Golvet är
+  riktigt — Safari zoomar in sidan när ett fokuserat fält ligger under 16px — men det
+  gjorde den enda kontrollen med ett golv till den enda stora saken på ytan. En sheet
+  är en tumyta, och det styr dess *text* lika mycket som dess träffytor: raderna hade
+  redan klivit upp till `--fs-xl`, etiketterna bredvid dem stod kvar på skrivbordets
+  `--fs-md`. Ett steg för allihop, så ligger golvet en pixel bort i stället för tre.
+- **En avdelare med luft bara ovanför.** De brädspecifika raderna byggs om i klump,
+  så linjen som inleder dem måste ligga *inuti* gruppen — utanför skulle den bli kvar
+  när gruppen töms. Men gruppen är en vanlig `<div>`, och ytan lägger sitt avstånd med
+  `gap`, som en div inte för vidare: linjen satt dikt an mot första kryssrutan (10/2)
+  medan tvillingen under höll 10/10. `gap: inherit` tar ytans eget avstånd i stället
+  för att upprepa talet, så gruppen inte kan glida från ytan den sitter i.
+
 ## Open questions

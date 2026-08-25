@@ -761,6 +761,42 @@
   // The breadcrumb's step, in one place: the separator appeared in three builders,
   // and a glyph copied three times is three chances for them to drift apart.
   function sep() { return icon("chev-right", "crumb-sep"); }
+
+  // ── segmented control: one value out of a small closed set ──────────────────
+  // There were two of these — the layout switch and the theme switch — with the
+  // same job, the same click-and-repaint dance, and two different looks: one drew a
+  // border around *each* option, the other a filled track with a raised pill. The
+  // giveaway is the border: one around each option says "two things that happen to
+  // sit next to each other", one frame around the group says "one control with N
+  // positions". Both of them are the second thing.
+  //
+  // Tabs are deliberately not this. Overview/Activity switches what the page
+  // *shows*, so it stays underlined (`.tab-btn`) — the one of the three where the
+  // choice changes the region below it. Same reason `.focusbtn` differs from it.
+  //
+  // opts: [[value, label, iconName?], …]. onPick gets the value; the control has
+  // already moved its own `on` state, so a caller only does its own work.
+  function segmented(opts, current, onPick) {
+    var seg = el("div", "segmented");
+    seg.setAttribute("role", "group");
+    opts.forEach(function (o) {
+      var b = el("button", "segmented-btn" + (current === o[0] ? " on" : ""));
+      b.type = "button";
+      if (o[2]) b.appendChild(icon(o[2]));
+      b.appendChild(el("span", null, o[1]));
+      b.setAttribute("aria-pressed", current === o[0] ? "true" : "false");
+      b.addEventListener("click", function () {
+        [].forEach.call(seg.children, function (c) {
+          var on = c === b;
+          c.classList.toggle("on", on);
+          c.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+        onPick(o[0]);
+      });
+      seg.appendChild(b);
+    });
+    return seg;
+  }
   // A disclosure caret carries both directions and lets CSS pick by the button's
   // own `aria-expanded` — the state is already on the control, so nothing has to be
   // kept in sync. (A rotated down-chevron would draw the same shape; using the set's
@@ -3306,25 +3342,18 @@
       onClose: function () { displaySurface = null; displayBtn.setAttribute("aria-expanded", "false"); },
       build: function (pop) {
     // Layout — a segmented control, because it's one choice among a few, not a
-    // toggle that has to be pressed twice to learn what it does.
-    var seg = el("div", "dp-seg");
-    [["list", "list", "List"], ["board", "grid", "Board"]].forEach(function (o) {
-      var b = el("button", "dp-segbtn" + (state.view === o[0] ? " on" : ""));
-      b.type = "button";
-      b.appendChild(icon(o[1]));
-      b.appendChild(el("span", null, o[2]));
-      b.setAttribute("aria-pressed", state.view === o[0] ? "true" : "false");
-      b.addEventListener("click", function () {
-        setDisplay("view", o[0]);
-        Array.prototype.forEach.call(seg.children, function (c) {
-          var on = c === b;
-          c.classList.toggle("on", on);
-          c.setAttribute("aria-pressed", on ? "true" : "false");
-        });
+    // toggle that has to be pressed twice to learn what it does. `dp-seg`/`dp-segbtn`
+    // stay on the markup as hooks (same principle as `data-field`): the name the code
+    // hangs on doesn't move when the look does.
+    var seg = segmented(
+      [["list", "List", "list"], ["board", "Board", "grid"]],
+      state.view,
+      function (v) {
+        setDisplay("view", v);
         paintWholesale(); // the empty-columns row is board-only
       });
-      seg.appendChild(b);
-    });
+    seg.classList.add("dp-seg");
+    [].forEach.call(seg.children, function (c) { c.classList.add("dp-segbtn"); });
     pop.appendChild(seg);
 
     // Grouping — the columns' field. This is the row that turns one board into an
@@ -5832,20 +5861,16 @@
   function themeControl() {
     var wrap = el("div", "np-field");
     wrap.appendChild(el("label", null, "Theme"));
-    var seg = el("div", "set-seg");
     var cur = root.getAttribute("data-theme") || "auto";
-    [["light", "Light"], ["dark", "Dark"], ["auto", "Auto"]].forEach(function (o) {
-      var b = el("button", "set-seg-btn" + (cur === o[0] ? " on" : ""), o[1]);
-      b.type = "button";
-      b.addEventListener("click", function () {
-        if (o[0] === "auto") { root.removeAttribute("data-theme"); try { localStorage.removeItem("roadmap-theme"); } catch (e) {} }
-        else { root.setAttribute("data-theme", o[0]); try { localStorage.setItem("roadmap-theme", o[0]); } catch (e) {} }
+    var seg = segmented(
+      [["light", "Light"], ["dark", "Dark"], ["auto", "Auto"]],
+      cur,
+      function (v) {
+        if (v === "auto") { root.removeAttribute("data-theme"); try { localStorage.removeItem("roadmap-theme"); } catch (e) {} }
+        else { root.setAttribute("data-theme", v); try { localStorage.setItem("roadmap-theme", v); } catch (e) {} }
         applyThemeColor(); updateThemeButton();
-        seg.querySelectorAll(".set-seg-btn").forEach(function (x) { x.classList.remove("on"); });
-        b.classList.add("on");
       });
-      seg.appendChild(b);
-    });
+    seg.classList.add("set-seg");
     wrap.appendChild(seg);
     return wrap;
   }
