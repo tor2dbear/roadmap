@@ -1251,9 +1251,12 @@
 
     function heights() {
       maxH = Math.round(window.innerHeight * SHEET_FULL);
-      // Its content height, measured without the full-height override.
-      if (root.classList.contains("full")) return;
-      naturalH = root.offsetHeight;
+      // Its content height, measured without the full-height override — but never left
+      // at 0. A sheet that reached full height without ever having been measured would
+      // get `floor = 0`, and a drag downward would then resize it forever instead of
+      // sliding: `slid` never grows, so it can never pass the close threshold.
+      if (!root.classList.contains("full")) naturalH = root.offsetHeight;
+      else if (!naturalH) naturalH = root.offsetHeight;
     }
     function down(e) {
       if (e.pointerType === "mouse" && e.button !== 0) return;
@@ -1310,6 +1313,11 @@
         e.preventDefault();
         return;
       }
+      applySheet(e.clientY);
+      e.preventDefault();
+    }
+    function applySheet(clientY) {
+      dy = clientY - startY;
       var want = baseH - dy;              // finger up → taller
       var floor = Math.min(naturalH, baseH);
       if (want >= floor) {
@@ -1321,7 +1329,6 @@
         root.style.height = floor + "px";
         root.style.transform = "translateY(" + slid + "px)";
       }
-      e.preventDefault();
     }
     function up() {
       if (!dragging) {
@@ -1332,7 +1339,7 @@
         setTimeout(function () { if (!pending && !dragging) root.style.height = ""; }, 0);
         return;
       }
-      pending = false; dragging = false;
+      pending = false; dragging = false; handOn = false;
       if (mode === "list") {
         mode = "";
         root.style.height = "";
@@ -1374,6 +1381,41 @@
     root.addEventListener("pointermove", move);
     root.addEventListener("pointerup", up);
     root.addEventListener("pointercancel", up);
+
+    // Överlämningen: gesten webbläsaren redan har tagit.
+    //
+    // Börjar draget en bit ned i listan äger listan panoreringen — den har någonstans
+    // att ta vägen, och `down()` lämnar därför gesten ifred. Men listan tar slut. Drar
+    // man vidare nedåt därifrån hände ingenting med arket förrän man släppte och tog
+    // om, för vår pointer-ström är död: iOS skickar `pointercancel` så fort den börjat
+    // scrolla. `touchmove` fortsätter däremot att komma under hela scrollen, och det
+    // är den tråden vi hänger kvar i.
+    //
+    // Vid listans topp finns inget kvar för webbläsaren att göra med resten av
+    // fingerresan — `overscroll-behavior: none` tog bort studsen — så vi tar den. Ingen
+    // `preventDefault` behövs eller vore möjlig; vi tävlar inte om gesten, vi ärver den
+    // när den lagts ned.
+    var handY = 0, handOn = false;
+    function handoff(e) {
+      var t = e.touches && e.touches.length === 1 && e.touches[0];
+      if (!t) return;
+      if (handOn) { applySheet(t.clientY); return; }
+      if (pending || dragging) return;                 // gesten är redan vår
+      if (!root.classList.contains("full") || body.scrollTop > 0) { handY = t.clientY; return; }
+      // Listan står på sin topp. Räkna resan härifrån, och bara nedåt: uppåt finns
+      // ingenting att ge arket, och då ska handY följa med så en vändning mäts rätt.
+      if (t.clientY - handY < 8) { if (t.clientY < handY) handY = t.clientY; return; }
+      heights();
+      fromBody = true; atTop = true; wasFull = true; mode = "sheet";
+      dragging = true; handOn = true; startY = handY; dy = 0; slid = 0;
+      baseH = root.offsetHeight;
+      root.style.height = baseH + "px";
+      root.classList.add("dragging");
+      applySheet(t.clientY);
+    }
+    body.addEventListener("touchmove", handoff, { passive: true });
+    body.addEventListener("touchend", function () { if (handOn) up(); }, { passive: true });
+    body.addEventListener("touchcancel", function () { if (handOn) up(); }, { passive: true });
     // Panoreringen är listans bara när listan har någonstans att ta vägen *åt det
     // håll webbläsaren låser sig vid*.
     //

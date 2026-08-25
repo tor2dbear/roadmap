@@ -1578,7 +1578,15 @@ body.preload * { transition: none !important; }
   /* Keep overscroll from chaining out to the page behind the sheet — on the sheet
      itself too, not just its list: a short sheet (the one-field editor) has nothing
      scrollable inside, so a drag there would otherwise reach the page. */
-  .sheet, .sheet .surface-body { overscroll-behavior: contain; }
+  .sheet { overscroll-behavior: contain; }
+  /* `none` och inte `contain` för listan: `contain` stoppar bara kedjan vidare till
+     sidan, studsen på plats blir kvar — och den studsen är fel person i det här arket.
+     Vid listans topp är nedåt *arkets* gest, så webbläsarens gummiband öppnar ett band
+     ovanför den fastnålade raden där listan syns röra sig (WebKits sticky halkar
+     dessutom en bildruta under studsen, så en rad blinkar fram i glappet). Med `none`
+     tar listan slut vid sin topp, och resten av fingerresan är vår att lämna över till
+     arket (se `handoff` i app.js). */
+  .sheet .surface-body { overscroll-behavior: none; }
   /* The title needs room on both sides of it: pressed up against the grip above and
      the field below, it read as a label on the field rather than the sheet's name. */
   .sheet-head { display: flex; align-items: center; gap: 8px; padding: 0 2px 18px; flex: none; }
