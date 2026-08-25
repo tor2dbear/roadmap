@@ -3378,12 +3378,6 @@
     refreshNav();
     renderBoard();
   }
-  function dpRow(labelText, control) {
-    var row = el("div", "dp-row");
-    row.appendChild(el("span", "dp-label", labelText));
-    row.appendChild(control);
-    return row;
-  }
   var displaySurface = null;
   function toggleDisplayMenu() {
     var wrap = displayBtn && displayBtn.parentNode;
@@ -3395,11 +3389,37 @@
       anchorWrap: wrap,
       cls: "filter-pop display-pop",
       onClose: function () { displaySurface = null; displayBtn.setAttribute("aria-expanded", "false"); },
-      build: function (pop) {
-    // Layout — a segmented control, because it's one choice among a few, not a
-    // toggle that has to be pressed twice to learn what it does. `dp-seg`/`dp-segbtn`
-    // stay on the markup as hooks (same principle as `data-field`): the name the code
-    // hangs on doesn't move when the look does.
+      build: function (pop) { renderDisplayRoot(pop); },
+    });
+  }
+  // The two fields the menu offers — the columns' own field, and the order inside a
+  // group. `usable` keeps a grouping out where the view has already fixed it.
+  var DISPLAY_FIELDS = [
+    { key: "group", label: "Grouping",
+      current: function () { return effectiveGroup(); },
+      options: function () {
+        return Object.keys(GROUPS).filter(groupUsable).map(function (k) {
+          return { value: k, label: GROUPS[k].label };
+        });
+      } },
+    { key: "sort", label: "Ordering",
+      current: function () { return state.sort; },
+      options: function () {
+        return SORTS.map(function (s) { return { value: s, label: SORT_LABEL[s] || s }; });
+      } },
+  ];
+  function displayLabel(f) {
+    var cur = f.current(), hit = null;
+    f.options().forEach(function (o) { if (o.value === cur) hit = o; });
+    return hit ? hit.label : cur;
+  }
+  // Level 1. Level 2 replaces it *in place*, exactly the way the filter panel does
+  // it — that is the point of this rewrite. The two settings used to open a
+  // separate picker surface, which on a phone took this sheet's place and left no
+  // way back: the only exit was to dismiss and start over. One overlay primitive had
+  // grown two ways to reach a sub-list, and only one of them could be reversed.
+  function renderDisplayRoot(pop) {
+    pop.innerHTML = "";
     var seg = segmented(
       [["list", "List", "list"], ["board", "Board", "grid"]],
       state.view,
@@ -3413,50 +3433,21 @@
 
     // Grouping (the columns' field — the row that turns one board into an agent
     // queue or a fleet view) and Ordering ("Manual" is the puck's own `order`; every
-    // other mode deliberately ignores it).
-    //
-    // Both were native <select>s, the last two OS-drawn surfaces left in the app. On
-    // iOS a <select> opens the system wheel in its own shape and colours — the exact
-    // reason `window.prompt` is not used anywhere here — and a focused native field
-    // makes iOS zoom the page whenever its type is under 16px, which is why the whole
-    // sheet had to carry that floor. They go through `openSurface()` like every other
-    // field now, so neither is true any more: no system sheet, and no floor.
-    //
-    // Each row repaints itself after a pick, because the picker holds `current` from
-    // when it was built and the menu stays open — the chip would otherwise still show
-    // the value you just left.
-    function pickRow(host, label, list, current, onPick, repaint) {
-      host.innerHTML = "";
-      host.appendChild(dpRow(label, propPicker({
-        title: label, editable: true, boxed: true, current: current,
-        options: list,
-        valueNode: function (o) { return el("span", null, o.label); },
-        onPick: function (v) {
-          onPick(v);
-          // On a wide screen the picker is a second popover and this menu is still
-          // standing, so the row repaints in place. On a phone the picker *is* the
-          // sheet — it took this menu's place — so the menu has to be put back, or
-          // one setting would cost a reopen and the Display menu holds five.
-          if (displaySurface) repaint();
-          else toggleDisplayMenu();
-        },
-      })));
-    }
-    var groupHost = el("div");
-    var sortHost = el("div");
-    function paintGroup() {
-      pickRow(groupHost, "Grouping", Object.keys(GROUPS).filter(groupUsable).map(function (k) {
-        return { value: k, label: GROUPS[k].label };
-      }), effectiveGroup(), function (v) { setDisplay("group", v); }, paintGroup);
-    }
-    function paintSort() {
-      pickRow(sortHost, "Ordering", SORTS.map(function (s) {
-        return { value: s, label: SORT_LABEL[s] || s };
-      }), state.sort, function (v) { setDisplay("sort", v); }, paintSort);
-    }
-    paintGroup(); paintSort();
-    pop.appendChild(groupHost);
-    pop.appendChild(sortHost);
+    // other mode deliberately ignores it). Both read the way iOS writes a setting
+    // that has a sub-list: name on the left, the value it currently holds on the
+    // right, and a chevron saying there is somewhere to go.
+    DISPLAY_FIELDS.forEach(function (f) {
+      if (f.options().length < 2) return; // one option is a fact, not a choice
+      var row = el("button", "fp-row dp-row");
+      row.type = "button";
+      // `dp-row`/`dp-label` stay on the markup as hooks, the way `dp-seg` did when
+      // the layout switch became a `.segmented`.
+      row.appendChild(el("span", "dp-label", f.label));
+      row.appendChild(el("span", "fp-cur", displayLabel(f)));
+      row.appendChild(icon("chev-right", "fp-chev"));
+      row.addEventListener("click", function () { renderDisplayValues(pop, f); });
+      pop.appendChild(row);
+    });
 
     // Wholesale inclusion — not filters: these say how complete the list is. Each is
     // offered only where it can change something, which is the rule this menu was
@@ -3511,8 +3502,31 @@
       toggleDisplayMenu();
     });
     pop.appendChild(reset);
+  }
+  // Level 2: the values, with a way back. Picking one returns to level 1 rather than
+  // closing the menu — a display choice is rarely the only one you came to make, and
+  // the Display menu holds five.
+  function renderDisplayValues(pop, f) {
+    pop.innerHTML = "";
+    var back = el("button", "fp-back");
+    back.type = "button";
+    back.appendChild(icon("chev-left", "fp-chev"));
+    back.appendChild(el("span", null, f.label));
+    back.addEventListener("click", function () { renderDisplayRoot(pop); });
+    pop.appendChild(back);
 
-      },
+    var cur = f.current();
+    f.options().forEach(function (o) {
+      var row = el("button", "row" + (o.value === cur ? " on" : ""));
+      row.type = "button";
+      row.setAttribute("data-value", o.value);
+      row.appendChild(el("span", null, o.label));
+      if (o.value === cur) row.appendChild(el("span", "pick-check", "\u2713"));
+      row.addEventListener("click", function () {
+        if (o.value !== cur) setDisplay(f.key, o.value);
+        renderDisplayRoot(pop);
+      });
+      pop.appendChild(row);
     });
   }
   if (displayBtn) displayBtn.addEventListener("click", function (e) { e.stopPropagation(); toggleDisplayMenu(); });

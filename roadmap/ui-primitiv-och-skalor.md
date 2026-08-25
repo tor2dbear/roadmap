@@ -241,4 +241,18 @@ Flikarna är däremot rätt: `.tab-btn` (understruken, innehåll) och `.focusbtn
   `data-field` finns: en krok som inte flyttar när formuleringen gör det. Fyra
   testställen drev den gamla `<select>` och läser den i stället.
 
+- **Display-menyn fick filterpanelens navigering — den hade två.** Grouping och
+  Ordering öppnade en *egen* väljaryta. På bred skärm blev det en andra popover och
+  menyn stod kvar; på telefon tog väljaren arkets plats och lämnade **ingen väg
+  tillbaka** — enda utgången var att stänga och börja om. En overlay-primitiv hade
+  alltså vuxit två sätt att nå en underlista, och bara det ena gick att backa ur.
+  Nu samma två nivåer som filterpanelen, i samma yta: raden visar sitt värde till
+  höger med en chevron efter, `‹ Grouping` går tillbaka, och ett val landar på nivå 1
+  i stället för att stänga menyn — en visningsinställning är sällan den enda man kom
+  för, och menyn håller fem. Formen är iOS Inställningar rakt av, som du föreslog:
+  namn, värde, pil.
+  En detalj som var värd sin egen regel: `.fp-cur` tar `margin-left: auto` och
+  chevronens egen måste ge vika. Två `auto`-marginaler **delar** ledigt utrymme, så
+  värdet parkerade mitt i raden i stället för i dess ände.
+
 ## Open questions

@@ -1169,8 +1169,13 @@ body.preload * { transition: none !important; }
    `gap: inherit` takes the surface's own spacing rather than restating the number,
    so the group cannot drift from the surface it sits in. */
 .dp-wholesale { display: flex; flex-direction: column; gap: inherit; }
-.dp-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.dp-label { font-size: var(--fs-md); color: var(--ink-2); }
+/* `.dp-row`/`.dp-label` are hooks now — the row is an `.fp-row`, laid out by the
+   same rule the filter panel's rows use, because it is the same kind of row. */
+.dp-label { color: var(--ink-2); }
+/* The value a setting currently holds, sitting where iOS puts it: pushed to the far
+   end, with the chevron behind it. The chevron's own `margin-left: auto` has to give
+   way, or the two autos would split the free space and park the value mid-row. */
+.fp-cur { margin-left: auto; color: var(--ink-3); }
 .dp-rule { height: 1px; background: var(--line); margin: 2px 0; }
 .dp-reset {
   align-self: flex-start; background: none; border: 0; padding: 2px 0;
@@ -1230,6 +1235,10 @@ body.preload * { transition: none !important; }
 .fp-row:hover, .fp-back:hover { background: var(--line); }
 .fp-chev { width: 1.15em; height: 1.15em; color: var(--ink-3); }
 .fp-row .fp-chev { margin-left: auto; }
+/* When the row carries its current value, that span takes the free space and the
+   chevron follows it. Two `auto` margins would split the space between them and park
+   the value in the middle of the row instead of at its end. */
+.fp-row .fp-cur + .fp-chev { margin-left: 0; }
 /* The back chevron leads its label rather than standing a full row-gap from it. */
 .fp-back .fp-chev { margin-right: -4px; }
 .fp-back { color: var(--ink-2); font-weight: 600; }
