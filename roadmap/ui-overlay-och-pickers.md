@@ -396,6 +396,14 @@ Verifierat: 109 fall i `surface.mjs` över **båda** viewporterna (390×844 och
   lång lista (390×560) vid full höjd → `pan-y`, drag uppåt scrollar till 99.
   Där listan verkligen svämmar över gäller fortfarande det gamla: den äger draget, och
   draghandtaget (`touch-action: none`) är det som fäller ihop arket.
+  **Och synken följer innehållet, inte bara rutan.** `ResizeObserver` ser kroppens
+  *ruta*; filtrerar man en lång lista ned till några rader i ett ark som redan står på
+  full höjd ändras `scrollHeight` men inte nödvändigtvis måtten. I mina mätningar
+  råkade rutan ändras med innehållet (433 → 360 → 433) och synken höll — men det är en
+  tillfällighet i den här layouten, inte en garanti, och en regel som vilar på en
+  tillfällighet faller när layouten rör sig. En `MutationObserver` på kroppens träd
+  räknar om den oavsett. Mätt över fyra filterlägen: 12 rader `pan-y`, 1 rad `none`,
+  17 rader `pan-y`, rensad `pan-y`.
   Mätt över hela cykeln, med touch: vila 506 → drag upp i listan → full 793,
   0 pointercancel, `overflow: auto` → drag på handtaget → 506.
 

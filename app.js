@@ -1346,9 +1346,17 @@
     }
     root.__syncPan = syncPan;
     syncPan();
-    if (window.ResizeObserver) {
-      var ro = new ResizeObserver(syncPan);
-      ro.observe(body);
+    // Två observatörer, för `scrollHeight` kan ändras utan att rutan gör det.
+    // `ResizeObserver` ser bara kroppens *ruta*. Filtrerar man en lång lista ned till
+    // några rader i ett ark som redan står på full höjd ändras `scrollHeight` men inte
+    // kroppens mått, och panoreringen hade blivit kvar hos en lista som inte längre
+    // har någonstans att ta vägen. I mina mätningar råkade rutan ändras med innehållet
+    // (433 → 360 → 433) och synken höll — men det är en tillfällighet i den här
+    // layouten, inte en garanti, och en regel som vilar på en tillfällighet är en regel
+    // som faller när layouten rör sig.
+    if (window.ResizeObserver) new ResizeObserver(syncPan).observe(body);
+    if (window.MutationObserver) {
+      new MutationObserver(syncPan).observe(body, { childList: true, subtree: true });
     }
   }
 
