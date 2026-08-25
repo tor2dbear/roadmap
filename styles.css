@@ -800,7 +800,13 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 /* The workspace-header band: same fixed height as the topbar and top-aligned to the
    viewport (the sidebar has no top padding), so "Roadmap" + search line up with the
    topbar's title/breadcrumb across the seam. */
-.side-brand { height: var(--topbar-h); box-sizing: border-box; padding: 0 4px; position: relative; display: flex; align-items: center; gap: 2px; }
+/* Sticky, not merely first: the band sits *inside* the sidebar's own scroller
+   (`overflow-y: auto`), so "top-aligned to the viewport" only held at scroll offset
+   0. On a phone the drawer's list overflows — the sections plus repos are taller
+   than a short viewport — and the smallest scroll carried the workspace row up out
+   of the topbar's band, which is exactly where a header must not go. It keeps its
+   own background for the rows that now pass under it. */
+.side-brand { height: var(--topbar-h); box-sizing: border-box; flex: none; padding: 0 4px; position: sticky; top: 0; z-index: 2; background: var(--sidebar-bg); display: flex; align-items: center; gap: 2px; }
 .side-brand h1 { font-size: var(--fs-2xl); letter-spacing: -0.01em; }
 .side-brand .brand-glyph { width: 17px; height: 17px; }
 .side-eyebrow {

@@ -165,4 +165,16 @@ Flikarna är däremot rätt: `.tab-btn` (understruken, innehåll) och `.focusbtn
   fyllningen där `--ink-2` ger 4.7) — en färdig etapp drar sig tillbaka här precis som
   ett gjort kort gör överallt annars, och siffrorna bär resten.
 
+- **Rubriken låg i sin egen scroller.** Sidomenyns arbetsytesrad bär kommentaren
+  "samma fasta höjd som topbaren och toppställd mot vyn, så *Roadmap* + sök linjerar
+  över sömmen". Påståendet höll bara vid scrollposition 0 och bara när listan fick
+  plats — för raden ligger *inuti* `.sidebar`, som är `overflow-y: auto`, och den är
+  dessutom ett flexobjekt. På en telefon svämmar lådans lista över (vyer + sparade +
+  discipliner + sex repon), och då hände två saker samtidigt: raden **klämdes ihop**
+  från 52 till 32px av flex-shrink, och minsta scroll bar den uppåt ur bandet. Mätt
+  på gammal kod: mitten låg på 16 mot topbarens 26, och efter 200px scroll på −154.
+  `flex: none` + `position: sticky` gör kommentaren sann. Testet mäter i en kort vy —
+  där överflödet är garanterat — både före och efter en scroll, för det var precis
+  den kombinationen som inte fanns i någon mätning tidigare.
+
 ## Open questions
