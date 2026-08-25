@@ -70,6 +70,14 @@
     sort: "default", // see SORTS below
     group: "status", // which field becomes the columns — see GROUPS
     showEmpty: true, // board only: keep a column that has no pucks (it's a drop target)
+    // List-only: which groups are folded shut. A folded group is a *display*
+    // preference, never puck truth, so it goes in the URL with the rest of the
+    // display state (`done`, `empty`, `sort`, …) — which also makes it save into a
+    // view for free, with no new machinery and no second store. The keys belong to
+    // whichever field is grouping; changing the grouping leaves harmless leftovers
+    // that match nothing. Not in the board layout: there a column header is a drop
+    // target and carries `+`, so a click on it already means something else.
+    collapsed: new Set(),
   };
   var SORTS = ["default", "updated-desc", "priority", "target", "updated-asc", "created-desc", "created-asc", "title"];
   var PRIORITY_RANK = { urgent: 0, high: 1, medium: 2, low: 3 };
@@ -540,12 +548,20 @@
     if (state.sort !== DISPLAY_DEFAULTS.sort) o.sort = state.sort;
     if (state.showDone) o.done = "1";
     if (!state.showEmpty) o.empty = "0";
+    // Sorted, not in click order: the same set of folded groups has to serialize to
+    // the same string every time, or the URL churns and two identical views compare
+    // unequal.
+    if (state.view === "list" && state.collapsed.size) {
+      var folded = [];
+      state.collapsed.forEach(function (k) { folded.push(k); });
+      o.collapsed = folded.sort().join(",");
+    }
     return o;
   }
   function viewParams() {
     var p = [];
     var o = viewParamObject();
-    ["view", "q", "group", "layout", "sort", "done", "empty"].forEach(function (k) {
+    ["view", "q", "group", "layout", "sort", "done", "empty", "collapsed"].forEach(function (k) {
       if (o[k] == null) return;
       p.push(k + "=" + (k === "q" ? encodeURIComponent(o[k]).replace(/%20/g, "+") : o[k]));
     });
@@ -589,11 +605,16 @@
       state.group = DISPLAY_DEFAULTS.group;
       state.view = DISPLAY_DEFAULTS.view;
       state.sort = DISPLAY_DEFAULTS.sort;
+      state.collapsed.clear();
     }
     // A link's display choices win over the saved preferences, but aren't saved
     // themselves — someone else's view shouldn't quietly become yours.
     if (got.done === "1") state.showDone = true;
     if (got.empty === "0") state.showEmpty = false;
+    if (got.collapsed != null) {
+      state.collapsed.clear();
+      got.collapsed.split(",").forEach(function (k) { if (k) state.collapsed.add(k); });
+    }
     if (GROUPS[got.group]) state.group = got.group;
     if (got.layout === "list" || got.layout === "board") state.view = got.layout;
     if (SORTS.indexOf(got.sort) !== -1) state.sort = got.sort;
@@ -2791,19 +2812,42 @@
     });
   }
 
+  // Fold a group shut or open it. Display state, so it travels the same road as the
+  // rest: into `state`, out through the URL, onto the board.
+  function toggleGroup(key) {
+    if (state.collapsed.has(key)) state.collapsed.delete(key);
+    else state.collapsed.add(key);
+    refreshDisplayDot();
+    renderBoard();
+  }
   function renderList(groups) {
     var g = activeGroup();
     groups.forEach(function (grp) {
       if (!grp.items.length) return; // a flat list has no drop targets, so no empty headers
       var section = el("section", "list-group" + (g.cls ? " " + g.cls(grp.key) : " col-plain"));
       if (g.tint && g.tint(grp.key)) section.style.setProperty("--tint", g.tint(grp.key));
+      var shut = state.collapsed.has(grp.key);
+      if (shut) section.classList.add("shut");
       var head = el("div", "list-head");
-      head.appendChild(el("span", "swatch"));
-      head.appendChild(el("h2", null, grp.label));
-      head.appendChild(el("span", "count", String(grp.items.length)));
+      // The heading stays a heading and the *button* goes inside it: `role="button"`
+      // on the row would have made its contents presentational, and the list's group
+      // headings would have dropped out of the heading map. The rollup badge stays
+      // outside the button — it is the etapp's number, not part of the control.
+      var h = el("h2");
+      var toggle = el("button", "lh-toggle");
+      toggle.type = "button";
+      toggle.setAttribute("aria-expanded", shut ? "false" : "true");
+      toggle.title = (shut ? "Expand " : "Collapse ") + grp.label;
+      toggle.appendChild(icon(shut ? "chev-right" : "chev-down", "lh-caret"));
+      toggle.appendChild(el("span", "swatch"));
+      toggle.appendChild(el("span", "lh-label", grp.label));
+      toggle.appendChild(el("span", "count", String(grp.items.length)));
+      toggle.addEventListener("click", function () { toggleGroup(grp.key); });
+      h.appendChild(toggle);
+      head.appendChild(h);
       if (g.headExtra) { var hx = g.headExtra(grp.key); if (hx) head.appendChild(hx); }
       section.appendChild(head);
-      grp.items.forEach(function (it) { section.appendChild(listRow(it)); });
+      if (!shut) grp.items.forEach(function (it) { section.appendChild(listRow(it)); });
       board.appendChild(section);
     });
   }
@@ -3309,7 +3353,9 @@
   var displayDot = document.getElementById("displayDot");
   function displayDirty() {
     for (var k in DISPLAY_DEFAULTS) if (state[k] !== DISPLAY_DEFAULTS[k]) return true;
-    return false;
+    // A folded group is a display change like any other, so the dot has to see it —
+    // otherwise "Reset to default" would change something the dot said was default.
+    return state.view === "list" && state.collapsed.size > 0;
   }
   function refreshDisplayDot() { if (displayDot) displayDot.hidden = !displayDirty(); }
   function setDisplay(key, value, storeAs) {
@@ -3417,6 +3463,7 @@
     reset.appendChild(el("span", null, "Reset to default"));
     reset.addEventListener("click", function () {
       for (var k in DISPLAY_DEFAULTS) state[k] = DISPLAY_DEFAULTS[k];
+      state.collapsed.clear();
       saveDisplay("view", state.view); saveDisplay("sort", state.sort); saveDisplay("group", state.group);
       saveDisplay("done", "0"); saveDisplay("empty", "1");
       refreshDisplayDot();

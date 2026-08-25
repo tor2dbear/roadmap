@@ -199,4 +199,25 @@ Flikarna är däremot rätt: `.tab-btn` (understruken, innehåll) och `.focusbtn
   medan tvillingen under höll 10/10. `gap: inherit` tar ytans eget avstånd i stället
   för att upprepa talet, så gruppen inte kan glida från ytan den sitter i.
 
+- **Fällbara grupper i listvyn — och var läget bor.** Ett fällt läge är en
+  *visningspreferens*, aldrig puck-sanning, så det går samma väg som `done` och
+  `empty`: in i `state`, ut genom URL:en. Då blir det delbart och **sparbart som en
+  vy** utan en rad ny maskin och utan en andra lagring. Nycklarna serialiseras
+  sorterade och inte i klickordning, annars skulle två identiska vyer jämföra olika
+  och URL:en skvalpa. Pricken på *Display* räknar dem, för annars hade "Reset to
+  default" ändrat något pricken påstod var default.
+  Bara listvyn. I brädvyn är kolumnrubriken redan släppyta och bär `+` — ett klick
+  där betyder något annat. (Punkt tre i planen, "drag mot en fälld grupp fäller upp
+  den", visade sig sakna föremål: listraderna är inte dragbara, `renderList` säger
+  det själv — "a flat list has no drop targets".)
+- **En rubrik som blev en knapp tappade sina versaler.** `font: inherit` täcker inte
+  `text-transform` och `letter-spacing`, och webbläsarens egen regel *deklarerar* dem
+  på `button` — en deklaration på elementet slår ett ärvt värde. Samma fälla som
+  `.linklike` gick i med webbläsarens 13.33px. Knappen ligger dessutom *inuti* `h2`
+  och inte tvärtom: `role="button"` på raden hade gjort innehållet presentationellt
+  och tagit bort listans grupprubriker ur rubrikträdet.
+  På vägen dit hittades en död selektor: `.list-head h3` fanns i mono-regeln men har
+  aldrig funnits i markupen, så listans gruppetikett var den enda kolumnetiketten som
+  aldrig fick mono.
+
 ## Open questions
