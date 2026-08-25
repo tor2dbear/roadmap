@@ -206,15 +206,28 @@ Felet var att två betydelser fick samma kläder. `No priority` och `Unassigned`
   när jag bytte ut literalerna. Testet mäter mot sidans egen linje i stället för mot
   ett tal, så den sortens miss kan inte passera igen.
 
-- **Blödningen säger vad som blir kvar, inte hur långt den går.** Markeringen nådde
-  10px utanför linjen, alltså 12px från skärmkanten — nära nog kanten för att läsa
-  som att den *saknar* padding. Nu en egen token, `--sheet-gap: 8px`, och regeln är
-  skriven i den: markeringen lämnar exakt 8px orörd sheet vid kanten och texten
-  ligger kvar på `--pad`. Skillnaden är inte kosmetisk — `margin: 0 -10px` är ett
-  tal vars *resultat* man måste räkna ut ur två andra värden, medan `calc(var(
-  --sheet-gap) - var(--pad))` är påståendet självt. Testet kräver samma sak i samma
-  ord: mätt över status-, etapp- och labels-sheeten är avståndet 8/8 mot
-  `--sheet-gap` 8.
-  Att jag först gissade på en gammal deploy var fel väg in — svaret låg i
-  skärmdumpen: pillret mätte 21.7 CSS-px, alltså exakt den `--pad` bygget redan
-  hade. Det var inte gammal kod, det var för lite luft.
+- **Blödningen säger vad som blir kvar, inte hur långt den går.** Markeringen skulle
+  nå 10px utanför linjen; nu en egen token, `--sheet-gap: 8px`, och regeln är skriven
+  i den: markeringen lämnar exakt 8px orörd sheet vid kanten och texten ligger kvar
+  på `--pad`. Skillnaden är inte kosmetisk — `margin: 0 -10px` är ett tal vars
+  *resultat* man måste räkna ut ur två andra värden, medan `calc(var(--sheet-gap) -
+  var(--pad))` är påståendet självt.
+
+- **Ett grönt test som mätte fel sak.** Blödningen syntes aldrig. Sheeten var
+  indragen till `--pad` och raden drogs ut med negativ marginal — men scrollern
+  (`.surface-body`, `overflow-y: auto`) **klipper vid sin padding-ruta**, så raden
+  *låg* på 8 och *målades* på 22. Flush mot pillret, precis som innan. Två omgångar
+  gick åt till det, för mitt test frågade `getBoundingClientRect()`, och en layoutruta
+  vet ingenting om att en förfader klipper. Det svarade 8 och jag skrev "grönt".
+  Rätt modell är omvänd: **sheetens egen kant är `--sheet-gap`, och varje
+  innehållskolumn inuti lägger på resten upp till `--pad`.** Då är scrollerns
+  padding-ruta — som också är dess klippkant — redan ute vid 8, och raden målas dit
+  den ligger. Den fasta fältrutan (`.sheet-pin`) får samma behandling, annars hade en
+  tänd rad lyst igenom i de 14px som blev över bredvid fältet.
+  Ett nytt test (`paint.mjs`) läser **pixlarna** i en skärmdump i stället för rutor:
+  det mäter var färgen faktiskt slutar. Kört mot den gamla koden faller det med
+  22 mot väntat 8 — alltså hade det fångat felet första gången. `surface.mjs` frågar
+  dessutom nu efter scrollerns *content*-kant och kräver att ingen rad hamnar utanför
+  klippkanten.
+  Läxan är inte "testa mer" utan **testa i rätt lager**: allt som handlar om vad man
+  *ser* måste mätas på det som målas. Layoutrutan är en modell av sidan, inte sidan.

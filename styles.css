@@ -1441,11 +1441,15 @@ body.preload * { transition: none !important; }
     max-height: 88dvh;
     background: var(--panel); border-top: 1px solid var(--line);
     border-radius: 16px 16px 0 0; box-shadow: var(--shadow);
-    /* 20px is the page's own inset (the topbar's); the sheet sat at 10 and read as
-       a narrower column than everything behind it. The bottom is deliberately
-       larger than the sides: the last control used to end 10px above the screen
-       edge, where the home indicator is and a thumb isn't. */
-    padding: 6px var(--pad) calc(24px + env(safe-area-inset-bottom));
+    /* The sheet's own edge inset is `--sheet-gap`, not `--pad`: the widest thing it
+       ever draws is a lit row, and that row leaves `--sheet-gap`. Every *content*
+       column inside adds the rest, so text still lands on the page's `--pad` line.
+       Doing it the other way — insetting the sheet to `--pad` and letting the row
+       bleed out with a negative margin — cannot work, because the scroll container
+       clips at its padding box: the row laid out at 8 and painted at 22.
+       The bottom is deliberately larger than the sides: the last control used to end
+       10px above the screen edge, where the home indicator is and a thumb isn't. */
+    padding: 6px var(--sheet-gap) calc(24px + env(safe-area-inset-bottom));
   }
   /* The grip is the handle: drag down to dismiss, up to go full height. The whole
      sheet listens, but only the chrome starts a drag unconditionally — from the
@@ -1496,34 +1500,35 @@ body.preload * { transition: none !important; }
      momentum: the list keeps moving while the pinned field lags a frame behind, and
      rows draw *above* it. Momentum has been the default since iOS 13 and the
      property is deprecated, so the only thing it still buys is that bug. */
-  .sheet .surface-body { overflow-y: auto; gap: 8px; }
+  /* The content column: the sheet is inset to `--sheet-gap`, this adds the rest up to
+     `--pad`. Because it is padding and not a margin, the scroller's *padding box* —
+     which is also its clip edge — reaches all the way out to `--sheet-gap`, so a row
+     that bleeds that far is painted instead of cut off. */
+  .sheet .surface-body { overflow-y: auto; gap: 8px; padding-inline: calc(var(--pad) - var(--sheet-gap)); }
   .sheet.kb .surface-body { padding-bottom: 42dvh; }
   /* The field is wrapped in .sheet-pin (see openSurface) and that wrapper is what
      stays put — with tokens the input sits inside .tokenbox, so pinning the input
      itself pins nothing. The padding is the gap before the list: it belongs to the
      pinned box, so rows scroll *under* it instead of through it. */
+     The pin reaches back out to the clip edge (and pads its own content back in), so
+     the rows scrolling under it are hidden across the sheet's full width — otherwise
+     a lit row would show through in the 14px band beside the field. */
   .sheet .surface-body > .sheet-pin {
     position: sticky; top: 0; z-index: 1; background: var(--panel); padding-bottom: 12px;
+    margin-inline: calc(var(--sheet-gap) - var(--pad));
+    padding-inline: calc(var(--pad) - var(--sheet-gap));
   }
   .sheet .pick-list { max-height: none; overflow: visible; }
-  /* Thumb-sized rows whose *text* sits on the page's content line, with the
-     selected row's background reaching 10px past it. Two different things want two
-     different edges: the text is content and belongs on the line; the highlight is
-     a state, and boxing it inside the line makes it read as another element rather
+  /* Thumb-sized rows whose *text* sits on the page's content line, with the selected
+     row's background reaching back out to `--sheet-gap`. Two different things want
+     two different edges: the text is content and belongs on the line; the highlight
+     is a state, and boxing it inside the line makes it read as another element rather
      than as the row being lit.
-     An earlier attempt at the same bleed measured it from the *screen* edge instead
-     of from the content line, which put the row at 9px (and at −5 in the pickers,
-     whose inset had not been fixed yet). Measured from the line, it can't clip. */
+     `width: auto`, not the base's 100%: with a fixed width the negative margins shift
+     the row left instead of widening it, so it bled on one side and fell short on the
+     other. Auto lets the flex column stretch it, and the margins then push both edges
+     out by the same amount — to the scroller's clip edge, and no further. */
   .sheet .row {
-    /* The bleed is expressed as *what is left at the screen edge*, not as a nudge:
-       the highlight runs to `--sheet-gap` from the edge, and the text still lands on
-       `--pad`. Written this way the number means something you can look at — 8px of
-       untouched sheet on either side — instead of a delta whose result you have to
-       work out from two other values.
-       `width: auto`, not the base's 100%: with a fixed width the negative margins
-       shift the row left instead of widening it, so it bled on one side and fell
-       short on the other. Auto lets the flex column stretch it, and the margins then
-       push both edges out by the same amount. */
     width: auto;
     margin: 0 calc(var(--sheet-gap) - var(--pad));
     padding: 12px calc(var(--pad) - var(--sheet-gap));
