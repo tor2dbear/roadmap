@@ -1374,6 +1374,12 @@
     function coast() {
       var v = vy;                                  // px/ms, finger direction
       syncPan();
+      // En hastighet är färsk eller ingen alls. Står fingret stilla skickas inga
+      // pointermove, så `vy` behåller sitt sista värde hur länge som helst — svep,
+      // håll kvar, släpp, och listan flög iväg som om fingret fortfarande rörde sig.
+      // Ingen native scroll gör det. En bildruta är 17 ms; 80 räcker för ett glapp i
+      // händelseströmmen och är långt under en paus någon hinner uppfatta.
+      if (clock() - lastT > 80) return;
       if (Math.abs(v) < 0.05) return;
       var last = clock();
       var step = function () {
@@ -1411,21 +1417,27 @@
     // skärmens överkant — och första röresen räknades som femhundra pixlars resa
     // nedåt: arket föll ihop till vilohöjd och sköts av skärmen, för att sedan klättra
     // tillbaka med fingret. (Mätt: 506@469 → 654@190 under ett drag *uppåt*.)
+    // Armeras på det som är sant när fingret landar: listan äger gesten om den har
+    // någonstans att ta vägen — samma villkor som `touch-action` låses vid, och exakt
+    // de gester webbläsaren tar ifrån oss. Att i stället vänta på ett `touchmove` som
+    // ser `scrollTop > 0` hade missat ett drag som börjar några pixlar från toppen och
+    // är nere på 0 redan vid första röresen.
     body.addEventListener("touchstart", function (e) {
       var t = e.touches && e.touches.length === 1 && e.touches[0];
-      handY = t ? t.clientY : 0; handOn = false; handArmed = false;
+      handY = t ? t.clientY : 0;
+      handOn = false;
+      handArmed = root.classList.contains("full") && body.scrollTop > 0;
     }, { passive: true });
     function handoff(e) {
       var t = e.touches && e.touches.length === 1 && e.touches[0];
       if (!t) return;
       if (handOn) { applySheet(t.clientY); return; }
       if (pending || dragging) return;                 // gesten är redan vår
-      if (!root.classList.contains("full")) { handY = t.clientY; return; }
-      // Armera bara på en gest listan faktiskt har tagit. Deklinerar pointer-vägen av
-      // andra skäl — ett drag uppåt i en lista som inte kan scrolla — finns ingen gest
+      // Bara en gest listan faktiskt tagit går att ärva. Deklinerar pointer-vägen av
+      // andra skäl — ett drag uppåt i en lista som inte kan scrolla — finns ingenting
       // att ärva, och överlämningen ska hålla sig utanför den.
-      if (body.scrollTop > 0) { handArmed = true; handY = t.clientY; return; }
       if (!handArmed) return;
+      if (body.scrollTop > 0) { handY = t.clientY; return; }
       // Listan står på sin topp. Räkna resan härifrån, och bara nedåt: uppåt finns
       // ingenting att ge arket, och då ska handY följa med så en vändning mäts rätt.
       if (t.clientY - handY < 8) { if (t.clientY < handY) handY = t.clientY; return; }
