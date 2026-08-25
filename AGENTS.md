@@ -92,7 +92,10 @@ is `is:flagged` — so anything a view shows, a query can name.
 URL parameters: `?q=` is the filter, `?view=` names a built-in view (`all`/`ready`/
 `inbox`/`etapps`/`standalone`/`attention`), `?group=` the column field, `?layout=`
 board or list, `?sort=` the ordering, `?done=1` shows the archive, `?empty=0` hides
-empty columns, and `#<repo>/<slug>` opens one puck. They compose:
+empty columns, `?collapsed=` folds groups shut in the list layout (a comma-separated
+list of group keys, URL-encoded, sorted; the keys belong to whatever `?group=` is
+set to and are dropped when it changes), and `#<repo>/<slug>` opens one puck. They
+compose:
 `?q=agent:backend+repo:pia-terminal&view=ready&group=target`.
 
 **Saved views** are the same parameters, named, in `board.config.json` — the board

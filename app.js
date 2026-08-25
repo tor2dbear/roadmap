@@ -558,12 +558,22 @@
     }
     return o;
   }
+  // The view's keys, in one place. Three readers used to keep their own copy of this
+  // list — the URL writer, and the saved-view reader and comparer — so adding
+  // `collapsed` to the writer alone meant a saved view committed the fold and then
+  // stripped it on the way back in. A list that has to be right in three files is a
+  // list that will be wrong in one.
+  var VIEW_KEYS = ["view", "q", "group", "layout", "sort", "done", "empty", "collapsed"];
+  // `q` and `collapsed` carry values the URL can't take raw: a search string, and the
+  // NUL that keys the "none" bucket (see NO_VALUE) — unencoded, the parser drops it
+  // and a shared link loses the fold it was supposed to carry.
+  var ENCODED_KEYS = { q: 1, collapsed: 1 };
   function viewParams() {
     var p = [];
     var o = viewParamObject();
-    ["view", "q", "group", "layout", "sort", "done", "empty", "collapsed"].forEach(function (k) {
+    VIEW_KEYS.forEach(function (k) {
       if (o[k] == null) return;
-      p.push(k + "=" + (k === "q" ? encodeURIComponent(o[k]).replace(/%20/g, "+") : o[k]));
+      p.push(k + "=" + (ENCODED_KEYS[k] ? encodeURIComponent(o[k]).replace(/%20/g, "+") : o[k]));
     });
     return p.length ? "?" + p.join("&") : "";
   }
@@ -3009,13 +3019,22 @@
   // Archive-aware for the same reason the view counts are: `goToPlace()` keeps
   // `state.showDone`, so with the toggle on a repo click shows its landed cards
   // while the chip's number excluded them. A place counts what its click shows.
+  // Siffran är vad klicket visar — och ett klick på ett repo behåller en aktiv
+  // disciplinkö (goToPlace byter bara den dimension man klickade i). Så varje
+  // dimension räknas *inuti* den andra: annars kunde ett repo säga 20 och landa på
+  // de 3 som är routade till den valda disciplinen.
   function placeCounts() {
-    var q = parseQuery(VIEWS.all).concat(state.showDone ? [] : [NOT_DONE]);
+    var base = parseQuery(VIEWS.all).concat(state.showDone ? [] : [NOT_DONE]);
+    // The *other* active place, taken from `controlTerms()` rather than hand-built:
+    // one producer for what a place term looks like, so the two can't drift.
+    function withOthers(skip) {
+      return base.concat(controlTerms().filter(function (t) { return t.field !== skip; }));
+    }
+    var repoQ = withOthers("repo"), agentQ = withOthers("agent");
     var repo = {}, agent = {};
     DATA.items.forEach(function (it) {
-      if (!runQuery(it, q)) return;
-      repo[it.repo] = (repo[it.repo] || 0) + 1;
-      if (it.agent) agent[it.agent] = (agent[it.agent] || 0) + 1;
+      if (runQuery(it, repoQ)) repo[it.repo] = (repo[it.repo] || 0) + 1;
+      if (it.agent && runQuery(it, agentQ)) agent[it.agent] = (agent[it.agent] || 0) + 1;
     });
     return { repo: repo, agent: agent };
   }
@@ -3369,6 +3388,11 @@
   }
   function refreshDisplayDot() { if (displayDot) displayDot.hidden = !displayDirty(); }
   function setDisplay(key, value, storeAs) {
+    // A fold belongs to the columns it was folded in. Changing the grouping replaces
+    // every column, so carrying the keys over means folding a group nobody touched —
+    // and the "none" bucket is keyed the same (NO_VALUE) under Agent, Target, Etapp
+    // and Priority, so collapsing "Unrouted" would silently collapse "No priority".
+    if (key === "group" && value !== state.group) state.collapsed.clear();
     state[key] = value;
     saveDisplay(storeAs || key, typeof value === "boolean" ? (value ? "1" : "0") : value);
     refreshDisplayDot();
@@ -3499,7 +3523,11 @@
       saveDisplay("view", state.view); saveDisplay("sort", state.sort); saveDisplay("group", state.group);
       saveDisplay("done", "0"); saveDisplay("empty", "1");
       refreshDisplayDot();
-      renderBoard();
+      // Navigation, inte bara brädet: `viewCounts()` och `placeCounts()` läser
+      // `showDone`, så en reset som släcker arkivet lämnade sidomenyns siffror — och
+      // rader som bara arkivet fyllde — kvar i sitt gamla läge. Samma väg som
+      // `setDisplay` går, av samma skäl.
+      afterEdit();
       toggleDisplayMenu();
     });
     pop.appendChild(reset);
@@ -3836,11 +3864,12 @@
     // "G <letter>" view jumps.
     if (gPending) {
       var jumped = true;
-      if (k === "a") setFocus("all");
-      else if (k === "r") setFocus("ready");
-      else if (k === "i") setFocus("inbox");
-      else if (k === "e") setFocus("etapps");
-      else if (k === "t") setFocus("attention");
+      // Samma tillgänglighetsvillkor som sidomenyn, titelväxlaren och paletten:
+      // en vy som inte finns i någon av dem ska inte nås av en genväg heller.
+      var open = {};
+      viewsShown(viewCounts()).forEach(function (g) { g.keys.forEach(function (x) { open[x] = 1; }); });
+      var want = { a: "all", r: "ready", i: "inbox", e: "etapps", s: "standalone", t: "attention" }[k];
+      if (want && open[want]) setFocus(want);
       else jumped = false;
       clearG();
       if (jumped) { e.preventDefault(); return; }
@@ -4230,15 +4259,14 @@
   }
   function paramsOf(v) {
     var o = {};
-    ["view", "q", "group", "layout", "sort", "done", "empty"].forEach(function (k) {
+    VIEW_KEYS.forEach(function (k) {
       if (v[k] != null && v[k] !== "") o[k] = String(v[k]);
     });
     return o;
   }
   function sameParams(a, b) {
-    var keys = ["view", "q", "group", "layout", "sort", "done", "empty"];
-    for (var i = 0; i < keys.length; i++) {
-      if ((a[keys[i]] || "") !== (b[keys[i]] || "")) return false;
+    for (var i = 0; i < VIEW_KEYS.length; i++) {
+      if ((a[VIEW_KEYS[i]] || "") !== (b[VIEW_KEYS[i]] || "")) return false;
     }
     return true;
   }
@@ -4665,6 +4693,11 @@
     if (keyField === "status") {
       recountEtapp(item.parentRef);
       syncRollupSignals(item);
+      // Bägge ändarna, som i changeParent: härledningen uppdaterar etappens objekt,
+      // men bara den puck vi skickar med målas om — och etappen är precis lika
+      // trolig som den öppna sidan när man drar ett av dess barn.
+      afterEdit(item, item.parentRef);
+      return;
     }
     afterEdit(item);
   }
@@ -5504,10 +5537,16 @@
     toast("Deleting…");
     commitDelete(item)
       .then(function () {
+        // Ur etappen först, sen ur listan: annars stod föräldern kvar med ett barn
+        // som inte finns, fel `progress` och en `rollup-open`-varning om delar som
+        // inte längre är öppna — ända till nästa skörd.
+        var parent = item.parentRef;
+        relink(item, null, null);
         var i = DATA.items.indexOf(item);
         if (i >= 0) DATA.items.splice(i, 1);
+        if (parent) { recountEtapp(parent); syncRollupSignals(itemById(parent)); }
         closeModal();
-        renderBoard();
+        afterEdit(parent);
         toast("✓ Deleted — live after next sync");
       })
       .catch(function (err) { noteWriteError(item, err); toast("✗ " + (err && err.message || "delete failed"), true); });
@@ -5846,6 +5885,11 @@
     }
     function onEsc(e) {
       if (e.key !== "Escape" || cmdkVisible() || helpOpen()) return;
+      // A surface opened *from inside* the panel — the Repo picker in New puck — is a
+      // layer above it and owns the press. Without this the panel's capture listener
+      // ran first and the surface never saw the key: one press closed the whole form
+      // and left the picker orphaned over a panel that no longer existed.
+      if (openSurfaces.length) return;
       // Immediate: this layer owns the press outright. Plain stopPropagation leaves
       // any other listener on document — a surface's, the puck's — free to act on
       // the same key.

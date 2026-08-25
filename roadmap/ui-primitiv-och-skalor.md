@@ -269,4 +269,23 @@ Flikarna är däremot rätt: `.tab-btn` (understruken, innehåll) och `.focusbtn
   Med chipet borta är `.fchip.place` och hela `place`-grenen i chip-byggaren död kod
   och tagen.
 
+- **Tio granskningsfynd, och ett mönster som återkom.** Fem var mina egna från
+  fällnings- och väljarbytet, fem äldre men fortfarande sanna.
+  Det som band ihop de värsta: **en lista som måste stämma på tre ställen.** Vyns
+  nycklar räknades upp i URL-skrivaren, i den sparade vyns läsare *och* i dess
+  jämförare — så när `collapsed` lades till i skrivaren committades vecket in i en
+  sparad vy och skalades bort på vägen tillbaka. En `VIEW_KEYS` nu, läst av alla tre.
+  Övriga fem av mina: NUL-nyckeln för "none"-hinken kodades inte, så en delad länk
+  tappade just det veck den bar (`%00` nu, och testat genom en omladdning); vecken
+  följde med till nästa gruppering fast alla fyra fältlösa grupper delar samma
+  NO_VALUE-nyckel, så att fälla "Unrouted" fällde "No priority" (de släpps vid byte
+  nu); `?collapsed=` saknades i AGENTS-kontraktet; och Escape i New pucks repo-väljare
+  stängde hela formuläret, eftersom panelens capture-lyssnare hann före ytan ovanpå
+  den (den lämnar över när en yta är öppen nu).
+  De äldre: *Reset to default* räknade bara om brädet fast siffrorna läser `showDone`;
+  ett släpp mellan statuskolumner målade om barnet men inte etappen ovanför; `G E`
+  nådde en vy som alla andra ytor gömt; en raderad puck lämnade sin förälder med ett
+  barn som inte fanns; och ett repo-chip räknade utanför en aktiv disciplinkö, så
+  siffran kunde säga 20 och klicket landa på 3.
+
 ## Open questions
