@@ -857,6 +857,17 @@
   function progressBadge(item) {
     var p = item.progress;
     var b = el("span", "rollup" + (p.done === p.total ? " full" : ""));
+    // The proportion, as a fill behind the count — not instead of it.
+    //
+    // The finding this closes said the rollup was "a number where a shape would do",
+    // and the puck deliberately waited for real etapps before choosing the shape. The
+    // real ones have 1, 2, 3 and 5 parts, and at those sizes a ring is the *worse*
+    // instrument: 0/1, 1/2 and 2/3 draw 0%, 50% and 67% while the reader's actual
+    // question — how many are left — is "one" for all three. A ring earns its place
+    // where the count stops meaning anything (37/120 → "about a third"), and nothing
+    // on this board is close. So the count stays exact and the fill is what the
+    // glance gets; it also degrades to any N, which a row of dots would not.
+    b.style.setProperty("--frac", (p.total ? Math.round((p.done / p.total) * 100) : 0) + "%");
     // The puck mark, not the etapp mark: this badge counts *pucks*, and the etapp
     // it belongs to already wears its own mark beside the title. Carrying `etapp`
     // here put the same glyph on one card twice and had the count of two dots
@@ -3513,7 +3524,7 @@
     // the title now, next to the views it joins. (It is still Linear's "set default
     // for everyone", git-native: it writes board.config.json and repo permissions
     // decide who may.)
-    var reset = el("button", "dp-reset");
+    var reset = el("button", "resetbtn dp-reset");
     reset.type = "button";
     reset.appendChild(icon("reset"));
     reset.appendChild(el("span", null, "Reset to default"));
@@ -6074,8 +6085,10 @@
 
     p.appendChild(el("div", "set-eyebrow", "Preferences"));
     p.appendChild(themeControl());
-    var resetW = el("button", "set-linkbtn", "Reset sidebar width");
+    var resetW = el("button", "resetbtn set-linkbtn");
     resetW.type = "button";
+    resetW.appendChild(icon("reset"));
+    resetW.appendChild(el("span", null, "Reset sidebar width"));
     resetW.addEventListener("click", function () {
       document.documentElement.style.removeProperty("--sidebar-w");
       try { localStorage.removeItem("roadmap-sidebar-w"); } catch (e) {}

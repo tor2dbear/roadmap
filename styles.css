@@ -730,8 +730,8 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 /* The chosen position is a raised surface inside the track, so the frame stays the
    control's outline and the fill stays the answer to "which one". */
 .segmented-btn.on { background: var(--panel); color: var(--ink); box-shadow: var(--shadow); font-weight: 600; }
-.set-linkbtn { display: block; margin-top: 12px; font-size: var(--fs-md); background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; }
-.set-linkbtn:hover { text-decoration: underline; }
+/* The only delta a reset in the Settings panel needs: room above it. */
+.set-linkbtn { margin-top: 12px; }
 
 /* ── inline SVG icons (Feather-style, inherit currentColor) ──────────────── */
 /* Icons are decorative — never let the SVG become the tap target (which can eat
@@ -1177,13 +1177,19 @@ body.preload * { transition: none !important; }
    way, or the two autos would split the free space and park the value mid-row. */
 .fp-cur { margin-left: auto; color: var(--ink-3); }
 .dp-rule { height: 1px; background: var(--line); margin: 2px 0; }
-.dp-reset {
+/* ── .resetbtn — put this back the way it was ───────────────────────────────── */
+/* There were two of these and they wore different colours: the Display menu's in
+   `--ink-3`, Settings' sidebar-width one in the accent red. Neither is destructive —
+   they restore, they don't remove — so red was wrong on the one that had it, and two
+   colours for one act was wrong on both. Quiet at rest, since a reset is never the
+   thing you came to the menu to do. `dp-reset`/`set-linkbtn` stay as hooks. */
+.resetbtn {
   align-self: flex-start; background: none; border: 0; padding: 2px 0;
   font-size: var(--fs-base); color: var(--ink-3); cursor: pointer;
   display: inline-flex; align-items: center; gap: 6px;
 }
-.dp-reset .icn { width: 13px; height: 13px; }
-.dp-reset:hover { color: var(--ink); text-decoration: underline; }
+.resetbtn .icn { width: 13px; height: 13px; }
+.resetbtn:hover { color: var(--ink); text-decoration: underline; }
 /* A column grouped by something without its own palette (agent, repo, priority)
    still gets a swatch — tinted where the field has a colour, neutral otherwise. */
 .col-plain .swatch { background: var(--tint, var(--ink-3)); }
@@ -1623,14 +1629,14 @@ body.preload * { transition: none !important; }
      half a row, and "Reset to default" was a text-height target against the screen
      edge. */
   .sheet .fp-toggle { min-height: 40px; }
-  .sheet .dp-reset { min-height: 40px; align-items: center; display: inline-flex; }
+  .sheet .resetbtn { min-height: 40px; align-items: center; display: inline-flex; }
   /* A sheet is a thumb surface, and that governs its *text* as much as its targets:
      the rows step up to --fs-xl, and the labels and controls beside them follow. It
      started as a fix for a native <select> stuck at the 16px iOS floor while its
      neighbours sat at 13 — the select is a picker now, but the step is right on its
      own terms and stays. */
   .sheet .dp-label,
-  .sheet .dp-reset,
+  .sheet .resetbtn,
   .sheet .segmented-btn,
   .sheet .fp-toggle,
   .sheet .fp-row,
@@ -1756,6 +1762,12 @@ body.preload * { transition: none !important; }
    as every other badge — no second card type, no second visual language. */
 .rollup {
   cursor: help;
+  /* The fill sits *behind* the digits as a background image, so it costs no element
+     and can't push the text around. `--frac` comes from progressBadge; the hard stop
+     keeps it an edge rather than a gradient — this is a measurement, not a sheen. */
+  background-image: linear-gradient(to right,
+    color-mix(in oklab, var(--ink-3) 22%, transparent) var(--frac, 0%),
+    transparent var(--frac, 0%));
 }
 .rollup .icn { width: 11px; height: 11px; }
 /* A state inside a badge changes its *colour*, never its construction. Every badge
@@ -1766,6 +1778,8 @@ body.preload * { transition: none !important; }
    reader has to be told the meaning of. `--done` is the board's quieting colour
    (2.9:1 against the fill where --ink-2 is 4.7); a finished etapp recedes here the
    same way a done card does everywhere else, and the numbers carry the rest. */
+/* Complete: the fill is the whole chip, so it says "done" on its own and the text
+   recedes with it — the same quieting `--done` every finished thing wears here. */
 .rollup.full { color: var(--done); }
 .rollup-n { font-variant-numeric: tabular-nums; }
 .etapp-chip {

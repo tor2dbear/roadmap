@@ -181,7 +181,28 @@ Fem fynd, i fallande ordning av hur mycket de skymde:
   är skyldig resten av gränssnittet detta"* — och missade sedan två av vägarna in i
   den. Att skriva regeln räcker inte om man inte också letar upp alla anropare.
 
+- **Fynd 2, och svaret blev nej till ringen.** Frågan sköts medvetet upp tills det
+  fanns riktiga etapper att titta på. Nu finns fyra, med **1, 2, 3 och 5** delar — och
+  vid de storlekarna är en ring det *sämre* instrumentet. `0/1`, `1/2` och `2/3` ritar
+  0 %, 50 % och 67 % medan läsarens faktiska fråga — hur många är kvar — är "en" för
+  alla tre. En ring förtjänar sin plats där antalet slutar betyda något (37/120 →
+  "ungefär en tredjedel"), och ingenting på den här tavlan är i närheten.
+  Så siffran står kvar exakt, och **andelen målas som en fyllnad bakom den**. Det ger
+  blicken proportionen utan att ta ifrån läsaren antalet, det kostar inget element —
+  fyllnaden är en `background-image`, så den kan inte knuffa texten — och det skalar
+  till vilket N som helst, vilket en rad prickar inte hade gjort.
+  Testet mäter kanten i **pixlar**, i bägge teman: `--frac` i ett style-attribut bevisar
+  ingenting om vad som syns. Min första mätning svarade 86 % och var fel — den råkade
+  sampla inuti pillrets rundade hörn. Rätt mätt (kolumnmedian över brickans mitt)
+  ligger kanten på 66 % mot väntade 67, och de två halvorna skiljer sig mätbart i både
+  ljust och mörkt läge.
+
+- **Två återställningar blev en komponent.** Display-menyns *Reset to default* var
+  `--ink-3`, Settings *Reset sidebar width* var accentröd. Ingen av dem är destruktiv
+  — de återställer, de tar inte bort — så röd var fel på den som hade det, och två
+  färger för en och samma handling var fel på bägge. En `.resetbtn` nu, med
+  återställningsmärket på bägge; `dp-reset`/`set-linkbtn` står kvar som krokar.
+  Testet jämför de två **mot varandra** och inte mot en färgliteral, för påståendet
+  är att de *är* samma kontroll.
+
 ## Open questions
-- Progressringen (fynd 2) återstår. Den bör vänta tills medlemslistan använts ett
-  tag: en ring säger *andel*, och det är först med riktiga etapper man ser om andel
-  eller antal är det man faktiskt jämför.
