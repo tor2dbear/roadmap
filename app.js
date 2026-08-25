@@ -1563,6 +1563,11 @@
     paint(cur ? opts.valueNode(cur) : el("span", "prop-muted", opts.placeholder || "\u2014"));
     if (!opts.editable) { chip.classList.add("static"); chip.disabled = true; return chip; }
     chip.classList.add("editable");
+    // A chip whose value is bare text has nothing of its own to look like, so it
+    // carries the box at rest. One whose value already has a shape — a status pill,
+    // a date — does not, or the shape would be drawn twice. That is the difference,
+    // not which surface it happens to sit on.
+    if (opts.boxed) chip.classList.add("boxed");
     var wrap = el("div", "prop-pick");
     var open = null;
     chip.addEventListener("click", function (e) {
@@ -1578,6 +1583,10 @@
             if (o.sep) { list.appendChild(el("div", "menu-rule")); return; }
             var mi = el("button", "row pick-mi" + (o.value === opts.current ? " on" : ""));
             mi.type = "button";
+            // The value, not just its label: the option's durable identity, for the
+            // same reason `data-field` exists — a hook that doesn't move when the
+            // wording does.
+            if (o.value != null) mi.setAttribute("data-value", String(o.value));
             mi.appendChild(opts.valueNode(o));
             if (o.value === opts.current) mi.appendChild(el("span", "pick-check", "\u2713"));
             mi.addEventListener("click", function () {
@@ -3402,21 +3411,52 @@
     [].forEach.call(seg.children, function (c) { c.classList.add("dp-segbtn"); });
     pop.appendChild(seg);
 
-    // Grouping — the columns' field. This is the row that turns one board into an
-    // agent queue, a fleet view or (once `target` exists) a timeline.
-    var groupSel = selectEl("np-select", Object.keys(GROUPS).filter(groupUsable).map(function (k) {
-      return { value: k, label: GROUPS[k].label };
-    }), effectiveGroup());
-    groupSel.addEventListener("change", function () { setDisplay("group", groupSel.value); });
-    pop.appendChild(dpRow("Grouping", groupSel));
-
-    // Ordering — inside a group. "Manual" is `order` from the puck; every other
-    // mode deliberately ignores it.
-    var sortSel = selectEl("np-select", SORTS.map(function (s) {
-      return { value: s, label: SORT_LABEL[s] || s };
-    }), state.sort);
-    sortSel.addEventListener("change", function () { setDisplay("sort", sortSel.value); });
-    pop.appendChild(dpRow("Ordering", sortSel));
+    // Grouping (the columns' field — the row that turns one board into an agent
+    // queue or a fleet view) and Ordering ("Manual" is the puck's own `order`; every
+    // other mode deliberately ignores it).
+    //
+    // Both were native <select>s, the last two OS-drawn surfaces left in the app. On
+    // iOS a <select> opens the system wheel in its own shape and colours — the exact
+    // reason `window.prompt` is not used anywhere here — and a focused native field
+    // makes iOS zoom the page whenever its type is under 16px, which is why the whole
+    // sheet had to carry that floor. They go through `openSurface()` like every other
+    // field now, so neither is true any more: no system sheet, and no floor.
+    //
+    // Each row repaints itself after a pick, because the picker holds `current` from
+    // when it was built and the menu stays open — the chip would otherwise still show
+    // the value you just left.
+    function pickRow(host, label, list, current, onPick, repaint) {
+      host.innerHTML = "";
+      host.appendChild(dpRow(label, propPicker({
+        title: label, editable: true, boxed: true, current: current,
+        options: list,
+        valueNode: function (o) { return el("span", null, o.label); },
+        onPick: function (v) {
+          onPick(v);
+          // On a wide screen the picker is a second popover and this menu is still
+          // standing, so the row repaints in place. On a phone the picker *is* the
+          // sheet — it took this menu's place — so the menu has to be put back, or
+          // one setting would cost a reopen and the Display menu holds five.
+          if (displaySurface) repaint();
+          else toggleDisplayMenu();
+        },
+      })));
+    }
+    var groupHost = el("div");
+    var sortHost = el("div");
+    function paintGroup() {
+      pickRow(groupHost, "Grouping", Object.keys(GROUPS).filter(groupUsable).map(function (k) {
+        return { value: k, label: GROUPS[k].label };
+      }), effectiveGroup(), function (v) { setDisplay("group", v); }, paintGroup);
+    }
+    function paintSort() {
+      pickRow(sortHost, "Ordering", SORTS.map(function (s) {
+        return { value: s, label: SORT_LABEL[s] || s };
+      }), state.sort, function (v) { setDisplay("sort", v); }, paintSort);
+    }
+    paintGroup(); paintSort();
+    pop.appendChild(groupHost);
+    pop.appendChild(sortHost);
 
     // Wholesale inclusion — not filters: these say how complete the list is. Each is
     // offered only where it can change something, which is the rule this menu was
@@ -5761,12 +5801,6 @@
     var l = el("label", null, labelText); d.appendChild(l); d.appendChild(control);
     return d;
   }
-  function selectEl(cls, opts, value) {
-    var s = document.createElement("select"); s.className = cls;
-    opts.forEach(function (o) { var e = document.createElement("option"); e.value = o.value; e.textContent = o.label; s.appendChild(e); });
-    if (value != null) s.value = value;
-    return s;
-  }
   // One capture flow for New *and* ⌘K: Title + Repo (+ optional context). Repo is
   // permanent (the file lives there, can't move later), so it's always shown —
   // defaulting to the current scope / this board's repo. Everything else (status,
@@ -5823,17 +5857,31 @@
     var p = el("div", "token-panel");
     p.appendChild(el("h3", "token-title", "New puck"));
     var defRepo = preset.repo || defaultCaptureRepo() || (DATA.sources[0] && DATA.sources[0].repo);
-    var proj = selectEl("np-select", DATA.sources.map(function (s) { return { value: s.repo, label: s.name }; }), defRepo);
+    // The last native <select> in the app. Same reason as the Display menu's two: on
+    // iOS it draws the system wheel, and a focused native field drags the 16px zoom
+    // floor along with it. The value lives in a variable now instead of in the DOM.
+    var repo = defRepo;
+    var projHost = el("div", "prop-pick-host");
+    function paintProj() {
+      projHost.innerHTML = "";
+      projHost.appendChild(propPicker({
+        title: "Repo", editable: true, boxed: true, current: repo,
+        options: DATA.sources.map(function (s) { return { value: s.repo, label: s.name }; }),
+        valueNode: function (o) { return el("span", null, o.label); },
+        onPick: function (v) { repo = v; paintProj(); updatePreview(); },
+      }));
+    }
     var title = el("input", "token-input"); title.type = "text"; title.placeholder = "Title"; title.autocomplete = "off";
     if (preset.title) title.value = preset.title;
     var ctx = el("textarea", "token-input np-context"); ctx.placeholder = "Context (optional) — a line more than the title"; ctx.rows = 2;
     var preview = el("div", "np-preview", "");
     function updatePreview() {
-      var m = sourceMeta(proj.value);
+      var m = sourceMeta(repo);
       preview.textContent = title.value.trim() ? "→ " + m.dir + "/" + slugify(title.value) + ".md" : "";
     }
-    title.addEventListener("input", updatePreview); proj.addEventListener("change", updatePreview);
-    p.appendChild(field("Repo", proj));
+    title.addEventListener("input", updatePreview);
+    paintProj();
+    p.appendChild(field("Repo", projHost));
     p.appendChild(field("Title", title));
     p.appendChild(preview);
     p.appendChild(field("Context", ctx));
@@ -5845,7 +5893,7 @@
       var t = title.value.trim();
       if (!t) { title.focus(); return; }
       close();
-      createPuck(proj.value, t, preset.status || "inbox", [], null, ctx.value.trim());
+      createPuck(repo, t, preset.status || "inbox", [], null, ctx.value.trim());
     });
     cancel.addEventListener("click", close);
     actions.appendChild(create); actions.appendChild(cancel);

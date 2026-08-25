@@ -748,11 +748,6 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 .iconbtn.newpuckbtn { font-size: var(--fs-3xl); line-height: 1; font-weight: 500; }
 .np-field { margin: 10px 0; }
 .np-field label { display: block; font-size: var(--fs-base); color: var(--ink-2); margin-bottom: 4px; }
-.np-select {
-  width: 100%; box-sizing: border-box; padding: 8px 10px; font-size: var(--fs-2xl);
-  border: 1px solid var(--line); border-radius: var(--r-md); background: var(--bg); color: var(--ink);
-}
-.np-select:focus { outline: none; border-color: var(--accent); }
 .np-preview { font-family: ui-monospace, monospace; font-size: var(--fs-base); color: var(--ink-3); min-height: 14px; margin: -4px 0 2px; }
 .np-context { resize: vertical; min-height: 46px; line-height: 1.5; }
 .np-tagsug { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; margin: 6px 0 2px; }
@@ -1176,7 +1171,6 @@ body.preload * { transition: none !important; }
 .dp-wholesale { display: flex; flex-direction: column; gap: inherit; }
 .dp-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .dp-label { font-size: var(--fs-md); color: var(--ink-2); }
-.dp-row select { max-width: 60%; }
 .dp-rule { height: 1px; background: var(--line); margin: 2px 0; }
 .dp-reset {
   align-self: flex-start; background: none; border: 0; padding: 2px 0;
@@ -1287,9 +1281,15 @@ body.preload * { transition: none !important; }
 }
 /* iOS Safari zooms the page in whenever a focused field's font-size is under 16px,
    and there is no way back out except pinching. Every text control gets 16px on a
-   phone — the touch targets want the extra height anyway. */
+   phone — the touch targets want the extra height anyway.
+   The alternatives are worse than the floor: `user-scalable=no` takes pinch-zoom from
+   everyone to spare one field, and a `transform: scale()` on a 16px field leaves the
+   element's layout box lying about its own size — the exact kind of lie that has cost
+   this file two bugs. Where the floor is genuinely unwanted, the answer is to not have
+   a native field: the two <select>s that used to force it here are `openSurface()`
+   pickers now, so `select` is no longer in this list. */
 @media (max-width: 640px) {
-  input[type="text"], input[type="search"], input:not([type]), textarea, select { font-size: var(--fs-2xl); }
+  input[type="text"], input[type="search"], input:not([type]), textarea { font-size: var(--fs-2xl); }
 }
 .fp-search:focus { outline: none; border-color: var(--accent); }
 .fp-tags { display: flex; flex-wrap: wrap; gap: 5px; max-height: 168px; overflow-y: auto; }
@@ -1345,6 +1345,8 @@ body.preload * { transition: none !important; }
 }
 .pick-chip.editable:hover { background: var(--panel-2); border-color: var(--line); }
 .pick-chip.static { cursor: default; padding: 0; margin: 0; }
+/* Bare-text values need the box at rest — see propPicker's `boxed`. */
+.pick-chip.boxed { border-color: var(--line); background: var(--panel-2); margin: 0; }
 /* No caret: the chip *is* the control. A caret only helps where hover can reveal
    an affordance, which is nowhere on a phone — so the shape has to carry it. A set
    value already looks like something (a status pill, a badge); an empty one is
@@ -1614,12 +1616,11 @@ body.preload * { transition: none !important; }
      edge. */
   .sheet .fp-toggle { min-height: 40px; }
   .sheet .dp-reset { min-height: 40px; align-items: center; display: inline-flex; }
-  /* A sheet is a thumb surface, and that governs its *text* as much as its targets.
-     The rows already stepped up to --fs-xl; the labels and controls beside them kept
-     the desktop's --fs-md, so the one control with a floor it may not go under — a
-     native <select>, which makes iOS zoom the page below 16px — read as the only
-     large thing on the surface. One step for all of them, and that floor is then a
-     pixel away instead of three. */
+  /* A sheet is a thumb surface, and that governs its *text* as much as its targets:
+     the rows step up to --fs-xl, and the labels and controls beside them follow. It
+     started as a fix for a native <select> stuck at the 16px iOS floor while its
+     neighbours sat at 13 — the select is a picker now, but the step is right on its
+     own terms and stays. */
   .sheet .dp-label,
   .sheet .dp-reset,
   .sheet .segmented-btn,

@@ -220,4 +220,25 @@ Flikarna är däremot rätt: `.tab-btn` (understruken, innehåll) och `.focusbtn
   aldrig funnits i markupen, så listans gruppetikett var den enda kolumnetiketten som
   aldrig fick mono.
 
+- **Den sista OS-ritade ytan är borta — och med den 16px-golvet.** Tre native
+  `<select>` fanns kvar: Grouping, Ordering och repo-väljaren i New puck. På iOS
+  ritar de systemets egen hjulväljare, i sin egen form och sina egna färger — exakt
+  det som gör att `window.prompt` inte används någonstans här. Och ett fokuserat
+  native-fält drar med sig zoom-golvet: Safari zoomar in sidan när fältets typ ligger
+  under 16px, och det var därför hela telefonarket bar det.
+  Alternativen är sämre än golvet. `user-scalable=no` tar nyp-zoom från *alla* för att
+  bespara ett fält; `transform: scale()` på ett 16px-fält låter elementets layoutruta
+  ljuga om sin egen storlek — och just den lögnen har kostat den här filen två buggar
+  (klippkanten som mätte rätt och målade fel, rubriken som klämdes ihop). Rätt svar är
+  att inte ha ett native-fält. Alla tre går genom `openSurface()` nu, `selectEl()` är
+  borta, och `select` står inte längre i golvregeln.
+  Två saker föll ut av bytet. Väljaren håller sitt `current` från när den byggdes, så
+  raden målar om sig efter ett val — annars hade chippet visat värdet man just lämnade.
+  Och på telefon *är* väljaren arket: den tog Display-menyns plats, så menyn måste
+  sättas tillbaka efteråt, annars hade en inställning kostat en omöppning och menyn
+  håller fem. På bred skärm står menyn kvar och raden räcker.
+  Optionsraderna bär `data-value` nu — optionens beständiga identitet, samma skäl som
+  `data-field` finns: en krok som inte flyttar när formuleringen gör det. Fyra
+  testställen drev den gamla `<select>` och läser den i stället.
+
 ## Open questions
