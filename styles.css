@@ -1509,8 +1509,8 @@ body.preload * { transition: none !important; }
   /* The field is wrapped in .sheet-pin (see openSurface) and that wrapper is what
      stays put — with tokens the input sits inside .tokenbox, so pinning the input
      itself pins nothing. The padding is the gap before the list: it belongs to the
-     pinned box, so rows scroll *under* it instead of through it. */
-     The pin reaches back out to the clip edge (and pads its own content back in), so
+     pinned box, so rows scroll *under* it instead of through it.
+     It also reaches back out to the clip edge (and pads its own content back in), so
      the rows scrolling under it are hidden across the sheet's full width — otherwise
      a lit row would show through in the 14px band beside the field. */
   .sheet .surface-body > .sheet-pin {
