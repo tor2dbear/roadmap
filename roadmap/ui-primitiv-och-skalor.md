@@ -144,4 +144,25 @@ Flikarna är däremot rätt: `.tab-btn` (understruken, innehåll) och `.focusbtn
   den bär ett rums märke. Att ge alla sex en ikon hade sagt motsatsen — att de är
   sex av samma sort.
 
+- **Tre märken till, och en fråga som var rätt ställd.** `chev-down`/`chev-up` bär
+  de tre upplysningsklaffarna (`▾` i markupen tidigare), och vilken väg de pekar
+  avgörs av knappens egen `aria-expanded` — ingen state att hålla synkad. De är
+  satta i **px och inte `em`**, till skillnad från separatorerna: en klaff är en
+  *affordans* som ska säga "det här öppnas" likadant bredvid ett 11px-arbetsytenamn
+  och en 17px-vytitel, medan en separator är skiljetecken och ska följa texten den
+  står i. Två regler, för att det är två olika jobb. `reset` (rotate-ccw) sitter på
+  "Reset to default".
+- **`0/5` bar fel märke.** Rollup-brickan räknar *puckar*, men bar etappmärket — så
+  samma glyf stod två gånger på samma kort, och två prickar stod framför siffran 5.
+  Den bär puckmärket nu; etappen bär sitt eget vid titeln.
+- **Den kompletta rollupen var "inramad", inte "klar".** `.rollup.full` mörkade
+  ramen med en `--done`-blandning. Men *alla* brickor har `1px solid var(--line)`,
+  och i ljust läge ligger `--line` (#e6e2d9) ett hårstrå från fyllningen (#ebe8e1) —
+  ramen är osynlig med flit och chippet läser som en yta. Alltså var det enda ögat
+  fångade "den här har en ram och den där inte", ett faktum läsaren måste få
+  betydelsen av berättad för sig. Regeln bakom: **ett tillstånd inuti en bricka byter
+  dess färg, aldrig dess konstruktion.** `--done` är tavlans dämpande färg (2.9:1 mot
+  fyllningen där `--ink-2` ger 4.7) — en färdig etapp drar sig tillbaka här precis som
+  ett gjort kort gör överallt annars, och siffrorna bär resten.
+
 ## Open questions

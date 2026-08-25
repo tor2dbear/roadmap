@@ -726,6 +726,11 @@
     // separators it sat in a row with.
     "chev-right": ["m5.625 11.25 3.75 -3.75 -3.75 -3.75"],
     "chev-left": ["m9.375 11.25 -3.75 -3.75 3.75 -3.75"],
+    "chev-down": ["m3.75 5.625 3.75 3.75 3.75 -3.75"],
+    "chev-up": ["m11.25 9.375 -3.75 -3.75 -3.75 3.75"],
+    // rotate-ccw — undo an arrangement, not undo a write
+    reset: ["m0.625 2.5 0 3.75 3.75 0",
+            "M2.19375 9.375a5.625 5.625 0 1 0 1.33125 -5.85L0.625 6.25"],
     // inbox — the one view that is a room rather than a filter (see VIEW_GROUPS)
     inbox: ["m13.75 7.5 -3.75 0 -1.25 1.875 -2.5 0 -1.25 -1.875 -3.75 0",
             "M3.40625 3.19375 1.25 7.5v3.75a1.25 1.25 0 0 0 1.25 1.25h10a1.25 1.25 0 0 0 1.25 -1.25v-3.75l-2.15625 -4.30625A1.25 1.25 0 0 0 10.475 2.5H4.525a1.25 1.25 0 0 0 -1.11875 0.69375z"],
@@ -756,6 +761,16 @@
   // The breadcrumb's step, in one place: the separator appeared in three builders,
   // and a glyph copied three times is three chances for them to drift apart.
   function sep() { return icon("chev-right", "crumb-sep"); }
+  // A disclosure caret carries both directions and lets CSS pick by the button's
+  // own `aria-expanded` — the state is already on the control, so nothing has to be
+  // kept in sync. (A rotated down-chevron would draw the same shape; using the set's
+  // own up mark means the file says which mark it is rather than how it got there.)
+  function fillCaret(span) {
+    if (!span) return;
+    span.innerHTML = "";
+    span.appendChild(icon("chev-down", "caret-down"));
+    span.appendChild(icon("chev-up", "caret-up"));
+  }
 
   // Blocked badge for a puck waiting on unfinished dependencies (tooltip lists them).
   function blockBadge(item) {
@@ -774,7 +789,11 @@
   function progressBadge(item) {
     var p = item.progress;
     var b = el("span", "rollup" + (p.done === p.total ? " full" : ""));
-    b.appendChild(icon("etapp"));
+    // The puck mark, not the etapp mark: this badge counts *pucks*, and the etapp
+    // it belongs to already wears its own mark beside the title. Carrying `etapp`
+    // here put the same glyph on one card twice and had the count of two dots
+    // standing in front of the number 5.
+    b.appendChild(icon("commit"));
     b.appendChild(el("span", "rollup-n", p.done + "/" + p.total));
     b.title = "Etapp: " + p.done + " of " + p.total + " pucks done";
     b.setAttribute("aria-label", b.title);
@@ -3363,8 +3382,10 @@
     // the title now, next to the views it joins. (It is still Linear's "set default
     // for everyone", git-native: it writes board.config.json and repo permissions
     // decide who may.)
-    var reset = el("button", "dp-reset", "Reset to default");
+    var reset = el("button", "dp-reset");
     reset.type = "button";
+    reset.appendChild(icon("reset"));
+    reset.appendChild(el("span", null, "Reset to default"));
     reset.addEventListener("click", function () {
       for (var k in DISPLAY_DEFAULTS) state[k] = DISPLAY_DEFAULTS[k];
       saveDisplay("view", state.view); saveDisplay("sort", state.sort); saveDisplay("group", state.group);
@@ -4281,6 +4302,9 @@
   }
   var brandMark = document.getElementById("brandMark");
   if (brandMark) brandMark.appendChild(icon("merge", "brand-glyph"));
+  // The three disclosure carets were the typographic ▾ in the markup; they are the
+  // set's chevrons now, filled here for the same reason the brand glyph is.
+  [].forEach.call(document.querySelectorAll(".ws-caret, .vs-caret"), fillCaret);
   if (CFG.description) {
     var descMeta = document.querySelector('meta[name="description"]');
     if (descMeta) descMeta.setAttribute("content", CFG.description);

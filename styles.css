@@ -913,7 +913,7 @@ body.preload * { transition: none !important; }
 }
 .ws-btn:hover, .ws-btn[aria-expanded="true"] { background: var(--panel-2); }
 .ws-btn h1 { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ws-caret { margin-left: 1px; color: var(--ink-3); font-size: var(--fs-sm); flex: none; }
+.ws-caret { margin-left: 1px; color: var(--ink-3); flex: none; }
 /* search + New as icon buttons on the workspace row (Linear-style) */
 .side-head-actions { margin-left: auto; display: flex; gap: 2px; flex: none; }
 .head-act {
@@ -946,7 +946,19 @@ body.preload * { transition: none !important; }
 }
 .view-switch-btn:hover { background: var(--panel-2); }
 .view-switch-btn:hover .vs-caret { color: var(--ink-2); }
-.vs-caret { font-size: var(--fs-sm); color: var(--ink-3); flex: none; }
+.vs-caret { color: var(--ink-3); flex: none; }
+/* A disclosure caret is an *affordance*, not punctuation: it says "this opens" and
+   should say it the same way beside an 11px workspace name and a 17px view title.
+   So it keeps a fixed size, unlike the separators — which are punctuation and scale
+   with the type they sit in. Two rules, because they are two different jobs.
+   Which way it points is the button's own `aria-expanded`; nothing to keep in sync. */
+.ws-caret, .vs-caret { display: inline-flex; align-items: center; }
+.ws-caret .icn, .vs-caret .icn { width: 13px; height: 13px; }
+.caret-up { display: none; }
+[aria-expanded="true"] > .ws-caret > .caret-down,
+[aria-expanded="true"] > .vs-caret > .caret-down { display: none; }
+[aria-expanded="true"] > .ws-caret > .caret-up,
+[aria-expanded="true"] > .vs-caret > .caret-up { display: inline-block; }
 .vs-section { padding: 8px 9px 4px; }
 .vs-section:first-child { padding-top: 4px; }
 .view-title { font-size: var(--fs-lg); font-weight: 600; margin: 0; letter-spacing: -0.01em; }
@@ -1123,7 +1135,9 @@ body.preload * { transition: none !important; }
 .dp-reset {
   align-self: flex-start; background: none; border: 0; padding: 2px 0;
   font-size: var(--fs-base); color: var(--ink-3); cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
 }
+.dp-reset .icn { width: 13px; height: 13px; }
 .dp-reset:hover { color: var(--ink); text-decoration: underline; }
 /* A column grouped by something without its own palette (agent, repo, priority)
    still gets a swatch — tinted where the field has a colour, neutral otherwise. */
@@ -1676,7 +1690,15 @@ body.preload * { transition: none !important; }
   cursor: help;
 }
 .rollup .icn { width: 11px; height: 11px; }
-.rollup.full { color: var(--done); border-color: color-mix(in oklab, var(--done) 40%, var(--line)); }
+/* A state inside a badge changes its *colour*, never its construction. Every badge
+   carries `1px solid var(--line)`, and in light mode --line (#e6e2d9) sits a hair
+   from the fill (#ebe8e1) — so the ring is invisible by design and the chip reads as
+   a fill. This rule used to darken that ring for the complete state, which made the
+   only thing the eye caught "this one is outlined and that one isn't" — a fact the
+   reader has to be told the meaning of. `--done` is the board's quieting colour
+   (2.9:1 against the fill where --ink-2 is 4.7); a finished etapp recedes here the
+   same way a done card does everywhere else, and the numbers carry the rest. */
+.rollup.full { color: var(--done); }
 .rollup-n { font-variant-numeric: tabular-nums; }
 .etapp-chip {
   display: inline-flex; align-items: center; gap: 3px; min-width: 0; flex: 0 1 auto;
