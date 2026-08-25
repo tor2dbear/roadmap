@@ -1403,9 +1403,15 @@
       if (Math.abs(v) < 0.05) return;
       var last = clock();
       var step = function () {
-        var t = clock(), dt = Math.min(t - last, 32);
+        var t = clock(), dt = t - last;
         last = t;
-        body.scrollTop -= v * dt;                  // finger up (v < 0) → offset grows
+        // Ett avbrutet fling är inget fling. Ställs sidan åt sidan står
+        // `requestAnimationFrame` stilla, och att bara klippa `dt` hade låtit
+        // trögheten överleva pausen och rulla vidare när man kommer tillbaka — samma
+        // fel som ett gammalt hastighetsprov, en våning ned. Förflyttningen klipps
+        // ändå, så ett kortare hack ger en långsammare bildruta och inte ett skutt.
+        if (dt > 100) { glide = 0; syncPan(); return; }
+        body.scrollTop -= v * Math.min(dt, 32);    // finger up (v < 0) → offset grows
         v *= Math.pow(0.995, dt);
         var live = Math.abs(v) > 0.02 && body.scrollTop > 0
           && body.scrollTop < body.scrollHeight - body.clientHeight - 1;
