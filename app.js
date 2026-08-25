@@ -1479,6 +1479,7 @@
     body.addEventListener("scroll", syncPan, { passive: true });
     root.__syncPan = syncPan;
     syncPan();
+    var watchers = [];
     // Två observatörer, för `scrollHeight` kan ändras utan att rutan gör det.
     // `ResizeObserver` ser bara kroppens *ruta*. Filtrerar man en lång lista ned till
     // några rader i ett ark som redan står på full höjd ändras `scrollHeight` men inte
@@ -1487,10 +1488,20 @@
     // (433 → 360 → 433) och synken höll — men det är en tillfällighet i den här
     // layouten, inte en garanti, och en regel som vilar på en tillfällighet är en regel
     // som faller när layouten rör sig.
-    if (window.ResizeObserver) new ResizeObserver(syncPan).observe(body);
-    if (window.MutationObserver) {
-      new MutationObserver(syncPan).observe(body, { childList: true, subtree: true });
+    if (window.ResizeObserver) {
+      var ro = new ResizeObserver(syncPan);
+      ro.observe(body);
+      watchers.push(ro);
     }
+    if (window.MutationObserver) {
+      var mo = new MutationObserver(syncPan);
+      mo.observe(body, { childList: true, subtree: true });
+      watchers.push(mo);
+    }
+    // Varje ark får sina egna observatörer, och ett ark lever bara till nästa
+    // stängning. Lyssnarna går med noderna de sitter på; observatörerna hänger på
+    // dokumentet, så de lämnas tillbaka och kopplas ur av `onDestroy`.
+    return function () { watchers.forEach(function (w) { w.disconnect(); }); watchers = []; };
   }
 
   // Every open surface, so navigation and viewport changes can clear them: a sheet
@@ -1633,7 +1644,7 @@
       document.body.appendChild(root);
       lockScroll();
       popLayer = pushLayer([root, scrim]); // the scrim stays live: tap-outside still closes
-      draggableSheet(root, body, close);
+      onDestroy.push(draggableSheet(root, body, close));
       // While a *text field* inside is focused the keyboard is up; pad the scroll
       // area so the last row can still be brought above it.
       //
