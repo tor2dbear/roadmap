@@ -2,7 +2,7 @@
 title: "UI-primitiv och skalor"
 status: now
 tags: [ui, dx]
-updated: 2026-08-24
+updated: 2026-08-25
 created: 2026-08-23
 order: 5
 depends: [polering-av-egenskapsskenan]
@@ -124,5 +124,24 @@ Flikarna är däremot rätt: `.tab-btn` (understruken, innehåll) och `.focusbtn
     ⋯-menyn är röd för att *raden* är farlig, inte för att en soptunna är röd; en
     modifierare där hade dubblerat samma påstående på två ställen.
   Bägge fanns redan och bägge följer regeln. Det som saknades var regeln.
+
+- **Fyra märken ur setet, och tre tecken som inte var märken.** Brödsmulans `›`,
+  filterpanelens `›`/`‹` och tillbakalänkens `←` var *typografi*: de tog vikt och
+  baslinje ur typsnittet i stället för ur ikonuppsättningen, så de matchade aldrig
+  riktigt märkena bredvid sig — och `←` var dessutom en annan art än separatorerna
+  den stod på rad med. Alla sex är nu `chev-right`/`chev-left` ur samma Feather-set
+  som resten, och separatorn kommer ur **en** funktion (`sep()`) i stället för att
+  vara kopierad till tre byggare.
+  Storleken är däremot inte satt i px utan i `em`. Samma separator sitter i en
+  11px-mono-smula och i en 14px-sans-smula; en fast 16px-ikon hade tornat över den
+  ena och krympt mot den andra. Det var precis vad `›` gjorde rätt av sig själv, och
+  det ikonen fick läras.
+- **⋯ blev setets egen.** Den var handritad här — tre nollängdslinjer med runda
+  ändar, samma knep som `list` använder för sina punkter — vilket gav rätt bild men
+  min egen delning. Nu tre cirklar ur uppsättningen.
+- **Bara Inbox bär en ikon, och det är poängen.** Den är den enda raden som är ett
+  *rum* och inte en skiva av tavlan (den står i egen sektion ovanför `Views`), så
+  den bär ett rums märke. Att ge alla sex en ikon hade sagt motsatsen — att de är
+  sex av samma sort.
 
 ## Open questions

@@ -713,10 +713,22 @@
     trash: ["M2 4h12", "M12.667 4v9.333a1.333 1.333 0 0 1 -1.333 1.333H4.667a1.333 1.333 0 0 1 -1.333 -1.333V4", "M5.333 4V2.667a1.333 1.333 0 0 1 1.333 -1.333h2.667a1.333 1.333 0 0 1 1.333 1.333V4", "M6.667 7.333v4", "M9.333 7.333v4"],
     // sliders (Feather) — settings/command
     sliders: ["M2.6667 14v-4.6667", "M2.6667 6.6667V2", "M8 14v-6", "M8 5.3333V2", "M13.3333 14v-3.3333", "M13.3333 8V2", "M0.6667 9.3333h4", "M6 5.3333h4", "M11.3333 10.6667h4"],
-    // more-horizontal — three dots, drawn the way `list` draws its bullets: a
-    // zero-length line with a round cap, so they scale with the stroke like
-    // every other mark here instead of being circles with their own radius.
-    more: ["m2.8125 7.5 0.00625 0", "m7.5 7.5 0.00625 0", "m12.1875 7.5 0.00625 0"],
+    // more-horizontal, from the set proper. It was hand-drawn here as three
+    // zero-length capped lines (the way `list` draws its bullets) — same picture,
+    // but the spacing was mine and not the set's.
+    more: ["M2.5 7.5a0.625 0.625 0 1 0 1.25 0 0.625 0.625 0 1 0 -1.25 0",
+           "M6.875 7.5a0.625 0.625 0 1 0 1.25 0 0.625 0.625 0 1 0 -1.25 0",
+           "M11.25 7.5a0.625 0.625 0 1 0 1.25 0 0.625 0.625 0 1 0 -1.25 0"],
+    // The only direction marks on the board: the breadcrumb's steps and the filter
+    // panel's way in and out. They were the typographic › ‹ ←, which take their
+    // weight and their baseline from the *font* — so they never quite matched the
+    // marks beside them, and the back arrow was a different species from the
+    // separators it sat in a row with.
+    "chev-right": ["m5.625 11.25 3.75 -3.75 -3.75 -3.75"],
+    "chev-left": ["m9.375 11.25 -3.75 -3.75 3.75 -3.75"],
+    // inbox — the one view that is a room rather than a filter (see VIEW_GROUPS)
+    inbox: ["m13.75 7.5 -3.75 0 -1.25 1.875 -2.5 0 -1.25 -1.875 -3.75 0",
+            "M3.40625 3.19375 1.25 7.5v3.75a1.25 1.25 0 0 0 1.25 1.25h10a1.25 1.25 0 0 0 1.25 -1.25v-3.75l-2.15625 -4.30625A1.25 1.25 0 0 0 10.475 2.5H4.525a1.25 1.25 0 0 0 -1.11875 0.69375z"],
     list: ["m5 3.75 8.125 0", "m5 7.5 8.125 0", "m5 11.25 8.125 0", "m1.875 3.75 0.00625 0", "m1.875 7.5 0.00625 0", "m1.875 11.25 0.00625 0"],
     grid: ["M1.875 1.875h4.375v4.375H1.875Z", "M8.75 1.875h4.375v4.375h-4.375Z", "M8.75 8.75h4.375v4.375h-4.375Z", "M1.875 8.75h4.375v4.375H1.875Z"],
     key: ["m13.125 1.25 -1.25 1.25m-4.7562500000000005 4.7562500000000005a3.4375 3.4375 0 1 1 -4.86125 4.86125 3.4375 3.4375 0 0 1 4.860625 -4.860625zm0 0L9.6875 4.6875m0 0 1.875 1.875L13.75 4.375l-1.875 -1.875m-2.1875 2.1875L11.875 2.5"],
@@ -741,6 +753,9 @@
     });
     return svg;
   }
+  // The breadcrumb's step, in one place: the separator appeared in three builders,
+  // and a glyph copied three times is three chances for them to drift apart.
+  function sep() { return icon("chev-right", "crumb-sep"); }
 
   // Blocked badge for a puck waiting on unfinished dependencies (tooltip lists them).
   function blockBadge(item) {
@@ -1922,7 +1937,9 @@
     container.style.setProperty("--repo", item.repoColor);
 
     var crumb = el("div", "detail-crumb");
-    var home = el("button", "crumb-home", "← " + currentViewTitle());
+    var home = el("button", "crumb-home");
+    home.appendChild(icon("chev-left"));
+    home.appendChild(el("span", null, currentViewTitle()));
     home.type = "button";
     home.title = "Back to the board";
     home.addEventListener("click", function () { closeModal(); });
@@ -1932,14 +1949,14 @@
     // level above one tap away instead of a scroll.
     var up = parentItem(item);
     if (up) {
-      crumb.appendChild(el("span", "crumb-sep", "›"));
+      crumb.appendChild(sep());
       var upLink = el("button", "crumb-back", up.title);
       upLink.type = "button";
       upLink.title = "Etapp: " + up.title;
       upLink.addEventListener("click", function () { openModal(up); });
       crumb.appendChild(upLink);
     }
-    crumb.appendChild(el("span", "crumb-sep", "›"));
+    crumb.appendChild(sep());
     crumb.appendChild(el("span", "crumb-cur", item.repoName + " · " + item.slug));
     container.appendChild(crumb);
 
@@ -2390,7 +2407,7 @@
       back.type = "button";
       back.addEventListener("click", function () { closeModal(); });
       tc.appendChild(back);
-      tc.appendChild(el("span", "crumb-sep", "›"));
+      tc.appendChild(sep());
       tc.appendChild(el("span", "crumb-title", item.title));
     }
     detailContent.scrollTop = 0;
@@ -3019,7 +3036,11 @@
   // view can't now appear in one and be missing from the other, which is exactly
   // what happened to Etapps (a sidebar row with no command).
   var VIEW_DEFS = {
-    inbox: { label: "Inbox", title: "Raw ideas to triage — nothing here is a promise yet" },
+    // Only Inbox carries a glyph, and that is the point rather than an oversight:
+    // it is the one row that is a *room* and not a slice of the board (see
+    // VIEW_GROUPS), so it stands in its own section and wears the mark of one.
+    // Giving all six an icon would say the opposite — that they are six of a kind.
+    inbox: { label: "Inbox", icon: "inbox", title: "Raw ideas to triage — nothing here is a promise yet" },
     all: { label: "All pucks", title: "The committed board — now/next/later" },
     etapps: { label: "Etapps", title: "The pucks that hold other pucks — each with its rollup" },
     standalone: { label: "Standalone", title: "Pucks in no etapp — the loose ones" },
@@ -3076,6 +3097,7 @@
         b.type = "button";
         b.title = d.title;
         b.setAttribute("aria-pressed", on ? "true" : "false");
+        if (d.icon) b.appendChild(icon(d.icon, "focus-icn"));
         b.appendChild(el("span", "focus-label", d.label));
         if (counts[key]) b.appendChild(el("span", "focus-n", String(counts[key])));
         b.addEventListener("click", function () { goToView(key); });
@@ -3123,6 +3145,7 @@
                 var r = el("button", "row" + (on ? " on" : ""));
                 r.type = "button";
                 r.title = VIEW_DEFS[key].title;
+                if (VIEW_DEFS[key].icon) r.appendChild(icon(VIEW_DEFS[key].icon, "focus-icn"));
                 r.appendChild(el("span", "focus-label", VIEW_DEFS[key].label));
                 if (counts[key]) r.appendChild(el("span", "focus-n", String(counts[key])));
                 if (on) r.appendChild(el("span", "pick-check", "✓"));
@@ -3986,7 +4009,7 @@
       row.appendChild(el("span", null, f.label));
       var on = filterValues(f.key, false).length;
       if (on) row.appendChild(el("span", "fp-n", String(on)));
-      row.appendChild(el("span", "fp-chev", "›"));
+      row.appendChild(icon("chev-right", "fp-chev"));
       row.addEventListener("click", function () { renderValueList(pop, f); });
       pop.appendChild(row);
     });
@@ -3995,7 +4018,7 @@
     pop.innerHTML = "";
     var back = el("button", "fp-back");
     back.type = "button";
-    back.appendChild(el("span", "fp-chev", "‹"));
+    back.appendChild(icon("chev-left", "fp-chev"));
     back.appendChild(el("span", null, f.label));
     back.addEventListener("click", function () { renderFieldList(pop); });
     pop.appendChild(back);

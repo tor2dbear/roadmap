@@ -1076,6 +1076,10 @@ body.preload * { transition: none !important; }
 /* Views list — nav rows with a live count badge */
 .side-views .focusbtn { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 8px; }
 .focus-label { flex: 1; text-align: left; }
+/* Sized in `em` like the other marks that sit in a line of text, so the same row
+   works in the mono sidebar and in the switcher's larger sheet rows. */
+.focus-icn { width: 1.15em; height: 1.15em; color: var(--ink-3); }
+.focusbtn.on .focus-icn, .row.on .focus-icn { color: inherit; }
 .focus-n { font-family: var(--mono); font-size: var(--fs-sm); color: var(--ink-3); flex: none; }
 .side-views .focusbtn.on .focus-n { color: var(--ink-2); }
 
@@ -1170,7 +1174,10 @@ body.preload * { transition: none !important; }
   font: inherit; font-size: var(--fs-md); color: var(--ink); cursor: pointer; text-align: left;
 }
 .fp-row:hover, .fp-back:hover { background: var(--line); }
-.fp-row .fp-chev { margin-left: auto; color: var(--ink-3); }
+.fp-chev { width: 1.15em; height: 1.15em; color: var(--ink-3); }
+.fp-row .fp-chev { margin-left: auto; }
+/* The back chevron leads its label rather than standing a full row-gap from it. */
+.fp-back .fp-chev { margin-right: -4px; }
 .fp-back { color: var(--ink-2); font-weight: 600; }
 .fp-values { display: flex; flex-direction: column; gap: 2px; max-height: 46vh; overflow-y: auto; }
 .fp-val {
@@ -1260,9 +1267,14 @@ body.preload * { transition: none !important; }
 .fp-chip.on.pri-low { background: var(--ink-3); }
 
 /* breadcrumb: clickable Board segment → current puck */
-.crumb-home { font: inherit; font-family: var(--mono); font-size: var(--fs-sm); color: var(--ink-2); background: none; border: 0; padding: 0; cursor: pointer; }
+.crumb-home { font: inherit; font-family: var(--mono); font-size: var(--fs-sm); color: var(--ink-2); background: none; border: 0; padding: 0; cursor: pointer; display: inline-flex; align-items: center; gap: 1px; }
 .crumb-home:hover { color: var(--accent); }
 .crumb-sep, .crumb-cur { color: var(--ink-3); }
+/* The direction marks are punctuation, so they are sized in `em` and not in px:
+   the same separator sits in an 11px mono crumb and in a 14px sans one, and a fixed
+   16px icon would tower over the first and shrink against the second — which is
+   exactly what the typographic › did right and the icon had to be taught. */
+.crumb-sep, .crumb-home .icn { width: 1.15em; height: 1.15em; }
 
 /* ── properties rail: value-chip + picker popover (Linear-style) ────────────── */
 .prop-pick { position: relative; display: inline-flex; }
