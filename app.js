@@ -1241,7 +1241,7 @@
   function draggableSheet(root, body, close) {
     var startY = 0, dy = 0, slid = 0, pending = false, dragging = false, fromBody = false;
     var atTop = true, wasFull = false, mode = "";
-    var baseH = 0, naturalH = 0, maxH = 0;
+    var baseH = 0, naturalH = 0, maxH = 0, restCap = 0;
     var startTop = 0, lastY = 0, lastT = 0, vy = 0, glide = 0;
     var clock = window.performance && performance.now
       ? function () { return performance.now(); }
@@ -1251,12 +1251,32 @@
 
     function heights() {
       maxH = Math.round(window.innerHeight * SHEET_FULL);
-      // Its content height, measured without the full-height override — but never left
-      // at 0. A sheet that reached full height without ever having been measured would
-      // get `floor = 0`, and a drag downward would then resize it forever instead of
-      // sliding: `slid` never grows, so it can never pass the close threshold.
-      if (!root.classList.contains("full")) naturalH = root.offsetHeight;
-      else if (!naturalH) naturalH = root.offsetHeight;
+      if (!root.classList.contains("full")) {
+        naturalH = root.offsetHeight;          // innehållets höjd, direkt avläst
+        // Vilodetentens tak, läst ur CSS medan regeln som bär det gäller. Vid full
+        // höjd är `max-height` full-lägets — och det är just där taket behövs.
+        var cap = parseFloat(getComputedStyle(root).maxHeight);
+        if (cap) restCap = cap;
+        return;
+      }
+      // Vid full höjd är vilohöjden inte den man ser, och innehållet byts medan arket
+      // står uppfällt: filtret går från sin rotlista till en värdelista. En vilohöjd
+      // från förra listan ger fel golv att glida ur och fel mittpunkt att snäppa mot —
+      // mätt vilade rotlistan på 239, och efter bytet till 34 etiketter tog ett drag på
+      // 420 px arket till 506 i stället för att stänga det.
+      // Räknas fram i stället för att mätas: att mäta den kräver att `.full` tas av,
+      // och en klass som tas av och sätts tillbaka runt en påtvingad layout startar
+      // övergången tillbaka. Arkets höjd duger inte som utgångspunkt heller — kroppen
+      // växer inte med arket, så en kort lista lämnar tomrum under sig.
+      var rr = root.getBoundingClientRect();
+      var chrome = body.getBoundingClientRect().top - rr.top
+        + (parseFloat(getComputedStyle(root).paddingBottom) || 0);
+      var want = chrome + body.scrollHeight;
+      naturalH = Math.round(restCap ? Math.min(want, restCap) : want);
+      // Aldrig 0: ett ark som nått full höjd utan att ha mätts skulle få `floor = 0`,
+      // och ett drag nedåt hade skalat om det i evighet i stället för att glida undan —
+      // `slid` växer aldrig, så det kan aldrig passera stängningströskeln.
+      if (!naturalH) naturalH = root.offsetHeight;
     }
     function down(e) {
       if (e.pointerType === "mouse" && e.button !== 0) return;
