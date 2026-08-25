@@ -366,8 +366,25 @@ Verifierat: 109 fall i `surface.mjs` över **båda** viewporterna (390×844 och
   finger som arket läser, och `preventDefault` kan inte ta tillbaka en panorering som
   redan börjat. Så arket är det enda som kan röra sig tills det inte finns mer ark att
   fälla ut.
-  Mätt över hela cykeln: vila 506 → drag upp → full 793 med `overflow: auto` → drag
-  ner → 506.
+  **Och gesten måste deklareras, inte hoppas på.** Granskningen fångade det jag själv
+  skrivit om i kommentaren men inte agerat fullt ut på: `.sheet` bär `touch-action:
+  pan-y`, som bjuder in webbläsaren att ta det vertikala draget — och tar den det,
+  kommer `pointercancel` innan arket hunnit röra sig. Med scrollningen avstängd i
+  samma regel hade draget då sett ut att göra *ingenting*, medan draghandtaget (som
+  har `touch-action: none`) fungerade. Reproducerat: utan regeln, `pointercancel: 1`
+  och höjden oförändrad 506. Nu `touch-action: none` under full höjd, och `pan-y`
+  tillbaka när `.full` gjort kroppen scrollbar och panoreringen har någonstans att ta
+  vägen.
+  Mitt eget test var blint för det, för Playwrights mus går förbi `touch-action` helt.
+  Det kör **äkta touch-händelser via CDP** nu, och det var bytet som gjorde felet
+  synligt — samma läxa som pixlarna mot layoutrutorna: mät i det lager där felet bor.
+  Vägen tillbaka går via chromet, inte via listan, och det är en följd av regeln och
+  inte en lucka: vid full höjd *måste* listan äga det vertikala draget (annars kan den
+  inte scrolla alls), och `overscroll-behavior: contain` gör att webbläsaren behåller
+  gesten även när listan står på sin topp. Draghandtaget bär `touch-action: none` och
+  är därför det som fäller ihop arket.
+  Mätt över hela cykeln, med touch: vila 506 → drag upp i listan → full 793,
+  0 pointercancel, `overflow: auto` → drag på handtaget → 506.
 
 ## Open questions
 - **iOS flyttar den *visuella* vyn när tangentbordet öppnas.** Vårt scroll-lås
