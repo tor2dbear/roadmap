@@ -191,11 +191,23 @@ Fem fynd, i fallande ordning av hur mycket de skymde:
   blicken proportionen utan att ta ifrån läsaren antalet, det kostar inget element —
   fyllnaden är en `background-image`, så den kan inte knuffa texten — och det skalar
   till vilket N som helst, vilket en rad prickar inte hade gjort.
-  Testet mäter kanten i **pixlar**, i bägge teman: `--frac` i ett style-attribut bevisar
-  ingenting om vad som syns. Min första mätning svarade 86 % och var fel — den råkade
-  sampla inuti pillrets rundade hörn. Rätt mätt (kolumnmedian över brickans mitt)
-  ligger kanten på 66 % mot väntade 67, och de två halvorna skiljer sig mätbart i både
-  ljust och mörkt läge.
+  **Och den ligger inte bakom siffrorna, utan under dem.** Första versionen var en
+  fyllnad tvärs hela brickan, och granskningen fångade priset: 10px `--ink-2` ligger
+  på 4.58:1 mot den bara brickan i ljust läge och 4.67:1 i mörkt — knappt över de 4.5
+  liten text kräver — och varje fyllnad synlig nog att läsa drog ned det till 4.09
+  respektive 4.15. Mätt på mina egna pixlar, inte tagna på ord. Det fanns ingen
+  opacitet som var både synlig och säker, vilket *är* svaret: mätningen måste lämna
+  glyferna ifred. Nu en 2px-regel längs underkanten. Fri från texten får den dessutom
+  bära sin egen vikt i stället för att viska.
+  Testet mäter i **pixlar**, i bägge teman, och två saker: att textbandet är orört på
+  bägge sidor om andelen (231 mot 231, 38 mot 38) och att stapelns kant står på 66 %
+  mot väntade 67. `--frac` i ett style-attribut bevisar ingenting om vad som syns.
+  Två felmätningar på vägen, bägge värda att minnas. Den första svarade 86 % — den
+  samplade inuti pillrets rundade hörn. Den andra svarade 0 och var tystare: den tända
+  raden i labels-arket låg på y=2886 i en 800px vy, pixeluppslaget gav `undefined`, och
+  varje jämförelse "skilde sig". Ett test som mäter utanför bilden ska säga det, inte
+  svara noll — så nu rullas raden fram först, och en spärr faller om den ändå hamnar
+  utanför.
 
 - **Två återställningar blev en komponent.** Display-menyns *Reset to default* var
   `--ink-3`, Settings *Reset sidebar width* var accentröd. Ingen av dem är destruktiv
