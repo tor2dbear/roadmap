@@ -1326,6 +1326,30 @@
     root.addEventListener("pointermove", move);
     root.addEventListener("pointerup", up);
     root.addEventListener("pointercancel", up);
+    // Panning belongs to the list only while the list can actually pan.
+    //
+    // At full height the body carries `touch-action: pan-y` so it can scroll — and
+    // that let the browser take a *downward* drag on a list with nothing to scroll
+    // to, rubber-banding it instead of closing the sheet. `touch-action` cannot tell
+    // the two apart on its own: it is read at touch-start, before a direction exists.
+    // A non-passive `touchmove` can see the direction, but not in time — Chromium
+    // dispatches `pointermove` first and has already committed to the pan by then
+    // (measured: preventDefault on the first touchmove, `pointercancel` two moves
+    // later anyway).
+    //
+    // What is decidable up front is whether the list has anywhere to go at all. When
+    // it hasn't, panning is nobody's and the gesture is the sheet's — which is the
+    // case in the photograph: a short list at full height that rubber-banded when it
+    // should have closed. Re-checked whenever the sheet's size or content changes.
+    function syncPan() {
+      body.style.touchAction = body.scrollHeight > body.clientHeight + 1 ? "" : "none";
+    }
+    root.__syncPan = syncPan;
+    syncPan();
+    if (window.ResizeObserver) {
+      var ro = new ResizeObserver(syncPan);
+      ro.observe(body);
+    }
   }
 
   // Every open surface, so navigation and viewport changes can clear them: a sheet

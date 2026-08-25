@@ -378,11 +378,24 @@ Verifierat: 109 fall i `surface.mjs` över **båda** viewporterna (390×844 och
   Mitt eget test var blint för det, för Playwrights mus går förbi `touch-action` helt.
   Det kör **äkta touch-händelser via CDP** nu, och det var bytet som gjorde felet
   synligt — samma läxa som pixlarna mot layoutrutorna: mät i det lager där felet bor.
-  Vägen tillbaka går via chromet, inte via listan, och det är en följd av regeln och
-  inte en lucka: vid full höjd *måste* listan äga det vertikala draget (annars kan den
-  inte scrolla alls), och `overscroll-behavior: contain` gör att webbläsaren behåller
-  gesten även när listan står på sin topp. Draghandtaget bär `touch-action: none` och
-  är därför det som fäller ihop arket.
+  **Och panoreringen hör till listan bara så länge den kan panorera.** Jag skrev först
+  att vägen tillbaka måste gå via chromet — att en lista vid full höjd alltid äger det
+  vertikala draget. Det var en halv sanning, och den halvan syntes: en lista som
+  *ryms* vid full höjd har ingenting att scrolla till, och ett drag nedåt gummibandade
+  den i stället för att stänga arket. Det är precis det läget som fotograferades.
+  Två försök innan det tredje höll. `touch-action` ensam kan inte skilja fallen åt —
+  den läses vid touch-start, innan en riktning finns. En icke-passiv `touchmove` ser
+  riktningen men kommer för sent: Chromium skickar `pointermove` *före* `touchmove` och
+  har redan bundit sig vid panoreringen (mätt: `preventDefault` på första touchmove,
+  `pointercancel` två rörelser senare ändå).
+  Det som *går* att avgöra i förväg är om listan har någonstans att ta vägen alls. Har
+  den inte det är panoreringen ingens, och gesten är arkets: `touch-action: none` sätts
+  på kroppen när `scrollHeight` ryms i `clientHeight`, och lämnas till CSS när den inte
+  gör det. En `ResizeObserver` räknar om det när arket eller innehållet ändrar storlek.
+  Mätt i bägge riktningar: kort lista vid full höjd → `none`, drag nedåt **stänger**;
+  lång lista (390×560) vid full höjd → `pan-y`, drag uppåt scrollar till 99.
+  Där listan verkligen svämmar över gäller fortfarande det gamla: den äger draget, och
+  draghandtaget (`touch-action: none`) är det som fäller ihop arket.
   Mätt över hela cykeln, med touch: vila 506 → drag upp i listan → full 793,
   0 pointercancel, `overflow: auto` → drag på handtaget → 506.
 
