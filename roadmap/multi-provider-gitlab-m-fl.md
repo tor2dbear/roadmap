@@ -2,9 +2,10 @@
 title: Multi-provider (GitLab m.fl.)
 status: later
 tags: [product]
-updated: 2026-08-17
+updated: 2026-08-24
 created: 2026-08-17
 order: 34
+parent: productize
 ---
 
 ## Mål

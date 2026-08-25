@@ -76,7 +76,8 @@ tagged `product` track this direction.
   first-commit date, derived from git at harvest (a `created:` frontmatter field
   overrides it); needs full clone history, so the sync clones treeless. `signals[]` are the drift flags (`{ type }`, discrete:
   `stale` / `issue-closed` / `issue-open` / `target-passed` / `parent-missing` /
-  `parent-cycle` / `depends-missing` / `dependency-cycle`) — read these to spot cards whose
+  `parent-cycle` / `depends-missing` / `dependency-cycle` / `rollup-open` /
+  `rollup-done`) — read these to spot cards whose
   declared status disagrees with reality.
 - `data/roadmap.js` — the same payload as `window.__ROADMAP__`, so `index.html`
   renders from `file://` with no server.
@@ -197,6 +198,10 @@ same `signals`, so there's one source of truth for the flag decision.
   `parent-missing`; one that closes a loop flags `parent-cycle` and the link is cut
   (the rest of the tree still resolves). Two flags, because they're two different
   fixes — a typo vs a loop.
+- **Rollup drift** — an etapp's own status against its parts, the same pair as the
+  issue drift: terminal with unfinished children flags `rollup-open` ("2 of 3 parts
+  still open"), non-terminal with every child settled flags `rollup-done` ("mark it
+  done?"). A puck with no children is never flagged by this rule.
 - **Broken dependencies** — a `depends:` entry that resolves to nothing flags
   `depends-missing` (the puck would otherwise read as ready); a dependency loop
   flags `dependency-cycle` on every puck in it. Unlike an etapp parent, no single
