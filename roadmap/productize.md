@@ -2,8 +2,9 @@
 title: Brand it + split product / instance
 status: done
 tags: [product]
-updated: 2026-08-16
+updated: 2026-08-25
 order: 3
+agent: backend
 ---
 
 ## Delivered
