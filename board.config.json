@@ -6,6 +6,11 @@
     {
       "name": "Testvy",
       "empty": "0"
+    },
+    {
+      "name": "High",
+      "q": "priority:high",
+      "empty": "0"
     }
   ]
 }
