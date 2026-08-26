@@ -760,6 +760,12 @@
     sidebar: ["M3.125 1.875h8.75s1.25 0 1.25 1.25v8.75s0 1.25 -1.25 1.25H3.125s-1.25 0 -1.25 -1.25V3.125s0 -1.25 1.25 -1.25", "m5.625 1.875 0 11.25"],
     search: ["M1.875 6.875a5 5 0 1 0 10 0 5 5 0 1 0 -10 0", "m13.125 13.125 -2.71875 -2.71875"],
     plus: ["m7.5 3.125 0 8.75", "m3.125 7.5 8.75 0"],
+    // x (Feather), scaled to the same 15 grid. Every remove/close affordance drew the
+    // literal "✕" (U+2715) — the same defect as `warn`: a character takes its weight,
+    // its optical size and its baseline from whatever font the platform falls back to,
+    // so the mark that dismisses a modal and the mark that drops a filter chip were two
+    // different pictures at two different weights, neither matching `plus` beside them.
+    x: ["M11.25 3.75 3.75 11.25", "m3.75 3.75 7.5 7.5"],
     filter: ["M13.75 1.875 1.25 1.875l5 5.9125000000000005L6.25 11.875l2.5 1.25 0 -5.3374999999999995L13.75 1.875z"],
     edit: ["M6.875 2.5H2.5a1.25 1.25 0 0 0 -1.25 1.25v8.75a1.25 1.25 0 0 0 1.25 1.25h8.75a1.25 1.25 0 0 0 1.25 -1.25v-4.375", "M11.5625 1.5625a1.325625 1.325625 0 0 1 1.875 1.875L7.5 9.375l-2.5 0.625 0.625 -2.5 5.9375 -5.9375z"],
     // git-commit — a puck is a commit-like unit in git (our "project" glyph)
@@ -1115,7 +1121,8 @@
     modalPanel = panel;
     panel.setAttribute("role", "dialog");
     panel.setAttribute("aria-modal", "true");
-    var close = el("button", "modal-close", "✕");
+    var close = el("button", "modal-close");
+    close.appendChild(icon("x", "x-icn"));
     close.setAttribute("aria-label", "Close");
     close.addEventListener("click", closeModal);
     modalContent = el("div", "modal-content");
@@ -1931,7 +1938,8 @@
               dot.style.background = t.color || "var(--ink-3)";
               tok.appendChild(dot);
               tok.appendChild(el("span", "token-label", t.label));
-              var x = el("button", "token-x", "\u2715");
+              var x = el("button", "token-x");
+              x.appendChild(icon("x", "x-icn"));
               x.type = "button";
               x.setAttribute("aria-label", "Remove " + t.label);
               x.addEventListener("click", function () { api.close(); t.onRemove(); });
@@ -2171,7 +2179,8 @@
             chosen.forEach(function (t) {
               var tok = el("span", "token");
               tok.appendChild(el("span", null, "#" + t));
-              var x = el("button", "token-x", "\u2715");
+              var x = el("button", "token-x");
+              x.appendChild(icon("x", "x-icn"));
               x.type = "button";
               x.setAttribute("aria-label", "Remove label " + t);
               x.addEventListener("click", function () { toggle(t); });
@@ -4139,6 +4148,23 @@
           run: function () { setFocus(key); } });
       });
     });
+    // Saved views are views. The comment above holds for them too: the palette can't
+    // fall behind a view the sidebar has, and a saved view is the only kind that used
+    // to be reachable from exactly one control.
+    savedViews().forEach(function (v) {
+      cmds.push({ __cmd: true, label: "Go to " + v.name, hint: "Saved view", icon: "list",
+        run: function () { applySavedView(v); } });
+    });
+    // …and so is making one. It lived only behind the title, which is the right home
+    // for it — but "the one place" and "the only way in" are different claims, and the
+    // palette is where this board puts a second door.
+    if (signedIn) {
+      cmds.push({ __cmd: true, label: "Save this view…", hint: "Saved view", icon: "plus",
+        // Deferred for the same reason the switcher defers it: this opens a surface of
+        // its own, and the pointer event that picked the command is still unwinding —
+        // its tail would reach the new surface as an outside click and shut it.
+        run: function () { setTimeout(function () { saveCurrentView(null); }, 0); } });
+    }
     // Display options belong in the palette too — the palette is the extensibility
     // surface, so a new display choice never has to become another button.
     Object.keys(GROUPS).filter(groupUsable).forEach(function (k) {
@@ -4470,7 +4496,11 @@
     var card = el("div", "sc-card");
     var head = el("div", "sc-head");
     head.appendChild(el("h2", "sc-title", "Keyboard shortcuts"));
-    var x = el("button", "sc-close", "✕"); x.type = "button";
+    var x = el("button", "sc-close"); x.type = "button";
+    // The "✕" it drew was also its accessible name; a path is aria-hidden, so the
+    // name has to be said out loud now.
+    x.setAttribute("aria-label", "Close");
+    x.appendChild(icon("x", "x-icn"));
     x.addEventListener("click", closeShortcutHelp);
     head.appendChild(x);
     card.appendChild(head);
@@ -4504,6 +4534,7 @@
   }
 
   var searchClear = document.getElementById("searchClear");
+  searchClear.appendChild(icon("x", "x-icn"));
   var cmdkHint = document.getElementById("cmdkHint");
   function updateSearchClear() { searchClear.hidden = !searchInput.value; if (cmdkHint) cmdkHint.hidden = !!searchInput.value; }
 
@@ -4854,7 +4885,8 @@
       b.appendChild(el("span", "focus-label", v.name));
       b.addEventListener("click", function () { applySavedView(v); });
       if (ghToken()) {
-        var del = el("button", "saved-del", "✕");
+        var del = el("button", "saved-del");
+        del.appendChild(icon("x", "x-icn"));
         del.type = "button";
         del.title = "Remove this saved view";
         del.setAttribute("aria-label", "Remove saved view " + v.name);
@@ -5001,7 +5033,8 @@
     chips.forEach(function (c) {
       var chip = el("span", "fchip");
       chip.appendChild(el("span", "fchip-label", c.label));
-      var x = el("button", "fchip-x", "✕");
+      var x = el("button", "fchip-x");
+      x.appendChild(icon("x", "x-icn"));
       x.type = "button";
       x.setAttribute("aria-label", "Remove filter " + c.label);
       x.addEventListener("click", function () { c.remove(); });
@@ -5857,7 +5890,8 @@
         chip.appendChild(el("span", "prop-muted", ref)); // unresolved — the ⚠ says why
       }
       if (editable) {
-        var x = el("button", "dep-x", "✕");
+        var x = el("button", "dep-x");
+        x.appendChild(icon("x", "x-icn"));
         x.type = "button";
         x.setAttribute("aria-label", "Remove blocker " + (d ? d.title : ref));
         x.addEventListener("click", function () { removeDepend(item, ref); });
@@ -6712,7 +6746,10 @@
   // Deep link: open the puck named in the URL hash on load, and react to the
   // hash changing (pasted link in the same tab, or Back after opening a modal).
   var detailCloseBtn = document.getElementById("detailClose");
-  if (detailCloseBtn) detailCloseBtn.addEventListener("click", closeModal);
+  if (detailCloseBtn) {
+    detailCloseBtn.appendChild(icon("x", "x-icn"));
+    detailCloseBtn.addEventListener("click", closeModal);
+  }
   var topShareBtn = document.getElementById("topShare");
   if (topShareBtn) topShareBtn.appendChild(icon("share"));
   if (topShareBtn) topShareBtn.addEventListener("click", function () {

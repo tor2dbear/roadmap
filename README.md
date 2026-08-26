@@ -43,7 +43,8 @@ The board is **config-driven** — point it at your repos, no code changes:
 3. **[`board.config.json`](board.config.json)** — set `title`, `description`, and
    `repoUrl` (link back to your fork). Everything owner-specific lives here, not in
    the code. Add `views[]` here for saved views, or build one on the board and
-   use *Display → Save as view* — it writes this file for you.
+   use *Save this view…* — behind the view title, or in ⌘K. It writes this file for
+   you, as a commit.
 4. **[`wrangler.jsonc`](wrangler.jsonc)** — set `name` (your Worker) and, for a
    custom domain, `routes`.
 5. **Cloudflare** — Workers & Pages → *Import a repository* → your fork, deploy
