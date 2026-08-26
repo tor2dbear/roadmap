@@ -3873,9 +3873,13 @@
             if (saved.length) {
               host.appendChild(el("div", "menu-rule"));
               host.appendChild(el("div", "vs-section fp-label", "Saved"));
-              var now = viewParamObject();
+              // Through the producer, not a second `sameParams` of its own: with two
+              // entries carrying identical parameters — which is what a duplicate is —
+              // an independent test lights both, and only `activeSavedView()` knows
+              // which one you are actually in.
+              var activeSaved = activeSavedView();
               saved.forEach(function (v) {
-                var on = sameParams(paramsOf(v), now);
+                var on = v === activeSaved;
                 var r = el("button", "row" + (on ? " on" : ""));
                 r.type = "button";
                 r.title = v.q || "Saved view";
@@ -4895,10 +4899,18 @@
   // sidebar and in the title switcher — and all three must agree, or the chrome marks
   // two rows at once.
   function activeSavedView() {
-    var now = viewParamObject();
-    var vs = savedViews();
-    for (var i = 0; i < vs.length; i++) if (sameParams(paramsOf(vs[i]), now)) return vs[i];
-    return null;
+    var now = viewParamObject(), vs = savedViews(), first = null;
+    for (var i = 0; i < vs.length; i++) {
+      if (!sameParams(paramsOf(vs[i]), now)) continue;
+      // Parameters are not an identity. Duplicate a view and two entries describe the
+      // board equally well — both rows lit, and the title picked whichever came first,
+      // so clicking the copy showed you the original's name. Which one you navigated
+      // into is the tie-break, and the only thing that can be one; first match stays
+      // the fallback for a board that was not reached through a row at all.
+      if (vs[i].name === state.fromView) return vs[i];
+      if (!first) first = vs[i];
+    }
+    return first;
   }
   // The saved view you are *in*, with changes on top. `activeSavedView()` answers
   // "does the board match a view exactly"; this answers "did you come from one and
@@ -4981,10 +4993,10 @@
     section.hidden = !views.length;
     host.innerHTML = "";
     if (!views.length) return;
-    var now = viewParamObject();
+    var active = activeSavedView(); // one producer — see the note in the title switcher
     var seg = el("div", "focusseg");
     views.forEach(function (v) {
-      var on = sameParams(paramsOf(v), now);
+      var on = v === active;
       var b = el("button", "focusbtn" + (on ? " on" : ""));
       b.type = "button";
       b.title = v.q || "Saved view";
@@ -5009,6 +5021,12 @@
       .then(function () {
         DATA.config = DATA.config || {};
         DATA.config.views = views; // optimistic: the harvest will confirm it
+        // Before the repaint, not after: every one of these callbacks adjusts the
+        // provenance the repaint is about to read. Renaming the view you were editing
+        // ran it afterwards, so the paint in between looked up a name that no longer
+        // existed, decided you were in no view at all, and dropped the edited title and
+        // its Reset/Update — with nothing scheduled to paint again and put them back.
+        if (done) done();
         // The same repaint a navigation does, and for the same reason: this write
         // changes the answer to "which saved view describes the board", which the
         // header, the built-in view rows and the saved rows all read. Rebuilding
@@ -5016,7 +5034,6 @@
         // header naming a view you just deleted, and `All pucks` still lit beside
         // the view you just saved. One store, one repaint.
         refreshNav(); renderBoard();
-        if (done) done();
         toast("✓ Saved — live in ~1 min");
       })
       .catch(function (err) { toast("✗ " + err.message, true); });
@@ -5125,7 +5142,10 @@
     for (var k in v) entry[k] = v[k];
     entry.name = name;
     views.splice(views.indexOf(v) + 1, 0, entry);
-    writeViews(views, "roadmap: duplicate view “" + v.name + "”");
+    // Land in the copy: you duplicated it to change it, and it is also what makes the
+    // two identical entries tell themselves apart — see `activeSavedView`.
+    writeViews(views, "roadmap: duplicate view “" + v.name + "”",
+      function () { state.fromView = name; });
   }
   function removeSavedView(v) {
     if (!window.confirm("Remove the saved view “" + v.name + "”?")) return;
@@ -5205,8 +5225,6 @@
     if (!chipRow) return;
     var chips = chipsData();
     chipRow.innerHTML = "";
-    chipRow.hidden = !chips.length;
-    if (!chips.length) return;
     chips.forEach(function (c) {
       var chip = el("span", "fchip");
       chip.appendChild(el("span", "fchip-label", c.label));
@@ -5260,7 +5278,11 @@
           refreshNav();
         });
       }
-      if (ghToken()) {
+      // Gated on there being anything to save, not on there being chips: a view can be
+      // nothing but a grouping (`Testvy` is exactly that), and `saveCurrentView` already
+      // refuses an empty board with a toast. Reading the same question the write path
+      // asks is what keeps the button off the default board.
+      if (ghToken() && Object.keys(viewParamObject()).length) {
         var wrap = el("div", "filter-wrap"); // the positioned parent the popover anchors in
         var save = el("button", "fchip-save", "Save view");
         save.type = "button";
@@ -5276,6 +5298,13 @@
       }
     }
     if (acts.childNodes.length) chipRow.appendChild(acts);
+    // The row exists for either half of itself. Hiding it whenever there were no chips
+    // meant a view that only changes grouping, sorting or layout — or one whose query is
+    // all repo/agent terms, which `chipsData` deliberately leaves to the sidebar — could
+    // be edited with no way to Reset or Update it. That is precisely the view whose only
+    // other write path is retyping its name exactly, so it is the last place the actions
+    // should go missing.
+    chipRow.hidden = !chips.length && !acts.childNodes.length;
   }
 
   if (filterBtn) filterBtn.addEventListener("click", function (e) { e.stopPropagation(); toggleFilterMenu(); });
