@@ -69,6 +69,12 @@ andra plats för *pucks* hade gjort.
   låtsas att de är samma sak. Samma misstag som två minnen för platser.
 - Gist-id:t hittas per konto (sök på en känd beskrivning) eller sparas i localStorage som
   en ren cache — förlorar man den återfinns gisten, den går inte förlorad.
+- **En fil per instans i gisten, namngiven efter `repoUrl`.** Gisten är per *konto*, men
+  vyerna hör till en *tavla*: öppnar samma konto två självhostade Etapp-instanser hittar
+  båda samma gist. Utan en stabil instansnyckel dyker en vy med `repo:`-frågor upp på fel
+  tavla, och den ena instansens sparning skriver över den andras. `board.config.json` bär
+  redan `repoUrl`, och en gist kan ha flera filer — så partitioneringen kostar ingenting
+  och behöver inget nytt fält.
 
 ## Kostnader, sagda rakt ut
 - **Token-behörighet.** En fine-grained PAT behöver en separat *Gists*-behörighet på
@@ -80,7 +86,14 @@ andra plats för *pucks* hade gjort.
   i stället för att antas.
 
 ## Granskningsfynd
-Codex läste pucken och hittade att tupeln jag skrev — sex nycklar — tappar `view` och
+Codex hittade att gisten saknade en **instansnyckel**. Den är per konto, men vyerna hör
+till en tavla — två självhostade instanser under samma konto hade delat gist, visat
+varandras `repo:`-frågor och skrivit över varandras listor. Lagat med en fil per instans,
+namngiven efter `repoUrl`. Fyndet kom in tre minuter före merge och jag läste bara om
+CI-checkarna, inte trådarna, innan jag mergade — så det här är en efterhandsrättelse i
+stället för en rättelse i tid.
+
+Codex läste också pucken och hittade att tupeln jag skrev — sex nycklar — tappar `view` och
 `collapsed` i rundturen, trots att `VIEW_KEYS` har åtta. Riktigt, och felet var **ärvt**:
 `CLAUDE.md` dokumenterade samma sex. Att bara laga pucken hade lämnat kvar den källa som
 nästa plan skulle kopiera, så roten är lagad i samma pass. `AGENTS.md` var redan korrekt —
