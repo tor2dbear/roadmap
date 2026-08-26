@@ -5134,7 +5134,15 @@
         entry.name = name;
         views[at] = entry;
         writeViews(views, "roadmap: rename view “" + v.name + "” → “" + name + "”",
-          function () { if (state.fromView === v.name) state.fromView = name; });
+          function () {
+            // Provenance follows the entry, not the name. Two ways it moves here:
+            if (state.fromView === v.name) state.fromView = name; // you were in the view being renamed
+            // …or the new name collided with the view you *were* in, and the filter
+            // above dropped it. Leaving the name set pointed it at the renamed entry
+            // instead, so a board still showing the deleted view read as "B (edited)"
+            // and Update offered to write those parameters over an unrelated view.
+            else if (state.fromView === name) state.fromView = null;
+          });
       },
     });
   }
