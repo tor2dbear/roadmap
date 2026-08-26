@@ -110,7 +110,9 @@ sources.json ──▶ scripts/harvest.mjs ──▶ data/roadmap.json + data/ro
   folds groups in the list layout (`collapsed`) carries those too, and listing a subset
   here is how a plan comes to specify a lossy round trip.
   Configuration, not truth (the pucks stay the only data), and hand-editable;
-  *Display → Save as view* on the board writes it for you, as a commit.
+  the board writes it for you, as a commit: **Save view** in the chip row (where you
+  just built the filter), *Save this view…* behind the view title (where the saved
+  view lands), or the same command in ⌘K.
 - **Backends** (`lib/repo.mjs`): if `ROADMAP_LOCAL_ROOT` points at local checkouts
   it reads from disk (CI clones the repos there — no API limits); otherwise it
   fetches via the GitHub API + raw endpoints (`GITHUB_TOKEN` optional).
