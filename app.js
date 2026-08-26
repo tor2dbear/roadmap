@@ -646,10 +646,19 @@
     // Nothing to hand back to anyone: `?q=` is the store. The sidebar rows read it for
     // their pressed state, the panel reads it for its values, and the chip row skips
     // what a row already shows. A link and the live board are the same string.
-    // Repo values are resolved to the full `owner/name` when they can be, so a link
-    // written with a short name still lights the row it names — and so a board with two
-    // repos of the same name under different owners cannot light both.
-    state.query = serializeTerms(parseQuery(got.q).map(function (t) {
+    state.query = canonicalQuery(got.q);
+  }
+  // A repo term said as a short or display name, rewritten to the full `owner/name`.
+  // Two things need it: a link written by hand still lights the row it names, and a
+  // board with two repos of the same name under different owners cannot light both —
+  // `FIELDS.repo` matches the short name for every owner, so the ambiguity is real.
+  //
+  // It has to be one producer. Rewriting only on the way in left a saved view whose `q`
+  // uses the short name comparing its *configured* string against the board's
+  // canonicalised one, so the view you had just applied lit up for no one. Both sides
+  // of that comparison come through here now.
+  function canonicalQuery(q) {
+    return serializeTerms(parseQuery(q).map(function (t) {
       if (t.field !== "repo" || t.neg) return t;
       return { field: t.field, op: t.op, neg: t.neg,
                values: t.values.map(function (v) { return resolveRepo(v) || v; }) };
@@ -3100,9 +3109,13 @@
     var free = viewTerms().concat(
       parseQuery(state.query).filter(function (t) {
         // A place is where you navigated, not a column you hid — so its term stays in,
-        // and the repos you are not in never show up as "hidden". Only what the filter
-        // says about the grouping's own field comes out.
-        if (!t.neg && PLACE_FIELDS_ORDER.indexOf(t.field) !== -1 && t.field !== g.field) return true;
+        // and the repos you are not in never show up as "hidden". Whatever the board
+        // groups by: `&group=repo` while scoped to one repo made `t.field === g.field`,
+        // the guard fell through to the group rule, and every *other* repo was offered
+        // in the tray as if you had hidden it — with an eye that would have widened the
+        // scope. The old code got this right by accident, because `controlTerms()` was
+        // concatenated separately and never filtered at all.
+        if (!t.neg && PLACE_FIELDS_ORDER.indexOf(t.field) !== -1) return true;
         return !termAboutGroup(t, g);
       })
     );
@@ -4766,6 +4779,7 @@
     VIEW_KEYS.forEach(function (k) {
       if (v[k] != null && v[k] !== "") o[k] = String(v[k]);
     });
+    if (o.q) o.q = canonicalQuery(o.q); // compare like against like — see canonicalQuery
     return o;
   }
   function sameParams(a, b) {

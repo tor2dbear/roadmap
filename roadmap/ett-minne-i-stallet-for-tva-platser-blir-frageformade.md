@@ -103,6 +103,19 @@ Regression mot #14:s fyra granskningsfynd — show-only ersätter, unhide lagar 
 repo-termen bär hela id:t, `No etapp` frågar `is:member` — alla gröna. Kontrasten ren i
 båda temana, noll konsolfel, skörden ren.
 
+### Granskningsfynd
+Codex lämnade två, båda riktiga, båda regressioner som refaktorn själv införde:
+
+- **Platsen överlevde inte att man grupperade på samma fält.** `?q=repo:…&group=repo`
+  gjorde `t.field === g.field`, vakten föll igenom till gruppregeln, och `hiddenColumns()`
+  erbjöd *varje annat repo* i facket som om man dolt det — med ett öga som hade vidgat
+  scopet. Gamla koden hade rätt av en slump: `controlTerms()` konkatenerades separat och
+  filtrerades aldrig. Nu står platstermer kvar oavsett gruppering.
+- **Kanoniseringen bröt sparade vyer.** En vy vars `q` använder kortnamnet jämförde sin
+  *konfigurerade* sträng mot tavlans kanoniserade, så vyn man just klickat på slocknade
+  direkt. Formen har nu en producent — `canonicalQuery()` — som båda sidor av
+  jämförelsen går igenom.
+
 ## Open questions
 - Ska `goToView()` fortfarande nollställa repo och agent? Idag gör den det för att vyn ska
   bli "ren". Med ett minne blir det "ta bort dessa två fält ur frågan", vilket är samma sak
