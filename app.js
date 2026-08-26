@@ -724,14 +724,15 @@
   var SVGNS = "http://www.w3.org/2000/svg";
   var ICONS = {
     slash: ["M1.25 7.5a6.25 6.25 0 1 0 12.5 0 6.25 6.25 0 1 0 -12.5 0", "m3.08125 3.08125 8.8375 8.8375"],
-    // triangle-alert. The set had no warning mark, so the drift flag was the literal
-    // "⚠" — a text character sitting inches from `slash`, which is a real path from
-    // this set. A character takes its weight, its optical size and its baseline from
-    // whatever font the platform falls back to (U+26A0 is in none of the stack's faces),
-    // and on a machine that resolves it to a colour emoji `color: var(--later)` does
-    // nothing at all. Two flags on one card, drawn by two different systems.
-    warn: ["m13.58125 11.25 -5 -8.75a1.25 1.25 0 0 0 -2.175 0l-5 8.75A1.25 1.25 0 0 0 2.5 13.125h10a1.25 1.25 0 0 0 1.08125 -1.875",
-           "M7.5 5.625v2.5", "m7.5 10.625 0.00625 0"],
+    // alert-triangle (Feather), scaled to the 15 grid the set draws on. The set had no
+    // warning mark, so the drift flag was the literal "⚠" — a text character sitting
+    // inches from `slash`, which is a real path from this set. A character takes its
+    // weight, its optical size and its baseline from whatever font the platform falls
+    // back to (U+26A0 is in none of the stack's faces), and on a machine that resolves
+    // it to a colour emoji `color: var(--later)` does nothing at all. Two flags on one
+    // card, drawn by two different systems.
+    warn: ["M6.43125 2.4125 1.1375 11.25a1.25 1.25 0 0 0 1.06875 1.875h10.5875a1.25 1.25 0 0 0 1.06875 -1.875L8.56875 2.4125a1.25 1.25 0 0 0 -2.1375 0z",
+           "m7.5 5.625 0 2.5", "m7.5 10.625 0.00625 0"],
     share: ["M2.5 7.5v5a1.25 1.25 0 0 0 1.25 1.25h7.5a1.25 1.25 0 0 0 1.25 -1.25v-5", "m10 3.75 -2.5 -2.5 -2.5 2.5", "m7.5 1.25 0 8.125"],
     sidebar: ["M3.125 1.875h8.75s1.25 0 1.25 1.25v8.75s0 1.25 -1.25 1.25H3.125s-1.25 0 -1.25 -1.25V3.125s0 -1.25 1.25 -1.25", "m5.625 1.875 0 11.25"],
     search: ["M1.875 6.875a5 5 0 1 0 10 0 5 5 0 1 0 -10 0", "m13.125 13.125 -2.71875 -2.71875"],
