@@ -3436,6 +3436,13 @@
   }
 
   function renderBoard() {
+    // Back to the plain default board is *leaving* the view, and it has to be written
+    // down rather than hidden at read time. `editedSavedView()` merely declined to
+    // answer, so the name stayed set: remove a view's last chip and add any other
+    // filter, and the view you had already walked out of came back as "(edited)" with
+    // an Update offering to overwrite it with the new filter. Every mutation ends in a
+    // render, so this is where the transition can be seen at all.
+    if (state.fromView && !Object.keys(viewParamObject()).length) state.fromView = null;
     board.innerHTML = "";
     // The layout is whatever the toggle says — in every view.
     //
@@ -4899,17 +4906,19 @@
   // sidebar and in the title switcher — and all three must agree, or the chrome marks
   // two rows at once.
   function activeSavedView() {
-    var now = viewParamObject(), vs = savedViews(), first = null;
+    var now = viewParamObject(), vs = savedViews(), first = null, from = null;
     for (var i = 0; i < vs.length; i++) {
-      if (!sameParams(paramsOf(vs[i]), now)) continue;
-      // Parameters are not an identity. Duplicate a view and two entries describe the
-      // board equally well — both rows lit, and the title picked whichever came first,
-      // so clicking the copy showed you the original's name. Which one you navigated
-      // into is the tie-break, and the only thing that can be one; first match stays
-      // the fallback for a board that was not reached through a row at all.
-      if (vs[i].name === state.fromView) return vs[i];
-      if (!first) first = vs[i];
+      if (vs[i].name === state.fromView) from = vs[i];
+      if (!first && sameParams(paramsOf(vs[i]), now)) first = vs[i];
     }
+    // Parameters are not an identity — duplicate a view and two entries describe the
+    // board equally well — so provenance decides whenever it names a view that still
+    // exists, and a match on some *other* view never outvotes it. Editing A until it
+    // happened to equal B retitled you into B and took away A's own Update: you were
+    // looking at B with no way to save the thing you were editing.
+    if (from) return sameParams(paramsOf(from), now) ? from : null;
+    // No provenance, or it named a view since deleted: the board was not reached
+    // through a row (a pasted link, a reload) and can only speak for itself.
     return first;
   }
   // The saved view you are *in*, with changes on top. `activeSavedView()` answers
@@ -5142,10 +5151,14 @@
     for (var k in v) entry[k] = v[k];
     entry.name = name;
     views.splice(views.indexOf(v) + 1, 0, entry);
-    // Land in the copy: you duplicated it to change it, and it is also what makes the
-    // two identical entries tell themselves apart — see `activeSavedView`.
+    // Land in the copy — *the whole copy*. Claiming its name while leaving the board
+    // where it was made the title read "X copy (edited)" over a filter that had nothing
+    // to do with it, and Update then offered to overwrite the copy with that filter.
+    // Duplicating a view is a way of going to it, so go: `applySavedView` sets the
+    // parameters and the provenance together, which is also what tells the two
+    // identical entries apart (see `activeSavedView`).
     writeViews(views, "roadmap: duplicate view “" + v.name + "”",
-      function () { state.fromView = name; });
+      function () { applySavedView(entry); });
   }
   function removeSavedView(v) {
     if (!window.confirm("Remove the saved view “" + v.name + "”?")) return;
