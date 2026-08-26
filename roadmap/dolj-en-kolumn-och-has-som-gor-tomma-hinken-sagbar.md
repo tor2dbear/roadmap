@@ -130,6 +130,42 @@ En bugg som riggen fångade och jag annars hade missat: *Show only this* lämnad
 kvar Now och Later som **tomma** kolumner, eftersom status bygger sina kolumner ur en
 fast lista. Det var det som tvingade fram regeln ovan.
 
+### Granskningsfynd
+Codex läste passet och lämnade åtta, alla riktiga. Tre var buggar i det jag byggt, ett
+var större än rapporten sa:
+
+- **`Show only this` var en växel, inte ett påstående.** Med `status:now,next` satt tog
+  den *bort* `now` och lämnade den motsatta kolumnen; på ett singleton nollställde den
+  filtret helt. Samma fel i platsvägen — `pickScope` läste andra klicket som "tillbaka
+  till allt". Kommandot skriver nu exakt en sak, och är idempotent i båda vägarna.
+- **Ögat lade till sitt eget predikat i stället för att laga det som uteslöt.** Med
+  `priority:high` gav facket `-has:priority`, och eftersom termer ANDas matchade
+  `priority:high -has:priority` ingenting — kolumnen stannade dold och **tavlan blev
+  tom**. Nu lagas den term som faktiskt uteslöt: en negation tappar namnet, en positiv
+  får det, och absens-paret tas bort. Två dolda och en återställd låter den andra vara.
+- **Repo-kolumnen skickade kortnamnet.** `FIELDS.repo` matchar kortnamnet för *varje*
+  ägare, så på en tavla med två `roadmap` under olika ägare hade `Hide column` dolt
+  båda. Kolumnen bär redan hela `owner/name`, och grammatiken tar det.
+- **`No etapp` frågade fel fråga.** Kolumnen hinkar på `parentRef`, men `has:parent`
+  svarar ja på en `parent:` som inte resolvar. En sådan puck hade överlevt att man dolde
+  hinken. `is:member` är samma fråga som kolumnen ställer.
+- **`has:` var odokumenterat** i `AGENTS.md`, trots att det nu är enda sättet att namnge
+  en frånvaro. Tillagt, med negationssemantiken.
+
+**Och ett fynd som var större än rapporten.** Codex flaggade att mörka `--ink-3`,
+`--done` och `--cancelled` blivit sämre som *bakgrund* under vit text. Sant — men
+mätningen visade att vit text på **varje** sådan token fallerade i mörkt läge, och
+gjorde det före det här passet: `--later` på 2.37:1, `--next` på 2.78, `--inbox` på 2.99.
+Regeln jag skrev ("varje färg som bär ord klarar 4.5:1") tänkte bara på tokenen som
+förgrund. Speglingen saknades.
+
+Svaret blev inte nio bakgrundstvillingar utan en token: `--on-solid` — vit i ljust,
+`var(--bg)` i mörkt, där sidans egen grund läser 5.35–7.49 på samtliga. `--danger-solid`
+är undantaget och behåller vitt, för den är mörk i båda temana, vilket är hela skälet
+till att den finns. `.demo-ribbon` hade redan hittat problemet och hårdkodat ett mörkt
+bläck åt sig själv; det här är den fixen generaliserad — och den täcker `auto`-temat,
+som den handgjorda missade. Mätt: 22 inversa kontroller, alla över AA i båda temana.
+
 ## Medvetet inte byggt
 - **Ingen agent-dimension i filterpanelen.** Jag tänkte lägga till en, tills panelen
   visade sig säga rakt ut att *"Repo and agent are deliberately absent — they are the

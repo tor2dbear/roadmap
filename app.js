@@ -2912,9 +2912,6 @@
       label: "Repo",
       field: "repo",
       keyOf: function (i) { return i.repo; },
-      // The column's key is the full `owner/name`; the query says the short one, the
-      // way a place does — FIELDS.repo matches either.
-      filterValue: shortRepo,
       keys: function (items) {
         var order = {};
         DATA.sources.forEach(function (s, i) { order[s.repo] = i; });
@@ -3040,20 +3037,31 @@
     // two terms, and negating a conjunction is not something this grammar can say.
     // The "No target" column is still nameable, because absence is a single question.
     if (g.field === "target" && key !== NO_VALUE) return null;
-    if (key === NO_VALUE) return { field: "has", value: g.field, hideNeg: false };
-    return { field: g.field, value: g.filterValue ? g.filterValue(key) : key, hideNeg: true };
+    if (key === NO_VALUE) {
+      // The etapp grouping buckets on `parentRef` — the *resolved* link — while
+      // `has:parent` asks whether the file says anything, and answers yes for a
+      // `parent:` that resolves to nothing. Such a puck sits in "No etapp" and would
+      // have survived hiding it. `is:member` is the same question the column asks.
+      if (g.field === "parent") return { field: "is", value: "member", hideNeg: false };
+      return { field: "has", value: g.field, hideNeg: false };
+    }
+    return { field: g.field, value: key, hideNeg: true };
   }
-  // Does the filter say anything about the field this grouping columns by? That is the
-  // whole question an empty column needs answered. Chasing it per column — "is there a
-  // negation naming me, or a positive term that leaves me out, or a `has:` on my field"
-  // — was four rules that still missed the cross-field pair (`-has:priority` empties
-  // every *real* priority column, and no rule about `priority:` terms can see that).
+  // Does this term speak about the field the grouping columns by? Asked in three places
+  // — is a column constrained, which term hid it, which terms must go when you say
+  // "only this" — and getting it wrong in any one of them is a board that disagrees
+  // with itself. One predicate, three callers. The three shapes a group can be spoken
+  // about in: its own field, the `has:` pair for its absence bucket, and (for etapps)
+  // `is:member`, which is that bucket said in the grammar the column actually uses.
+  function termAboutGroup(t, g) {
+    if (!g.field) return false;
+    if (t.field === "has") return t.values[0] === g.field;
+    if (t.field === "is") return g.field === "parent" && t.values[0] === "member";
+    return t.field === g.field && t.field !== "text";
+  }
   function groupConstrained(g) {
     if (!g.field) return false;
-    return parseQuery(state.query).some(function (t) {
-      if (t.field === "has") return t.values[0] === g.field;
-      return t.field === g.field && t.field !== "text";
-    });
+    return parseQuery(state.query).some(function (t) { return termAboutGroup(t, g); });
   }
 
   // The tray, at the end of the board where the columns it holds would have been.
@@ -3111,13 +3119,68 @@
     return g.keys(would).filter(function (k) { return !here[k] && columnTerm(g, k); })
       .map(function (k) { return { key: k, label: g.labelOf(k), n: count[k] || 0 }; });
   }
-  // Putting one back means undoing whatever hid it — a negation naming it, or a
-  // "show only" term that left it out. Both are the same toggle, opposite polarity.
+  // Putting a column back means editing the term that actually excluded it — which is
+  // not always the term that names it. Adding this column's own predicate instead was
+  // wrong in a way that showed: with `priority:high` set, the tray listed "No priority",
+  // and its eye added `-has:priority`. Terms are ANDed, so `priority:high -has:priority`
+  // matches nothing at all — the column stayed hidden and the board went empty.
+  //
+  // So walk the terms that speak about this grouping and mend each one:
+  //   a negation naming me      → take my name out of it
+  //   a positive leaving me out → put my name in
+  //   the absence pair          → drop it, when it is the polarity that hides me
+  // Everything else is left alone, so hiding two columns and restoring one keeps the
+  // other hidden.
   function unhideColumn(g, key) {
     var t = columnTerm(g, key);
     if (!t) return;
-    var byNegation = filterValues(t.field, t.hideNeg).indexOf(lower(t.value)) !== -1;
-    toggleFilterValue(t.field, t.value, byNegation ? t.hideNeg : !t.hideNeg);
+    var none = key === NO_VALUE;
+    var out = [];
+    parseQuery(state.query).forEach(function (term) {
+      if (!termAboutGroup(term, g)) { out.push(term); return; }
+      var absence = term.field === "has" || term.field === "is"; // `has:x` / `is:member`
+      if (none) {
+        // The absence bucket has no value to add or remove. `has:<field>` hides it, and
+        // so does any *positive* term on the field — there is no term that says "high,
+        // or nothing at all", so both have to go. Negations never hide it: a puck with
+        // no priority matches `-priority:low` and `-has:priority` alike.
+        if (!term.neg) return;
+        out.push(term); return;
+      }
+      // A real value. `-has:<field>` (and `-is:member`) empties every real column.
+      if (absence) { if (term.neg) return; out.push(term); return; }
+      var vals = term.values.slice();
+      var at = vals.map(lower).indexOf(lower(t.value));
+      if (term.neg) { if (at >= 0) vals.splice(at, 1); }
+      else if (at < 0) vals.push(t.value);
+      if (vals.length) { term.values = vals; out.push(term); }
+    });
+    setQueryTerms(out);
+  }
+
+  // "Show only this" is a statement, not a switch. `toggleFilterValue` would have taken
+  // `now` *out* of `status:now,next` — leaving the opposite column — and cleared a
+  // singleton `status:now` back to every column. Both are the command's own negation.
+  // So: drop everything the filter says about this grouping, then say the one thing.
+  function showOnlyColumn(g, key) {
+    var t = columnTerm(g, key);
+    if (!t) return;
+    var set = placeSetFor(g.field);
+    if (set && key !== NO_VALUE) {
+      // Already the sole place → the command is satisfied; `pickScope` would read that
+      // as a toggle and widen the board back to all, which is what the label denies.
+      if (set.size === 1 && set.has(key)) return;
+      goToPlace(set, key);
+      return;
+    }
+    var rest = parseQuery(state.query).filter(function (term) { return !termAboutGroup(term, g); });
+    rest.push({ field: t.field, op: t.field === "has" || t.field === "is" ? "is" : "in",
+                values: [t.value], neg: !t.hideNeg });
+    setQueryTerms(rest);
+  }
+  // Repo and agent are the sidebar's places; every other grouping lives in the query.
+  function placeSetFor(field) {
+    return field === "repo" ? state.repos : field === "agent" ? state.agents : null;
   }
 
   // The column head's ⋯ — same shape as the puck's, and the only two things you can
@@ -3157,18 +3220,11 @@
           // made the same URL render two different chromes: sidebar dark with a chip
           // right after the click, sidebar lit with no chip after a reload, nothing
           // touched in between. One state, two pictures, and a link that looked
-          // different to whoever opened it fresh. Taking the door the model already has
-          // closes that, and `pickScope` gives the second click "back to all" for free.
-          //
-          // Only the positive half, and only for a real value: there is no place called
-          // "not PIA" — which is exactly what `readUrl`'s `!t.neg` guard already says —
-          // and the none-bucket ("Unrouted") is an absence, which no place can name.
-          var placeSet = key !== NO_VALUE
-            ? (g.field === "repo" ? state.repos : g.field === "agent" ? state.agents : null)
-            : null;
-          row("eye", "Show only this", placeSet
-            ? function () { goToPlace(placeSet, key); }
-            : function () { toggleFilterValue(t.field, t.value, !t.hideNeg); });
+          // different to whoever opened it fresh. `showOnlyColumn` takes the door the
+          // model already has, for the positive half of a real value only: there is no
+          // place called "not PIA" — which is what `readUrl`'s `!t.neg` guard says — and
+          // an absence bucket is not somewhere you can stand.
+          row("eye", "Show only this", function () { showOnlyColumn(g, key); });
           row("eye-off", "Hide column", function () { toggleFilterValue(t.field, t.value, t.hideNeg); });
         },
       });

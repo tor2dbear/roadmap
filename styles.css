@@ -109,6 +109,17 @@
   --danger: #ae453e;
   --urgent: #c42b2b;
   --danger-solid: #b91c1c;
+  /* The ink that sits ON a filled brand or semantic surface — a chosen status pill,
+     the primary button, a pressed label chip, the urgent mark. It is the mirror of the
+     rule above: those tokens are tuned to be *read against* the page, and in dark that
+     makes them light, so white on them fails everywhere — `--later` at 2.37:1, `--next`
+     at 2.78, and that was true before the palette moved. The page's own ground reads on
+     all of them (5.35-7.49), and in light white still does (5.62-7.27). One token, not
+     nine background twins. `.demo-ribbon` had already found this and hard-coded a dark
+     ink for itself; this is that fix, generalised — and it covers the `auto` theme,
+     which the bespoke one missed. `--danger-solid` is the exception and keeps white:
+     it is dark in both themes, which is the whole reason it exists. */
+  --on-solid: #fff;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
@@ -132,6 +143,7 @@
     --danger: #d98d84;
     --urgent: #e07070;
     --danger-solid: #a83232;
+    --on-solid: var(--bg);
     color-scheme: dark;
   }
 }
@@ -155,6 +167,7 @@
   --danger: #d98d84;
   --urgent: #e07070;
   --danger-solid: #a83232;
+  --on-solid: var(--bg);
   color-scheme: dark;
 }
 
@@ -348,7 +361,7 @@ body {
 .chip .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 .chip[aria-pressed="true"] { color: var(--ink); border-color: currentColor; }
 .chip.repo[aria-pressed="true"] { background: var(--panel-2); }
-.chip.tag[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+.chip.tag[aria-pressed="true"] { background: var(--accent); color: var(--on-solid); border-color: var(--accent); }
 .chip .n { color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .toggle { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); font-size: var(--fs-md); cursor: pointer; }
 
@@ -777,7 +790,7 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 }
 .edit-btn:hover:not(:disabled) { color: var(--ink); border-color: currentColor; }
 .edit-btn.active {
-  color: #fff; cursor: default; font-weight: var(--fw-semibold);
+  color: var(--on-solid); cursor: default; font-weight: var(--fw-semibold);
   border-color: transparent;
 }
 .edit-btn.active.status-now { background: var(--now); }
@@ -799,6 +812,7 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
   transition: opacity .18s ease, transform .18s ease; z-index: 10000; max-width: 90vw;
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
+/* The one surface that stays white: --danger-solid is dark in both themes. */
 .toast.err { background: var(--danger-solid); color: #fff; }
 
 /* token panel */
@@ -827,7 +841,7 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 .token-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
 
 .tbtn:hover { border-color: var(--ink-3); }
-.tbtn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.tbtn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-solid); }
 .tbtn.primary:hover { filter: brightness(1.05); }
 .tbtn:disabled { opacity: .5; cursor: not-allowed; }
 .tbtn:disabled:hover { border-color: var(--accent); filter: none; }
@@ -1221,7 +1235,7 @@ body.preload * { transition: none !important; }
 .pri.pri-medium .pri-bar.on { background: var(--later); }
 .pri.pri-high .pri-bar.on { background: var(--now); }
 .pri.pri-urgent {
-  width: 13px; height: 13px; border-radius: var(--r-xs); background: var(--urgent); color: #fff;
+  width: 13px; height: 13px; border-radius: var(--r-xs); background: var(--urgent); color: var(--on-solid);
   font-size: var(--fs-xs); font-weight: var(--fw-semibold); align-items: center; justify-content: center;
 }
 /* detail rail: static badge + label */
@@ -1269,7 +1283,7 @@ body.preload * { transition: none !important; }
 .filter-btn svg { width: 15px; height: 15px; }
 .filter-btn.on { border-color: var(--accent); color: var(--accent); }
 .filter-count {
-  font-family: var(--mono); font-size: var(--fs-xs); background: var(--accent); color: #fff;
+  font-family: var(--mono); font-size: var(--fs-xs); background: var(--accent); color: var(--on-solid);
   border-radius: var(--r-pill); min-width: 16px; text-align: center; padding: 0 4px;
 }
 /* Anchored under its own button (Filter and Display both sit at the left of the
@@ -1409,7 +1423,7 @@ body.preload * { transition: none !important; }
    low in an 18px box whatever the line-height says. */
 .fp-toggle input:checked::after {
   content: ""; position: absolute; left: 5px; top: 1px; width: 5px; height: 10px;
-  border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg);
+  border: solid var(--on-solid); border-width: 0 2px 2px 0; transform: rotate(45deg);
 }
 .fp-toggle input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .fp-label { font-family: var(--mono); font-size: var(--fs-xs); letter-spacing: var(--tr-eyebrow); text-transform: uppercase; color: var(--ink-3); margin-top: 2px; }
@@ -1419,7 +1433,7 @@ body.preload * { transition: none !important; }
   border: 1px solid var(--line); background: var(--panel); color: var(--ink-2); cursor: pointer;
 }
 .fp-chip:hover { color: var(--ink); border-color: var(--ink-3); }
-.fp-chip.on { color: #fff; border-color: transparent; background: var(--accent); font-weight: var(--fw-semibold); }
+.fp-chip.on { color: var(--on-solid); border-color: transparent; background: var(--accent); font-weight: var(--fw-semibold); }
 .fp-chip.on.pri-urgent { background: var(--urgent); }
 .fp-chip.on.pri-high { background: var(--now); }
 .fp-chip.on.pri-medium { background: var(--later); }
@@ -1443,7 +1457,7 @@ body.preload * { transition: none !important; }
 .fp-search:focus { outline: none; border-color: var(--accent); }
 .fp-tags { display: flex; flex-wrap: wrap; gap: 5px; max-height: 168px; overflow-y: auto; }
 .fp-chip.tag .fp-n { color: var(--ink-3); font-family: var(--mono); font-size: var(--fs-xs); margin-left: 4px; }
-.fp-chip.tag.on .fp-n { color: rgba(255, 255, 255, 0.8); }
+.fp-chip.tag.on .fp-n { color: color-mix(in srgb, var(--on-solid) 80%, transparent); }
 .fp-empty { color: var(--ink-3); font-size: var(--fs-base); padding: 4px 0; }
 .fp-more { align-self: flex-start; background: none; border: 0; padding: 2px 0; margin-top: 2px; font-size: var(--fs-base); color: var(--accent); cursor: pointer; }
 .fp-more:hover { text-decoration: underline; }
@@ -2024,8 +2038,7 @@ body.viewing-puck .detail-crumb { display: none; }
 .demo-ribbon {
   display: block; text-align: center; text-decoration: none;
   font-family: var(--mono); font-size: var(--fs-md); font-weight: var(--fw-medium);
-  padding: 9px 12px; background: var(--accent); color: #fff8f3;
+  padding: 9px 12px; background: var(--accent); color: var(--on-solid);
 }
-:root[data-theme="dark"] .demo-ribbon { color: #140d08; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .demo-ribbon { color: #140d08; } }
 .demo-ribbon b, .demo-ribbon strong { font-weight: var(--fw-semibold); }
