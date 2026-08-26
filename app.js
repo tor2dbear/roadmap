@@ -369,6 +369,17 @@
           terms.push({ field: "is", op: "is", values: [lower(rest)], neg: neg });
           return;
         }
+        // `has:<field>` — does the puck carry this field at all. The one question the
+        // grammar could not ask, and the only way to say "hide the column of pucks
+        // that have no priority": that column's key is the absence of a value, so
+        // there is no `-priority:x` that names it. Listing every real value instead
+        // (`priority:urgent,high,medium,low`) works only for a closed set and goes
+        // quietly wrong for agents and etapps, where a new value would arrive already
+        // hidden. Symmetrical with `is:` — one field per term, negatable.
+        if (name === "has" && FIELDS[FIELD_ALIAS[lower(rest)] || lower(rest)]) {
+          terms.push({ field: "has", op: "is", values: [FIELD_ALIAS[lower(rest)] || lower(rest)], neg: neg });
+          return;
+        }
         if (FIELDS[name] && rest) {
           if (FIELDS[name].dateOf) {
             var m = /^(>=|<=|>|<|=)?(.+)$/.exec(rest);
@@ -390,6 +401,7 @@
       var p = t.neg ? "-" : "";
       if (t.field === "text") return p + quoted(t.values[0]);
       if (t.field === "is") return p + "is:" + t.values[0];
+      if (t.field === "has") return p + "has:" + t.values[0];
       if (t.op !== "in" && t.op !== "=") return p + t.field + ":" + t.op + t.values[0];
       return p + t.field + ":" + t.values.map(quoted).join(",");
     }).join(" ");
@@ -412,6 +424,10 @@
       hit = hay.indexOf(t.values[0]) !== -1;
     } else if (t.field === "is") {
       hit = !!IS_STATES[t.values[0]](item);
+    } else if (t.field === "has") {
+      // A date field carries no `vals()`, so ask it the way it answers.
+      var hf = FIELDS[t.values[0]];
+      hit = hf.dateOf ? !!hf.dateOf(item) : hf.vals(item).filter(Boolean).length > 0;
     } else {
       var f = FIELDS[t.field];
       if (f.dateOf) hit = cmpDate(f.dateOf(item), t.op, t.values[0]);
@@ -502,12 +518,12 @@
   }
   function toggleFilterValue(field, value, neg) {
     var terms = parseQuery(state.query), hit = -1;
-    if (field === "is") {
+    if (field === "is" || field === "has") {
       for (var i = 0; i < terms.length; i++) {
-        if (sameField(terms[i], "is", neg) && terms[i].values[0] === value) { hit = i; break; }
+        if (sameField(terms[i], field, neg) && terms[i].values[0] === value) { hit = i; break; }
       }
       if (hit >= 0) terms.splice(hit, 1);
-      else terms.push({ field: "is", op: "is", values: [value], neg: !!neg });
+      else terms.push({ field: field, op: "is", values: [value], neg: !!neg });
       return setQueryTerms(terms);
     }
     for (var j = 0; j < terms.length; j++) if (sameField(terms[j], field, neg)) { hit = j; break; }
@@ -733,6 +749,12 @@
     // card, drawn by two different systems.
     warn: ["M6.43125 2.4125 1.1375 11.25a1.25 1.25 0 0 0 1.06875 1.875h10.5875a1.25 1.25 0 0 0 1.06875 -1.875L8.56875 2.4125a1.25 1.25 0 0 0 -2.1375 0z",
            "m7.5 5.625 0 2.5", "m7.5 10.625 0.00625 0"],
+    // eye / eye-off (Feather) — the column menu's two halves: narrow to this column,
+    // or take it out of the view.
+    eye: ["M0.625 7.5s2.5 -5 6.875 -5 6.875 5 6.875 5 -2.5 5 -6.875 5 -6.875 -5 -6.875 -5z",
+          "M5.625 7.5a1.875 1.875 0 1 0 3.75 0 1.875 1.875 0 1 0 -3.75 0"],
+    "eye-off": ["M11.2125 11.2125A6.29375 6.29375 0 0 1 7.5 12.5c-4.375 0 -6.875 -5 -6.875 -5a11.53125 11.53125 0 0 1 3.1625 -3.7125M6.1875 2.65A5.7 5.7 0 0 1 7.5 2.5c4.375 0 6.875 5 6.875 5a11.5625 11.5625 0 0 1 -1.35 1.99375m-4.2 -0.66875a1.875 1.875 0 1 1 -2.65 -2.65",
+                "m0.625 0.625 13.75 13.75"],
     share: ["M2.5 7.5v5a1.25 1.25 0 0 0 1.25 1.25h7.5a1.25 1.25 0 0 0 1.25 -1.25v-5", "m10 3.75 -2.5 -2.5 -2.5 2.5", "m7.5 1.25 0 8.125"],
     sidebar: ["M3.125 1.875h8.75s1.25 0 1.25 1.25v8.75s0 1.25 -1.25 1.25H3.125s-1.25 0 -1.25 -1.25V3.125s0 -1.25 1.25 -1.25", "m5.625 1.875 0 11.25"],
     search: ["M1.875 6.875a5 5 0 1 0 10 0 5 5 0 1 0 -10 0", "m13.125 13.125 -2.71875 -2.71875"],
@@ -2888,7 +2910,11 @@
     },
     repo: {
       label: "Repo",
+      field: "repo",
       keyOf: function (i) { return i.repo; },
+      // The column's key is the full `owner/name`; the query says the short one, the
+      // way a place does — FIELDS.repo matches either.
+      filterValue: shortRepo,
       keys: function (items) {
         var order = {};
         DATA.sources.forEach(function (s, i) { order[s.repo] = i; });
@@ -2978,7 +3004,99 @@
       var k = g.keyOf(it);
       if (byKey[k]) byKey[k].push(it); // a key outside the list (e.g. a filtered status) is dropped
     });
-    return keys.map(function (k) { return { key: k, label: g.labelOf(k), items: byKey[k] }; });
+    // A hidden column has to lose its *header*, not just its cards. The derived
+    // groupings drop it for free — their keys come from the items that survived the
+    // filter — but `status` builds its columns from a fixed list, so `-status:later`
+    // emptied LATER and left the empty column standing, which is the one thing "Hide
+    // column" must not do. The rule is about the filter, not about hiding: an empty
+    // column is a drop target worth keeping until the filter speaks about the very
+    // field the columns are made of, and then it is a hole where a column used to be.
+    // So filtering by an unrelated field (`tag:ui`) keeps every column as a target,
+    // while any term on the grouping's own field takes the emptied ones away — which
+    // is `Hide column`, `Show only this` and a hand-typed query, all by one rule.
+    // Stated here and not in either renderer: the board and the list share this.
+    var constrained = groupConstrained(g);
+    return keys.filter(function (k) { return !constrained || byKey[k].length; })
+      .map(function (k) { return { key: k, label: g.labelOf(k), items: byKey[k] }; });
+  }
+
+  // ── a column, as a filter term ───────────────────────────────────────────────
+  // Linear's column menu has "Hide column", and ours needs no store to match it: a
+  // column *is* a value of the grouping field, so hiding one is a negated term in the
+  // query we already have. That buys the whole feature for free — it serialises into
+  // `?q=`, saves into a view, shows up as a removable `Not Status: Later ×` chip (the
+  // way back, and better than a "2 hidden" footer because it names what is hidden),
+  // and it is automatically right per grouping, because it is written in the grouping's
+  // own field. A `hidden: { status: [...], repo: [...] }` store would have been a
+  // second source of truth for something the query can already say.
+  //
+  // Returns { field, value, hideNeg } or null when the column cannot be named by one
+  // term. `hideNeg` is the polarity that *hides* it; showing only this column is the
+  // other one. The none-bucket inverts: its key is the absence of a value, so it is
+  // `has:<field>` that hides it, not a negation.
+  function columnTerm(g, key) {
+    if (!g.field) return null;
+    // A target column is a *month bucket* over a date, so naming it takes a range —
+    // two terms, and negating a conjunction is not something this grammar can say.
+    // The "No target" column is still nameable, because absence is a single question.
+    if (g.field === "target" && key !== NO_VALUE) return null;
+    if (key === NO_VALUE) return { field: "has", value: g.field, hideNeg: false };
+    return { field: g.field, value: g.filterValue ? g.filterValue(key) : key, hideNeg: true };
+  }
+  // Does the filter say anything about the field this grouping columns by? That is the
+  // whole question an empty column needs answered. Chasing it per column — "is there a
+  // negation naming me, or a positive term that leaves me out, or a `has:` on my field"
+  // — was four rules that still missed the cross-field pair (`-has:priority` empties
+  // every *real* priority column, and no rule about `priority:` terms can see that).
+  function groupConstrained(g) {
+    if (!g.field) return false;
+    return parseQuery(state.query).some(function (t) {
+      if (t.field === "has") return t.values[0] === g.field;
+      return t.field === g.field && t.field !== "text";
+    });
+  }
+
+  // The column head's ⋯ — same shape as the puck's, and the only two things you can
+  // say about a column that aren't about the pucks in it.
+  function colMenu(g, key, label) {
+    var wrap = el("div", "prop-pick col-more");
+    var btn = el("button", "btn btn--icon");
+    btn.type = "button";
+    btn.title = "Column options";
+    btn.setAttribute("aria-label", "Options for " + label);
+    btn.setAttribute("aria-haspopup", "true");
+    btn.setAttribute("aria-expanded", "false");
+    btn.appendChild(icon("more"));
+    var open = null;
+    btn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (open) { open.close(); return; }
+      btn.setAttribute("aria-expanded", "true");
+      open = openSurface({
+        title: label,
+        anchorWrap: wrap,
+        cls: "pick-menu menu-right",
+        onClose: function () { open = null; btn.setAttribute("aria-expanded", "false"); },
+        build: function (host, api) {
+          var t = columnTerm(g, key);
+          function row(iconName, text, neg) {
+            var b = el("button", "row");
+            b.type = "button";
+            b.appendChild(icon(iconName));
+            b.appendChild(el("span", null, text));
+            b.addEventListener("click", function () {
+              api.close();
+              toggleFilterValue(t.field, t.value, neg);
+            });
+            host.appendChild(b);
+          }
+          row("eye", "Show only this", !t.hideNeg);
+          row("eye-off", "Hide column", t.hideNeg);
+        },
+      });
+    });
+    wrap.appendChild(btn);
+    return wrap;
   }
 
   function renderColumns(groups) {
@@ -2992,6 +3110,9 @@
       head.appendChild(el("h2", null, grp.label));
       head.appendChild(el("span", "count", String(grp.items.length)));
       if (g.headExtra) { var hx = g.headExtra(grp.key); if (hx) head.appendChild(hx); }
+      // Only where the column can actually be named by a term — a target month
+      // cannot, and offering a dead menu item is worse than offering none.
+      if (columnTerm(g, grp.key)) head.appendChild(colMenu(g, grp.key, grp.label));
       col.appendChild(head);
       var cards = el("div", "cards");
       if (grp.items.length === 0) cards.appendChild(el("div", "empty", "—"));
@@ -4626,10 +4747,16 @@
       var label;
       if (t.field === "text") label = "“" + t.values[0] + "”";
       else if (t.field === "is") label = (t.neg ? "Not " : "") + t.values[0];
+      // Read as the column it hides, not as the predicate it is: `has:priority` is
+      // how "hide the No priority column" is spelled, so that is what it should say.
+      else if (t.field === "has") {
+        var hl = (fieldByKey(t.values[0]) || {}).label || t.values[0];
+        label = t.neg ? "No " + lower(hl) : "Has " + lower(hl);
+      }
       else if (f) label = f.label + ": " + t.values.map(function (v) { return valueLabel(f, v); }).join(", ");
       else label = serializeTerms([t]);
       out.push({
-        label: (t.neg && t.field !== "is" ? "Not " : "") + label,
+        label: (t.neg && t.field !== "is" && t.field !== "has" ? "Not " : "") + label,
         remove: function () {
           var rest = parseQuery(state.query).filter(function (_, j) { return j !== i; });
           setQueryTerms(rest);

@@ -388,6 +388,20 @@ body {
 /* square: an icon carries the meaning, so there is no label to pad around */
 .btn--icon { padding: 5px; }
 
+/* column ⋯ — the two things you can say about a column rather than about its pucks.
+   Pushed to the right end of the head, and revealed on reach like `.col-add`: a head
+   that carried a visible button per column read as six controls before it read as six
+   columns. `.col-add` already sets the precedent, and `(hover: none)` keeps both
+   reachable where there is no hover to reveal them. */
+/* Beside the count, not out at the column's right edge. Linear can hang it on the
+   edge because its columns are boxed; ours are borderless and packed close, so an
+   edge-anchored ⋯ sat 60px from the *next* column's swatch and read as that one's. */
+.col-more { opacity: 0; transition: opacity .12s; }
+.col-more .btn { color: var(--ink-3); border-color: transparent; background: none; }
+.col-more .btn svg { width: 15px; height: 15px; }
+.column:hover .col-more, .col-more:focus-within, .col-more:has([aria-expanded="true"]) { opacity: 1; }
+@media (hover: hover) { .col-more .btn:hover { color: var(--ink); border-color: var(--line); } }
+@media (hover: none) { .col-more { opacity: 1; } }
 /* in-column "+" — add a puck already in this column */
 .col-add {
   margin-top: 10px; width: 100%; display: flex; align-items: center; justify-content: center;
