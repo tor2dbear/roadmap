@@ -10,14 +10,28 @@
 @font-face { font-family: "Switzer"; font-style: italic; font-weight: 400 800; font-display: swap; src: url("fonts/switzer-400-italic.woff2") format("woff2"); }
 @font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 100 800; font-display: swap; src: url("fonts/jetbrains-mono.woff2") format("woff2"); }
 
+/* Every colour that carries *words* clears 4.5:1 against the darkest surface it can
+   land on — in light that is --sidebar-bg, in dark it is --panel-2. The rule is not
+   a preference: --ink-3 alone sets the column counts, the card dates, the tag pills,
+   the property keys, every empty-value state, the breadcrumbs, the eyebrows and the
+   resting tabs, and it sat at 2.4-3.1:1 in both themes. That is most of the
+   interface's second voice, at 10-13px, below the readable floor — which is why the
+   light board looked washed beside a screenshot of Linear and the fix was never
+   layout. The semantic six carry words too (a status pill, a drift flag, `.disc-*`),
+   so they move by the same rule rather than getting text-only twins: the swatch is
+   the same token at 10px, and a dot that clears 4.5 clears the 3:1 a mark needs with
+   room to spare. It cost the light --later its gold — #b8944a read at 2.6:1, and
+   bronze is what an amber that can be read looks like on warm paper. --done and
+   --cancelled keep their old order (done the more present of the two, in both
+   themes) because the line-through can't be the only thing separating them. */
 :root {
   --bg: #f5f3ee;
   --panel: #fffefb;
   --panel-2: #ebe8e1;
   --sidebar-bg: #e9e6df;
   --ink: #262320;
-  --ink-2: #6a635a;
-  --ink-3: #9c948a;
+  --ink-2: #504a44;
+  --ink-3: #6e665d;
   --line: #e6e2d9;
   --accent: #87414b;
   --shadow: 0 1px 2px rgba(45, 38, 30, 0.07), 0 2px 8px rgba(45, 38, 30, 0.05);
@@ -76,17 +90,24 @@
   --sans: -apple-system, BlinkMacSystemFont, "Switzer", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --now: #87414b;
-  --next: #567f66;
-  --later: #b8944a;
-  --inbox: #5f6590;
-  --done: #8f887c;
-  --cancelled: #b0a89c;
+  --next: #4b6f59;
+  --later: #7d6431;
+  --inbox: #5b6089;
+  --done: #5f5a51;
+  --cancelled: #6f6659;
+  /* The amber, once more, for the two places it sits on a wash of *itself* — the
+     drift flag and the pressed attention chip. A 12-18% tint pulls the ground toward
+     the text and eats the margin the token was chosen for (4.7 down to 4.0), so those
+     two need a step darker. Defined once and only here: `--later` and `--ink` are
+     both redefined per theme, and the mix re-resolves with them, so this darkens in
+     light and lightens in dark without a second declaration. */
+  --later-ink: color-mix(in srgb, var(--later) 85%, var(--ink));
   /* Three reds with three jobs, named so they stop being literals: a destructive
      *word* (Delete), the urgent priority *mark*, and the one solid surface that
      carries white text. The link red and the menu-item red were the same job in two
      shades, forty lines apart. */
-  --danger: #c0564f;
-  --urgent: #d64545;
+  --danger: #ae453e;
+  --urgent: #c42b2b;
   --danger-solid: #b91c1c;
   color-scheme: light;
 }
@@ -97,17 +118,17 @@
     --panel-2: #2a2722;
     --sidebar-bg: #141210;
     --ink: #eae6de;
-    --ink-2: #9d968a;
-    --ink-3: #6d665b;
+    --ink-2: #b7b1a9;
+    --ink-3: #958d80;
     --line: #322e28;
-    --accent: #c07682;
+    --accent: #c17985;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 2px 12px rgba(0, 0, 0, 0.35);
-    --now: #c07682;
+    --now: #c17985;
     --next: #79a58a;
     --later: #c9a35b;
     --inbox: #8b93c0;
-    --done: #8f887c;
-    --cancelled: #7e776c;
+    --done: #a09889;
+    --cancelled: #948d82;
     --danger: #d98d84;
     --urgent: #e07070;
     --danger-solid: #a83232;
@@ -120,17 +141,17 @@
   --panel-2: #2a2722;
   --sidebar-bg: #141210;
   --ink: #eae6de;
-  --ink-2: #9d968a;
-  --ink-3: #6d665b;
+  --ink-2: #b7b1a9;
+  --ink-3: #958d80;
   --line: #322e28;
-  --accent: #c07682;
+  --accent: #c17985;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 2px 12px rgba(0, 0, 0, 0.35);
-  --now: #c07682;
+  --now: #c17985;
   --next: #79a58a;
   --later: #c9a35b;
   --inbox: #8b93c0;
-  --done: #8f887c;
-  --cancelled: #7e776c;
+  --done: #a09889;
+  --cancelled: #948d82;
   --danger: #d98d84;
   --urgent: #e07070;
   --danger-solid: #a83232;
@@ -471,6 +492,15 @@ body {
 }
 @media (hover: hover) { .card:hover { border-color: var(--accent); } }
 .card:active { transform: translatey(1px); }
+/* The glyph's rail. The mark leads the title, so the title starts 22px in — and the
+   two rows under it started at the card's padding, which made the title the one
+   indented line on the card and left the mark hanging off nothing. Linear's card has
+   the same mark and puts the second row's icon on the same x; this is that column,
+   derived from the two numbers that draw it so they cannot drift apart. */
+.card { --glyph: 15px; --rail: 7px; }
+/* Direct children only: `.card-tags` is also the LABELS row on the puck page, which
+   has its own rail and must not inherit this one. */
+.card > .card-meta, .card > .card-tags { padding-left: calc(var(--glyph) + var(--rail)); }
 .card-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .card h3 { margin: 0; font-size: var(--fs-xl); line-height: var(--lh-tight); font-weight: var(--fw-semibold); }
 .repo-name { font-size: var(--fs-sm); color: var(--repo, var(--ink-3)); font-weight: var(--fw-semibold); white-space: nowrap; }
@@ -504,25 +534,32 @@ body {
 .tagpill { font-size: var(--fs-sm); color: var(--ink-3); cursor: default; }
 .updated { font-size: var(--fs-sm); color: var(--ink-3); font-variant-numeric: tabular-nums; margin-left: auto; }
 .adapted-badge { color: var(--ink-3); padding: 0 5px; }
-.warn-badge { color: var(--later); font-size: var(--fs-md); line-height: 1; cursor: help; flex: none; }
-.block-badge { font-size: var(--fs-md); line-height: 1; cursor: help; flex: none; }
+/* The drift flag and the blocked flag sit next to each other in the meta row and are
+   now the same species: one set, one stroke, one 14px box. */
+.warn-badge { color: var(--later); display: inline-flex; line-height: 0; cursor: help; flex: none; }
+.warn-badge .icn { width: 14px; height: 14px; }
+.block-badge { display: inline-flex; line-height: 0; cursor: help; flex: none; }
 .owner { display: inline-flex; align-items: center; gap: 5px; flex: none; text-decoration: none; color: var(--ink-2); }
 .owner-avatar { width: 16px; height: 16px; border-radius: 50%; flex: none; background: var(--panel-2); object-fit: cover; }
 .owner-name { font-weight: var(--fw-semibold); }
 @media (hover: hover) { a.owner:hover .owner-name { text-decoration: underline; } }
 .card-flags { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
 .flag {
+  display: flex; align-items: flex-start; gap: 6px;
   font-size: var(--fs-sm);
-  color: var(--later);
+  color: var(--later-ink);
   background: color-mix(in srgb, var(--later) 12%, transparent);
   border: 1px solid color-mix(in srgb, var(--later) 30%, transparent);
   border-radius: var(--r-sm);
   padding: 3px 7px;
 }
+/* Nudged down to the first line's x-height: the mark leads a wrapping sentence, so it
+   aligns to the text's top rather than to the box's. */
+.flag .icn { width: 13px; height: 13px; margin-top: 1px; }
 .chip.attention { color: var(--later); border-color: color-mix(in srgb, var(--later) 40%, var(--line)); }
 .chip.attention[aria-pressed="true"] {
   background: color-mix(in srgb, var(--later) 18%, var(--panel));
-  color: var(--later);
+  color: var(--later-ink);
   border-color: var(--later);
 }
 .card-body { margin-top: 8px; font-size: var(--fs-md); line-height: var(--lh-snug); color: var(--ink-2); display: none; overflow-wrap: anywhere; }
@@ -1373,11 +1410,12 @@ body.preload * { transition: none !important; }
 .detail-icon svg { width: 26px; height: 26px; }
 
 /* puck glyph on cards — a repo-colored leading mark before the title */
-.card-head { display: flex; align-items: flex-start; gap: 7px; }
+.card-head { display: flex; align-items: flex-start; gap: var(--rail, 7px); }
 .card-head .card-title { flex: 1; min-width: 0; margin: 0; }
 .puck-glyph { display: inline-flex; flex: none; line-height: 0; }
 .card-head .puck-glyph { margin-top: 2px; }
 .puck-glyph svg { width: 15px; height: 15px; }
+.card-head .puck-glyph svg { width: var(--glyph, 15px); height: var(--glyph, 15px); }
 
 /* discipline shortcuts in the ⌘K palette */
 .suggest-tagmark { width: 16px; text-align: center; flex: none; color: var(--accent); font-family: var(--mono); font-weight: var(--fw-semibold); }

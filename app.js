@@ -724,6 +724,14 @@
   var SVGNS = "http://www.w3.org/2000/svg";
   var ICONS = {
     slash: ["M1.25 7.5a6.25 6.25 0 1 0 12.5 0 6.25 6.25 0 1 0 -12.5 0", "m3.08125 3.08125 8.8375 8.8375"],
+    // triangle-alert. The set had no warning mark, so the drift flag was the literal
+    // "⚠" — a text character sitting inches from `slash`, which is a real path from
+    // this set. A character takes its weight, its optical size and its baseline from
+    // whatever font the platform falls back to (U+26A0 is in none of the stack's faces),
+    // and on a machine that resolves it to a colour emoji `color: var(--later)` does
+    // nothing at all. Two flags on one card, drawn by two different systems.
+    warn: ["m13.58125 11.25 -5 -8.75a1.25 1.25 0 0 0 -2.175 0l-5 8.75A1.25 1.25 0 0 0 2.5 13.125h10a1.25 1.25 0 0 0 1.08125 -1.875",
+           "M7.5 5.625v2.5", "m7.5 10.625 0.00625 0"],
     share: ["M2.5 7.5v5a1.25 1.25 0 0 0 1.25 1.25h7.5a1.25 1.25 0 0 0 1.25 -1.25v-5", "m10 3.75 -2.5 -2.5 -2.5 2.5", "m7.5 1.25 0 8.125"],
     sidebar: ["M3.125 1.875h8.75s1.25 0 1.25 1.25v8.75s0 1.25 -1.25 1.25H3.125s-1.25 0 -1.25 -1.25V3.125s0 -1.25 1.25 -1.25", "m5.625 1.875 0 11.25"],
     search: ["M1.875 6.875a5 5 0 1 0 10 0 5 5 0 1 0 -10 0", "m13.125 13.125 -2.71875 -2.71875"],
@@ -840,6 +848,16 @@
     span.appendChild(icon("chev-up", "caret-up"));
   }
 
+  // Drift badge: the signals a puck's declared status disagrees with. Built in two
+  // places (card and list row) from the same three lines, so it lives here.
+  function warnBadge(sig) {
+    var w = el("span", "warn-badge");
+    w.appendChild(icon("warn"));
+    w.title = sig.join("\n");
+    w.setAttribute("aria-label", "Needs attention: " + sig.join("; "));
+    return w;
+  }
+
   // Blocked badge for a puck waiting on unfinished dependencies (tooltip lists them).
   function blockBadge(item) {
     var b = el("span", "block-badge");
@@ -952,11 +970,7 @@
     var repo = el("span", "card-repo");
     repo.appendChild(document.createTextNode(item.repoName));
     meta.appendChild(repo);
-    if (sig.length) {
-      var warn = el("span", "warn-badge", "⚠");
-      warn.title = sig.join("\n");
-      meta.appendChild(warn);
-    }
+    if (sig.length) meta.appendChild(warnBadge(sig));
     if (item.priority) meta.appendChild(priorityBadge(item.priority));
     if (item.agent) meta.appendChild(agentBadge(item.agent));
     if (item.progress) meta.appendChild(progressBadge(item));
@@ -2507,7 +2521,12 @@
     var sig = signalMessages(item);
     if (sig.length) {
       var flags = el("div", "card-flags");
-      sig.forEach(function (m) { flags.appendChild(el("div", "flag", "⚠ " + m)); });
+      sig.forEach(function (m) {
+        var f = el("div", "flag");
+        f.appendChild(icon("warn"));
+        f.appendChild(el("span", null, m));
+        flags.appendChild(f);
+      });
       overview.appendChild(flags);
     }
 
@@ -2794,11 +2813,7 @@
     // Name: title (truncates) + inline drift/blocked badges.
     var name = el("div", "list-name");
     name.appendChild(el("span", "list-title", item.title));
-    if (sig.length) {
-      var warn = el("span", "warn-badge", "⚠");
-      warn.title = sig.join("\n");
-      name.appendChild(warn);
-    }
+    if (sig.length) name.appendChild(warnBadge(sig));
     if (item.progress) name.appendChild(progressBadge(item));
     if (item.parentRef && state.group !== "parent") name.appendChild(etappChip(item));
     if ((item.blockedBy || []).length) name.appendChild(blockBadge(item));
