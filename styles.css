@@ -388,6 +388,29 @@ body {
 /* square: an icon carries the meaning, so there is no label to pad around */
 .btn--icon { padding: 5px; }
 
+/* The hidden-columns tray — a column-shaped place at the end of the board holding the
+   ones the filter took away. It is not a column: nothing drops into it, and it carries
+   rows rather than cards, so it sets itself apart by weight — a dashed edge and a
+   quieter head — instead of by size. The count on each row is the reason it exists:
+   the chip row can say *what* is hidden, never how much is behind it. */
+.hidden-cols { border: 1px dashed var(--line); border-radius: var(--r-lg); padding: 10px; align-self: start; }
+.hidden-cols .col-head { position: static; background: none; color: var(--ink-3); }
+.hidden-cols .col-head h2 { color: var(--ink-3); }
+.hidden-col { gap: 8px; font-size: var(--fs-md); }
+.hidden-col .swatch { width: 10px; height: 10px; border-radius: var(--r-xs); flex: none; background: var(--ink-3); }
+.hidden-col .hidden-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The count sits with the label; the eye takes the right edge, where the action is. */
+.hidden-col .count { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.hidden-col .icn { margin-left: auto; width: 15px; height: 15px; color: var(--ink-3); }
+@media (hover: hover) { .hidden-col:hover .icn { color: var(--accent); } }
+/* The status swatches already have their colours; a hidden column keeps its identity. */
+.hidden-col.col-status-now .swatch { background: var(--now); }
+.hidden-col.col-status-next .swatch { background: var(--next); }
+.hidden-col.col-status-later .swatch { background: var(--later); }
+.hidden-col.col-status-inbox .swatch { background: var(--inbox); }
+.hidden-col.col-status-done .swatch { background: var(--done); }
+.hidden-col.col-status-cancelled .swatch { background: var(--cancelled); }
+
 /* column ⋯ — the two things you can say about a column rather than about its pucks.
    Pushed to the right end of the head, and revealed on reach like `.col-add`: a head
    that carried a visible button per column read as six controls before it read as six

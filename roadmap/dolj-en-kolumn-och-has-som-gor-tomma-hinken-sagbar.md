@@ -61,6 +61,22 @@ konjunktion är inget den här grammatiken kan säga.
   grupperingens eget fält tar bort de tömda. Uttalad i `groupsOf()`, som tavlan och
   listan delar, så den sägs en gång.
 - **`eye` / `eye-off` (Feather)**, skalade till setets 15-rutnät.
+- **Ett fack för de dolda kolumnerna**, sist på tavlan, efter en skärmdump av hur
+  Linear gör det. Deras lösning är bättre än vårt chip, och skälet är konkret: den
+  visar **antalet**. `Backlog 4` säger vad man missar utan att man behöver ta tillbaka
+  kolumnen; `Not Status: Later ×` säger bara att något är borta. Facket behåller också
+  kolumnens identitet — prickens färg och namnet — i tavlans eget rum i stället för
+  att blanda sig med tagg- och textfilter i chipsraden. Båda finns kvar: chipsraden är
+  den allmänna vägen ut ur ett filter, facket är den rumsliga vägen tillbaka till en
+  kolumn. Tavlan bara: facket är en *plats* ("de skulle ha legat här borta"), och en
+  platt lista har inga kolumner att ligga sist bland — där räcker chipsen.
+
+### Vilka kolumner som räknas som dolda
+Termer skalas bort ur `state.query` — aldrig ur vyns egna eller ur en plats. `-status:inbox`
+är vad "All pucks" *betyder*, inte något man dolt, och ett repo-ställe är dit man
+navigerat; att ta bort dem också hade listat Inbox som dold på varje tavla. Antalet per
+rad räknas mot frågan *utan* det som döljer just den kolumnen — alltså exakt vad man får
+tillbaka om man trycker på ögat.
 
 ## Verification
 Körd i Chromium mot alla sex grupperingarna: dölj → kolumnen försvinner *med sitt
@@ -68,6 +84,12 @@ huvud*, `?q=` får termen, chipset dyker upp, och `×` på chipset tar tillbaka 
 `has:priority` för tomma-hinken, `-repo:roadmap` för repo, och target-månaden saknar
 `⋯` medan `No target` har den. Listvyn följer med. Noll konsolfel, och
 kontrastgranskningen är ren på tavlan, i menyn och på puckssidan i båda temana.
+
+Facket: dolt via negation ger `Later 15` och ögat rensar termen; dolt via *Show only
+this* ger `Now 3` och `Later 15`, och ögat lägger tillbaka rätt värde i den positiva
+termen (`status:next` → `status:next,now`) — motsatt polaritet mot det första fallet, och
+den skillnaden var värd att provköra. Ett orelaterat filter (`tag:ui`) ger inget fack
+alls.
 
 En bugg som riggen fångade och jag annars hade missat: *Show only this* lämnade först
 kvar Now och Later som **tomma** kolumner, eftersom status bygger sina kolumner ur en

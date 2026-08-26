@@ -3056,6 +3056,70 @@
     });
   }
 
+  // The tray, at the end of the board where the columns it holds would have been.
+  // Board only: it is a *place* on the board ("these would be over here"), and a flat
+  // list has no columns for it to be at the end of — there the chip row still says
+  // what is filtered out.
+  function renderHiddenTray(g, groups) {
+    var hidden = hiddenColumns(g, groups);
+    if (!hidden.length) return;
+    var tray = el("div", "column hidden-cols");
+    var head = el("div", "col-head");
+    head.appendChild(el("h2", null, "Hidden"));
+    head.appendChild(el("span", "count", String(hidden.length)));
+    tray.appendChild(head);
+    var list = el("div", "cards");
+    hidden.forEach(function (h) {
+      var b = el("button", "row hidden-col");
+      b.type = "button";
+      b.title = "Show " + h.label + " again";
+      if (g.cls) b.classList.add(g.cls(h.key));
+      b.appendChild(el("span", "swatch"));
+      b.appendChild(el("span", "hidden-label", h.label));
+      // The count is the point: it is what the chip row cannot say, and what you
+      // actually want to know before deciding to bring a column back.
+      b.appendChild(el("span", "count", String(h.n)));
+      b.appendChild(icon("eye"));
+      b.addEventListener("click", function () { unhideColumn(g, h.key); });
+      list.appendChild(b);
+    });
+    tray.appendChild(list);
+    board.appendChild(tray);
+  }
+
+  // Which columns the *filter* took away, and how much is behind each. A hidden column
+  // is otherwise invisible in the one place it matters — the board — and `Not Status:
+  // Later ×` in the chip row says what is gone but never how much, which is the whole
+  // question you ask before deciding to bring it back.
+  //
+  // Terms are stripped from `state.query` only, never from the view's own or a place's.
+  // `-status:inbox` is what "All pucks" *means*, not something you hid; a repo place is
+  // where you navigated. Dropping those too would list Inbox as hidden on every board.
+  function hiddenColumns(g, shown) {
+    if (!g.field || !groupConstrained(g)) return [];
+    var free = viewTerms().concat(controlTerms()).concat(
+      parseQuery(state.query).filter(function (t) {
+        if (t.field === "has") return t.values[0] !== g.field;
+        return t.field !== g.field;
+      })
+    );
+    var would = DATA.items.filter(function (it) { return runQuery(it, free); });
+    var here = {};
+    shown.forEach(function (grp) { here[grp.key] = 1; });
+    var count = {};
+    would.forEach(function (it) { var k = g.keyOf(it); count[k] = (count[k] || 0) + 1; });
+    return g.keys(would).filter(function (k) { return !here[k] && columnTerm(g, k); })
+      .map(function (k) { return { key: k, label: g.labelOf(k), n: count[k] || 0 }; });
+  }
+  // Putting one back means undoing whatever hid it — a negation naming it, or a
+  // "show only" term that left it out. Both are the same toggle, opposite polarity.
+  function unhideColumn(g, key) {
+    var t = columnTerm(g, key);
+    if (!t) return;
+    var byNegation = filterValues(t.field, t.hideNeg).indexOf(lower(t.value)) !== -1;
+    toggleFilterValue(t.field, t.value, byNegation ? t.hideNeg : !t.hideNeg);
+  }
+
   // The column head's ⋯ — same shape as the puck's, and the only two things you can
   // say about a column that aren't about the pucks in it.
   function colMenu(g, key, label) {
@@ -3191,6 +3255,8 @@
       }
       board.appendChild(col);
     });
+    // Last, where the columns it holds would have been.
+    renderHiddenTray(g, groups);
   }
 
   // Fold a group shut or open it. Display state, so it travels the same road as the
