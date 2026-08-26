@@ -5026,6 +5026,13 @@
     var repo = aggregatorRepo();
     if (!repo) { toast("✗ No aggregator repo configured", true); return; }
     toast("Saving…");
+    // Where the board stood when the request left. A commit is a network round trip,
+    // and every one of these callbacks claims a provenance — so if you navigate while
+    // one is in flight, the reply would land on top of where you went: the destination
+    // titled as the view you just wrote, with an Update aimed at overwriting it with
+    // the destination's own parameters. Your navigation is the newer truth. The write
+    // still lands; only the claim on "which view you are in" defers to it.
+    var wroteFrom = state.fromView;
     commitViews(repo, views, message)
       .then(function () {
         DATA.config = DATA.config || {};
@@ -5035,7 +5042,7 @@
         // ran it afterwards, so the paint in between looked up a name that no longer
         // existed, decided you were in no view at all, and dropped the edited title and
         // its Reset/Update — with nothing scheduled to paint again and put them back.
-        if (done) done();
+        if (done && state.fromView === wroteFrom) done();
         // The same repaint a navigation does, and for the same reason: this write
         // changes the answer to "which saved view describes the board", which the
         // header, the built-in view rows and the saved rows all read. Rebuilding
