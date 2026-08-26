@@ -59,8 +59,27 @@ tavlan. Då måste det gå att lämna hela den.
   tavlan, inte navigation: den behåller dina andra filter och kastar dig inte ur den vy
   du står i. `scopeToPlace()` är den vägen, `goToPlace()` den andra.
 
+## Granskningsfynd
+Codex hittade två regressioner i själva fixen, båda i `goToPlace()`:
+
+- **Av-knappen slutade fungera.** `pickScope()` avgör "klickade du raden du redan står i?"
+  genom att läsa frågan — och jag nollställde frågan *före* anropet, så svaret blev alltid
+  nej och raden lade tillbaka sig själv i stället för att släcka. Nu läses `wasSole` innan
+  något rensas.
+- **Den andra platsen försvann, och räknarna ljög.** Sidomenyn räknar varje
+  platsdimension *inuti* den andra — med Backend vald visar ett repo sin Backend-siffra —
+  och en helrensning bröt löftet i samma klick. En platsnavigering släpper nu
+  *förfiningen* (taggen, texten, prioriteten) men behåller den andra platsen, vilket också
+  är vad ortogonaliteten redan lovade: "Backend, within Etapp" komponerar.
+
+Fyndet kom in medan jag höll på att merga och fångades av en kontroll jag lagt till efter
+att ha missat ett fynd på #16 med tre minuters marginal: läs om trådarna *direkt* före
+merge, inte bara CI-checkarna.
+
 ## Verification
 Kört i webbläsaren mot en riktig sparad vy: efter `High` är exakt en rad tänd, `Ready`
 och ett repo-klick lämnar filtret bakom sig, `Testvy` (utan query) tänder bara sig själv,
 titel-växlaren har inget tänt när en sparad vy äger tavlan, och `Show only this` behåller
-`priority:high`.
+`priority:high`. Efter granskningsfynden också: ett andra klick på en tänd repo-rad tar
+tillbaka till All pucks, en aktiv agent överlever ett repo-klick, och repo-radens siffra
+stämmer med antalet kort klicket faktiskt landar på.

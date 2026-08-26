@@ -3648,8 +3648,24 @@
     closeSurfaces(); // same as goToView — the board changes under whatever is open
     exitPuckView();
     state.focus = "all";
-    state.query = ""; // the same fresh start a view gets — see goToView
-    scopeToPlace(field, key);
+    // Read the toggle *before* anything is cleared. `pickScope` answers "did you click
+    // the row you are already in?" from the query, so wiping the query first made the
+    // question unanswerable and the row could never be switched off again — it just
+    // re-added itself. Captured here, the radio, the toggle-off and the replace all
+    // survive a navigation that also drops the refinement.
+    var vals = placeValues(field);
+    var wasSole = vals.length === 1 && vals[0] === lower(key);
+    // What a place navigation drops: the *refinement* — the tag, the text, the priority
+    // you had on top. What it keeps: the other place. The two dimensions are orthogonal
+    // on purpose ("Backend, within Etapp" composes), and the sidebar counts each one
+    // *inside* the other — so clearing the agent while landing on a repo would make
+    // every repo number a promise the click immediately breaks.
+    var rest = parseQuery(state.query).filter(function (t) {
+      return !t.neg && t.field !== field && PLACE_FIELDS_ORDER.indexOf(t.field) !== -1;
+    });
+    if (!wasSole) rest.push({ field: field, op: "in", values: [key], neg: false });
+    setQueryTerms(rest);
+    refreshNav();
     renderBoard();
     maybeCloseMenu();
   }
