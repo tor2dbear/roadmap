@@ -4919,7 +4919,13 @@
       .then(function () {
         DATA.config = DATA.config || {};
         DATA.config.views = views; // optimistic: the harvest will confirm it
-        buildSavedViews();
+        // The same repaint a navigation does, and for the same reason: this write
+        // changes the answer to "which saved view describes the board", which the
+        // header, the built-in view rows and the saved rows all read. Rebuilding
+        // only the saved rows left the other two on the previous answer — the
+        // header naming a view you just deleted, and `All pucks` still lit beside
+        // the view you just saved. One store, one repaint.
+        refreshNav(); renderBoard();
         if (done) done();
         toast("✓ Saved — live in ~1 min");
       })
