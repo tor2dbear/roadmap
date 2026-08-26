@@ -2,7 +2,7 @@
 title: "UI-ramar: overlay-primitiv och pickers"
 status: now
 tags: [ui, product]
-updated: 2026-08-24
+updated: 2026-08-25
 created: 2026-08-21
 order: 5
 parent: gui-hantverk
@@ -159,15 +159,16 @@ bort; från full krymper den alltså först och glider sedan. Släpp förbi ~96 
 annars sätter den sig i det närmaste läget — en dragning som kommit nästan hela vägen
 gör klart resan i stället för att fjädra tillbaka.
 
-Handtaget är greppet, men hela chromet lyssnar; från listan tar dragningen bara över
-när listan redan ligger i topp och fingret går nedåt — annars är gesten en scroll och
-att stjäla den vore fel.
+Handtaget är greppet, men hela chromet lyssnar; från listan tar dragningen över när
+listan ligger i topp och fingret går nedåt — och när listan *når* sin topp mitt i ett
+drag webbläsaren redan tagit. Annars är gesten en scroll och att stjäla den vore fel.
 
 **Sidan bakom är inert.** `body` pinnas på sin plats (`position: fixed` med negativ
 `top`) medan en sheet är uppe och läggs tillbaka efteråt; `overflow: hidden` räcker
 inte på iOS. Räknat, eftersom en sheet kan öppnas ovanpå puck-modalen. Scrimen tar
-`touch-action: none` och listan `overscroll-behavior: contain`, så inget rinner ut
-till sidan under.
+`touch-action: none`, arket `overscroll-behavior: contain` och listan `none` — inget
+rinner ut till sidan under, och listan studsar inte heller på plats: vid dess topp är
+nedåt arkets gest, och resten av fingerresan lämnas över dit.
 
 ### Buggar som bygget tvingade fram
 - **Tangentbordspaddingen sattes vid fokus på vad som helst.** Att trycka på en rad
@@ -348,6 +349,83 @@ Verifierat: 109 fall i `surface.mjs` över **båda** viewporterna (390×844 och
   vill ha "det som skrevs, normaliserat" tar den förra och bestämmer själv vad tomt
   betyder. Testet täcker bägge — att ett tomt fält listar etiketterna utan
   create-rad, och att `"???"` fortfarande ger `roadmap/item.md`.
+
+- **Arket rör sig först, listan sedan.** Två fel som var samma fel.
+  `.fp-values` hade `max-height: 46vh; overflow-y: auto` — en scrollruta *inuti*
+  arkets egen scrollruta. Regeln fanns redan för `.pick-list` (`max-height: none;
+  overflow: visible` på telefon); värdelistan var samma sorts lista och missades. En
+  scrollruta i en scrollruta ger fingret två ställen att landa och inget av dem hela
+  sträckan.
+  Och vilodetenten var 88dvh mot `.full` 94 — sex punkters skillnad. Ett drag uppåt
+  hade alltså nästan ingenting att fälla ut, och koden gav bort gesten därefter:
+  `if (fromBody && dy < 0) return` behandlade varje uppåtdrag i listan som en scroll.
+  Nu vilar arket på **60dvh**, och gesten betyder något: uppåt växer arket tills det
+  är fullt, och först då scrollar innehållet. Nedåt är oförändrat — bara från listans
+  egen topp.
+  Att listan inte scrollar under full höjd är inte artighet utan **det enda sättet att
+  göra gesten entydig**: med bägge levande panorerar webbläsaren listan med samma
+  finger som arket läser, och `preventDefault` kan inte ta tillbaka en panorering som
+  redan börjat. Så arket är det enda som kan röra sig tills det inte finns mer ark att
+  fälla ut.
+  **Och gesten måste deklareras, inte hoppas på.** Granskningen fångade det jag själv
+  skrivit om i kommentaren men inte agerat fullt ut på: `.sheet` bär `touch-action:
+  pan-y`, som bjuder in webbläsaren att ta det vertikala draget — och tar den det,
+  kommer `pointercancel` innan arket hunnit röra sig. Med scrollningen avstängd i
+  samma regel hade draget då sett ut att göra *ingenting*, medan draghandtaget (som
+  har `touch-action: none`) fungerade. Reproducerat: utan regeln, `pointercancel: 1`
+  och höjden oförändrad 506. Nu `touch-action: none` under full höjd, och `pan-y`
+  tillbaka när `.full` gjort kroppen scrollbar och panoreringen har någonstans att ta
+  vägen.
+  Mitt eget test var blint för det, för Playwrights mus går förbi `touch-action` helt.
+  Det kör **äkta touch-händelser via CDP** nu, och det var bytet som gjorde felet
+  synligt — samma läxa som pixlarna mot layoutrutorna: mät i det lager där felet bor.
+  **Frågan är var listan står, inte om den kan scrolla.** Fyra försök innan det höll,
+  och de tre första gick sönder i handen på användaren. `touch-action` läses en gång,
+  vid touch-start, innan en riktning finns — den kan alltså inte koda en riktning, bara
+  något som redan är sant då. En icke-passiv `touchmove` ser riktningen men kommer för
+  sent: Chromium skickar `pointermove` *före* `touchmove` och har redan bundit sig vid
+  panoreringen (mätt: `preventDefault` på första touchmove, `pointercancel` två
+  rörelser senare ändå).
+  Jag frågade först *om* listan kunde scrolla. Det räckte för en kort lista och gick
+  sönder på en verklig: tolv etiketter som svämmar över fick `pan-y`, webbläsaren tog
+  det nedåtgående draget, och listan studsade där arket skulle ha stängt. Mitt eget
+  test höll med — jag hade skrivit in fel förväntan i det.
+  Det som *är* avgjort vid touch-start är listans **scrollposition**. Vid toppen
+  tillhör nedåt arket, och då får listan inte gesten alls: `touch-action: none`. Så fort
+  positionen lämnat 0 är panoreringen listans, med webbläsarens egen tröghet. Det
+  lämnar precis en gest utan native scroller — första draget uppåt från toppen — och
+  den kör vi själva, med en egen utrullning så flicken inte tvärstannar. Ett prov på
+  hastigheten måste vara *färskt*: står fingret stilla skickas inga pointermove alls, så
+  provet blir inte litet, det blir gammalt, och lyftet kastade iväg listan som om
+  fingret rörde sig (mätt: 160 → 203 efter 300 ms stilla; nu 160 → 160, medan ett
+  vanligt svep fortfarande rullar till 201).
+  **Och gesten tar inte slut för att listan gör det.** Börjar draget en bit ned äger
+  webbläsaren det, helt riktigt. Men listan tar slut, och då satt arket still tills man
+  släppte och tog om. Pointer-strömmen är död där — iOS skickar `pointercancel` så fort
+  den börjat scrolla — medan `touchmove` fortsätter komma, så överlämningen hänger i den
+  tråden. Med `overscroll-behavior: none` finns inget kvar för webbläsaren att göra med
+  resten av fingerresan, så arket ärver den: ingen `preventDefault`, ingen kapplöpning.
+  Studsen var dessutom fel person vid listans topp — den sköt ned innehållet och öppnade
+  ett band över det fastnålade fältet där listan syntes röra sig.
+  Överlämningen ankras och armeras vid `touchstart`, på samma fråga som webbläsaren
+  låser `touch-action` vid. Ankaret stod först kvar på 0 — skärmens överkant — och ett
+  drag uppåt läste fingret som femhundra pixlar ned: arket föll ihop och sköts av
+  skärmen för att klättra tillbaka med fingret (mätt: 793@51 → 506@469 → 654@190).
+  **Och synken följer innehållet, inte bara rutan.** `ResizeObserver` ser kroppens
+  *ruta*; filtrerar man en lång lista ned till några rader i ett ark som redan står på
+  full höjd ändras `scrollHeight` men inte nödvändigtvis måtten. I mina mätningar
+  råkade rutan ändras med innehållet (433 → 360 → 433) och synken höll — men det är en
+  tillfällighet i den här layouten, inte en garanti, och en regel som vilar på en
+  tillfällighet faller när layouten rör sig. En `MutationObserver` på kroppens träd
+  räknar om den oavsett, vid sidan av en `scroll`-lyssnare för positionen. Bägge
+  observatörerna lämnas tillbaka till `onDestroy` när arket stängs — annars samlas de,
+  och de bortkopplade träden de håller i, på dokumentet (mätt över tio öppna/stäng:
+  30 uppnålade, 10 urkopplade).
+  Och en hopfälld lista får tillbaka sin topp: under full höjd är kroppen
+  `overflow: hidden` men behöll sitt läge, så de översta raderna klipptes bort ur en
+  ruta som inte längre gick att scrolla.
+  Mätt över hela cykeln, med touch: vila 506 → drag upp i listan → full 793,
+  0 pointercancel → drag nedåt från listans topp → stängt.
 
 ## Open questions
 - **iOS flyttar den *visuella* vyn när tangentbordet öppnas.** Vårt scroll-lås
