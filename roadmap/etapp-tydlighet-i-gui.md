@@ -187,21 +187,30 @@ Fem fynd, i fallande ordning av hur mycket de skymde:
   0 %, 50 % och 67 % medan läsarens faktiska fråga — hur många är kvar — är "en" för
   alla tre. En ring förtjänar sin plats där antalet slutar betyda något (37/120 →
   "ungefär en tredjedel"), och ingenting på den här tavlan är i närheten.
-  Så siffran står kvar exakt, och **andelen målas som en fyllnad bakom den**. Det ger
-  blicken proportionen utan att ta ifrån läsaren antalet, det kostar inget element —
-  fyllnaden är en `background-image`, så den kan inte knuffa texten — och det skalar
-  till vilket N som helst, vilket en rad prickar inte hade gjort.
-  **Och den ligger inte bakom siffrorna, utan under dem.** Första versionen var en
-  fyllnad tvärs hela brickan, och granskningen fångade priset: 10px `--ink-2` ligger
-  på 4.58:1 mot den bara brickan i ljust läge och 4.67:1 i mörkt — knappt över de 4.5
-  liten text kräver — och varje fyllnad synlig nog att läsa drog ned det till 4.09
-  respektive 4.15. Mätt på mina egna pixlar, inte tagna på ord. Det fanns ingen
-  opacitet som var både synlig och säker, vilket *är* svaret: mätningen måste lämna
-  glyferna ifred. Nu en 2px-regel längs underkanten. Fri från texten får den dessutom
-  bära sin egen vikt i stället för att viska.
-  Testet mäter i **pixlar**, i bägge teman, och två saker: att textbandet är orört på
-  bägge sidor om andelen (231 mot 231, 38 mot 38) och att stapelns kant står på 66 %
-  mot väntade 67. `--frac` i ett style-attribut bevisar ingenting om vad som syns.
+  **Och till slut ingen andel alls.** Först en fyllnad bakom siffrorna: granskningen
+  fångade priset, mätt på egna pixlar och inte taget på ord — 10px `--ink-2` ligger på
+  4.58:1 mot den bara brickan i ljust läge och 4.67:1 i mörkt, knappt över de 4.5 liten
+  text kräver, och varje fyllnad synlig nog att läsa drog ned det till 4.09 respektive
+  4.15. Ingen opacitet var både synlig och säker. Sedan en 2px-regel längs underkanten,
+  fri från glyferna — som såg rätt ut i test och fel i handen: en rak regel målad på
+  underkanten av en **helt rundad pilla** klipps i bägge ändar av radien, så den börjar
+  och slutar vid ingenting och läser som ett understruket "2/" snarare än ett mått.
+  De två varianter som rättar det kräver bägge en fyrkantigare bricka, och där tog
+  resonemanget slut: **att betala med brickspråket för ett mått som inte tillför något
+  är fel byte.** Vid 1–5 delar är siffran redan exakt och fullständig; varje
+  proportionsmarkering är en andra, grövre kopia av vad `2/3` redan sagt. Det är
+  argumentet som dödade ringen, och det dödar stapeln lika hårt — stapeln fanns bara
+  som räddning efter att fyllnaden förlorat kontraststriden, och en räddning av en idé
+  som inte bar är fortfarande ingen design.
+  En ram som ritas en bit runt brickan prövades också, eftersom den *har* en kant och
+  följer formen. Den föll på samma sak, plus en fälla värd att skriva ned: den
+  CSS-enda versionen (`conic-gradient` som rammålning) mäter **vinkel**, inte
+  perimeter. På en bricka som är tre gånger bredare än hög täcker 2/3 i vinkel närmare
+  85 % av konturen — den ljuger. En perimeterriktig version kräver en SVG per bricka,
+  måttsatt efter just den brickans bredd.
+  Testet vaktar frånvaron i **pixlar**, i bägge teman: brickans yta ska vara orörd
+  tvärs hela bredden, rad för rad. Förr mätte samma test att stapelns kant stod på
+  66 % mot väntade 67.
   Två felmätningar på vägen, bägge värda att minnas. Den första svarade 86 % — den
   samplade inuti pillrets rundade hörn. Den andra svarade 0 och var tystare: den tända
   raden i labels-arket låg på y=2886 i en 800px vy, pixeluppslaget gav `undefined`, och
