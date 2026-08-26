@@ -1381,8 +1381,20 @@ body.preload * { transition: none !important; }
   color: var(--ink-3); font-size: var(--fs-sm); line-height: 1;
 }
 .fchip-x:hover { color: var(--ink); }
+/* The row's actions, pinned right. `margin-left: auto` inside the wrapping flex
+   means they sit at the end of the last chip line when there is room and drop to a
+   line of their own — still right — when the chips fill the width. That is the
+   phone case, and it is the shape Linear's filter bar has. */
+.fchip-acts { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .fchip-clear { background: none; border: 0; font-size: var(--fs-base); color: var(--ink-3); cursor: pointer; padding: 0 4px; }
 .fchip-clear:hover { color: var(--ink); text-decoration: underline; }
+/* Bordered against the plain-text Clear beside it: one of these two changes what
+   you are looking at, the other writes a file. They should not read alike. */
+.fchip-save {
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-pill);
+  padding: 4px 12px; font-size: var(--fs-base); color: var(--ink); cursor: pointer;
+}
+@media (hover: hover) { .fchip-save:hover { border-color: var(--accent); color: var(--accent); } }
 
 /* Filter panel, two levels: fields, then that field's values. */
 .fp-row, .fp-back {

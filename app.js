@@ -2005,7 +2005,9 @@
     return openSurface({
       title: opts.title,
       anchorWrap: anchorWrap,
-      cls: "inputpop",
+      // A caller that anchors at the right edge of its row has to say so — see
+      // `.pop.menu-right`, which is the mirror that keeps the menu on-page.
+      cls: "inputpop" + (opts.cls ? " " + opts.cls : ""),
       help: opts.help,
       onClose: opts.onClose,
       build: function (host, api) {
@@ -4155,9 +4157,9 @@
       cmds.push({ __cmd: true, label: "Go to " + v.name, hint: "Saved view", icon: "list",
         run: function () { applySavedView(v); } });
     });
-    // …and so is making one. It lived only behind the title, which is the right home
-    // for it — but "the one place" and "the only way in" are different claims, and the
-    // palette is where this board puts a second door.
+    // …and so is making one. The chip row is where you actually finish building a
+    // filter and the title is where the result lands; this is the keyboard's way to
+    // the same call, so ⌘K never has less reach than the chrome.
     if (signedIn) {
       cmds.push({ __cmd: true, label: "Save this view…", hint: "Saved view", icon: "plus",
         // Deferred for the same reason the switcher defers it: this opens a surface of
@@ -4932,10 +4934,11 @@
       })
       .then(function (r) { assertOk(r, errItem); });
   }
-  function saveCurrentView(wrap) {
+  function saveCurrentView(wrap, cls) {
     var params = viewParamObject();
     if (!Object.keys(params).length) { toast("✗ Nothing to save — this is the default board", true); return; }
     inputSurface(wrap || null, {
+      cls: cls,
       title: "Save view",
       placeholder: "Name this view",
       hint: "Saved to board.config.json as a commit — it joins the list behind the title.",
@@ -5041,6 +5044,13 @@
       chip.appendChild(x);
       chipRow.appendChild(chip);
     });
+    // The row's two actions, right-aligned as a pair. Saving lived only behind the
+    // title, which is the right *home* for it — the saved view appears there — but
+    // it is not where you are standing when you finish building a filter. You are
+    // standing here, looking at the predicates you just assembled, and this is the
+    // one row that exists only because they do. So the door goes where the work is;
+    // the title keeps the list. (Linear puts Clear and Save in exactly this band.)
+    var acts = el("div", "fchip-acts");
     if (chips.length > 1) {
       var clear = el("button", "fchip-clear", "Clear all");
       clear.type = "button";
@@ -5048,8 +5058,25 @@
         setQueryTerms([]); // one store, so "put everything back" is one line
         refreshNav();
       });
-      chipRow.appendChild(clear);
+      acts.appendChild(clear);
     }
+    // Only when a token can commit it: this writes board.config.json, and an
+    // affordance that cannot do its job is worse than an absent one.
+    if (ghToken()) {
+      var wrap = el("div", "filter-wrap"); // the positioned parent the popover anchors in
+      var save = el("button", "fchip-save", "Save view");
+      save.type = "button";
+      save.title = "Save these filters as a named view";
+      save.addEventListener("click", function (e) {
+        e.stopPropagation(); // this row is not a surface; the tail would read as an outside click
+        // The trigger is the last thing on its row, so the menu hangs from its right
+        // edge or it runs off the page.
+        saveCurrentView(wrap, "menu-right");
+      });
+      wrap.appendChild(save);
+      acts.appendChild(wrap);
+    }
+    if (acts.childNodes.length) chipRow.appendChild(acts);
   }
 
   if (filterBtn) filterBtn.addEventListener("click", function (e) { e.stopPropagation(); toggleFilterMenu(); });
