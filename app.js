@@ -6373,7 +6373,16 @@
   function refreshEditControls() {
     newBtns.forEach(function (b) { b.hidden = !ghToken(); });
   }
-  function afterAuth() { writableRepos = null; readOnlyRepos = new Set(); refreshEditControls(); refreshUser(); loadWritableRepos(); }
+  function afterAuth() {
+    writableRepos = null; readOnlyRepos = new Set();
+    refreshEditControls(); refreshUser(); loadWritableRepos();
+    // Chrome that a token *renders* rather than merely checks. Every write path
+    // re-asks `ghToken()` and returns, so nothing corrupt happens — but a control
+    // that only fails when you press it is not gated, it is decorated. These two
+    // are built once rather than on each open, so signing out has to take them
+    // away: the saved views' ✕ (`buildSavedViews`) and the chip row's Save.
+    refreshNav(); renderChips();
+  }
   function buildEditControls() {
     // New: primary create action in the sidebar (desktop) + the mobile topbar
     // (next to search, so it's reachable without opening the menu). Token-gated.
