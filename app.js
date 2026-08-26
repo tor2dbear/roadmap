@@ -3143,19 +3143,33 @@
         onClose: function () { open = null; btn.setAttribute("aria-expanded", "false"); },
         build: function (host, api) {
           var t = columnTerm(g, key);
-          function row(iconName, text, neg) {
+          function row(iconName, text, run) {
             var b = el("button", "row");
             b.type = "button";
             b.appendChild(icon(iconName));
             b.appendChild(el("span", null, text));
-            b.addEventListener("click", function () {
-              api.close();
-              toggleFilterValue(t.field, t.value, neg);
-            });
+            b.addEventListener("click", function () { api.close(); run(); });
             host.appendChild(b);
           }
-          row("eye", "Show only this", !t.hideNeg);
-          row("eye-off", "Hide column", t.hideNeg);
+          // "Show only this" on a repo or agent column is *navigation*, not a filter.
+          // Those two are the sidebar's places, and `readUrl` already turns a positive
+          // `repo:`/`agent:` term back into one on load — so writing it as a query term
+          // made the same URL render two different chromes: sidebar dark with a chip
+          // right after the click, sidebar lit with no chip after a reload, nothing
+          // touched in between. One state, two pictures, and a link that looked
+          // different to whoever opened it fresh. Taking the door the model already has
+          // closes that, and `pickScope` gives the second click "back to all" for free.
+          //
+          // Only the positive half, and only for a real value: there is no place called
+          // "not PIA" — which is exactly what `readUrl`'s `!t.neg` guard already says —
+          // and the none-bucket ("Unrouted") is an absence, which no place can name.
+          var placeSet = key !== NO_VALUE
+            ? (g.field === "repo" ? state.repos : g.field === "agent" ? state.agents : null)
+            : null;
+          row("eye", "Show only this", placeSet
+            ? function () { goToPlace(placeSet, key); }
+            : function () { toggleFilterValue(t.field, t.value, !t.hideNeg); });
+          row("eye-off", "Hide column", function () { toggleFilterValue(t.field, t.value, t.hideNeg); });
         },
       });
     });
@@ -4820,7 +4834,15 @@
         label = t.neg ? "No " + lower(hl) : "Has " + lower(hl);
       }
       else if (f) label = f.label + ": " + t.values.map(function (v) { return valueLabel(f, v); }).join(", ");
-      else label = serializeTerms([t]);
+      else if (PLACE_FIELDS[t.field]) {
+        var pf = PLACE_FIELDS[t.field];
+        label = pf.label + ": " + t.values.map(pf.value).join(", ");
+      }
+      // The last resort prints the term itself — with its sign stripped, because the
+      // "Not " prefix below adds one. Together they read "Not -repo:roadmap": two
+      // minus signs for one negation. Any field that lands here from now on is only
+      // missing a name, not a second negative.
+      else label = serializeTerms([{ field: t.field, op: t.op, values: t.values, neg: false }]);
       out.push({
         label: (t.neg && t.field !== "is" && t.field !== "has" ? "Not " : "") + label,
         remove: function () {
@@ -4831,6 +4853,17 @@
     });
     return out;
   }
+  // Repo and agent are absent from FILTER_FIELDS on purpose — they are the sidebar's
+  // places, not panel dimensions — so `fieldByKey` finds nothing for them and the chip
+  // row fell through to printing the raw term. Naming them here rather than adding them
+  // to FILTER_FIELDS keeps that decision intact: this is how a term is *written*, not a
+  // dimension you can filter by. Reachable in one click ever since a repo column could
+  // be hidden; before that it needed a hand-typed query, which is why it sat unseen.
+  var PLACE_FIELDS = {
+    repo: { label: "Repo", value: function (v) { return repoNameOf(resolveRepo(v) || v) || v; } },
+    agent: { label: "Agent", value: function (v) { return agentLabel(v); } },
+  };
+
   function valueLabel(f, v) {
     var all = f.values();
     for (var i = 0; i < all.length; i++) if (all[i].value === v) return all[i].label;

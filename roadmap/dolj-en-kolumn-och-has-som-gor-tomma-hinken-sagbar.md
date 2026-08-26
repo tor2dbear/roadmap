@@ -78,12 +78,47 @@ navigerat; att ta bort dem också hade listat Inbox som dold på varje tavla. An
 rad räknas mot frågan *utan* det som döljer just den kolumnen — alltså exakt vad man får
 tillbaka om man trycker på ögat.
 
+### Platsen är en dörr, inte en lapp
+`Show only this` på en repo- eller agent-kolumn är **navigation**, inte ett filter.
+De två är sidomenyns *platser* (`controlTerms()`), och `readUrl` gör redan om en
+positiv `repo:`/`agent:`-term till en plats vid inläsning — med vakten `!t.neg`, för
+det finns ingen plats som heter "inte PIA". Att skriva den som en frågeterm gjorde
+därför att **samma URL ritade två olika chrome**:
+
+| `?q=repo:roadmap` | sidorad | chipsrad | rubrik |
+|---|---|---|---|
+| direkt efter klicket | släckt | visar termen | `All pucks` |
+| efter en omladdning | tänd `Etapp` | tom | `Etapp` |
+
+Ingenting rördes däremellan. Ett tillstånd, två bilder, och en länk som såg annorlunda
+ut för den som öppnade den färsk. Nu går den positiva halvan via `goToPlace()`, och
+`pickScope()` ger "tillbaka till allt" på andra klicket gratis. Negationen förblir en
+term — alltid.
+
+### Etikettmaskinen kunde inte skriva "repo"
+Chipsraden gav `repo:roadmap` i stället för `Repo: Etapp`, och för en dold kolumn
+`Not -repo:roadmap` — två minustecken för en negation. `fieldByKey("repo")` hittar
+ingenting, för `FILTER_FIELDS` utelämnar repo och agent *med flit* (de är platser, inte
+paneldimensioner), så `chipsData()` föll igenom till sista grenen och skrev av termen
+rått — inklusive dess minustecken — varpå `"Not "` lades framför.
+
+Buggen låg latent: den gick bara att väcka genom att skriva frågan för hand. Kolumnmenyn
+i det här passet gjorde den till ett klick, alltså är den det här passets att laga.
+`PLACE_FIELDS` namnger de två utan att lägga dem i panelen, så beslutet står kvar. Sista
+grenen strippar nu tecknet, så nästa okända fält saknar bara ett namn — inte ett andra
+minus.
+
 ## Verification
 Körd i Chromium mot alla sex grupperingarna: dölj → kolumnen försvinner *med sitt
 huvud*, `?q=` får termen, chipset dyker upp, och `×` på chipset tar tillbaka den.
 `has:priority` för tomma-hinken, `-repo:roadmap` för repo, och target-månaden saknar
 `⋯` medan `No target` har den. Listvyn följer med. Noll konsolfel, och
 kontrastgranskningen är ren på tavlan, i menyn och på puckssidan i båda temana.
+
+Platsen: `Show only this` på en repo-kolumn ger nu tänd sidorad, tom chipsrad och
+rubriken `Etapp` — **identiskt före och efter en omladdning av samma URL**. `Hide column`
+på samma kolumn ger `Not Repo: Etapp`, också stabilt över omladdning. Status-vägen är
+oförändrad (`Not Status: Now`, kolumnen borta, facket visar `Now 3`).
 
 Facket: dolt via negation ger `Later 15` och ögat rensar termen; dolt via *Show only
 this* ger `Now 3` och `Later 15`, och ögat lägger tillbaka rätt värde i den positiva
@@ -103,8 +138,5 @@ fast lista. Det var det som tvingade fram regeln ovan.
 - **Reglagen står kvar.** Se Research.
 
 ## Open questions
-- `Show only this` på en repo-kolumn skriver `repo:pia` till frågan, medan sidomenyns
-  PIA-rad sätter samma sak som en *plats* (`state.repos`). Två mekanismer på samma fält.
-  Ofarligt — det blir ett AND av samma villkor — men den positiva halvan skulle kanske
-  gå via `goToPlace()` i stället, så sidoraden tänds. Negationen är däremot aldrig en
-  plats: en plats är där man *är*.
+Inga kvar. Platsfrågan blev besvarad av en mätning i stället för av en åsikt — se
+*Platsen är en dörr, inte en lapp*.
