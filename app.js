@@ -3502,6 +3502,17 @@
   // source for both the view header and the detail breadcrumb's back label, so a
   // place-scoped view reads the same whether or not a puck is open.
   function currentViewTitle() {
+    // A saved view first, because it is the most specific true name for where you
+    // are. `activeSavedView()` only answers when the board matches the view
+    // *exactly* — every one of VIEW_KEYS — so its name already covers the whole
+    // tuple: the query, the grouping, the layout, and any place inside it. There is
+    // nothing layered on top to append. Change one thing and the match breaks, and
+    // the composition below takes over again.
+    // Without this the header said "All pucks" while the sidebar lit "High" and the
+    // chip row listed its predicates: three pieces of chrome, two different answers
+    // to "where am I". #17 made the right *row* light; the title never asked.
+    var saved = activeSavedView();
+    if (saved) return saved.name;
     var base = VIEW_TITLES[state.focus] || "All pucks";
     var scope = scopeParts();
     if (!scope.length) return base;
