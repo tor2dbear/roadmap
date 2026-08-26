@@ -59,8 +59,11 @@ konfiguration, inte sanning, så en andra plats för dem bryter inte USP:en på 
 andra plats för *pucks* hade gjort.
 
 ## Plan
-- Läs och skriv en secret gist med samma `{ name, q, group, sort, layout, done, empty }`
-  som `board.config.json` använder, så en vy är en vy oavsett var den bor.
+- Läs och skriv en secret gist med **hela** vy-tupeln som `board.config.json` använder —
+  `name` plus `VIEW_KEYS`: `view`, `q`, `group`, `layout`, `sort`, `done`, `empty`,
+  `collapsed` — så en vy är en vy oavsett var den bor. Alla åtta: en vy som pekar på en
+  inbyggd vy (`view`) eller fäller ihop grupper i listan (`collapsed`) bär dem också, och
+  en delmängd hade tappat dem i rundturen.
 - **Två sektioner i sidomenyn, inte en sammanslagen lista** — instansens vyer och mina
   vyer. De har olika ägare och olika livslängd, och att visa dem som en lista vore att
   låtsas att de är samma sak. Samma misstag som två minnen för platser.
@@ -75,6 +78,14 @@ andra plats för *pucks* hade gjort.
 - **"Secret" är inte privat.** En secret gist är olistad, inte skyddad: vem som helst med
   URL:en kan läsa den. För vy-konfiguration spelar det ingen roll, men det ska stå skrivet
   i stället för att antas.
+
+## Granskningsfynd
+Codex läste pucken och hittade att tupeln jag skrev — sex nycklar — tappar `view` och
+`collapsed` i rundturen, trots att `VIEW_KEYS` har åtta. Riktigt, och felet var **ärvt**:
+`CLAUDE.md` dokumenterade samma sex. Att bara laga pucken hade lämnat kvar den källa som
+nästa plan skulle kopiera, så roten är lagad i samma pass. `AGENTS.md` var redan korrekt —
+den säger "samma parametrar, namngivna" utan att räkna upp en delmängd, vilket är exakt
+den sortens formulering som inte kan bli inaktuell.
 
 ## Open questions
 - Ska en personlig vy kunna *befordras* till en instansvy (en commit till
