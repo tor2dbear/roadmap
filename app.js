@@ -3061,9 +3061,35 @@
     // while any term on the grouping's own field takes the emptied ones away — which
     // is `Hide column`, `Show only this` and a hand-typed query, all by one rule.
     // Stated here and not in either renderer: the board and the list share this.
-    var constrained = groupConstrained(g);
-    return keys.filter(function (k) { return !constrained || byKey[k].length; })
+    // …but only the columns the query actually speaks *against*. Asking merely whether
+    // the query mentions the grouping's field made hiding one column evict every other
+    // empty one with it: with the archive on and `Cancelled` standing empty, hiding
+    // `Done` wrote `-status:done`, and Cancelled — which that term says nothing about —
+    // vanished from the board and turned up in the tray as though you had hidden it too.
+    // One click, two columns moved, and the tray reported the one you never touched.
+    // Testing the column instead of the field keeps every case the rule was written for
+    // (`-status:later` empties and drops LATER; `Show only this` drops the rest; an
+    // unrelated `tag:ui` keeps them all as drop targets) and drops the eviction nobody
+    // asked for.
+    return keys.filter(function (k) { return byKey[k].length || !columnExcluded(g, k); })
       .map(function (k) { return { key: k, label: g.labelOf(k), items: byKey[k] }; });
+  }
+  // Does the query say this column may not be here? The same vocabulary `columnTerm`
+  // writes, read back: a value term keeps only what it names (or, negated, drops it),
+  // and the `has:`/`is:member` pair speaks about the absence bucket in one polarity and
+  // about every real column in the other. Empty *and* excluded is a hole where a column
+  // used to be; empty and merely unmentioned is still a column, and still a drop target.
+  function columnExcluded(g, key) {
+    var none = key === NO_VALUE;
+    var out = false;
+    parseQuery(state.query).forEach(function (t) {
+      if (!termAboutGroup(t, g)) return;
+      if (t.field === "has" || t.field === "is") { if (none ? !t.neg : t.neg) out = true; return; }
+      if (none) { if (!t.neg) out = true; return; } // any positive value term excludes "none"
+      var at = t.values.map(lower).indexOf(lower(key));
+      if (t.neg ? at >= 0 : at < 0) out = true;
+    });
+    return out;
   }
 
   // ── a column, as a filter term ───────────────────────────────────────────────
