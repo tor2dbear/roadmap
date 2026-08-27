@@ -167,6 +167,11 @@ export async function run({ open }) {
     // The rollback is as visible as the addition was, and only a rejected write shows it.
     const gh = githubStub({ failWrites: true });
     const p = await open("#alpha/a-etapp", { token: true, github: gh.handler });
+    // A failed write must not also be a thrown one. `＋ Add puck` fires and forgets, so
+    // a rejecting promise would land in the console as an uncaught error on top of the
+    // toast — this group ran green through exactly that, because it never looked.
+    const loud = [];
+    p.on("pageerror", (e) => loud.push(String(e)));
     await trigger(p, "Add puck").click();
     await p.waitForTimeout(250);
     await typeIn(p, "Doomed member");
@@ -182,6 +187,7 @@ export async function run({ open }) {
     eq(after.contains.length, 1, `Contains är tillbaka: ${JSON.stringify(after.contains)}`);
     ok(after.rollup.every((r) => r === "0/1"), `och siffran med: ${JSON.stringify(after.rollup)}`);
     eq(after.still, "alpha/a-etapp", "och etappen är fortfarande öppen — inte stängd av felvägen");
+    eq(loud, [], "och ingenting kastades obehandlat");
   }
 
   group("en anpassad källa går att skriva i men inte att skapa i");

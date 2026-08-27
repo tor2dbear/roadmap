@@ -6709,10 +6709,11 @@
           run: function (title) {
             var made = createPuck(item.repo, title, "later", [], null, "", { open: false });
             if (made) made.then(function (p) {
+              if (!p) return;
               var ref = refFor(item, p);
               changeDepends(item, (item.depends || []).concat([ref]),
                 "roadmap: " + item.slug + " blocked by " + ref);
-            }).catch(function () {});
+            });
           },
         },
       }));
@@ -6876,7 +6877,7 @@
           noun: "etapp",
           run: function (title) {
             var made = createPuck(item.repo, title, "later", [], null, "", { open: false });
-            if (made) made.then(function (p) { changeParent(item, p.id); }).catch(function () {});
+            if (made) made.then(function (p) { if (p) changeParent(item, p.id); });
           },
         },
       }));
@@ -7132,8 +7133,12 @@
   // `opts.parent` writes the relation into the template (one commit, see above).
   // `opts.open` false keeps you where you are — creating a puck from a picker is
   // something you did *while* in the middle of something else, and yanking the page
-  // to the new file is the interruption the picker existed to avoid. Returns the
-  // commit promise so a caller that needs a second write can wait for the first.
+  // to the new file is the interruption the picker existed to avoid.
+  //
+  // Returns a promise that resolves with the item, or with `null` if the write failed —
+  // and `null` synchronously if the slug is already taken. It never rejects, so a caller
+  // that fires and forgets cannot leak an unhandled rejection, and one that needs a
+  // second write only has to ask whether the first happened.
   function createPuck(repo, title, status, tags, agent, context, opts) {
     opts = opts || {};
     var slug = slugify(title);
@@ -7182,7 +7187,14 @@
         // the picker was called from — the one page the caller asked to stay on.
         if (opened) closeModal();
         toast("✗ " + err.message, true);
-        throw err;
+        // Resolves with `null` rather than rejecting. A caller that needs the second
+        // write asks "did it happen"; nobody needs the error object, because the toast
+        // and the rollback already dealt with it. Rethrowing made the two callers that
+        // deliberately ignore the promise — the sidebar's New puck and `＋ Add puck` —
+        // leak an unhandled rejection into the console on every failed write. `null` is
+        // already this function's word for "did not happen": it is what the duplicate
+        // guard returns, synchronously, above.
+        return null;
       });
   }
 
