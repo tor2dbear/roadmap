@@ -1593,6 +1593,21 @@
     openSurfaces.slice().forEach(function (s) { s.close(); });
   }
 
+  // Nudge a popover horizontally until it is inside the window, and no further. The
+  // margin keeps it off the very edge, where a rounded corner and a shadow would
+  // otherwise be cut in half.
+  // A popover wider than the window can't be satisfied; pin it to the left edge
+  // rather than the right, so it is the *end* of a row that is lost and not the
+  // beginning — a truncated label is still readable from its start.
+  function fitPop(root) {
+    var m = 8;
+    var r = root.getBoundingClientRect();
+    var dx = 0;
+    if (r.right > window.innerWidth - m) dx = window.innerWidth - m - r.right;
+    if (r.left + dx < m) dx = m - r.left;
+    if (dx) root.style.transform = "translateX(" + Math.round(dx) + "px)";
+  }
+
   //   opts: { title, anchorWrap, cls, help, onClose, build(body, api) }
   //   → { close }
   function openSurface(opts) {
@@ -1751,6 +1766,18 @@
     var handle = { close: close, el: root };
     openSurfaces.push(handle);
     opts.build(body, { close: close, phone: phone });
+    // Slide an anchored popover back into the window if the side it chose puts it
+    // over an edge. The side is authored — `menu-right` says which of the trigger's
+    // edges the surface hangs from, and that is a design decision about which way a
+    // menu should open. Whether it *fits* is not a design decision, and it can't be
+    // answered where the class is written: the same trigger sits at 1246px in a
+    // 1600px window and at 950px in a 1024px one, so any fixed side is right at one
+    // width and wrong at another. Measuring once the content exists answers it at
+    // every width, and costs one layout read per open.
+    // Only the anchored shell. A sheet spans the window by construction, and
+    // `.pop-center` is already placed by transform — shifting either would move a
+    // surface that was never out of bounds.
+    if (!phone && opts.anchorWrap) fitPop(root);
     // Give a sheet's search field breathing room before the list, the way the
     // reference apps do. The gap has to belong to the *pinned* element, not sit
     // between it and the list: a margin there is not painted, so rows would scroll
@@ -3226,7 +3253,14 @@
       open = openSurface({
         title: label,
         anchorWrap: wrap,
-        cls: "pick-menu menu-right",
+        // Not mirrored, unlike the puck's ⋯ and the saved view's. Mirroring assumes the
+        // page's right edge is the one that cuts; here it's the left. The sidebar is
+        // `position: sticky` and paints over the board's own scroll box, so a menu that
+        // hangs left from a trigger in the *first* column disappears under it — the
+        // board starts exactly where the sidebar ends. Hanging right is safe at the
+        // other end because `.board` scrolls horizontally and the last column's menu
+        // stays inside its own column's width.
+        cls: "pick-menu",
         onClose: function () { open = null; btn.setAttribute("aria-expanded", "false"); },
         build: function (host, api) {
           var t = columnTerm(g, key);
