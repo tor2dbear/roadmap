@@ -188,6 +188,32 @@ page behind it (`body.scroll-locked`, a fixed body at a negative offset, since
 for the length of a touch, because letting it re-size mid-gesture moves the row out
 from under the finger.
 
+## UI: one thing, one place
+
+Cards leave the board three ways — the `Filter` panel, a column's `⋯`, and Display's
+**Show done & cancelled** — and the board used to explain each differently: sometimes a
+chip, sometimes the `HIDDEN` tray, sometimes both, and for the archive toggle *nothing at
+all*. One rule settles it:
+
+> **A whole column missing → the `HIDDEN` tray. Cards missing inside the columns → the
+> chip row.**
+
+- The tray answers for **both causes**. The archive toggle is not a query term — it lives
+  in `viewTerms()` as `-is:done`, invisible to the chip row — so `hiddenColumns()` asks
+  the board twice (`wouldShow(g, false)` and `wouldShow(g, true)`) to tell a column the
+  query hid from one the toggle hid. Each row's eye then does the matching repair, and a
+  column hidden by *both* comes back in one click.
+- The counts follow the same split: a query-hidden column is counted with the archive as
+  it stands, an archive-hidden one with it lifted. Otherwise hiding a repo while the
+  archive is off would advertise its landed pucks as waiting.
+- A chip stands down only for the **exact duplicate** — a term that is nothing but "hide
+  these columns", in the polarity that hides (`columnTerm`'s `hideNeg`), whose columns
+  are in the tray. A positive term (`Status: Now, Next, Later`) is the scope you chose,
+  not a column you hid; it keeps its chip, and the tray saying what fell outside it is a
+  different sentence.
+- **The list layout has no tray**, so there everything is a chip. `trayColumns` is null
+  whenever no tray was drawn, which is the whole mechanism.
+
 ## Auto-status signals
 
 So status upkeep isn't purely self-reported, the board flags pucks whose declared
