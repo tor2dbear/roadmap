@@ -3074,6 +3074,31 @@
     return keys.filter(function (k) { return byKey[k].length || !columnExcluded(g, k); })
       .map(function (k) { return { key: k, label: g.labelOf(k), items: byKey[k] }; });
   }
+  // Does this query value name this column? A value is not always spelled the way the
+  // column is keyed: `repo:` accepts `tor2dbear/roadmap`, `roadmap` and `Etapp`, and
+  // `parent:` accepts the raw `parent:` line, the resolved id and the bare slug — that
+  // is `FIELDS[…].vals()`, and it is what `termMatches` asks when it decides which
+  // cards the term keeps. Anything comparing the raw value against the column key was
+  // therefore asking a narrower question than the filter itself: `-repo:roadmap` hid
+  // the Etapp column, the tray listed it under its canonical key, and the eye —
+  // hunting for "roadmap" among the tray's keys — found nothing and left the term
+  // standing. The affordance rendered, clicked, re-rendered, and changed nothing.
+  //
+  // So ask the data the same question the matcher asks, rather than keeping a second
+  // alias table here to drift out of step with that one. A column with no items at all
+  // (an empty status) is covered by the direct comparison, since a field with no items
+  // to alias has no aliases either.
+  function valueNamesColumn(g, value, key) {
+    if (lower(value) === lower(key)) return true;
+    var f = FIELDS[g.field];
+    if (!f || !f.vals) return false;
+    for (var i = 0; i < DATA.items.length; i++) {
+      var it = DATA.items[i];
+      if (g.keyOf(it) !== key) continue;
+      if (f.vals(it).filter(Boolean).map(lower).indexOf(lower(value)) !== -1) return true;
+    }
+    return false;
+  }
   // Does the query say this column may not be here? The same vocabulary `columnTerm`
   // writes, read back: a value term keeps only what it names (or, negated, drops it),
   // and the `has:`/`is:member` pair speaks about the absence bucket in one polarity and
@@ -3086,8 +3111,8 @@
       if (!termAboutGroup(t, g)) return;
       if (t.field === "has" || t.field === "is") { if (none ? !t.neg : t.neg) out = true; return; }
       if (none) { if (!t.neg) out = true; return; } // any positive value term excludes "none"
-      var at = t.values.map(lower).indexOf(lower(key));
-      if (t.neg ? at >= 0 : at < 0) out = true;
+      var names = t.values.some(function (v) { return valueNamesColumn(g, v, key); });
+      if (t.neg ? names : !names) out = true;
     });
     return out;
   }
@@ -3307,7 +3332,10 @@
       // A real value. `-has:<field>` (and `-is:member`) empties every real column.
       if (absence) { if (term.neg) return; out.push(term); return; }
       var vals = term.values.slice();
-      var at = vals.map(lower).indexOf(lower(t.value));
+      var at = -1;
+      for (var vi = 0; vi < vals.length; vi++) {
+        if (valueNamesColumn(g, vals[vi], key)) { at = vi; break; }
+      }
       if (term.neg) { if (at >= 0) vals.splice(at, 1); }
       else if (at < 0) vals.push(t.value);
       if (vals.length) { term.values = vals; out.push(term); }
@@ -5336,7 +5364,9 @@
     if (!termAboutGroup(t, g)) return false;
     if (t.field === "has" || t.field === "is") return !t.neg && !!trayColumns.keys[NO_VALUE];
     if (!t.neg) return false;
-    return t.values.every(function (v) { return !!trayColumns.keys[v]; });
+    return t.values.every(function (v) {
+      return Object.keys(trayColumns.keys).some(function (k) { return valueNamesColumn(g, v, k); });
+    });
   }
   function chipsData() {
     var out = [];
