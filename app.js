@@ -5005,11 +5005,20 @@
     //
     // Three sections, not one list called State, because they were never one question.
     // A single list has to answer two ticks with one rule, and neither rule is right
-    // for both cases: within a dimension the values are alternatives, so `etapp` +
-    // `standalone` must be a union (they cover the whole board between them, and gave
-    // *nothing*); across dimensions they are independent questions, so `ready` +
-    // `member` must stay an intersection — "ready, and inside an etapp" is a question
-    // worth asking, and a flat OR would have thrown it away to fix the first case.
+    // for both cases: within a dimension a tick widens, so `etapp` + `standalone` must
+    // be a union — it asks for two of the three ways a puck can sit in the hierarchy,
+    // and gave *nothing*; across dimensions each tick narrows, so `ready` + `member`
+    // must stay an intersection — "ready, and inside an etapp" is a question worth
+    // asking, and a flat OR would have thrown it away to fix the first case.
+    //
+    // Not because a section's values exclude each other — they do not. A puck can be
+    // `blocked` and `blocking` at once, and an etapp nested in another etapp is
+    // `etapp` and `member` both. Union is the facet convention rather than a fact
+    // about the values: `tags` has always OR'd, and nobody reads two ticked labels as
+    // "carries both". Ticking Blocked and Blocking others therefore asks for pucks
+    // tangled in dependencies *either* way, and the pair that is both is simply in it
+    // — the narrower "both directions at once" is the one reading this costs, and it
+    // was never reachable from the panel anyway.
     //
     // Split, the panel's ordinary rule — or within a section, and between them — is
     // exactly right, with no special case for `is:` at all. The grouping also stops

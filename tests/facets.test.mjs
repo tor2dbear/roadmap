@@ -110,6 +110,34 @@ export async function run({ open }) {
     ok(on, "och panelen visar det som ikryssat — en fråga, ett term");
   }
 
+  group("en facetts värden behöver inte utesluta varandra");
+  {
+    // Codex asked whether grouping is justified only where the values are mutually
+    // exclusive. They are not, anywhere: a puck can be blocked *and* blocking, and an
+    // etapp nested in another etapp is `etapp` and `member` both. Union is the facet
+    // convention, not a claim about the values — `tags` has always OR'd labels that
+    // co-occur — and this pins the decision in code so it cannot drift back quietly.
+    //
+    // Three edges, injected here rather than in the fixture so the readiness counts the
+    // other groups assert stay untouched: a-now blocks a-later, a-later blocks b-later.
+    // So a-later is both, and the union is three where the intersection is one.
+    const withEdges = (d) => {
+      const by = {};
+      d.items.forEach((i) => { by[i.slug] = i; });
+      by["a-now"].blocks = ["alpha/a-later"];
+      by["a-later"].blockedBy = ["alpha/a-now"];
+      by["a-later"].blocks = ["beta/b-later"];
+      by["b-later"].blockedBy = ["alpha/a-later"];
+      return d;
+    };
+    const p = await open("?q=is:blocked", { data: withEdges });
+    eq(await cards(p), 2, "två är blockerade");
+    const q = await open("?q=is:blocking", { data: withEdges });
+    eq(await cards(q), 2, "två blockerar andra");
+    const both = await open("?q=is:blocked,blocking", { data: withEdges });
+    eq(await cards(both), 3, "tillsammans tre — unionen, inte den ena som är bägge");
+  }
+
   group("facket läser hela termet, inte första värdet");
   {
     // The panel writes one section per term, but the grammar does not require it — a

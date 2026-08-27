@@ -229,9 +229,10 @@ product decision, not a bug fix — so it stands open rather than half-done.
 Ticking two values in one facet is a **union**; ticking values in two facets is an
 **intersection**. Every field followed that rule except `is:`, which wrote one term per
 value — and since `runQuery` ANDs terms, `is:etapp` + `is:standalone` asked for "is an
-etapp *and* stands outside every etapp" and emptied a board where the two together cover
-all of it. `is:` terms now carry alternatives (`is:a,b`, matched with `.some()`), which is
-what the rule needs to be expressible at all.
+etapp *and* stands outside every etapp" and emptied the board. (The two are not the whole
+board — a puck with a parent is in neither — but they are 29 of the 33 it was showing.)
+`is:` terms now carry alternatives (`is:a,b`, matched with `.some()`), which is what the
+rule needs to be expressible at all.
 
 That alone would have been the wrong fix. **`State` was never one facet** — it held three
 independent questions in one list, and across them the intersection is the useful reading:
@@ -249,6 +250,11 @@ Two consequences worth knowing before touching this:
   `termInSection`), never the field. `countFor` in particular lifts out only its own
   section's terms — dropping every `is:` term would count a Membership click against a
   board that had forgotten the Readiness ticks still on screen.
+- **Union is the convention, not a claim about the values.** A section's values are not
+  mutually exclusive — a puck can be `blocked` and `blocking`, and a nested etapp is
+  `etapp` and `member` both. `tags` has always OR'd values that co-occur, and two ticked
+  labels have never meant "carries both"; the sections follow that. The reading it costs
+  is "blocked *and* blocking at once", which the panel could not express before either.
 - **Nothing may read `values[0]` for an `is:` term.** That assumption sat in five places,
   and the last one found — `termAboutGroup`, which decides whether a term speaks about the
   column grouping — answered yes for `is:member` and no for `is:stale,member`, which is a

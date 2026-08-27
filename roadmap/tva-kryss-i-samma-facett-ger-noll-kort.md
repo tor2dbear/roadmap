@@ -9,7 +9,8 @@ created: 2026-08-27
 ## Goal
 Att kryssa i två rader under **State** ska ge unionen av dem, som i varje annan facett
 i panelen. Idag ger `Is an etapp` + `In no etapp` **noll kort** — ett resultat som inte
-kan vara rätt för något par, eftersom de två mängderna tillsammans är hela brädan.
+kan vara rätt för något par: 1 + 27 av brädans 32 puckar, alltså 28 kort och inte noll.
+(De två är *inte* hela brädan — de fyra som ligger i en etapp faller utanför båda.)
 
 ## Research
 Rapporterat från telefonen med fyra skärmbilder. Ofiltrerat: 32 puckar, varav
@@ -27,8 +28,8 @@ if (field === "is" || field === "has") {
   else terms.push({ field: field, op: "is", values: [value], neg: !!neg });
 ```
 
-`termMatches` läser bara `t.values[0]` (`IS_STATES[t.values[0]](item)`), och `fmtQuery`
-skriver bara ut `values[0]`. Så även om ett term *bar* två värden skulle bara det
+`termMatches` läser bara `t.values[0]` (`IS_STATES[t.values[0]](item)`), och
+`serializeTerms` skriver bara ut `values[0]`. Så även om ett term *bar* två värden skulle bara det
 första överleva en serialisering till `?q=`.
 
 `runQuery` AND:ar term. Två kryss blir alltså "är en etapp **och** står utanför varje
