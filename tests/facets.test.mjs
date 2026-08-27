@@ -81,15 +81,38 @@ export async function run({ open }) {
     eq(await cards(both), 1, "tillsammans: snittet, inte unionen");
   }
 
+  group("siffran säger hur många som bär värdet");
+  {
+    // One sentence per row, the same whether it is ticked or not. The sharpest form of
+    // that is stability: the number beside a row must not move when you tick the row.
+    // It used to model the *click* — for a ticked row, "how many if you unticked" — so
+    // ticking Is an etapp on this seven-card board sent its own number from 1 to 7,
+    // which read as a claim about how many etapps there are.
+    const p = await open();
+    await openFacet(p, "Membership");
+    eq(await countOf(p, "Is an etapp"), "1", "en etapp finns");
+    eq(await countOf(p, "In no etapp"), "5", "och fem står utanför");
+
+    await tick(p, "Is an etapp");
+    eq(await countOf(p, "Is an etapp"), "1", "siffran rör sig inte när raden kryssas i");
+    eq(await countOf(p, "In no etapp"), "5", "och syskonets siffra är sig lik");
+    eq(await cards(p), 1, "brädan är det som ändras");
+
+    await tick(p, "In no etapp");
+    eq(await cards(p), 6, "två kryss ger unionen");
+    // The values overlap in general, so the numbers are not a sum — 1 + 5 landing on 6
+    // here is these values being disjoint, not a promise the panel makes.
+    eq(await countOf(p, "Is an etapp"), "1", "och siffrorna står stilla genom hela turen");
+  }
+
   group("räkningen ser de andra facetterna");
   {
-    // countFor lifts out only *this* section's terms. Lifting every `is:` term would
-    // have counted against a board that had forgotten the Readiness tick on screen —
-    // and then "Is an etapp" would advertise 1 where clicking it gives 0.
+    // Only *this* section's ticks are lifted; every other section still applies, or the
+    // numbers would describe a board nobody is looking at.
     const p = await open("?q=is:ready");
     await openFacet(p, "Membership");
-    eq(await countOf(p, "Is an etapp"), "0", "etappen är inte redo, så klicket ger noll");
-    eq(await countOf(p, "In an etapp"), "1", "medlemmen är redo, så det klicket ger ett");
+    eq(await countOf(p, "Is an etapp"), "0", "etappen är inte redo, så ingen redo etapp finns");
+    eq(await countOf(p, "In an etapp"), "1", "medlemmen är redo, så där finns ett kort");
   }
 
   group("kolumnmenyn skriver samma form");
@@ -138,20 +161,17 @@ export async function run({ open }) {
     eq(await cards(both), 3, "tillsammans tre — unionen, inte den ena som är bägge");
   }
 
-  group("siffran lovar det klicket ger");
+  group("den andra halvan av ett blandat term räknas med");
   {
-    // The invariant, asserted rather than described: the number beside a row is the
-    // board you get by clicking it. It broke on a *mixed* term — `is:stale,member`,
-    // which the panel does not write but a link or a saved view can carry. countFor
-    // lifted the whole term out of its probe, so it counted against no filter at all
-    // and advertised 7 where the click gave 0: unticking leaves `is:stale` standing,
-    // and nothing in the fixture is stale.
+    // A mixed term — `is:stale,member`, which the panel does not write but a link or a
+    // saved view can carry — must have its `stale` half kept when the section's values
+    // are lifted out. Dropping the whole term counted the row against no filter at all
+    // and put 7 beside a value that matches nothing on this board.
     const p = await open("?q=is:stale,member");
     eq(await cards(p), 1, "det blandade termet visar medlemmen");
     await openFacet(p, "Membership");
-    const promised = Number(await countOf(p, "In an etapp"));
+    eq(await countOf(p, "In an etapp"), "0", "inget är stale, så ingen stale medlem finns");
     await tick(p, "In an etapp");
-    eq(await cards(p), promised, `siffran (${promised}) är brädan man får`);
     eq(queryOf(p), "is:stale", "och klicket rör bara sektionens värde");
   }
 
