@@ -7145,8 +7145,14 @@
     // supposed to have just grown.
     DATA.items.push(item); DATA.total += 1;
     if (parentItm) relink(item, parentItm.id, parentRef);
-    renderBoard(); buildAgentChips();
+    buildAgentChips();
     var opened = opts.open !== false;
+    // Both ends changed, and with `open: false` the etapp is the page still on screen —
+    // the same lesson `changeParent` learned: redrawing only the board left its Contains
+    // list and its rollup describing the state from before the click, on the one page
+    // the caller asked to stay on. `afterEdit` is the path that refreshes an open puck,
+    // so the new child goes through it rather than around it.
+    afterEdit(parentItm || item);
     if (opened) openModal(item);
     toast("Creating…");
     return commitCreate(repo, path, meta.branch,
@@ -7156,7 +7162,8 @@
         noteWriteError({ repo: repo }, err);
         if (parentItm) relink(item, null, null); // take the optimistic edge back out
         var i = DATA.items.indexOf(item); if (i >= 0) DATA.items.splice(i, 1);
-        DATA.total -= 1; renderBoard(); buildAgentChips();
+        DATA.total -= 1; buildAgentChips();
+        afterEdit(parentItm || null); // the rollback is as visible as the addition was
         // Only the modal we opened. Closing unconditionally would have shut the puck
         // the picker was called from — the one page the caller asked to stay on.
         if (opened) closeModal();

@@ -133,4 +133,54 @@ export async function run({ open }) {
     eq(gh.writes.length, 1, "en commit");
     ok(gh.writes[0].content.includes("parent: a-etapp"), "med relationen i filen");
   }
+
+  group("etappen man står kvar på ritas om");
+  {
+    // The tests above assert what gets *committed*, and that is exactly why they missed
+    // this: with `open: false` the etapp is the page still on screen, and redrawing only
+    // the board left its Contains list and its rollup describing the state from before
+    // the click. The card behind it updated; the page in front of it did not.
+    const gh = githubStub();
+    const p = await open("#alpha/a-etapp", { token: true, github: gh.handler });
+    const page = () => p.evaluate(() => ({
+      contains: [...document.querySelectorAll(".members .row, .members a, .member-row")]
+        .map((e) => e.textContent.replace(/\s+/g, " ").trim()),
+      rollup: [...document.querySelectorAll(".rollup")].map((e) => e.textContent.trim()),
+    }));
+    const before = await page();
+    eq(before.contains.length, 1, "en medlem till att börja med");
+
+    await trigger(p, "Add puck").click();
+    await p.waitForTimeout(250);
+    await typeIn(p, "Fresh member");
+    await p.locator(".pick-create").click();
+    await p.waitForTimeout(700);
+
+    const after = await page();
+    eq(after.contains.length, 2, `Contains växte: ${JSON.stringify(after.contains)}`);
+    ok(after.contains.some((c) => c.startsWith("Fresh member")), "och den nya står i den");
+    ok(after.rollup.every((r) => r === "0/2"), `bägge brickorna räknar om: ${JSON.stringify(after.rollup)}`);
+  }
+
+  group("och ritas om igen när skrivningen faller");
+  {
+    // The rollback is as visible as the addition was, and only a rejected write shows it.
+    const gh = githubStub({ failWrites: true });
+    const p = await open("#alpha/a-etapp", { token: true, github: gh.handler });
+    await trigger(p, "Add puck").click();
+    await p.waitForTimeout(250);
+    await typeIn(p, "Doomed member");
+    await p.locator(".pick-create").click();
+    await p.waitForTimeout(900);
+
+    const after = await p.evaluate(() => ({
+      contains: [...document.querySelectorAll(".members .row, .members a, .member-row")]
+        .map((e) => e.textContent.replace(/\s+/g, " ").trim()),
+      rollup: [...document.querySelectorAll(".rollup")].map((e) => e.textContent.trim()),
+      still: (location.hash || "").slice(1),
+    }));
+    eq(after.contains.length, 1, `Contains är tillbaka: ${JSON.stringify(after.contains)}`);
+    ok(after.rollup.every((r) => r === "0/1"), `och siffran med: ${JSON.stringify(after.rollup)}`);
+    eq(after.still, "alpha/a-etapp", "och etappen är fortfarande öppen — inte stängd av felvägen");
+  }
 }

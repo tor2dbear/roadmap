@@ -132,6 +132,9 @@ export function githubStub(opts = {}) {
   // `readOnly` answers the permissions probe with push:false for those repos, which is
   // how the board learns a repo it can see is one it cannot write.
   const readOnly = new Set(opts.readOnly || []);
+  // `failWrites` rejects every PUT, which is the only way to see the rollback half of
+  // an optimistic edit — the half a passing write never exercises.
+  const failWrites = !!opts.failWrites;
   const ok = (body) => ({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
   return {
     writes,
@@ -144,6 +147,7 @@ export function githubStub(opts = {}) {
           content: b.content ? Buffer.from(b.content, "base64").toString("utf8") : "",
           message: b.message || "",
         });
+        if (failWrites) return route.fulfill({ status: 403, contentType: "application/json", body: JSON.stringify({ message: "Forbidden" }) });
         return route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ content: { sha: "sha" } }) });
       }
       // A field edit reads the file before it writes it, and commits against *that*
