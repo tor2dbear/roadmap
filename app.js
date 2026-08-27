@@ -59,11 +59,26 @@
     return b;
   }
   var state = {
-    // Places — the sidebar's navigation dimension (see goToPlace). Everything else
-    // you can filter by lives in `query`, so a filter has exactly one home.
-    repos: new Set(), // empty = all
-    agents: new Set(), // empty = all — PO-layer discipline queues
-    query: "", // the filter, as text: the store behind the chips and the panel
+    // One store. Repo and agent used to live in Sets of their own, because the sidebar
+    // calls them *places* — where you are, rather than something you narrowed to. That
+    // distinction is real and the rows stay, but it was never a reason for a second
+    // memory: `controlTerms()` projected the Sets into terms and `readUrl` read them
+    // back, "one model, two directions", which is a long way of saying the query could
+    // always express it. Two stores that must agree eventually don't — the same URL drew
+    // two different chromes depending on whether you clicked or reloaded, and the chip
+    // row could not spell "repo" because repo lived somewhere the labeller never looked.
+    // Both were symptoms of the pair, so the pair goes and the rows derive from the
+    // query like every other control.
+    query: "", // the filter, as text: the store behind the chips, the panel and the rows
+    // Which saved view you navigated into, by name — and *only* that. It is not a
+    // second copy of the filter: the query above still says what the board shows.
+    // This says where the board came from, which nothing else can answer, because a
+    // modified saved view is indistinguishable from any other filter by inspection.
+    // Deliberately not in the URL. The parameters are what a link has to carry; adding
+    // provenance would make it a second thing the link must agree with them about, and
+    // a stale one the moment either side is hand-edited. So a reload of a modified view
+    // is honestly just a filter, and says so.
+    fromView: null,
     showDone: false,
     focus: "all", // "all" | "ready" (unblocked now/next) | "inbox" (triage) | "attention" (flagged)
     view: "board", // "board" (kanban columns) | "list" (one column, grouped)
@@ -369,6 +384,17 @@
           terms.push({ field: "is", op: "is", values: [lower(rest)], neg: neg });
           return;
         }
+        // `has:<field>` — does the puck carry this field at all. The one question the
+        // grammar could not ask, and the only way to say "hide the column of pucks
+        // that have no priority": that column's key is the absence of a value, so
+        // there is no `-priority:x` that names it. Listing every real value instead
+        // (`priority:urgent,high,medium,low`) works only for a closed set and goes
+        // quietly wrong for agents and etapps, where a new value would arrive already
+        // hidden. Symmetrical with `is:` — one field per term, negatable.
+        if (name === "has" && FIELDS[FIELD_ALIAS[lower(rest)] || lower(rest)]) {
+          terms.push({ field: "has", op: "is", values: [FIELD_ALIAS[lower(rest)] || lower(rest)], neg: neg });
+          return;
+        }
         if (FIELDS[name] && rest) {
           if (FIELDS[name].dateOf) {
             var m = /^(>=|<=|>|<|=)?(.+)$/.exec(rest);
@@ -390,6 +416,7 @@
       var p = t.neg ? "-" : "";
       if (t.field === "text") return p + quoted(t.values[0]);
       if (t.field === "is") return p + "is:" + t.values[0];
+      if (t.field === "has") return p + "has:" + t.values[0];
       if (t.op !== "in" && t.op !== "=") return p + t.field + ":" + t.op + t.values[0];
       return p + t.field + ":" + t.values.map(quoted).join(",");
     }).join(" ");
@@ -412,6 +439,10 @@
       hit = hay.indexOf(t.values[0]) !== -1;
     } else if (t.field === "is") {
       hit = !!IS_STATES[t.values[0]](item);
+    } else if (t.field === "has") {
+      // A date field carries no `vals()`, so ask it the way it answers.
+      var hf = FIELDS[t.values[0]];
+      hit = hf.dateOf ? !!hf.dateOf(item) : hf.vals(item).filter(Boolean).length > 0;
     } else {
       var f = FIELDS[t.field];
       if (f.dateOf) hit = cmpDate(f.dateOf(item), t.op, t.values[0]);
@@ -447,22 +478,14 @@
   var ARCHIVABLE = { all: 1, etapps: 1, standalone: 1 };
   var NOT_DONE = { field: "is", op: "is", values: ["done"], neg: true };
 
-  // Places and the filter popover, projected into terms. A place is just a filter
-  // the navigation happens to have set to exactly one value.
-  function controlTerms() {
-    var t = [];
-    function fromSet(field, set, map) {
-      if (!set.size) return;
-      var vals = [];
-      set.forEach(function (v) { vals.push(map ? map(v) : v); });
-      t.push({ field: field, op: "in", values: vals, neg: false });
-    }
-    fromSet("repo", state.repos, shortRepo);
-    fromSet("agent", state.agents);
-    return t;
-  }
-  // The filter half of the view — what goes in ?q= and, later, on the chip row.
-  function filterTerms() { return controlTerms().concat(parseQuery(state.query)); }
+  // The two fields the sidebar navigates by. They are ordinary query fields; what makes
+  // them "places" is only that a nav row shows them, which is a fact about the chrome.
+  var PLACE_FIELDS_ORDER = ["repo", "agent"];
+  // A place's active values: the positive term on that field, if any. Negations are not
+  // places — there is nowhere called "not PIA" — so they stay ordinary filter chips.
+  function placeValues(field) { return filterValues(field, false); }
+  // The filter half of the view — what goes in ?q= and on the chip row.
+  function filterTerms() { return parseQuery(state.query); }
   // What the view itself says, before any filter the user added. Split out because
   // two questions need it separately: "what does the board show" (below) and "what
   // could this view ever show" (the filter panel, deciding which values are real).
@@ -502,12 +525,12 @@
   }
   function toggleFilterValue(field, value, neg) {
     var terms = parseQuery(state.query), hit = -1;
-    if (field === "is") {
+    if (field === "is" || field === "has") {
       for (var i = 0; i < terms.length; i++) {
-        if (sameField(terms[i], "is", neg) && terms[i].values[0] === value) { hit = i; break; }
+        if (sameField(terms[i], field, neg) && terms[i].values[0] === value) { hit = i; break; }
       }
       if (hit >= 0) terms.splice(hit, 1);
-      else terms.push({ field: "is", op: "is", values: [value], neg: !!neg });
+      else terms.push({ field: field, op: "is", values: [value], neg: !!neg });
       return setQueryTerms(terms);
     }
     for (var j = 0; j < terms.length; j++) if (sameField(terms[j], field, neg)) { hit = j; break; }
@@ -607,9 +630,9 @@
   // because there is nothing to reset yet.
   function applyParams(got, reset) {
     if (reset) {
-      state.repos.clear(); state.agents.clear();
       state.query = "";
       state.focus = "all";
+      state.fromView = null; // applySavedView sets it back; every other reset means "no view"
       state.showDone = DISPLAY_DEFAULTS.showDone;
       state.showEmpty = DISPLAY_DEFAULTS.showEmpty;
       state.group = DISPLAY_DEFAULTS.group;
@@ -630,22 +653,26 @@
     if (SORTS.indexOf(got.sort) !== -1) state.sort = got.sort;
     if (VIEWS[got.view]) state.focus = got.view;
     if (!got.q) return;
-    // Hand each incoming term back to the control that owns it, so the sidebar and
-    // the filter popover show what the link describes; the rest stays as text in the
-    // search box. This is controlTerms() run backwards — one model, two directions.
-    var rest = [];
-    parseQuery(got.q).forEach(function (t) {
-      if (!t.neg && t.op === "in") {
-        if (t.field === "repo") {
-          var ids = t.values.map(resolveRepo).filter(Boolean);
-          if (ids.length === t.values.length) { ids.forEach(function (r) { state.repos.add(r); }); return; }
-        } else if (t.field === "agent") {
-          t.values.forEach(function (v) { state.agents.add(v); }); return;
-        }
-      }
-      rest.push(t);
-    });
-    state.query = serializeTerms(rest);
+    // Nothing to hand back to anyone: `?q=` is the store. The sidebar rows read it for
+    // their pressed state, the panel reads it for its values, and the chip row skips
+    // what a row already shows. A link and the live board are the same string.
+    state.query = canonicalQuery(got.q);
+  }
+  // A repo term said as a short or display name, rewritten to the full `owner/name`.
+  // Two things need it: a link written by hand still lights the row it names, and a
+  // board with two repos of the same name under different owners cannot light both —
+  // `FIELDS.repo` matches the short name for every owner, so the ambiguity is real.
+  //
+  // It has to be one producer. Rewriting only on the way in left a saved view whose `q`
+  // uses the short name comparing its *configured* string against the board's
+  // canonicalised one, so the view you had just applied lit up for no one. Both sides
+  // of that comparison come through here now.
+  function canonicalQuery(q) {
+    return serializeTerms(parseQuery(q).map(function (t) {
+      if (t.field !== "repo" || t.neg) return t;
+      return { field: t.field, op: t.op, neg: t.neg,
+               values: t.values.map(function (v) { return resolveRepo(v) || v; }) };
+    }));
   }
 
   function el(tag, cls, text) {
@@ -724,10 +751,31 @@
   var SVGNS = "http://www.w3.org/2000/svg";
   var ICONS = {
     slash: ["M1.25 7.5a6.25 6.25 0 1 0 12.5 0 6.25 6.25 0 1 0 -12.5 0", "m3.08125 3.08125 8.8375 8.8375"],
+    // alert-triangle (Feather), scaled to the 15 grid the set draws on. The set had no
+    // warning mark, so the drift flag was the literal "⚠" — a text character sitting
+    // inches from `slash`, which is a real path from this set. A character takes its
+    // weight, its optical size and its baseline from whatever font the platform falls
+    // back to (U+26A0 is in none of the stack's faces), and on a machine that resolves
+    // it to a colour emoji `color: var(--later)` does nothing at all. Two flags on one
+    // card, drawn by two different systems.
+    warn: ["M6.43125 2.4125 1.1375 11.25a1.25 1.25 0 0 0 1.06875 1.875h10.5875a1.25 1.25 0 0 0 1.06875 -1.875L8.56875 2.4125a1.25 1.25 0 0 0 -2.1375 0z",
+           "m7.5 5.625 0 2.5", "m7.5 10.625 0.00625 0"],
+    // eye / eye-off (Feather) — the column menu's two halves: narrow to this column,
+    // or take it out of the view.
+    eye: ["M0.625 7.5s2.5 -5 6.875 -5 6.875 5 6.875 5 -2.5 5 -6.875 5 -6.875 -5 -6.875 -5z",
+          "M5.625 7.5a1.875 1.875 0 1 0 3.75 0 1.875 1.875 0 1 0 -3.75 0"],
+    "eye-off": ["M11.2125 11.2125A6.29375 6.29375 0 0 1 7.5 12.5c-4.375 0 -6.875 -5 -6.875 -5a11.53125 11.53125 0 0 1 3.1625 -3.7125M6.1875 2.65A5.7 5.7 0 0 1 7.5 2.5c4.375 0 6.875 5 6.875 5a11.5625 11.5625 0 0 1 -1.35 1.99375m-4.2 -0.66875a1.875 1.875 0 1 1 -2.65 -2.65",
+                "m0.625 0.625 13.75 13.75"],
     share: ["M2.5 7.5v5a1.25 1.25 0 0 0 1.25 1.25h7.5a1.25 1.25 0 0 0 1.25 -1.25v-5", "m10 3.75 -2.5 -2.5 -2.5 2.5", "m7.5 1.25 0 8.125"],
     sidebar: ["M3.125 1.875h8.75s1.25 0 1.25 1.25v8.75s0 1.25 -1.25 1.25H3.125s-1.25 0 -1.25 -1.25V3.125s0 -1.25 1.25 -1.25", "m5.625 1.875 0 11.25"],
     search: ["M1.875 6.875a5 5 0 1 0 10 0 5 5 0 1 0 -10 0", "m13.125 13.125 -2.71875 -2.71875"],
     plus: ["m7.5 3.125 0 8.75", "m3.125 7.5 8.75 0"],
+    // x (Feather), scaled to the same 15 grid. Every remove/close affordance drew the
+    // literal "✕" (U+2715) — the same defect as `warn`: a character takes its weight,
+    // its optical size and its baseline from whatever font the platform falls back to,
+    // so the mark that dismisses a modal and the mark that drops a filter chip were two
+    // different pictures at two different weights, neither matching `plus` beside them.
+    x: ["M11.25 3.75 3.75 11.25", "m3.75 3.75 7.5 7.5"],
     filter: ["M13.75 1.875 1.25 1.875l5 5.9125000000000005L6.25 11.875l2.5 1.25 0 -5.3374999999999995L13.75 1.875z"],
     edit: ["M6.875 2.5H2.5a1.25 1.25 0 0 0 -1.25 1.25v8.75a1.25 1.25 0 0 0 1.25 1.25h8.75a1.25 1.25 0 0 0 1.25 -1.25v-4.375", "M11.5625 1.5625a1.325625 1.325625 0 0 1 1.875 1.875L7.5 9.375l-2.5 0.625 0.625 -2.5 5.9375 -5.9375z"],
     // git-commit — a puck is a commit-like unit in git (our "project" glyph)
@@ -840,6 +888,16 @@
     span.appendChild(icon("chev-up", "caret-up"));
   }
 
+  // Drift badge: the signals a puck's declared status disagrees with. Built in two
+  // places (card and list row) from the same three lines, so it lives here.
+  function warnBadge(sig) {
+    var w = el("span", "warn-badge");
+    w.appendChild(icon("warn"));
+    w.title = sig.join("\n");
+    w.setAttribute("aria-label", "Needs attention: " + sig.join("; "));
+    return w;
+  }
+
   // Blocked badge for a puck waiting on unfinished dependencies (tooltip lists them).
   function blockBadge(item) {
     var b = el("span", "block-badge");
@@ -950,11 +1008,7 @@
     var repo = el("span", "card-repo");
     repo.appendChild(document.createTextNode(item.repoName));
     meta.appendChild(repo);
-    if (sig.length) {
-      var warn = el("span", "warn-badge", "⚠");
-      warn.title = sig.join("\n");
-      meta.appendChild(warn);
-    }
+    if (sig.length) meta.appendChild(warnBadge(sig));
     if (item.priority) meta.appendChild(priorityBadge(item.priority));
     if (item.agent) meta.appendChild(agentBadge(item.agent));
     if (item.progress) meta.appendChild(progressBadge(item));
@@ -1075,7 +1129,8 @@
     modalPanel = panel;
     panel.setAttribute("role", "dialog");
     panel.setAttribute("aria-modal", "true");
-    var close = el("button", "modal-close", "✕");
+    var close = el("button", "modal-close");
+    close.appendChild(icon("x", "x-icn"));
     close.setAttribute("aria-label", "Close");
     close.addEventListener("click", closeModal);
     modalContent = el("div", "modal-content");
@@ -1536,6 +1591,21 @@
     openSurfaces.slice().forEach(function (s) { s.close(); });
   }
 
+  // Nudge a popover horizontally until it is inside the window, and no further. The
+  // margin keeps it off the very edge, where a rounded corner and a shadow would
+  // otherwise be cut in half.
+  // A popover wider than the window can't be satisfied; pin it to the left edge
+  // rather than the right, so it is the *end* of a row that is lost and not the
+  // beginning — a truncated label is still readable from its start.
+  function fitPop(root) {
+    var m = 8;
+    var r = root.getBoundingClientRect();
+    var dx = 0;
+    if (r.right > window.innerWidth - m) dx = window.innerWidth - m - r.right;
+    if (r.left + dx < m) dx = m - r.left;
+    if (dx) root.style.transform = "translateX(" + Math.round(dx) + "px)";
+  }
+
   //   opts: { title, anchorWrap, cls, help, onClose, build(body, api) }
   //   → { close }
   function openSurface(opts) {
@@ -1694,6 +1764,18 @@
     var handle = { close: close, el: root };
     openSurfaces.push(handle);
     opts.build(body, { close: close, phone: phone });
+    // Slide an anchored popover back into the window if the side it chose puts it
+    // over an edge. The side is authored — `menu-right` says which of the trigger's
+    // edges the surface hangs from, and that is a design decision about which way a
+    // menu should open. Whether it *fits* is not a design decision, and it can't be
+    // answered where the class is written: the same trigger sits at 1246px in a
+    // 1600px window and at 950px in a 1024px one, so any fixed side is right at one
+    // width and wrong at another. Measuring once the content exists answers it at
+    // every width, and costs one layout read per open.
+    // Only the anchored shell. A sheet spans the window by construction, and
+    // `.pop-center` is already placed by transform — shifting either would move a
+    // surface that was never out of bounds.
+    if (!phone && opts.anchorWrap) fitPop(root);
     // Give a sheet's search field breathing room before the list, the way the
     // reference apps do. The gap has to belong to the *pinned* element, not sit
     // between it and the list: a margin there is not painted, so rows would scroll
@@ -1891,7 +1973,8 @@
               dot.style.background = t.color || "var(--ink-3)";
               tok.appendChild(dot);
               tok.appendChild(el("span", "token-label", t.label));
-              var x = el("button", "token-x", "\u2715");
+              var x = el("button", "token-x");
+              x.appendChild(icon("x", "x-icn"));
               x.type = "button";
               x.setAttribute("aria-label", "Remove " + t.label);
               x.addEventListener("click", function () { api.close(); t.onRemove(); });
@@ -1957,7 +2040,9 @@
     return openSurface({
       title: opts.title,
       anchorWrap: anchorWrap,
-      cls: "inputpop",
+      // A caller that anchors at the right edge of its row has to say so — see
+      // `.pop.menu-right`, which is the mirror that keeps the menu on-page.
+      cls: "inputpop" + (opts.cls ? " " + opts.cls : ""),
       help: opts.help,
       onClose: opts.onClose,
       build: function (host, api) {
@@ -2131,7 +2216,8 @@
             chosen.forEach(function (t) {
               var tok = el("span", "token");
               tok.appendChild(el("span", null, "#" + t));
-              var x = el("button", "token-x", "\u2715");
+              var x = el("button", "token-x");
+              x.appendChild(icon("x", "x-icn"));
               x.type = "button";
               x.setAttribute("aria-label", "Remove label " + t);
               x.addEventListener("click", function () { toggle(t); });
@@ -2505,7 +2591,12 @@
     var sig = signalMessages(item);
     if (sig.length) {
       var flags = el("div", "card-flags");
-      sig.forEach(function (m) { flags.appendChild(el("div", "flag", "⚠ " + m)); });
+      sig.forEach(function (m) {
+        var f = el("div", "flag");
+        f.appendChild(icon("warn"));
+        f.appendChild(el("span", null, m));
+        flags.appendChild(f);
+      });
       overview.appendChild(flags);
     }
 
@@ -2792,11 +2883,7 @@
     // Name: title (truncates) + inline drift/blocked badges.
     var name = el("div", "list-name");
     name.appendChild(el("span", "list-title", item.title));
-    if (sig.length) {
-      var warn = el("span", "warn-badge", "⚠");
-      warn.title = sig.join("\n");
-      name.appendChild(warn);
-    }
+    if (sig.length) name.appendChild(warnBadge(sig));
     if (item.progress) name.appendChild(progressBadge(item));
     if (item.parentRef && state.group !== "parent") name.appendChild(etappChip(item));
     if ((item.blockedBy || []).length) name.appendChild(blockBadge(item));
@@ -2870,6 +2957,7 @@
     },
     repo: {
       label: "Repo",
+      field: "repo",
       keyOf: function (i) { return i.repo; },
       keys: function (items) {
         var order = {};
@@ -2960,7 +3048,393 @@
       var k = g.keyOf(it);
       if (byKey[k]) byKey[k].push(it); // a key outside the list (e.g. a filtered status) is dropped
     });
-    return keys.map(function (k) { return { key: k, label: g.labelOf(k), items: byKey[k] }; });
+    // A hidden column has to lose its *header*, not just its cards. The derived
+    // groupings drop it for free — their keys come from the items that survived the
+    // filter — but `status` builds its columns from a fixed list, so `-status:later`
+    // emptied LATER and left the empty column standing, which is the one thing "Hide
+    // column" must not do. The rule is about the filter, not about hiding: an empty
+    // column is a drop target worth keeping until the filter speaks about the very
+    // field the columns are made of, and then it is a hole where a column used to be.
+    // So filtering by an unrelated field (`tag:ui`) keeps every column as a target,
+    // while any term on the grouping's own field takes the emptied ones away — which
+    // is `Hide column`, `Show only this` and a hand-typed query, all by one rule.
+    // Stated here and not in either renderer: the board and the list share this.
+    // …but only the columns the query actually speaks *against*. Asking merely whether
+    // the query mentions the grouping's field made hiding one column evict every other
+    // empty one with it: with the archive on and `Cancelled` standing empty, hiding
+    // `Done` wrote `-status:done`, and Cancelled — which that term says nothing about —
+    // vanished from the board and turned up in the tray as though you had hidden it too.
+    // One click, two columns moved, and the tray reported the one you never touched.
+    // Testing the column instead of the field keeps every case the rule was written for
+    // (`-status:later` empties and drops LATER; `Show only this` drops the rest; an
+    // unrelated `tag:ui` keeps them all as drop targets) and drops the eviction nobody
+    // asked for.
+    return keys.filter(function (k) { return byKey[k].length || !columnExcluded(g, k); })
+      .map(function (k) { return { key: k, label: g.labelOf(k), items: byKey[k] }; });
+  }
+  // Does this query value name this column? A value is not always spelled the way the
+  // column is keyed: `repo:` accepts `tor2dbear/roadmap`, `roadmap` and `Etapp`, and
+  // `parent:` accepts the raw `parent:` line, the resolved id and the bare slug — that
+  // is `FIELDS[…].vals()`, and it is what `termMatches` asks when it decides which
+  // cards the term keeps. Anything comparing the raw value against the column key was
+  // therefore asking a narrower question than the filter itself: `-repo:roadmap` hid
+  // the Etapp column, the tray listed it under its canonical key, and the eye —
+  // hunting for "roadmap" among the tray's keys — found nothing and left the term
+  // standing. The affordance rendered, clicked, re-rendered, and changed nothing.
+  //
+  // So ask the data the same question the matcher asks, rather than keeping a second
+  // alias table here to drift out of step with that one. A column with no items at all
+  // (an empty status) is covered by the direct comparison, since a field with no items
+  // to alias has no aliases either.
+  function valueNamesColumn(g, value, key) {
+    if (lower(value) === lower(key)) return true;
+    var f = FIELDS[g.field];
+    if (!f || !f.vals) return false;
+    for (var i = 0; i < DATA.items.length; i++) {
+      var it = DATA.items[i];
+      if (g.keyOf(it) !== key) continue;
+      if (f.vals(it).filter(Boolean).map(lower).indexOf(lower(value)) !== -1) return true;
+    }
+    return false;
+  }
+  // Does the query say this column may not be here? The same vocabulary `columnTerm`
+  // writes, read back: a value term keeps only what it names (or, negated, drops it),
+  // and the `has:`/`is:member` pair speaks about the absence bucket in one polarity and
+  // about every real column in the other. Empty *and* excluded is a hole where a column
+  // used to be; empty and merely unmentioned is still a column, and still a drop target.
+  function columnExcluded(g, key) {
+    var none = key === NO_VALUE;
+    var out = false;
+    parseQuery(state.query).forEach(function (t) {
+      if (!termAboutGroup(t, g)) return;
+      if (t.field === "has" || t.field === "is") { if (none ? !t.neg : t.neg) out = true; return; }
+      if (none) { if (!t.neg) out = true; return; } // any positive value term excludes "none"
+      var names = t.values.some(function (v) { return valueNamesColumn(g, v, key); });
+      if (t.neg ? names : !names) out = true;
+    });
+    return out;
+  }
+
+  // ── a column, as a filter term ───────────────────────────────────────────────
+  // Linear's column menu has "Hide column", and ours needs no store to match it: a
+  // column *is* a value of the grouping field, so hiding one is a negated term in the
+  // query we already have. That buys the whole feature for free — it serialises into
+  // `?q=`, saves into a view, shows up as a removable `Not Status: Later ×` chip (the
+  // way back, and better than a "2 hidden" footer because it names what is hidden),
+  // and it is automatically right per grouping, because it is written in the grouping's
+  // own field. A `hidden: { status: [...], repo: [...] }` store would have been a
+  // second source of truth for something the query can already say.
+  //
+  // Returns { field, value, hideNeg } or null when the column cannot be named by one
+  // term. `hideNeg` is the polarity that *hides* it; showing only this column is the
+  // other one. The none-bucket inverts: its key is the absence of a value, so it is
+  // `has:<field>` that hides it, not a negation.
+  function columnTerm(g, key) {
+    if (!g.field) return null;
+    // A target column is a *month bucket* over a date, so naming it takes a range —
+    // two terms, and negating a conjunction is not something this grammar can say.
+    // The "No target" column is still nameable, because absence is a single question.
+    if (g.field === "target" && key !== NO_VALUE) return null;
+    if (key === NO_VALUE) {
+      // The etapp grouping buckets on `parentRef` — the *resolved* link — while
+      // `has:parent` asks whether the file says anything, and answers yes for a
+      // `parent:` that resolves to nothing. Such a puck sits in "No etapp" and would
+      // have survived hiding it. `is:member` is the same question the column asks.
+      if (g.field === "parent") return { field: "is", value: "member", hideNeg: false };
+      return { field: "has", value: g.field, hideNeg: false };
+    }
+    return { field: g.field, value: key, hideNeg: true };
+  }
+  // Does this term speak about the field the grouping columns by? Asked in three places
+  // — is a column constrained, which term hid it, which terms must go when you say
+  // "only this" — and getting it wrong in any one of them is a board that disagrees
+  // with itself. One predicate, three callers. The three shapes a group can be spoken
+  // about in: its own field, the `has:` pair for its absence bucket, and (for etapps)
+  // `is:member`, which is that bucket said in the grammar the column actually uses.
+  function termAboutGroup(t, g) {
+    if (!g.field) return false;
+    if (t.field === "has") return t.values[0] === g.field;
+    if (t.field === "is") return g.field === "parent" && t.values[0] === "member";
+    return t.field === g.field && t.field !== "text";
+  }
+  function groupConstrained(g) {
+    if (!g.field) return false;
+    return parseQuery(state.query).some(function (t) { return termAboutGroup(t, g); });
+  }
+
+  // What the tray ended up showing, so the chip row can decline to say it again. Read
+  // rather than recomputed: the two renderers already run in order — `renderColumns`,
+  // then `renderChips` — and asking `hiddenColumns` a second time would mean rebuilding
+  // the groups it needs. Null whenever no tray was drawn, which is what keeps every
+  // chip in the list layout, where there is nothing standing in for it.
+  var trayColumns = null;
+  // The tray, at the end of the board where the columns it holds would have been.
+  // Board only: it is a *place* on the board ("these would be over here"), and a flat
+  // list has no columns for it to be at the end of — there the chip row still says
+  // what is filtered out.
+  function renderHiddenTray(g, groups) {
+    var hidden = hiddenColumns(g, groups);
+    if (!hidden.length) return;
+    trayColumns = { g: g, keys: {} };
+    hidden.forEach(function (h) { trayColumns.keys[h.key] = 1; });
+    var tray = el("div", "column hidden-cols");
+    var head = el("div", "col-head");
+    head.appendChild(el("h2", null, "Hidden"));
+    head.appendChild(el("span", "count", String(hidden.length)));
+    tray.appendChild(head);
+    var list = el("div", "cards");
+    hidden.forEach(function (h) {
+      var b = el("button", "row hidden-col");
+      b.type = "button";
+      b.title = "Show " + h.label + " again";
+      if (g.cls) b.classList.add(g.cls(h.key));
+      b.appendChild(el("span", "swatch"));
+      b.appendChild(el("span", "hidden-label", h.label));
+      // The count is the point: it is what the chip row cannot say, and what you
+      // actually want to know before deciding to bring a column back.
+      b.appendChild(el("span", "count", String(h.n)));
+      b.appendChild(icon("eye"));
+      b.addEventListener("click", function () { unhideColumn(g, h.key, h.archive); });
+      list.appendChild(b);
+    });
+    tray.appendChild(list);
+    board.appendChild(tray);
+  }
+
+  // Ask a question of the board as if the archive toggle were on. Three separate
+  // readers consult `state.showDone` — `viewTerms`, `columnsForFocus`, and through it
+  // the status grouping's `keys` — and the tray has to put the same question to all
+  // three at once: which columns would stand here if nothing were hidden? Threading a
+  // parameter through all three would put the archive into the signature of code that
+  // is not about the archive. A scoped override puts it where the question is asked,
+  // and `finally` means a throw inside can't leave the board in the lifted state.
+  function withShowDone(on, fn) {
+    var was = state.showDone;
+    state.showDone = on;
+    try { return fn(); } finally { state.showDone = was; }
+  }
+  // The board as it would be with this grouping's own filters lifted: which columns
+  // would stand, and how many pucks behind each. `archive` lifts the toggle too.
+  function wouldShow(g, archive) {
+    return withShowDone(archive || state.showDone, function () {
+      var free = viewTerms().concat(
+        parseQuery(state.query).filter(function (t) {
+          // A place is where you navigated, not a column you hid — so its term stays in,
+          // and the repos you are not in never show up as "hidden". Whatever the board
+          // groups by: `&group=repo` while scoped to one repo made `t.field === g.field`,
+          // the guard fell through to the group rule, and every *other* repo was offered
+          // in the tray as if you had hidden it — with an eye that would have widened the
+          // scope. The old code got this right by accident, because `controlTerms()` was
+          // concatenated separately and never filtered at all.
+          if (!t.neg && PLACE_FIELDS_ORDER.indexOf(t.field) !== -1) return true;
+          return !termAboutGroup(t, g);
+        })
+      );
+      var would = DATA.items.filter(function (it) { return runQuery(it, free); });
+      var count = {};
+      would.forEach(function (it) { var k = g.keyOf(it); count[k] = (count[k] || 0) + 1; });
+      return { keys: g.keys(would), count: count };
+    });
+  }
+  // Which columns are missing from the board, and how much is behind each. A hidden
+  // column is otherwise invisible in the one place it matters — the board — and this is
+  // now the only place that says so: `Not Status: Later ×` said what was gone but never
+  // how much, which is the whole question you ask before deciding to bring it back, so
+  // the chip row stands down for it (see `hiddenByTray`) and the count stands here.
+  //
+  // Terms are stripped from `state.query` only, never from the view's own or a place's.
+  // `-status:inbox` is what "All pucks" *means*, not something you hid; a repo place is
+  // where you navigated. Dropping those too would list Inbox as hidden on every board.
+  function hiddenColumns(g, shown) {
+    if (!g.field) return [];
+    // Two things take a column off the board, and the tray only ever knew about one.
+    // A term in `state.query` hides a column — and so does the archive toggle, which
+    // is not a term at all: "Show done & cancelled" writes `-is:done` into
+    // `viewTerms()`, where the chip row cannot see it either. So the most-used switch
+    // on the board removed two columns and *nothing anywhere said so*. The tray is the
+    // place that says a column is missing; it has to answer for both causes, or the
+    // one people actually press stays invisible.
+    var archiveOff = !state.showDone && ARCHIVABLE[state.focus];
+    if (!groupConstrained(g) && !archiveOff) return [];
+    var here = {};
+    shown.forEach(function (grp) { here[grp.key] = 1; });
+    // Two passes, because the two causes need different answers. `byQuery` is the board
+    // with the query's own terms lifted and the toggle left as it stands: a column
+    // missing from *that* is the toggle's doing, and its eye has to press the toggle
+    // rather than mend a term that was never written. It also decides which count is
+    // honest — a column the query hid is counted with the archive still off, or hiding
+    // one repo while the archive is off would advertise its landed pucks as waiting.
+    var byQuery = wouldShow(g, false);
+    var full = archiveOff ? wouldShow(g, true) : byQuery;
+    var reachable = {};
+    byQuery.keys.forEach(function (k) { reachable[k] = 1; });
+    // A column the *archive* hid needs no name to come back — its eye presses the
+    // toggle, and a toggle takes no argument. Demanding a nameable term anyway lost
+    // the Target grouping entirely: a month is a range over a date, two terms whose
+    // conjunction this grammar cannot negate, so `columnTerm` returns null for every
+    // real month. An archive-only month then had no tray row *and* no chip, which is
+    // precisely the silence this whole change exists to end. A column the *query* hid
+    // still has to be nameable, because mending that term is the only way back to it.
+    return full.keys.filter(function (k) { return !here[k] && (!reachable[k] || columnTerm(g, k)); })
+      .map(function (k) {
+        var archive = !reachable[k];
+        return {
+          key: k, label: g.labelOf(k), archive: archive,
+          n: (archive ? full.count : byQuery.count)[k] || 0,
+        };
+      })
+      // An eye that would produce nothing is worse than no row. With "Show empty
+      // columns" off, restoring a column that turns out to be empty leaves the board
+      // exactly as it was and the tray row simply disappears — the affordance promises
+      // a column and then swallows it. `n` is already "what the eye would put on the
+      // board" for both causes, so one test covers both: the archive's `Cancelled 0`
+      // on a default board, and a `-status:x` on a status nothing is in. With the
+      // setting on, the same click *does* produce a column — an empty one, which is
+      // what that setting asks for — so the row stays.
+      .filter(function (h) { return state.showEmpty || h.n > 0; });
+  }
+  // Putting a column back means editing the term that actually excluded it — which is
+  // not always the term that names it. Adding this column's own predicate instead was
+  // wrong in a way that showed: with `priority:high` set, the tray listed "No priority",
+  // and its eye added `-has:priority`. Terms are ANDed, so `priority:high -has:priority`
+  // matches nothing at all — the column stayed hidden and the board went empty.
+  //
+  // So walk the terms that speak about this grouping and mend each one:
+  //   a negation naming me      → take my name out of it
+  //   a positive leaving me out → put my name in
+  //   the absence pair          → drop it, when it is the polarity that hides me
+  // Everything else is left alone, so hiding two columns and restoring one keeps the
+  // other hidden.
+  //
+  // A column can need both edits at once — grouping by status with `-status:done` set
+  // *and* the archive off hides Done twice over. So the toggle is lifted here rather
+  // than through `setDisplay`: that one ends in a render, which would repaint the board
+  // with the archive lifted and the term still standing, and the column would flash
+  // back into hiding before the second half ran. The term edit below renders once, for
+  // both halves. One eye, one click, one column back — which is the whole point of it.
+  function unhideColumn(g, key, archive) {
+    var t = columnTerm(g, key);
+    if (!t && !archive) return; // nothing to mend and no toggle to lift
+    if (archive) {
+      state.showDone = true;
+      saveDisplay("done", "1"); // the same key `setDisplay("showDone", …, "done")` writes
+      refreshDisplayDot();
+      refreshNav(); // the sidebar's counts read `state.showDone`
+    }
+    // An unnameable column (a target month) is only ever here for the archive, so the
+    // lift above *is* the whole repair; render it, since no term edit will.
+    if (!t) { renderBoard(); return; }
+    var none = key === NO_VALUE;
+    var out = [];
+    parseQuery(state.query).forEach(function (term) {
+      if (!termAboutGroup(term, g)) { out.push(term); return; }
+      var absence = term.field === "has" || term.field === "is"; // `has:x` / `is:member`
+      if (none) {
+        // The absence bucket has no value to add or remove. `has:<field>` hides it, and
+        // so does any *positive* term on the field — there is no term that says "high,
+        // or nothing at all", so both have to go. Negations never hide it: a puck with
+        // no priority matches `-priority:low` and `-has:priority` alike.
+        if (!term.neg) return;
+        out.push(term); return;
+      }
+      // A real value. `-has:<field>` (and `-is:member`) empties every real column.
+      if (absence) { if (term.neg) return; out.push(term); return; }
+      // *Every* spelling that names me, not the first one found. One term can list the
+      // same column twice — `-repo:tor2dbear/roadmap,roadmap` is one exclusion written
+      // two ways — and stopping at the first left the other still excluding it. The eye
+      // then redrew the very column it had promised to bring back, and since the chip
+      // stands down whenever the tray owns the column, that left no working way out at
+      // all. Removing one of two names for one thing was never the intent; it only
+      // looked like it while aliases were invisible here.
+      var kept = term.values.filter(function (v) { return !valueNamesColumn(g, v, key); });
+      var vals;
+      if (term.neg) vals = kept; // drop every name that excludes me
+      else {
+        // A positive term lists the columns that may stand. Naming me once is enough,
+        // so nothing is removed — add me only when no spelling of me is there already.
+        vals = term.values.slice();
+        if (kept.length === term.values.length) vals.push(t.value);
+      }
+      if (vals.length) { term.values = vals; out.push(term); }
+    });
+    setQueryTerms(out);
+  }
+
+  // "Show only this" is a statement, not a switch. `toggleFilterValue` would have taken
+  // `now` *out* of `status:now,next` — leaving the opposite column — and cleared a
+  // singleton `status:now` back to every column. Both are the command's own negation.
+  // So: drop everything the filter says about this grouping, then say the one thing.
+  function showOnlyColumn(g, key) {
+    var t = columnTerm(g, key);
+    if (!t) return;
+    if (PLACE_FIELDS_ORDER.indexOf(g.field) !== -1 && key !== NO_VALUE) {
+      // Already the sole place → the command is satisfied; `pickScope` would read that
+      // as a toggle and widen the board back to all, which is what the label denies.
+      var vals = placeValues(g.field);
+      if (vals.length === 1 && vals[0] === lower(key)) return;
+      scopeToPlace(g.field, key);
+      return;
+    }
+    var rest = parseQuery(state.query).filter(function (term) { return !termAboutGroup(term, g); });
+    rest.push({ field: t.field, op: t.field === "has" || t.field === "is" ? "is" : "in",
+                values: [t.value], neg: !t.hideNeg });
+    setQueryTerms(rest);
+  }
+  // The column head's ⋯ — same shape as the puck's, and the only two things you can
+  // say about a column that aren't about the pucks in it.
+  function colMenu(g, key, label) {
+    var wrap = el("div", "prop-pick col-more");
+    var btn = el("button", "btn btn--icon");
+    btn.type = "button";
+    btn.title = "Column options";
+    btn.setAttribute("aria-label", "Options for " + label);
+    btn.setAttribute("aria-haspopup", "true");
+    btn.setAttribute("aria-expanded", "false");
+    btn.appendChild(icon("more"));
+    var open = null;
+    btn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (open) { open.close(); return; }
+      btn.setAttribute("aria-expanded", "true");
+      open = openSurface({
+        title: label,
+        anchorWrap: wrap,
+        // Not mirrored, unlike the puck's ⋯ and the saved view's. Mirroring assumes the
+        // page's right edge is the one that cuts; here it's the left. The sidebar is
+        // `position: sticky` and paints over the board's own scroll box, so a menu that
+        // hangs left from a trigger in the *first* column disappears under it — the
+        // board starts exactly where the sidebar ends. Hanging right is safe at the
+        // other end because `.board` scrolls horizontally and the last column's menu
+        // stays inside its own column's width.
+        cls: "pick-menu",
+        onClose: function () { open = null; btn.setAttribute("aria-expanded", "false"); },
+        build: function (host, api) {
+          var t = columnTerm(g, key);
+          function row(iconName, text, run) {
+            var b = el("button", "row");
+            b.type = "button";
+            b.appendChild(icon(iconName));
+            b.appendChild(el("span", null, text));
+            b.addEventListener("click", function () { api.close(); run(); });
+            host.appendChild(b);
+          }
+          // "Show only this" on a repo or agent column is *navigation*, not a filter.
+          // Those two are the sidebar's places, and `readUrl` already turns a positive
+          // `repo:`/`agent:` term back into one on load — so writing it as a query term
+          // made the same URL render two different chromes: sidebar dark with a chip
+          // right after the click, sidebar lit with no chip after a reload, nothing
+          // touched in between. One state, two pictures, and a link that looked
+          // different to whoever opened it fresh. `showOnlyColumn` takes the door the
+          // model already has, for the positive half of a real value only: there is no
+          // place called "not PIA" — which is what `readUrl`'s `!t.neg` guard says — and
+          // an absence bucket is not somewhere you can stand.
+          row("eye", "Show only this", function () { showOnlyColumn(g, key); });
+          row("eye-off", "Hide column", function () { toggleFilterValue(t.field, t.value, t.hideNeg); });
+        },
+      });
+    });
+    wrap.appendChild(btn);
+    return wrap;
   }
 
   function renderColumns(groups) {
@@ -2974,6 +3448,9 @@
       head.appendChild(el("h2", null, grp.label));
       head.appendChild(el("span", "count", String(grp.items.length)));
       if (g.headExtra) { var hx = g.headExtra(grp.key); if (hx) head.appendChild(hx); }
+      // Only where the column can actually be named by a term — a target month
+      // cannot, and offering a dead menu item is worse than offering none.
+      if (columnTerm(g, grp.key)) head.appendChild(colMenu(g, grp.key, grp.label));
       col.appendChild(head);
       var cards = el("div", "cards");
       if (grp.items.length === 0) cards.appendChild(el("div", "empty", "—"));
@@ -3052,6 +3529,8 @@
       }
       board.appendChild(col);
     });
+    // Last, where the columns it holds would have been.
+    renderHiddenTray(g, groups);
   }
 
   // Fold a group shut or open it. Display state, so it travels the same road as the
@@ -3137,6 +3616,13 @@
   }
 
   function renderBoard() {
+    // Back to the plain default board is *leaving* the view, and it has to be written
+    // down rather than hidden at read time. `editedSavedView()` merely declined to
+    // answer, so the name stayed set: remove a view's last chip and add any other
+    // filter, and the view you had already walked out of came back as "(edited)" with
+    // an Update offering to overwrite it with the new filter. Every mutation ends in a
+    // render, so this is where the transition can be seen at all.
+    if (state.fromView && !Object.keys(viewParamObject()).length) state.fromView = null;
     board.innerHTML = "";
     // The layout is whatever the toggle says — in every view.
     //
@@ -3151,6 +3637,7 @@
     // List — and that choice persists — not a reason to overrule the person who
     // picked Board.
     var layout = state.view;
+    trayColumns = null; // set again by the tray, if this render draws one
     board.classList.toggle("as-list", layout === "list");
     activeQuery = activeTerms();
     var visible = DATA.items.filter(matches).sort(sortComparator());
@@ -3205,14 +3692,30 @@
   // the view header reflects "you're in a filtered view" — not just a smaller count.
   function scopeParts() {
     var p = [];
-    state.repos.forEach(function (r) { p.push(repoNameOf(r)); });
-    state.agents.forEach(function (a) { p.push("→ " + agentLabel(a)); });
+    placeValues("repo").forEach(function (r) { p.push(repoNameOf(resolveRepo(r) || r)); });
+    placeValues("agent").forEach(function (a) { p.push("→ " + agentLabel(a)); });
     return p;
   }
   // The full view title, place scope included ("Inbox · Etapp") — the single
   // source for both the view header and the detail breadcrumb's back label, so a
   // place-scoped view reads the same whether or not a puck is open.
   function currentViewTitle() {
+    // A saved view first, because it is the most specific true name for where you
+    // are. `activeSavedView()` only answers when the board matches the view
+    // *exactly* — every one of VIEW_KEYS — so its name already covers the whole
+    // tuple: the query, the grouping, the layout, and any place inside it. There is
+    // nothing layered on top to append. Change one thing and the match breaks, and
+    // the composition below takes over again.
+    // Without this the header said "All pucks" while the sidebar lit "High" and the
+    // chip row listed its predicates: three pieces of chrome, two different answers
+    // to "where am I". #17 made the right *row* light; the title never asked.
+    var saved = activeSavedView();
+    if (saved) return saved.name;
+    // Still in the view, with changes on top. Without this the header read "All pucks"
+    // while the chip row offered `Update "Allt nu"` — the same split brain, one step
+    // milder: two pieces of chrome disagreeing about which view you are in.
+    var edited = editedSavedView();
+    if (edited) return edited.name + " (edited)";
     var base = VIEW_TITLES[state.focus] || "All pucks";
     var scope = scopeParts();
     if (!scope.length) return base;
@@ -3247,10 +3750,12 @@
   // de 3 som är routade till den valda disciplinen.
   function placeCounts() {
     var base = parseQuery(VIEWS.all).concat(state.showDone ? [] : [NOT_DONE]);
-    // The *other* active place, taken from `controlTerms()` rather than hand-built:
-    // one producer for what a place term looks like, so the two can't drift.
+    // The *other* active place, read out of the query rather than hand-built: one
+    // producer for what a place term looks like, so the two can't drift.
     function withOthers(skip) {
-      return base.concat(controlTerms().filter(function (t) { return t.field !== skip; }));
+      return base.concat(parseQuery(state.query).filter(function (t) {
+        return !t.neg && t.field !== skip && PLACE_FIELDS_ORDER.indexOf(t.field) !== -1;
+      }));
     }
     var repoQ = withOthers("repo"), agentQ = withOthers("agent");
     var repo = {}, agent = {};
@@ -3269,7 +3774,7 @@
     DATA.sources.forEach(function (s) {
       var chip = el("button", "chip repo");
       chip.dataset.repo = s.repo;
-      chip.setAttribute("aria-pressed", state.repos.has(s.repo) ? "true" : "false");
+      chip.setAttribute("aria-pressed", placeValues("repo").indexOf(lower(s.repo)) !== -1 ? "true" : "false");
       var dot = el("span", "dot");
       dot.style.background = s.color;
       chip.appendChild(dot);
@@ -3279,7 +3784,7 @@
       var n = el("span", "n", String(live[s.repo] || 0));
       chip.appendChild(n);
       chip.title = s.blurb + (s.native ? "" : " — adapted from " + s.adapter);
-      chip.addEventListener("click", function () { goToPlace(state.repos, s.repo); });
+      chip.addEventListener("click", function () { goToPlace("repo", s.repo); });
       wrap.appendChild(chip);
     });
   }
@@ -3296,17 +3801,20 @@
     // The queue is live work, not history: a discipline whose pucks have all landed
     // has an empty queue, and the same count-is-what-you-land-on rule applies.
     var counts = placeCounts().agent;
-    state.agents.forEach(function (a) { if (!counts[a]) state.agents.delete(a); }); // prune stale filters
+    // No pruning any more. A discipline whose pucks have all landed used to be quietly
+    // deleted out of `state.agents`, because a *place* that names nothing is a place you
+    // are stranded in. As a term it is just a filter that matches nothing — visible in
+    // the URL, removable, and honest about why the board is empty.
     var agents = Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a] || a.localeCompare(b); });
     if (section) section.hidden = agents.length === 0;
     agents.forEach(function (a) {
       var chip = el("button", "chip agent");
       chip.dataset.agent = a;
-      chip.setAttribute("aria-pressed", state.agents.has(a) ? "true" : "false");
+      chip.setAttribute("aria-pressed", placeValues("agent").indexOf(lower(a)) !== -1 ? "true" : "false");
       chip.appendChild(el("span", "agent-arrow", "→"));
       chip.appendChild(document.createTextNode(agentLabel(a)));
       chip.appendChild(el("span", "n", String(counts[a])));
-      chip.addEventListener("click", function () { goToPlace(state.agents, a); });
+      chip.addEventListener("click", function () { goToPlace("agent", a); });
       wrap.appendChild(chip);
     });
   }
@@ -3316,17 +3824,23 @@
     else { set.add(key); chip.setAttribute("aria-pressed", "true"); }
   }
 
-  // Sidebar repos/agents are places, not filters: single-select within their own
-  // dimension (radio, not checkbox). Clicking a repo scopes to exactly that repo;
-  // clicking the one that's already the sole scope clears it (back to All pucks).
-  // Repo and agent stay orthogonal, so "Backend, within Etapp" still composes.
-  function pickScope(set, key) {
-    var wasSole = set.size === 1 && set.has(key);
-    set.clear();
-    if (!wasSole) set.add(key);
+  // Sidebar repos/agents are single-select within their own dimension (radio, not
+  // checkbox). Clicking a repo scopes to exactly that repo; clicking the one that is
+  // already the sole scope clears it (back to All pucks). Repo and agent stay
+  // orthogonal, so "Backend, within Etapp" still composes — they are two fields, and
+  // the query ANDs them for free. The same three behaviours the Set version had, said
+  // as a term operation: the radio, the toggle-off, and the replace.
+  function pickScope(field, key) {
+    var vals = placeValues(field);
+    var wasSole = vals.length === 1 && vals[0] === lower(key);
+    var rest = parseQuery(state.query).filter(function (t) { return !sameField(t, field, false); });
+    if (!wasSole) rest.push({ field: field, op: "in", values: [key], neg: false });
+    setQueryTerms(rest);
   }
-  // A place (repo/agent) is active → the sidebar is "in" that place, not in a view.
-  function placeActive() { return state.repos.size > 0 || state.agents.size > 0; }
+  // A place is active → the sidebar is "in" that place, not in a view.
+  function placeActive() {
+    return PLACE_FIELDS_ORDER.some(function (f) { return placeValues(f).length > 0; });
+  }
   // Rebuild the whole sidebar nav so views + repo + agent pressed states stay in
   // sync after any navigation (they're one mutually-exclusive dimension now).
   function refreshNav() {
@@ -3342,22 +3856,57 @@
     closeSurfaces(); // same as openDetail: the palette gets here without a hash change
     exitPuckView();
     state.focus = key;
-    state.repos.clear();
-    state.agents.clear();
+    // Navigation is a fresh start. Clearing only the *places* left the rest of the
+    // filter riding along: apply a saved view called High, click Ready, and you were in
+    // "Ready, still only high priority" — with the chip the one thing saying so. A saved
+    // view is a complete description of the board (`applySavedView` resets everything),
+    // so leaving one has to leave all of it, or the rows in the sidebar stop meaning
+    // what they say. A refinement is something you add *after* arriving.
+    state.fromView = null; // you have left the view, not modified it
+    setQueryTerms([]);
     refreshNav();
     renderBoard();
     maybeCloseMenu();
   }
   // Go to a place: single-select it and reset to its whole board (focus "all"), so a
   // place always shows the same thing regardless of the view you came from.
-  function goToPlace(set, key) {
+  function goToPlace(field, key) {
     closeSurfaces(); // same as goToView — the board changes under whatever is open
     exitPuckView();
-    pickScope(set, key);
     state.focus = "all";
+    // Read the toggle *before* anything is cleared. `pickScope` answers "did you click
+    // the row you are already in?" from the query, so wiping the query first made the
+    // question unanswerable and the row could never be switched off again — it just
+    // re-added itself. Captured here, the radio, the toggle-off and the replace all
+    // survive a navigation that also drops the refinement.
+    // Navigation, so the provenance goes too — same reason `goToView` drops it.
+    // `scopeToPlace` below deliberately does not: that one is a refinement made from
+    // inside the board, which is exactly the "you changed the view" case.
+    state.fromView = null;
+    var vals = placeValues(field);
+    var wasSole = vals.length === 1 && vals[0] === lower(key);
+    // What a place navigation drops: the *refinement* — the tag, the text, the priority
+    // you had on top. What it keeps: the other place. The two dimensions are orthogonal
+    // on purpose ("Backend, within Etapp" composes), and the sidebar counts each one
+    // *inside* the other — so clearing the agent while landing on a repo would make
+    // every repo number a promise the click immediately breaks.
+    var rest = parseQuery(state.query).filter(function (t) {
+      return !t.neg && t.field !== field && PLACE_FIELDS_ORDER.indexOf(t.field) !== -1;
+    });
+    if (!wasSole) rest.push({ field: field, op: "in", values: [key], neg: false });
+    setQueryTerms(rest);
     refreshNav();
     renderBoard();
     maybeCloseMenu();
+  }
+  // Narrow to a place *without* disturbing the rest of the filter, and without leaving
+  // the view you are in. This is what the column menu's "Show only this" wants: it is a
+  // refinement made from inside the board, not navigation from the sidebar — dropping
+  // the tag filter you already had, or throwing you out of Ready, would both be the
+  // command doing more than it says.
+  function scopeToPlace(field, key) {
+    pickScope(field, key);
+    refreshNav();
   }
 
   // Views — the primary navigation: All pucks (the committed board) · Ready (the
@@ -3429,20 +3978,71 @@
       };
     }).filter(function (g) { return g.keys.length; });
   }
+  // ── sidebar folding ─────────────────────────────────────────────────────────
+  // Chrome, not a view parameter. It says how *you* like the sidebar, not what the
+  // board is showing, so it must never reach the URL — and especially not `VIEW_KEYS`,
+  // where `collapsed` already means something else entirely (which groups are folded
+  // in the list layout). Two different folds, two different stores, and putting this
+  // one in the URL would make a shared link rearrange the recipient's furniture.
+  var SIDE_FOLD = "roadmap-sidefold";
+  function foldedSections() {
+    var raw = null;
+    try { raw = localStorage.getItem(SIDE_FOLD); } catch (e) {}
+    return raw ? raw.split(",").filter(Boolean) : [];
+  }
+  function setFolded(key, on) {
+    var list = foldedSections().filter(function (k) { return k !== key; });
+    if (on) list.push(key);
+    try { localStorage.setItem(SIDE_FOLD, list.join(",")); } catch (e) {}
+  }
+  // The heading *is* the switch. A separate chevron button beside it would add a
+  // control to the one place this change exists to make quieter, and the heading
+  // already names exactly what folds — so there is nothing a second target could say
+  // that the first does not.
+  function foldHead(label, key, body) {
+    var folded = foldedSections().indexOf(key) !== -1;
+    var b = el("button", "side-eyebrow eyebrow-fold");
+    b.type = "button";
+    // Label first, chevron last. Leading it would push the heading off the content
+    // line that the rows below sit on — the alignment this sidebar was just fixed for.
+    b.appendChild(el("span", null, label));
+    b.appendChild(icon("chev-down", "eyebrow-chev"));
+    function paint() {
+      b.setAttribute("aria-expanded", folded ? "false" : "true");
+      b.classList.toggle("folded", folded);
+      // `hidden`, not a class of our own. A `.side-folded { display: none }` lost the
+      // specificity fight with `.side-views .focusseg { display: flex }` and folded
+      // nothing — which is the exact trap `[hidden] { display: none !important }` was
+      // added for, after seventeen rules had to carry their own exception. Reuse the
+      // answer the stylesheet already gives instead of writing an eighteenth.
+      body.hidden = folded;
+    }
+    paint();
+    b.addEventListener("click", function () {
+      folded = !folded;
+      setFolded(key, folded);
+      paint();
+    });
+    return b;
+  }
   function buildFocusControl() {
     var counts = viewCounts();
-    // A view reads as active only when we're not inside a place — otherwise the
-    // sidebar would highlight both "All pucks" and the repo you navigated into.
-    var inPlace = placeActive();
+    // A view reads as active only when nothing more specific already describes the
+    // board. That was written for places — "otherwise the sidebar would highlight both
+    // 'All pucks' and the repo you navigated into" — and the same sentence is true of a
+    // saved view, which was never asked. Apply one and both it and "All pucks" lit up;
+    // and `Testvy`, which carries only `empty:0` and no query at all, did it with no
+    // filter involved, so "is there a query" would not have caught it either. The
+    // question is not what is set, it is whether something more specific is on.
+    var inPlace = placeActive(), inSaved = !!activeSavedView();
     var host = document.getElementById("sideViews") || document.getElementById("filters");
     viewsShown(counts).forEach(function (g) {
-      if (g.label) host.appendChild(el("div", "side-eyebrow", g.label));
       var seg = el("div", "focusseg");
       seg.setAttribute("role", "group");
       seg.setAttribute("aria-label", g.label || "Inbox");
       g.keys.forEach(function (key) {
         var d = VIEW_DEFS[key];
-        var on = state.focus === key && !inPlace;
+        var on = state.focus === key && !inPlace && !inSaved;
         var b = el("button", "focusbtn focus-" + key + (on ? " on" : ""));
         b.type = "button";
         b.title = d.title;
@@ -3453,6 +4053,10 @@
         b.addEventListener("click", function () { goToView(key); });
         seg.appendChild(b);
       });
+      // The head is appended *after* its body exists, because the fold needs to know
+      // what it folds. The unlabelled group (Inbox) has no head and therefore no fold:
+      // it is one row, and a fold that hides one row is a worse trade than the row.
+      if (g.label) host.appendChild(foldHead(g.label, lower(g.label), seg));
       host.appendChild(seg);
     });
   }
@@ -3487,11 +4091,11 @@
           cls: "pick-menu view-menu",
           onClose: function () { open = null; btn.setAttribute("aria-expanded", "false"); },
           build: function (host, api) {
-            var counts = viewCounts(), inPlace = placeActive();
+            var counts = viewCounts(), inPlace = placeActive(), inSaved = !!activeSavedView();
             viewsShown(counts).forEach(function (g, gi) {
               if (gi) host.appendChild(el("div", "menu-rule"));
               g.keys.forEach(function (key) {
-                var on = state.focus === key && !inPlace;
+                var on = state.focus === key && !inPlace && !inSaved;
                 var r = el("button", "row" + (on ? " on" : ""));
                 r.type = "button";
                 r.title = VIEW_DEFS[key].title;
@@ -3507,9 +4111,13 @@
             if (saved.length) {
               host.appendChild(el("div", "menu-rule"));
               host.appendChild(el("div", "vs-section fp-label", "Saved"));
-              var now = viewParamObject();
+              // Through the producer, not a second `sameParams` of its own: with two
+              // entries carrying identical parameters — which is what a duplicate is —
+              // an independent test lights both, and only `activeSavedView()` knows
+              // which one you are actually in.
+              var activeSaved = activeSavedView();
               saved.forEach(function (v) {
-                var on = sameParams(paramsOf(v), now);
+                var on = v === activeSaved;
                 var r = el("button", "row" + (on ? " on" : ""));
                 r.type = "button";
                 r.title = v.q || "Saved view";
@@ -3538,10 +4146,27 @@
     });
   }
   buildViewSwitch();
+  // The three headings written in the markup get the same treatment as the two the
+  // views emit — upgraded in place, so the fold is one mechanism and not two. Done
+  // once at boot: unlike the view groups, these sections are refreshed by filling
+  // their bodies, never by replacing their heads.
+  [["saved", "savedSection", "savedViews"],
+   ["agents", "agentSection", "agentFilters"],
+   ["repos", "repoSection", "repoFilters"]].forEach(function (t) {
+    var sec = document.getElementById(t[1]), body = document.getElementById(t[2]);
+    if (!sec || !body) return;
+    var eb = sec.querySelector(".side-eyebrow");
+    if (eb) sec.replaceChild(foldHead(eb.textContent, t[0], body), eb);
+  });
 
   // ── theme ──
+  // Three states, one control. The sidebar used to carry a fourth piece of furniture
+  // for this — a permanent ◐ that only ever flipped light⇄dark, so the third state
+  // could not be reached from it and it sat in the sidebar's floor forever to offer
+  // something Settings already offers completely. The choice lives in Settings (the
+  // full Light/Dark/Auto segment) and in ⌘K (the same three, by name). A theme is set
+  // once and then forgotten; it does not earn a permanent seat.
   var root = document.documentElement;
-  var themeBtn = document.getElementById("theme");
   var saved = null;
   try { saved = localStorage.getItem("roadmap-theme"); } catch (e) {}
   if (saved) root.setAttribute("data-theme", saved);
@@ -3554,37 +4179,35 @@
     var bg = getComputedStyle(document.body).backgroundColor;
     if (bg) themeColorMeta.setAttribute("content", bg);
   }
-  // True light⇄dark toggle: flip whatever is currently showing. (A three-state
-  // dark→light→auto cycle was confusing because "auto" looks identical to dark on
-  // a dark-set device, so getting back to dark took two presses.)
   function effectiveIsDark() {
     var t = root.getAttribute("data-theme");
     if (t === "dark") return true;
     if (t === "light") return false;
     return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
   }
-  function updateThemeButton() {
-    themeBtn.innerHTML = "";
-    // Show the icon of the mode a tap switches TO (dark now → sun to go light).
-    themeBtn.appendChild(icon(effectiveIsDark() ? "sun" : "moon"));
-  }
-  function toggleTheme() {
-    var next = effectiveIsDark() ? "light" : "dark";
-    root.setAttribute("data-theme", next);
-    try { localStorage.setItem("roadmap-theme", next); } catch (e) {}
+  // One writer for all three states — and the attribute is not the same thing as the
+  // stored choice. The attribute is what the page is *rendering*, and it is always one
+  // of the three: the dark palette lives under
+  // `@media (prefers-color-scheme: dark) { :root[data-theme="auto"] }`, so `auto` has to
+  // be spelled out or a dark device falls through to the light palette with no rule
+  // matching it at all. (`index.html` ships `data-theme="auto"` for exactly this reason;
+  // removing the attribute was undoing the markup's own default.) The stored value is
+  // the *choice*, and there `auto` genuinely is an absence — nothing is written, so a
+  // browser that later gains a stored value from somewhere else does not shadow it.
+  function setTheme(v) {
+    root.setAttribute("data-theme", v);
+    try {
+      if (v === "auto") localStorage.removeItem("roadmap-theme");
+      else localStorage.setItem("roadmap-theme", v);
+    } catch (e) {}
     applyThemeColor();
-    updateThemeButton();
   }
-  themeBtn.addEventListener("click", function () { toggleTheme(); themeBtn.blur(); });
-  // Follow the system scheme while on "auto" (no explicit toggle yet).
+  // Follow the system scheme while on "auto" — the page repaints itself through CSS,
+  // but the browser's status bar is painted from a meta tag and has to be told.
   if (window.matchMedia) {
-    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () {
-      applyThemeColor();
-      updateThemeButton();
-    });
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyThemeColor);
   }
   applyThemeColor();
-  updateThemeButton();
 
   // ── Display: layout · grouping · ordering · what's included wholesale ────────
   // One menu for *how* the chosen pucks are presented, so a new display option is
@@ -3794,7 +4417,8 @@
   // Where a ⌘K quick-capture lands: the single scoped repo if you're in one,
   // else this board's own aggregator repo, else the first source.
   function defaultCaptureRepo() {
-    if (state.repos && state.repos.size === 1) return state.repos.values().next().value;
+    var scoped = placeValues("repo");
+    if (scoped.length === 1) return resolveRepo(scoped[0]) || scoped[0];
     var agg = aggregatorRepo();
     if (agg && DATA.sources.some(function (s) { return s.repo === agg; })) return agg;
     return DATA.sources[0] && DATA.sources[0].repo;
@@ -3814,6 +4438,23 @@
           run: function () { setFocus(key); } });
       });
     });
+    // Saved views are views. The comment above holds for them too: the palette can't
+    // fall behind a view the sidebar has, and a saved view is the only kind that used
+    // to be reachable from exactly one control.
+    savedViews().forEach(function (v) {
+      cmds.push({ __cmd: true, label: "Go to " + v.name, hint: "Saved view", icon: "list",
+        run: function () { applySavedView(v); } });
+    });
+    // …and so is making one. The chip row is where you actually finish building a
+    // filter and the title is where the result lands; this is the keyboard's way to
+    // the same call, so ⌘K never has less reach than the chrome.
+    if (signedIn) {
+      cmds.push({ __cmd: true, label: "Save this view…", hint: "Saved view", icon: "plus",
+        // Deferred for the same reason the switcher defers it: this opens a surface of
+        // its own, and the pointer event that picked the command is still unwinding —
+        // its tail would reach the new surface as an outside click and shut it.
+        run: function () { setTimeout(function () { saveCurrentView(null); }, 0); } });
+    }
     // Display options belong in the palette too — the palette is the extensibility
     // surface, so a new display choice never has to become another button.
     Object.keys(GROUPS).filter(groupUsable).forEach(function (k) {
@@ -3823,7 +4464,17 @@
     cmds.push({ __cmd: true, label: state.view === "list" ? "Layout: board" : "Layout: list", hint: "Display", icon: state.view === "list" ? "grid" : "list", run: function () { setDisplay("view", state.view === "list" ? "board" : "list"); } });
     cmds.push({ __cmd: true, label: "Settings", hint: "Workspace", icon: "sliders", run: function () { openSettingsPanel(); } });
     cmds.push({ __cmd: true, label: "Keyboard shortcuts", hint: "Help", icon: "list", run: function () { toggleShortcutHelp(); } });
-    cmds.push({ __cmd: true, label: effectiveIsDark() ? "Switch to light" : "Switch to dark", hint: "Theme", icon: effectiveIsDark() ? "sun" : "moon", run: function () { toggleTheme(); } });
+    // Named states rather than a flip. The objection that killed a three-state *button*
+    // — "auto looks identical to dark on a dark-set device", so you cannot tell what a
+    // press did — does not apply to a list that says which state each row is. And a
+    // list is the only place the keyboard can reach `auto` at all.
+    var curTheme = root.getAttribute("data-theme") || "auto";
+    [["light", "Light", "sun"], ["dark", "Dark", "moon"], ["auto", "Auto (follow system)", "sliders"]]
+      .forEach(function (t) {
+        if (t[0] === curTheme) return; // the state you are already in is not a command
+        cmds.push({ __cmd: true, label: "Theme: " + t[1], hint: "Theme", icon: t[2],
+          run: function () { setTheme(t[0]); } });
+      });
     if (signedIn) {
       cmds.push({ __cmd: true, label: "Change token", hint: "Account", icon: "key", run: function () { openTokenPanel(afterAuth); } });
       cmds.push({ __cmd: true, label: "Sign out", hint: "Account", icon: "key", run: function () { setGhToken(""); afterAuth(); } });
@@ -4145,7 +4796,11 @@
     var card = el("div", "sc-card");
     var head = el("div", "sc-head");
     head.appendChild(el("h2", "sc-title", "Keyboard shortcuts"));
-    var x = el("button", "sc-close", "✕"); x.type = "button";
+    var x = el("button", "sc-close"); x.type = "button";
+    // The "✕" it drew was also its accessible name; a path is aria-hidden, so the
+    // name has to be said out loud now.
+    x.setAttribute("aria-label", "Close");
+    x.appendChild(icon("x", "x-icn"));
     x.addEventListener("click", closeShortcutHelp);
     head.appendChild(x);
     card.appendChild(head);
@@ -4179,6 +4834,7 @@
   }
 
   var searchClear = document.getElementById("searchClear");
+  searchClear.appendChild(icon("x", "x-icn"));
   var cmdkHint = document.getElementById("cmdkHint");
   function updateSearchClear() { searchClear.hidden = !searchInput.value; if (cmdkHint) cmdkHint.hidden = !!searchInput.value; }
 
@@ -4484,6 +5140,7 @@
     VIEW_KEYS.forEach(function (k) {
       if (v[k] != null && v[k] !== "") o[k] = String(v[k]);
     });
+    if (o.q) o.q = canonicalQuery(o.q); // compare like against like — see canonicalQuery
     return o;
   }
   function sameParams(a, b) {
@@ -4495,9 +5152,103 @@
   function applySavedView(v) {
     exitPuckView();
     applyParams(paramsOf(v), true); // a saved view describes the whole board
+    state.fromView = v.name; // after applyParams — its reset branch clears this
     refreshNav();
     renderBoard();
     maybeCloseMenu();
+  }
+  // Which saved view, if any, describes the board exactly as it stands. Asked in three
+  // places — which saved row lights, and whether a built-in row should light in the
+  // sidebar and in the title switcher — and all three must agree, or the chrome marks
+  // two rows at once.
+  function activeSavedView() {
+    var now = viewParamObject(), vs = savedViews(), first = null, from = null;
+    for (var i = 0; i < vs.length; i++) {
+      if (vs[i].name === state.fromView) from = vs[i];
+      if (!first && sameParams(paramsOf(vs[i]), now)) first = vs[i];
+    }
+    // Parameters are not an identity — duplicate a view and two entries describe the
+    // board equally well — so provenance decides whenever it names a view that still
+    // exists, and a match on some *other* view never outvotes it. Editing A until it
+    // happened to equal B retitled you into B and took away A's own Update: you were
+    // looking at B with no way to save the thing you were editing.
+    if (from) return sameParams(paramsOf(from), now) ? from : null;
+    // No provenance, or it named a view since deleted: the board was not reached
+    // through a row (a pasted link, a reload) and can only speak for itself.
+    return first;
+  }
+  // The saved view you are *in*, with changes on top. `activeSavedView()` answers
+  // "does the board match a view exactly"; this answers "did you come from one and
+  // change it", which no amount of looking at the board can tell you — hence the
+  // remembered name. Both are needed and they are never both true: the pair is what
+  // lets the chip row offer Update instead of a name field you have to retype.
+  // A name whose view has since been deleted answers null, so the row can't offer to
+  // update something that is gone.
+  function editedSavedView() {
+    if (!state.fromView || activeSavedView()) return null;
+    // Emptied all the way back to the plain default board. That is not a view with
+    // changes on top, it is having left the view — and the chip row is hidden here, so
+    // an "(edited)" title would be the only thing left claiming you were still in one.
+    if (!Object.keys(viewParamObject()).length) return null;
+    var vs = savedViews();
+    for (var i = 0; i < vs.length; i++) if (vs[i].name === state.fromView) return vs[i];
+    return null;
+  }
+  // The ⋯ on a saved-view row. Its own positioned wrapper, because the surface anchors
+  // inside it — and a <button> inside the row's <button> would be invalid, so the
+  // wrapper is what the row actually contains.
+  function savedViewMenu(v) {
+    var wrap = el("span", "filter-wrap saved-more-wrap");
+    // This wrapper sits inside the row's own <button>, and `openSurface` appends the
+    // menu *into* it — so without this every click on a menu row also activated the row
+    // behind it: `applySavedView` → `refreshNav` → the sidebar rebuilt and took the
+    // still-open menu with it, before the action it had just picked could run. The ✕
+    // this replaced guarded its single click the same way; a menu has more clicks than
+    // one, so the guard belongs on the container rather than on each of them.
+    wrap.addEventListener("click", function (e) { e.stopPropagation(); });
+    var btn = el("button", "saved-more");
+    btn.type = "button";
+    btn.title = "Rename, duplicate or remove this view";
+    btn.setAttribute("aria-label", "Actions for saved view " + v.name);
+    btn.appendChild(icon("more"));
+    var open = null;
+    btn.addEventListener("click", function (e) {
+      e.stopPropagation(); // the row behind navigates; the ⋯ is not navigation
+      e.preventDefault();
+      if (open) { open.close(); open = null; return; }
+      open = openSurface({
+        title: v.name,
+        anchorWrap: wrap,
+        // Mirrored, so the menu opens *into* the sidebar. `.sidebar` is a scroll
+        // container (`overflow-y: auto`), which clips in both axes — hanging right from
+        // a trigger at the sidebar's right edge put the labels behind that edge. This is
+        // the one anchoring that fits: the menu is narrower than the sidebar's minimum.
+        cls: "pick-menu menu-right",
+        onClose: function () { open = null; },
+        build: function (host, api) {
+          function row(iconName, text, cls, run) {
+            var b = el("button", "row" + (cls ? " " + cls : ""));
+            b.type = "button";
+            b.appendChild(icon(iconName));
+            b.appendChild(el("span", null, text));
+            // Deferred past the click that picked it, like the view switcher's own save
+            // row: Rename opens a surface anchored in this same wrapper, and the tail of
+            // the pointer event that closed us would reach it as an outside click.
+            b.addEventListener("click", function () {
+              api.close();
+              setTimeout(run, 0);
+            });
+            host.appendChild(b);
+          }
+          row("edit", "Rename…", null, function () { renameSavedView(v); });
+          row("plus", "Duplicate", null, function () { duplicateSavedView(v); });
+          host.appendChild(el("div", "menu-rule"));
+          row("trash", "Remove view", "danger", function () { removeSavedView(v); });
+        },
+      });
+    });
+    wrap.appendChild(btn);
+    return wrap;
   }
   function buildSavedViews() {
     var host = document.getElementById("savedViews");
@@ -4507,24 +5258,21 @@
     section.hidden = !views.length;
     host.innerHTML = "";
     if (!views.length) return;
-    var now = viewParamObject();
+    var active = activeSavedView(); // one producer — see the note in the title switcher
     var seg = el("div", "focusseg");
     views.forEach(function (v) {
-      var on = sameParams(paramsOf(v), now);
+      var on = v === active;
       var b = el("button", "focusbtn" + (on ? " on" : ""));
       b.type = "button";
       b.title = v.q || "Saved view";
       b.setAttribute("aria-pressed", on ? "true" : "false");
       b.appendChild(el("span", "focus-label", v.name));
       b.addEventListener("click", function () { applySavedView(v); });
-      if (ghToken()) {
-        var del = el("button", "saved-del", "✕");
-        del.type = "button";
-        del.title = "Remove this saved view";
-        del.setAttribute("aria-label", "Remove saved view " + v.name);
-        del.addEventListener("click", function (e) { e.stopPropagation(); removeSavedView(v); });
-        b.appendChild(del);
-      }
+      // A ✕ and nothing else was the whole of "what can happen to this view once it
+      // exists" — so renaming meant saving a copy under the new name and deleting the
+      // old one: two commits, and two identical-looking rows in between. Three actions
+      // do not fit on one button, so it becomes the same ⋯ the columns use.
+      if (ghToken()) b.appendChild(savedViewMenu(v));
       seg.appendChild(b);
     });
     host.appendChild(seg);
@@ -4534,12 +5282,30 @@
     var repo = aggregatorRepo();
     if (!repo) { toast("✗ No aggregator repo configured", true); return; }
     toast("Saving…");
+    // Where the board stood when the request left. A commit is a network round trip,
+    // and every one of these callbacks claims a provenance — so if you navigate while
+    // one is in flight, the reply would land on top of where you went: the destination
+    // titled as the view you just wrote, with an Update aimed at overwriting it with
+    // the destination's own parameters. Your navigation is the newer truth. The write
+    // still lands; only the claim on "which view you are in" defers to it.
+    var wroteFrom = state.fromView;
     commitViews(repo, views, message)
       .then(function () {
         DATA.config = DATA.config || {};
         DATA.config.views = views; // optimistic: the harvest will confirm it
-        buildSavedViews();
-        if (done) done();
+        // Before the repaint, not after: every one of these callbacks adjusts the
+        // provenance the repaint is about to read. Renaming the view you were editing
+        // ran it afterwards, so the paint in between looked up a name that no longer
+        // existed, decided you were in no view at all, and dropped the edited title and
+        // its Reset/Update — with nothing scheduled to paint again and put them back.
+        if (done && state.fromView === wroteFrom) done();
+        // The same repaint a navigation does, and for the same reason: this write
+        // changes the answer to "which saved view describes the board", which the
+        // header, the built-in view rows and the saved rows all read. Rebuilding
+        // only the saved rows left the other two on the previous answer — the
+        // header naming a view you just deleted, and `All pucks` still lit beside
+        // the view you just saved. One store, one repaint.
+        refreshNav(); renderBoard();
         toast("✓ Saved — live in ~1 min");
       })
       .catch(function (err) { toast("✗ " + err.message, true); });
@@ -4564,10 +5330,11 @@
       })
       .then(function (r) { assertOk(r, errItem); });
   }
-  function saveCurrentView(wrap) {
+  function saveCurrentView(wrap, cls) {
     var params = viewParamObject();
     if (!Object.keys(params).length) { toast("✗ Nothing to save — this is the default board", true); return; }
     inputSurface(wrap || null, {
+      cls: cls,
       title: "Save view",
       placeholder: "Name this view",
       hint: "Saved to board.config.json as a commit — it joins the list behind the title.",
@@ -4575,17 +5342,99 @@
       onSave: function (name) {
         name = String(name).trim();
         if (!name) return;
-        var views = savedViews().filter(function (v) { return v.name !== name; }); // same name = replace
-        var entry = { name: name };
-        for (var k in params) entry[k] = params[k];
-        views.push(entry);
-        writeViews(views, "roadmap: save view “" + name + "”");
+        // Same name = replace, **in place**. It used to filter the old one out and push
+        // the new one on the end, so saving over a view silently moved it to the bottom
+        // of the sidebar: an edit that reorders the list is doing something it never
+        // said it would.
+        writeViews(withView(savedViews(), name, params), "roadmap: save view “" + name + "”",
+          function () { state.fromView = name; }); // you are now in the view you just made
       },
     });
   }
+  // The one place a view's parameters are written into the list: replace the entry of
+  // that name where it stands, or append when the name is new. Save and update both go
+  // through it, so neither can invent its own ordering rule.
+  function withView(views, name, params) {
+    var out = views.slice(), entry = { name: name }, at = -1;
+    for (var k in params) entry[k] = params[k];
+    for (var i = 0; i < out.length; i++) if (out[i].name === name) { at = i; break; }
+    if (at < 0) out.push(entry); else out[at] = entry;
+    return out;
+  }
+  // "Update High" — the action that was missing. Editing a saved view meant pressing
+  // Save and retyping its name exactly: replace-by-collision, where nothing said it
+  // would overwrite, a typo made a duplicate, and the name field was the only way to
+  // aim. Here the target is the view you are standing in, so there is nothing to aim.
+  function updateSavedView(v) {
+    var params = viewParamObject();
+    if (!Object.keys(params).length) { toast("✗ Nothing to save — this is the default board", true); return; }
+    writeViews(withView(savedViews(), v.name, params), "roadmap: update view “" + v.name + "”",
+      function () { state.fromView = v.name; });
+  }
+  function renameSavedView(v) {
+    // Unanchored — a centred surface on desktop, a sheet on a phone. The field is 340px
+    // at its widest and the sidebar can be dragged down to 190, so anchoring it to the
+    // row would either hang it off the left of the page (mirrored) or bury it behind the
+    // sidebar's own overflow (not mirrored). There is no width where both hold, and a
+    // one-field rename is the kind of task a centred surface is for anyway.
+    inputSurface(null, {
+      title: "Rename view",
+      value: v.name,
+      placeholder: "Name this view",
+      hint: "Only the name changes — the view keeps its parameters and its place in the list.",
+      action: "Rename",
+      onSave: function (name) {
+        name = String(name).trim();
+        if (!name || name === v.name) return;
+        // Renaming onto a name that already exists would leave two rows labelled the
+        // same and `withView` unable to say which one a later save means. Drop the
+        // other — the rule the save path has always applied to a name clash.
+        var views = savedViews().filter(function (x) { return x === v || x.name !== name; });
+        var at = views.indexOf(v);
+        if (at < 0) return;
+        var entry = {};
+        for (var k in v) entry[k] = v[k];
+        entry.name = name;
+        views[at] = entry;
+        writeViews(views, "roadmap: rename view “" + v.name + "” → “" + name + "”",
+          function () {
+            // Provenance follows the entry, not the name. Two ways it moves here:
+            if (state.fromView === v.name) state.fromView = name; // you were in the view being renamed
+            // …or the new name collided with the view you *were* in, and the filter
+            // above dropped it. Leaving the name set pointed it at the renamed entry
+            // instead, so a board still showing the deleted view read as "B (edited)"
+            // and Update offered to write those parameters over an unrelated view.
+            else if (state.fromView === name) state.fromView = null;
+          });
+      },
+    });
+  }
+  // Branch off a view without losing it — the answer to "I want High, but also scoped
+  // to one repo". Named automatically and dropped in beside its original rather than at
+  // the end, because a copy belongs next to what it came from; Rename is one row away
+  // in the same menu.
+  function duplicateSavedView(v) {
+    var taken = {};
+    savedViews().forEach(function (x) { taken[x.name] = 1; });
+    var base = v.name + " copy", name = base, n = 2;
+    while (taken[name]) name = base + " " + n++;
+    var views = savedViews().slice(), entry = {};
+    for (var k in v) entry[k] = v[k];
+    entry.name = name;
+    views.splice(views.indexOf(v) + 1, 0, entry);
+    // Land in the copy — *the whole copy*. Claiming its name while leaving the board
+    // where it was made the title read "X copy (edited)" over a filter that had nothing
+    // to do with it, and Update then offered to overwrite the copy with that filter.
+    // Duplicating a view is a way of going to it, so go: `applySavedView` sets the
+    // parameters and the provenance together, which is also what tells the two
+    // identical entries apart (see `activeSavedView`).
+    writeViews(views, "roadmap: duplicate view “" + v.name + "”",
+      function () { applySavedView(entry); });
+  }
   function removeSavedView(v) {
     if (!window.confirm("Remove the saved view “" + v.name + "”?")) return;
-    writeViews(savedViews().filter(function (x) { return x !== v; }), "roadmap: remove view “" + v.name + "”");
+    writeViews(savedViews().filter(function (x) { return x !== v; }), "roadmap: remove view “" + v.name + "”",
+      function () { if (state.fromView === v.name) state.fromView = null; });
   }
 
   // ── the chip row ────────────────────────────────────────────────────────────
@@ -4593,6 +5442,24 @@
   // display, so the Filter button needs no count and "showing more" can never read
   // as "you have narrowed something".
   var chipRow = document.getElementById("chipRow");
+  // Is this term nothing but "hide these columns", and are those columns in the tray?
+  // Only the two shapes the column ⋯ writes, and only in the polarity that hides:
+  // `columnTerm` calls that `hideNeg`, and it differs between a real value (the
+  // *negation* hides it) and the absence bucket (`has:<field>`, where the positive
+  // does). A term in the other polarity is a scope you chose, not a column you hid —
+  // `Status: Now, Next, Later` says what you asked for, and the tray listing what fell
+  // outside it is a different sentence, not a second copy of this one. It also has to
+  // keep its chip so `Clear all` has something to hang on.
+  function hiddenByTray(t) {
+    if (!trayColumns) return false;
+    var g = trayColumns.g;
+    if (!termAboutGroup(t, g)) return false;
+    if (t.field === "has" || t.field === "is") return !t.neg && !!trayColumns.keys[NO_VALUE];
+    if (!t.neg) return false;
+    return t.values.every(function (v) {
+      return Object.keys(trayColumns.keys).some(function (k) { return valueNamesColumn(g, v, k); });
+    });
+  }
   function chipsData() {
     var out = [];
     // Places are deliberately absent. A repo or a discipline queue is somewhere you
@@ -4604,22 +5471,62 @@
     // that one means "put everything back".)
     var terms = parseQuery(state.query);
     terms.forEach(function (t, i) {
+      // A place the sidebar already shows is not chipped twice. This used to happen by
+      // accident — places lived in their own Sets and simply were not in `state.query`
+      // — and is now a stated rule about *presentation*, which is all it ever was. The
+      // negation is not a place (there is no row for "not PIA"), so it keeps its chip.
+      if (!t.neg && PLACE_FIELDS_ORDER.indexOf(t.field) !== -1) return;
+      // Nor a term the tray is already showing, in the words the tray uses. `Not
+      // Status: Done ×` in this row and `Done 102 👁` at the end of the board are the
+      // same statement and the same single click — except one of them carries the
+      // count, which is the thing you actually want to know before deciding to bring
+      // the column back. So the tray keeps it and the chip stands down: a column
+      // missing from the board is said in one place, and it is the place that is about
+      // columns. Only in the board layout — `trayColumns` is null where there is no
+      // tray, and then the chip is the only one who can say it.
+      if (hiddenByTray(t)) return;
       var f = fieldByKey(t.field);
       var label;
       if (t.field === "text") label = "“" + t.values[0] + "”";
       else if (t.field === "is") label = (t.neg ? "Not " : "") + t.values[0];
+      // Read as the column it hides, not as the predicate it is: `has:priority` is
+      // how "hide the No priority column" is spelled, so that is what it should say.
+      else if (t.field === "has") {
+        var hl = (fieldByKey(t.values[0]) || {}).label || t.values[0];
+        label = t.neg ? "No " + lower(hl) : "Has " + lower(hl);
+      }
       else if (f) label = f.label + ": " + t.values.map(function (v) { return valueLabel(f, v); }).join(", ");
-      else label = serializeTerms([t]);
+      else if (PLACE_FIELDS[t.field]) {
+        var pf = PLACE_FIELDS[t.field];
+        label = pf.label + ": " + t.values.map(pf.value).join(", ");
+      }
+      // The last resort prints the term itself — with its sign stripped, because the
+      // "Not " prefix below adds one. Together they read "Not -repo:roadmap": two
+      // minus signs for one negation. Any field that lands here from now on is only
+      // missing a name, not a second negative.
+      else label = serializeTerms([{ field: t.field, op: t.op, values: t.values, neg: false }]);
       out.push({
-        label: (t.neg && t.field !== "is" ? "Not " : "") + label,
+        label: (t.neg && t.field !== "is" && t.field !== "has" ? "Not " : "") + label,
         remove: function () {
           var rest = parseQuery(state.query).filter(function (_, j) { return j !== i; });
           setQueryTerms(rest);
+          refreshNav(); // a removed term can change what the sidebar reads as pressed
         },
       });
     });
     return out;
   }
+  // Repo and agent are absent from FILTER_FIELDS on purpose — they are the sidebar's
+  // places, not panel dimensions — so `fieldByKey` finds nothing for them and the chip
+  // row fell through to printing the raw term. Naming them here rather than adding them
+  // to FILTER_FIELDS keeps that decision intact: this is how a term is *written*, not a
+  // dimension you can filter by. Reachable in one click ever since a repo column could
+  // be hidden; before that it needed a hand-typed query, which is why it sat unseen.
+  var PLACE_FIELDS = {
+    repo: { label: "Repo", value: function (v) { return repoNameOf(resolveRepo(v) || v) || v; } },
+    agent: { label: "Agent", value: function (v) { return agentLabel(v); } },
+  };
+
   function valueLabel(f, v) {
     var all = f.values();
     for (var i = 0; i < all.length; i++) if (all[i].value === v) return all[i].label;
@@ -4629,28 +5536,86 @@
     if (!chipRow) return;
     var chips = chipsData();
     chipRow.innerHTML = "";
-    chipRow.hidden = !chips.length;
-    if (!chips.length) return;
     chips.forEach(function (c) {
       var chip = el("span", "fchip");
       chip.appendChild(el("span", "fchip-label", c.label));
-      var x = el("button", "fchip-x", "✕");
+      var x = el("button", "fchip-x");
+      x.appendChild(icon("x", "x-icn"));
       x.type = "button";
       x.setAttribute("aria-label", "Remove filter " + c.label);
       x.addEventListener("click", function () { c.remove(); });
       chip.appendChild(x);
       chipRow.appendChild(chip);
     });
-    if (chips.length > 1) {
-      var clear = el("button", "fchip-clear", "Clear all");
-      clear.type = "button";
-      clear.addEventListener("click", function () {
-        state.repos.clear(); state.agents.clear();
-        setQueryTerms([]);
-        refreshNav();
-      });
-      chipRow.appendChild(clear);
+    // The row's actions, right-aligned. Saving lived only behind the title, which is
+    // the right *home* for it — the saved view appears there — but it is not where you
+    // are standing when you finish building a filter. You are standing here, looking at
+    // the predicates you just assembled, and this is the one row that exists only
+    // because they do. So the door goes where the work is; the title keeps the list.
+    // (Linear puts its Clear and Save in exactly this band.)
+    //
+    // Which door depends on where the board stands relative to the saved views, and
+    // the two producers answer that between them:
+    //
+    //   in a view, untouched  → nothing. Offering "Save view" here invites you to save
+    //                           what is already saved; the sidebar row and the title
+    //                           already say where you are, and each chip keeps its ✕.
+    //   in a view, changed    → Reset · Update "High". Reset goes back to the view's
+    //                           parameters, which is what makes it a different button
+    //                           from Clear all — that one empties the board.
+    //   no view               → Clear all · Save view, as before.
+    var acts = el("div", "fchip-acts");
+    var inView = activeSavedView(), edited = editedSavedView();
+    function act(cls, label, title, run) {
+      var b = el("button", cls, label);
+      b.type = "button";
+      if (title) b.title = title;
+      b.addEventListener("click", run);
+      acts.appendChild(b);
+      return b;
     }
+    if (edited) {
+      act("fchip-clear", "Reset", "Back to the saved view’s own filters", function () {
+        applySavedView(edited);
+      });
+      // Same token gate as Save: this writes board.config.json, and an affordance that
+      // cannot do its job is worse than an absent one.
+      if (ghToken()) act("fchip-save", "Update “" + edited.name + "”",
+        "Save these changes into the view", function () { updateSavedView(edited); });
+    } else if (!inView) {
+      if (chips.length > 1) {
+        act("fchip-clear", "Clear all", null, function () {
+          setQueryTerms([]); // one store, so "put everything back" is one line
+          refreshNav();
+        });
+      }
+      // Gated on there being anything to save, not on there being chips: a view can be
+      // nothing but a grouping (`Testvy` is exactly that), and `saveCurrentView` already
+      // refuses an empty board with a toast. Reading the same question the write path
+      // asks is what keeps the button off the default board.
+      if (ghToken() && Object.keys(viewParamObject()).length) {
+        var wrap = el("div", "filter-wrap"); // the positioned parent the popover anchors in
+        var save = el("button", "fchip-save", "Save view");
+        save.type = "button";
+        save.title = "Save these filters as a named view";
+        save.addEventListener("click", function (e) {
+          e.stopPropagation(); // this row is not a surface; the tail would read as an outside click
+          // The trigger is the last thing on its row, so the menu hangs from its right
+          // edge or it runs off the page.
+          saveCurrentView(wrap, "menu-right");
+        });
+        wrap.appendChild(save);
+        acts.appendChild(wrap);
+      }
+    }
+    if (acts.childNodes.length) chipRow.appendChild(acts);
+    // The row exists for either half of itself. Hiding it whenever there were no chips
+    // meant a view that only changes grouping, sorting or layout — or one whose query is
+    // all repo/agent terms, which `chipsData` deliberately leaves to the sidebar — could
+    // be edited with no way to Reset or Update it. That is precisely the view whose only
+    // other write path is retyping its name exactly, so it is the last place the actions
+    // should go missing.
+    chipRow.hidden = !chips.length && !acts.childNodes.length;
   }
 
   if (filterBtn) filterBtn.addEventListener("click", function (e) { e.stopPropagation(); toggleFilterMenu(); });
@@ -4945,10 +5910,11 @@
   // — whichever end of the edit it happens to be. Written once because each of the
   // three has been forgotten separately.
   function afterEdit(/* …items whose page may be open */) {
-    // Navigation first, board second. `buildAgentChips()` prunes a place that has
-    // just been emptied out of `state.agents` — and `state.agents` is part of the
-    // query the board renders. Rendering first therefore drew an empty board for a
-    // scope that was about to be removed, and nothing rendered again afterwards.
+    // Navigation first, board second. That order used to matter because
+    // `buildAgentChips()` pruned an emptied place out of `state.agents`, which was part
+    // of the query the board rendered — render first and you drew an empty board for a
+    // scope about to be removed. Nothing prunes anything now, so the order is only
+    // habit; it is kept because the counts should not lag the board by a frame either.
     refreshNav();
     renderBoard();
     for (var i = 0; i < arguments.length; i++) {
@@ -5490,7 +6456,8 @@
         chip.appendChild(el("span", "prop-muted", ref)); // unresolved — the ⚠ says why
       }
       if (editable) {
-        var x = el("button", "dep-x", "✕");
+        var x = el("button", "dep-x");
+        x.appendChild(icon("x", "x-icn"));
         x.type = "button";
         x.setAttribute("aria-label", "Remove blocker " + (d ? d.title : ref));
         x.addEventListener("click", function () { removeDepend(item, ref); });
@@ -5945,7 +6912,16 @@
   function refreshEditControls() {
     newBtns.forEach(function (b) { b.hidden = !ghToken(); });
   }
-  function afterAuth() { writableRepos = null; readOnlyRepos = new Set(); refreshEditControls(); refreshUser(); loadWritableRepos(); }
+  function afterAuth() {
+    writableRepos = null; readOnlyRepos = new Set();
+    refreshEditControls(); refreshUser(); loadWritableRepos();
+    // Chrome that a token *renders* rather than merely checks. Every write path
+    // re-asks `ghToken()` and returns, so nothing corrupt happens — but a control
+    // that only fails when you press it is not gated, it is decorated. These two
+    // are built once rather than on each open, so signing out has to take them
+    // away: the saved views' ✕ (`buildSavedViews`) and the chip row's Save.
+    refreshNav(); renderChips();
+  }
   function buildEditControls() {
     // New: primary create action in the sidebar (desktop) + the mobile topbar
     // (next to search, so it's reachable without opening the menu). Token-gated.
@@ -6235,11 +7211,7 @@
     var seg = segmented(
       [["light", "Light"], ["dark", "Dark"], ["auto", "Auto"]],
       cur,
-      function (v) {
-        if (v === "auto") { root.removeAttribute("data-theme"); try { localStorage.removeItem("roadmap-theme"); } catch (e) {} }
-        else { root.setAttribute("data-theme", v); try { localStorage.setItem("roadmap-theme", v); } catch (e) {} }
-        applyThemeColor(); updateThemeButton();
-      });
+      function (v) { setTheme(v); });
     seg.classList.add("set-seg");
     wrap.appendChild(seg);
     return wrap;
@@ -6345,7 +7317,10 @@
   // Deep link: open the puck named in the URL hash on load, and react to the
   // hash changing (pasted link in the same tab, or Back after opening a modal).
   var detailCloseBtn = document.getElementById("detailClose");
-  if (detailCloseBtn) detailCloseBtn.addEventListener("click", closeModal);
+  if (detailCloseBtn) {
+    detailCloseBtn.appendChild(icon("x", "x-icn"));
+    detailCloseBtn.addEventListener("click", closeModal);
+  }
   var topShareBtn = document.getElementById("topShare");
   if (topShareBtn) topShareBtn.appendChild(icon("share"));
   if (topShareBtn) topShareBtn.addEventListener("click", function () {

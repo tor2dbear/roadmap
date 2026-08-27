@@ -3,21 +3,44 @@
    (#cf551b/#e2622a), forest-green as the go/ready semantic. Chrome uses --mono. */
 
 /* Self-hosted typefaces (woff2, latin subset, font-display: swap):
-   Switzer — the sans fallback after Apple's San Francisco (system fonts stay first).
-   JetBrains Mono — the mono. One Medium face covers 500–800 so headings don't fake-bold. */
-@font-face { font-family: "Switzer"; font-style: normal; font-weight: 400; font-display: swap; src: url("fonts/switzer-400.woff2") format("woff2"); }
-@font-face { font-family: "Switzer"; font-style: normal; font-weight: 500 800; font-display: swap; src: url("fonts/switzer-500.woff2") format("woff2"); }
-@font-face { font-family: "Switzer"; font-style: italic; font-weight: 400 800; font-display: swap; src: url("fonts/switzer-400-italic.woff2") format("woff2"); }
-@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 100 800; font-display: swap; src: url("fonts/jetbrains-mono.woff2") format("woff2"); }
+   Geist + Geist Mono (OFL-1.1) — one designed pair for the sans and the mono, and the
+   first choice on every platform including Apple. The board used to let Apple's San
+   Francisco win and fall back to Switzer elsewhere, which meant the same board wore two
+   faces depending on who opened it — and neither of them was related to the mono beside
+   it. Chrome here is heavily mono (counts, keys, eyebrows, dates), so a sans and a mono
+   drawn to the same skeleton is worth more than a native-feeling sans that never matches.
+   Single variable files covering 100–900, so no weight is ever synthesised, and a real
+   italic for the sans — markdown emphasis in a puck body is drawn, not slanted.
+   No italic *mono*: the only way to reach one is inline code that happens to contain a
+   pair of asterisks, since `mdInline` applies emphasis after it has wrapped `code`. That
+   is a renderer quirk rather than something anyone writes on purpose, and an oblique is
+   a fine answer to it — 23 kB is not. */
+@font-face { font-family: "Geist"; font-style: normal; font-weight: 100 900; font-display: swap; src: url("fonts/geist.woff2") format("woff2"); }
+@font-face { font-family: "Geist"; font-style: italic; font-weight: 100 900; font-display: swap; src: url("fonts/geist-italic.woff2") format("woff2"); }
+@font-face { font-family: "Geist Mono"; font-style: normal; font-weight: 100 900; font-display: swap; src: url("fonts/geist-mono.woff2") format("woff2"); }
 
+/* Every colour that carries *words* clears 4.5:1 against the darkest surface it can
+   land on — in light that is --sidebar-bg, in dark it is --panel-2. The rule is not
+   a preference: --ink-3 alone sets the column counts, the card dates, the tag pills,
+   the property keys, every empty-value state, the breadcrumbs, the eyebrows and the
+   resting tabs, and it sat at 2.4-3.1:1 in both themes. That is most of the
+   interface's second voice, at 10-13px, below the readable floor — which is why the
+   light board looked washed beside a screenshot of Linear and the fix was never
+   layout. The semantic six carry words too (a status pill, a drift flag, `.disc-*`),
+   so they move by the same rule rather than getting text-only twins: the swatch is
+   the same token at 10px, and a dot that clears 4.5 clears the 3:1 a mark needs with
+   room to spare. It cost the light --later its gold — #b8944a read at 2.6:1, and
+   bronze is what an amber that can be read looks like on warm paper. --done and
+   --cancelled keep their old order (done the more present of the two, in both
+   themes) because the line-through can't be the only thing separating them. */
 :root {
   --bg: #f5f3ee;
   --panel: #fffefb;
   --panel-2: #ebe8e1;
   --sidebar-bg: #e9e6df;
   --ink: #262320;
-  --ink-2: #6a635a;
-  --ink-3: #9c948a;
+  --ink-2: #504a44;
+  --ink-3: #6e665d;
   --line: #e6e2d9;
   --accent: #87414b;
   --shadow: 0 1px 2px rgba(45, 38, 30, 0.07), 0 2px 8px rgba(45, 38, 30, 0.05);
@@ -71,23 +94,42 @@
   --lh-body: 1.5;    /* the base: UI text, rows, labels */
   --lh-prose: 1.6;   /* long markdown and the body editor */
   --topbar-h: 52px; /* fixed app-header height, shared by the topbar and sidebar header */
-  /* Apple's San Francisco stays first; Switzer is the self-hosted fallback that
-     loads everywhere else (the -apple-system keywords resolve to SF only on Apple). */
-  --sans: -apple-system, BlinkMacSystemFont, "Switzer", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  /* Geist first on every platform — the point of choosing a pair is that the board reads
+     the same wherever it is opened. The system stack stays behind it for the moment
+     before the file lands, and for anyone who blocks web fonts. */
+  --sans: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --now: #87414b;
-  --next: #567f66;
-  --later: #b8944a;
-  --inbox: #5f6590;
-  --done: #8f887c;
-  --cancelled: #b0a89c;
+  --next: #4b6f59;
+  --later: #7d6431;
+  --inbox: #5b6089;
+  --done: #5f5a51;
+  --cancelled: #6f6659;
+  /* The amber, once more, for the two places it sits on a wash of *itself* — the
+     drift flag and the pressed attention chip. A 12-18% tint pulls the ground toward
+     the text and eats the margin the token was chosen for (4.7 down to 4.0), so those
+     two need a step darker. Defined once and only here: `--later` and `--ink` are
+     both redefined per theme, and the mix re-resolves with them, so this darkens in
+     light and lightens in dark without a second declaration. */
+  --later-ink: color-mix(in srgb, var(--later) 85%, var(--ink));
   /* Three reds with three jobs, named so they stop being literals: a destructive
      *word* (Delete), the urgent priority *mark*, and the one solid surface that
      carries white text. The link red and the menu-item red were the same job in two
      shades, forty lines apart. */
-  --danger: #c0564f;
-  --urgent: #d64545;
+  --danger: #ae453e;
+  --urgent: #c42b2b;
   --danger-solid: #b91c1c;
+  /* The ink that sits ON a filled brand or semantic surface — a chosen status pill,
+     the primary button, a pressed label chip, the urgent mark. It is the mirror of the
+     rule above: those tokens are tuned to be *read against* the page, and in dark that
+     makes them light, so white on them fails everywhere — `--later` at 2.37:1, `--next`
+     at 2.78, and that was true before the palette moved. The page's own ground reads on
+     all of them (5.35-7.49), and in light white still does (5.62-7.27). One token, not
+     nine background twins. `.demo-ribbon` had already found this and hard-coded a dark
+     ink for itself; this is that fix, generalised — and it covers the `auto` theme,
+     which the bespoke one missed. `--danger-solid` is the exception and keeps white:
+     it is dark in both themes, which is the whole reason it exists. */
+  --on-solid: #fff;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
@@ -97,20 +139,21 @@
     --panel-2: #2a2722;
     --sidebar-bg: #141210;
     --ink: #eae6de;
-    --ink-2: #9d968a;
-    --ink-3: #6d665b;
+    --ink-2: #b7b1a9;
+    --ink-3: #958d80;
     --line: #322e28;
-    --accent: #c07682;
+    --accent: #c17985;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 2px 12px rgba(0, 0, 0, 0.35);
-    --now: #c07682;
+    --now: #c17985;
     --next: #79a58a;
     --later: #c9a35b;
     --inbox: #8b93c0;
-    --done: #8f887c;
-    --cancelled: #7e776c;
+    --done: #a09889;
+    --cancelled: #948d82;
     --danger: #d98d84;
     --urgent: #e07070;
     --danger-solid: #a83232;
+    --on-solid: var(--bg);
     color-scheme: dark;
   }
 }
@@ -120,20 +163,21 @@
   --panel-2: #2a2722;
   --sidebar-bg: #141210;
   --ink: #eae6de;
-  --ink-2: #9d968a;
-  --ink-3: #6d665b;
+  --ink-2: #b7b1a9;
+  --ink-3: #958d80;
   --line: #322e28;
-  --accent: #c07682;
+  --accent: #c17985;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 2px 12px rgba(0, 0, 0, 0.35);
-  --now: #c07682;
+  --now: #c17985;
   --next: #79a58a;
   --later: #c9a35b;
   --inbox: #8b93c0;
-  --done: #8f887c;
-  --cancelled: #7e776c;
+  --done: #a09889;
+  --cancelled: #948d82;
   --danger: #d98d84;
   --urgent: #e07070;
   --danger-solid: #a83232;
+  --on-solid: var(--bg);
   color-scheme: dark;
 }
 
@@ -248,7 +292,18 @@ body {
   background: none; border: 0; border-radius: var(--r-sm); padding: 7px 9px;
   cursor: pointer; text-decoration: none; /* a row can be an <a> — see the ⋯ menu */
 }
-.row:hover, .row[aria-selected="true"], .row.on { background: var(--panel-2); }
+/* The lit row was a full `--panel-2` slab — the same token a filled badge uses for
+   its own surface, so a selected label row swallowed its pill whole and the band
+   read heavier than anything it contained. Two fixes, one idea: the highlight is a
+   *wash* under the content rather than a step level with it, and the row declares
+   what a chip standing on it should be. The field above already worked this way —
+   `.token` sits on `--panel` inside a `--panel-2` box — so this is that move, made
+   general instead of local. `--chip-bg` inherits, so a badge anywhere inside a lit
+   row picks it up without knowing it is in one. */
+.row:hover, .row[aria-selected="true"], .row.on {
+  background: color-mix(in srgb, var(--panel-2) 60%, transparent);
+  --chip-bg: var(--panel);
+}
 .row.danger { color: var(--danger); }
 .suggest-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 .suggest-title {
@@ -316,7 +371,7 @@ body {
 .chip .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 .chip[aria-pressed="true"] { color: var(--ink); border-color: currentColor; }
 .chip.repo[aria-pressed="true"] { background: var(--panel-2); }
-.chip.tag[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+.chip.tag[aria-pressed="true"] { background: var(--accent); color: var(--on-solid); border-color: var(--accent); }
 .chip .n { color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .toggle { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); font-size: var(--fs-md); cursor: pointer; }
 
@@ -356,6 +411,43 @@ body {
 /* square: an icon carries the meaning, so there is no label to pad around */
 .btn--icon { padding: 5px; }
 
+/* The hidden-columns tray — a column-shaped place at the end of the board holding the
+   ones the filter took away. It is not a column: nothing drops into it, and it carries
+   rows rather than cards, so it sets itself apart by weight — a dashed edge and a
+   quieter head — instead of by size. The count on each row is the reason it exists:
+   the chip row can say *what* is hidden, never how much is behind it. */
+.hidden-cols { border: 1px dashed var(--line); border-radius: var(--r-lg); padding: 10px; align-self: start; }
+.hidden-cols .col-head { position: static; background: none; color: var(--ink-3); }
+.hidden-cols .col-head h2 { color: var(--ink-3); }
+.hidden-col { gap: 8px; font-size: var(--fs-md); }
+.hidden-col .swatch { width: 10px; height: 10px; border-radius: var(--r-xs); flex: none; background: var(--ink-3); }
+.hidden-col .hidden-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The count sits with the label; the eye takes the right edge, where the action is. */
+.hidden-col .count { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.hidden-col .icn { margin-left: auto; width: 15px; height: 15px; color: var(--ink-3); }
+@media (hover: hover) { .hidden-col:hover .icn { color: var(--accent); } }
+/* The status swatches already have their colours; a hidden column keeps its identity. */
+.hidden-col.col-status-now .swatch { background: var(--now); }
+.hidden-col.col-status-next .swatch { background: var(--next); }
+.hidden-col.col-status-later .swatch { background: var(--later); }
+.hidden-col.col-status-inbox .swatch { background: var(--inbox); }
+.hidden-col.col-status-done .swatch { background: var(--done); }
+.hidden-col.col-status-cancelled .swatch { background: var(--cancelled); }
+
+/* column ⋯ — the two things you can say about a column rather than about its pucks.
+   Pushed to the right end of the head, and revealed on reach like `.col-add`: a head
+   that carried a visible button per column read as six controls before it read as six
+   columns. `.col-add` already sets the precedent, and `(hover: none)` keeps both
+   reachable where there is no hover to reveal them. */
+/* Beside the count, not out at the column's right edge. Linear can hang it on the
+   edge because its columns are boxed; ours are borderless and packed close, so an
+   edge-anchored ⋯ sat 60px from the *next* column's swatch and read as that one's. */
+.col-more { opacity: 0; transition: opacity .12s; }
+.col-more .btn { color: var(--ink-3); border-color: transparent; background: none; }
+.col-more .btn svg { width: 15px; height: 15px; }
+.column:hover .col-more, .col-more:focus-within, .col-more:has([aria-expanded="true"]) { opacity: 1; }
+@media (hover: hover) { .col-more .btn:hover { color: var(--ink); border-color: var(--line); } }
+@media (hover: none) { .col-more { opacity: 1; } }
 /* in-column "+" — add a puck already in this column */
 .col-add {
   margin-top: 10px; width: 100%; display: flex; align-items: center; justify-content: center;
@@ -471,6 +563,15 @@ body {
 }
 @media (hover: hover) { .card:hover { border-color: var(--accent); } }
 .card:active { transform: translatey(1px); }
+/* The glyph's rail. The mark leads the title, so the title starts 22px in — and the
+   two rows under it started at the card's padding, which made the title the one
+   indented line on the card and left the mark hanging off nothing. Linear's card has
+   the same mark and puts the second row's icon on the same x; this is that column,
+   derived from the two numbers that draw it so they cannot drift apart. */
+.card { --glyph: 15px; --rail: 7px; }
+/* Direct children only: `.card-tags` is also the LABELS row on the puck page, which
+   has its own rail and must not inherit this one. */
+.card > .card-meta, .card > .card-tags { padding-left: calc(var(--glyph) + var(--rail)); }
 .card-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .card h3 { margin: 0; font-size: var(--fs-xl); line-height: var(--lh-tight); font-weight: var(--fw-semibold); }
 .repo-name { font-size: var(--fs-sm); color: var(--repo, var(--ink-3)); font-weight: var(--fw-semibold); white-space: nowrap; }
@@ -491,7 +592,8 @@ body {
 .badge, .status-pill, .issue-state, .rollup, .agent-badge, .tagpill, .adapted-badge, .token {
   display: inline-flex; align-items: center; gap: 3px; flex: none;
   font-size: var(--fs-xs); color: var(--ink-2);
-  background: var(--panel-2); border: 1px solid var(--line);
+  /* `--chip-bg` is the ground a lit row hands down; --panel-2 is the resting one. */
+  background: var(--chip-bg, var(--panel-2)); border: 1px solid var(--line);
   border-radius: var(--r-sm); padding: 1px 7px;
 }
 .badge--pill, .status-pill, .rollup, .agent-badge { border-radius: var(--r-pill); }
@@ -504,25 +606,32 @@ body {
 .tagpill { font-size: var(--fs-sm); color: var(--ink-3); cursor: default; }
 .updated { font-size: var(--fs-sm); color: var(--ink-3); font-variant-numeric: tabular-nums; margin-left: auto; }
 .adapted-badge { color: var(--ink-3); padding: 0 5px; }
-.warn-badge { color: var(--later); font-size: var(--fs-md); line-height: 1; cursor: help; flex: none; }
-.block-badge { font-size: var(--fs-md); line-height: 1; cursor: help; flex: none; }
+/* The drift flag and the blocked flag sit next to each other in the meta row and are
+   now the same species: one set, one stroke, one 14px box. */
+.warn-badge { color: var(--later); display: inline-flex; line-height: 0; cursor: help; flex: none; }
+.warn-badge .icn { width: 14px; height: 14px; }
+.block-badge { display: inline-flex; line-height: 0; cursor: help; flex: none; }
 .owner { display: inline-flex; align-items: center; gap: 5px; flex: none; text-decoration: none; color: var(--ink-2); }
 .owner-avatar { width: 16px; height: 16px; border-radius: 50%; flex: none; background: var(--panel-2); object-fit: cover; }
 .owner-name { font-weight: var(--fw-semibold); }
 @media (hover: hover) { a.owner:hover .owner-name { text-decoration: underline; } }
 .card-flags { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
 .flag {
+  display: flex; align-items: flex-start; gap: 6px;
   font-size: var(--fs-sm);
-  color: var(--later);
+  color: var(--later-ink);
   background: color-mix(in srgb, var(--later) 12%, transparent);
   border: 1px solid color-mix(in srgb, var(--later) 30%, transparent);
   border-radius: var(--r-sm);
   padding: 3px 7px;
 }
+/* Nudged down to the first line's x-height: the mark leads a wrapping sentence, so it
+   aligns to the text's top rather than to the box's. */
+.flag .icn { width: 13px; height: 13px; margin-top: 1px; }
 .chip.attention { color: var(--later); border-color: color-mix(in srgb, var(--later) 40%, var(--line)); }
 .chip.attention[aria-pressed="true"] {
   background: color-mix(in srgb, var(--later) 18%, var(--panel));
-  color: var(--later);
+  color: var(--later-ink);
   border-color: var(--later);
 }
 .card-body { margin-top: 8px; font-size: var(--fs-md); line-height: var(--lh-snug); color: var(--ink-2); display: none; overflow-wrap: anywhere; }
@@ -691,7 +800,7 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 }
 .edit-btn:hover:not(:disabled) { color: var(--ink); border-color: currentColor; }
 .edit-btn.active {
-  color: #fff; cursor: default; font-weight: var(--fw-semibold);
+  color: var(--on-solid); cursor: default; font-weight: var(--fw-semibold);
   border-color: transparent;
 }
 .edit-btn.active.status-now { background: var(--now); }
@@ -713,6 +822,7 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
   transition: opacity .18s ease, transform .18s ease; z-index: 10000; max-width: 90vw;
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
+/* The one surface that stays white: --danger-solid is dark in both themes. */
 .toast.err { background: var(--danger-solid); color: #fff; }
 
 /* token panel */
@@ -741,7 +851,7 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 .token-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
 
 .tbtn:hover { border-color: var(--ink-3); }
-.tbtn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.tbtn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-solid); }
 .tbtn.primary:hover { filter: brightness(1.05); }
 .tbtn:disabled { opacity: .5; cursor: not-allowed; }
 .tbtn:disabled:hover { border-color: var(--accent); filter: none; }
@@ -782,9 +892,16 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 /* Icons are decorative — never let the SVG become the tap target (which can eat
    taps on touch); the click always lands on the button. */
 .icn { width: 16px; height: 16px; display: inline-block; vertical-align: middle; flex: none; pointer-events: none; }
+/* The remove/close mark. The path draws across half its box (7.5 of a 15 grid),
+   so a 14px box puts ~7px of ink on screen — the height the 11px "✕" character it
+   replaced actually had. Overridden only where the button is bigger than the
+   chrome default. */
+.x-icn { width: 14px; height: 14px; }
+.modal-close .x-icn { width: 18px; height: 18px; }
+.shortcut-help .sc-close .x-icn { width: 16px; height: 16px; }
 .icn.inline { width: 13px; height: 13px; vertical-align: -2px; margin-right: 4px; }
 /* icon-only ghost buttons: center the glyph */
-#viewToggle, #theme { display: inline-flex; align-items: center; justify-content: center; }
+#viewToggle { display: inline-flex; align-items: center; justify-content: center; }
 /* blocked badge: amber caution tint, slightly smaller in the dense meta row */
 .block-badge { color: var(--later); }
 .block-badge .icn { width: 14px; height: 14px; }
@@ -837,8 +954,17 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 /* The footer belongs to the board: it counts and dates the harvest behind it. On a
    puck page there is no board under it, so it hid nothing and only reported on a
    view the reader had left. */
+/* And so does the chip row — it sits *outside* `.vhead` in the markup, which is the
+   whole reason it was missing from this list and rode along into the puck page. There
+   it says what the board behind it was narrowed to, which is not what you are reading,
+   and its `Save view` offered to save a view from a page that is not a board.
+   Hidden here rather than in `openDetail`, because `chipRow.hidden` answers a different
+   question — "is there anything to say" — and `renderChips` rewrites it on every render.
+   One flag for content, one for which page you are on; folding them together would let
+   a render while a puck is open put the row back. */
 body.viewing-puck #board,
 body.viewing-puck .foot,
+body.viewing-puck .chiprow,
 body.viewing-puck .vhead { display: none; }
 .detail-pane {
   background: var(--bg);
@@ -890,6 +1016,29 @@ body.col-resizing { cursor: col-resize; user-select: none; }
   text-transform: uppercase; color: var(--ink-3); padding: 0 8px; margin-bottom: 6px;
 }
 .side-section { display: flex; flex-direction: column; }
+/* The eyebrow became the fold control. It keeps `.side-eyebrow`, so it keeps the
+   heading's exact metrics — a heading that shifted when it turned into a switch would
+   read as a different element — and only loses the button chrome. */
+.eyebrow-fold {
+  font: inherit; background: none; border: 0; cursor: pointer;
+  display: flex; align-items: center; text-align: left; width: 100%;
+  font-family: var(--mono); font-size: var(--fs-xs); letter-spacing: var(--tr-eyebrow);
+  text-transform: uppercase; color: var(--ink-3);
+}
+@media (hover: hover) { .eyebrow-fold:hover { color: var(--ink-2); } }
+/* Quiet while open, plain while shut. A chevron that always showed would put five
+   permanent marks in the sidebar to advertise something most people set once; one that
+   *never* showed would leave a folded section looking like an empty one. So: on hover,
+   on focus, and whenever it is actually folded — where it is no longer decoration but
+   the only thing saying rows are hidden. Touch has no hover, so there it always shows. */
+.eyebrow-fold .eyebrow-chev {
+  width: 12px; height: 12px; margin-left: auto; flex: none;
+  opacity: 0; transition: opacity .12s, transform .12s;
+}
+.eyebrow-fold:hover .eyebrow-chev,
+.eyebrow-fold:focus-visible .eyebrow-chev { opacity: 1; }
+.eyebrow-fold.folded .eyebrow-chev { opacity: 1; transform: rotate(-90deg); }
+@media (hover: none) { .eyebrow-fold .eyebrow-chev { opacity: .55; } }
 
 /* focus switcher → vertical nav in the sidebar */
 .side-views .focusseg { display: flex; flex-direction: column; background: none; border: 0; padding: 0; gap: 1px; }
@@ -912,8 +1061,6 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 @media (hover: hover) { .side-repos .chip:hover { background: var(--panel-2); color: var(--ink); } }
 .side-repos .chip[aria-pressed="true"] { background: var(--panel-2); color: var(--ink); border: 0; }
 .side-repos .chip .n { margin-left: auto; font-size: var(--fs-sm); }
-
-.side-foot { margin-top: auto; display: flex; align-items: center; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
 
 /* topbar — thin, contextual (brand moved to the sidebar). Fixed height so it
    doesn't jump between board (title) and puck (breadcrumb + taller share button),
@@ -1135,7 +1282,7 @@ body.preload * { transition: none !important; }
 .pri.pri-medium .pri-bar.on { background: var(--later); }
 .pri.pri-high .pri-bar.on { background: var(--now); }
 .pri.pri-urgent {
-  width: 13px; height: 13px; border-radius: var(--r-xs); background: var(--urgent); color: #fff;
+  width: 13px; height: 13px; border-radius: var(--r-xs); background: var(--urgent); color: var(--on-solid);
   font-size: var(--fs-xs); font-weight: var(--fw-semibold); align-items: center; justify-content: center;
 }
 /* detail rail: static badge + label */
@@ -1183,7 +1330,7 @@ body.preload * { transition: none !important; }
 .filter-btn svg { width: 15px; height: 15px; }
 .filter-btn.on { border-color: var(--accent); color: var(--accent); }
 .filter-count {
-  font-family: var(--mono); font-size: var(--fs-xs); background: var(--accent); color: #fff;
+  font-family: var(--mono); font-size: var(--fs-xs); background: var(--accent); color: var(--on-solid);
   border-radius: var(--r-pill); min-width: 16px; text-align: center; padding: 0 4px;
 }
 /* Anchored under its own button (Filter and Display both sit at the left of the
@@ -1242,21 +1389,36 @@ body.preload * { transition: none !important; }
   height: 2px; margin: 3px 2px; border-radius: var(--r-pill);
   background: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent);
 }
-/* A saved view's remove affordance — only on hover/focus, so the sidebar stays
-   calm and a saved view reads as navigation first. */
-.saved-del {
-  margin-left: auto; background: none; border: 0; padding: 0 2px; cursor: pointer;
-  color: var(--ink-3); font-size: var(--fs-sm); line-height: 1; opacity: 0; transition: opacity .12s;
+/* A saved view's actions — only on hover/focus, so the sidebar stays calm and a saved
+   view reads as navigation first. Always shown on touch, which has no hover to reveal
+   it: the same rule `.col-more` follows, for the same reason. */
+.saved-more-wrap { margin-left: auto; display: inline-flex; }
+.saved-more {
+  display: inline-flex; align-items: center; background: none; border: 0; padding: 0 2px;
+  cursor: pointer; color: var(--ink-3); line-height: 1; opacity: 0; transition: opacity .12s;
 }
-.focusbtn:hover .saved-del, .saved-del:focus { opacity: 1; }
-.saved-del:hover { color: var(--ink); }
+.saved-more .icn { width: 14px; height: 14px; }
+.focusbtn:hover .saved-more, .saved-more:focus { opacity: 1; }
+.saved-more:hover { color: var(--ink); }
+@media (hover: none) { .saved-more { opacity: 1; } }
+/* The row is a <button> and so is this; the menu it opens is anchored in the wrapper,
+   which must not inherit the row's own text alignment. Narrower than the shared
+   minimum, because it has to clear the sidebar's own draggable minimum width (190px)
+   and its three labels are short. */
+.saved-more-wrap .pop { text-align: left; }
+.saved-more-wrap .pop.pick-menu { min-width: 164px; }
 .dp-save { color: var(--accent); }
 
 /* The chip row: one chip per active predicate, under the view header. It is the
    filter's display — which is why the Filter button needs no count of its own. */
+/* Symmetric padding, because this is a band of its own. It had none on top: the
+   air above the chips was the *view header's* bottom padding, borrowed across a
+   1px rule — which is not air this row owns. Every layout that hides or shrinks
+   the header (mobile puts the title in the topbar) left the chips hard against
+   the rule with 10px hanging below them. */
 .chiprow {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
-  padding: 0 var(--pad) 10px; border-bottom: 1px solid var(--line);
+  padding: 10px var(--pad); border-bottom: 1px solid var(--line);
 }
 .fchip {
   display: inline-flex; align-items: center; gap: 6px;
@@ -1269,8 +1431,20 @@ body.preload * { transition: none !important; }
   color: var(--ink-3); font-size: var(--fs-sm); line-height: 1;
 }
 .fchip-x:hover { color: var(--ink); }
+/* The row's actions, pinned right. `margin-left: auto` inside the wrapping flex
+   means they sit at the end of the last chip line when there is room and drop to a
+   line of their own — still right — when the chips fill the width. That is the
+   phone case, and it is the shape Linear's filter bar has. */
+.fchip-acts { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .fchip-clear { background: none; border: 0; font-size: var(--fs-base); color: var(--ink-3); cursor: pointer; padding: 0 4px; }
 .fchip-clear:hover { color: var(--ink); text-decoration: underline; }
+/* Bordered against the plain-text Clear beside it: one of these two changes what
+   you are looking at, the other writes a file. They should not read alike. */
+.fchip-save {
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-pill);
+  padding: 4px 12px; font-size: var(--fs-base); color: var(--ink); cursor: pointer;
+}
+@media (hover: hover) { .fchip-save:hover { border-color: var(--accent); color: var(--accent); } }
 
 /* Filter panel, two levels: fields, then that field's values. */
 .fp-row, .fp-back {
@@ -1323,17 +1497,23 @@ body.preload * { transition: none !important; }
    low in an 18px box whatever the line-height says. */
 .fp-toggle input:checked::after {
   content: ""; position: absolute; left: 5px; top: 1px; width: 5px; height: 10px;
-  border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg);
+  border: solid var(--on-solid); border-width: 0 2px 2px 0; transform: rotate(45deg);
 }
 .fp-toggle input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .fp-label { font-family: var(--mono); font-size: var(--fs-xs); letter-spacing: var(--tr-eyebrow); text-transform: uppercase; color: var(--ink-3); margin-top: 2px; }
+/* An eyebrow carries the same inset as the rows it labels, so the two start on one
+   line. `.vs-section` has always matched `.row`'s 9px; the filter panel's bare label
+   sat at 0 against rows inset by 4, which is where its four-pixel step came from.
+   Scoped to `.pop` and away from `.vs-section`: the sheet pulls both onto the content
+   line instead (see the `.sheet` rules), and the views eyebrow keeps its own 9px. */
+.pop .fp-label:not(.vs-section) { padding-inline: 4px; }
 .fp-chips { display: flex; flex-wrap: wrap; gap: 5px; }
 .fp-chip {
   font: inherit; font-size: var(--fs-base); padding: 3px 9px; border-radius: var(--r-pill);
   border: 1px solid var(--line); background: var(--panel); color: var(--ink-2); cursor: pointer;
 }
 .fp-chip:hover { color: var(--ink); border-color: var(--ink-3); }
-.fp-chip.on { color: #fff; border-color: transparent; background: var(--accent); font-weight: var(--fw-semibold); }
+.fp-chip.on { color: var(--on-solid); border-color: transparent; background: var(--accent); font-weight: var(--fw-semibold); }
 .fp-chip.on.pri-urgent { background: var(--urgent); }
 .fp-chip.on.pri-high { background: var(--now); }
 .fp-chip.on.pri-medium { background: var(--later); }
@@ -1357,7 +1537,7 @@ body.preload * { transition: none !important; }
 .fp-search:focus { outline: none; border-color: var(--accent); }
 .fp-tags { display: flex; flex-wrap: wrap; gap: 5px; max-height: 168px; overflow-y: auto; }
 .fp-chip.tag .fp-n { color: var(--ink-3); font-family: var(--mono); font-size: var(--fs-xs); margin-left: 4px; }
-.fp-chip.tag.on .fp-n { color: rgba(255, 255, 255, 0.8); }
+.fp-chip.tag.on .fp-n { color: color-mix(in srgb, var(--on-solid) 80%, transparent); }
 .fp-empty { color: var(--ink-3); font-size: var(--fs-base); padding: 4px 0; }
 .fp-more { align-self: flex-start; background: none; border: 0; padding: 2px 0; margin-top: 2px; font-size: var(--fs-base); color: var(--accent); cursor: pointer; }
 .fp-more:hover { text-decoration: underline; }
@@ -1373,11 +1553,12 @@ body.preload * { transition: none !important; }
 .detail-icon svg { width: 26px; height: 26px; }
 
 /* puck glyph on cards — a repo-colored leading mark before the title */
-.card-head { display: flex; align-items: flex-start; gap: 7px; }
+.card-head { display: flex; align-items: flex-start; gap: var(--rail, 7px); }
 .card-head .card-title { flex: 1; min-width: 0; margin: 0; }
 .puck-glyph { display: inline-flex; flex: none; line-height: 0; }
 .card-head .puck-glyph { margin-top: 2px; }
 .puck-glyph svg { width: 15px; height: 15px; }
+.card-head .puck-glyph svg { width: var(--glyph, 15px); height: var(--glyph, 15px); }
 
 /* discipline shortcuts in the ⌘K palette */
 .suggest-tagmark { width: 16px; text-align: center; flex: none; color: var(--accent); font-family: var(--mono); font-weight: var(--fw-semibold); }
@@ -1713,6 +1894,26 @@ body.preload * { transition: none !important; }
   }
   /* Rules span the content, like the rows they separate. */
   .sheet .menu-rule { margin: 6px 0; }
+  /* A section eyebrow is content too, so it belongs on the same line as the row text
+     above and below it. `.vs-section` carries its own 9px inset for the popover, where
+     the rows are inset by the same 9px and the two agree. In a sheet the rows are inset
+     by `--pad` instead (and pulled back out by the matching negative margin), so that
+     9px stopped being a shared measure and became a 9px step no other item takes.
+     Zero here, not a new number: the content line is the `.surface-body` padding box,
+     which is exactly where this element already starts. */
+  .sheet .vs-section { padding-inline: 0; }
+  /* The filter panel's rows are the same story with a smaller number: their base 4px
+     inset is a shared measure in the popover and a 4px step in a sheet, where the
+     content line is `--pad`. They get the row treatment rather than a padding tweak,
+     because they light on hover too — and a highlight that stops short of the edge
+     reads as an element inside the row instead of as the row itself. `width: auto` for
+     the reason the note above gives: with a fixed width the negative margins move the
+     box instead of widening it. */
+  .sheet .fp-row, .sheet .fp-back, .sheet .fp-val {
+    width: auto;
+    margin-inline: calc(var(--sheet-gap) - var(--pad));
+    padding-inline: calc(var(--pad) - var(--sheet-gap));
+  }
   /* Every control in a sheet is thumb-sized, not just the list rows. These two were
      20px and 18px tall inside a menu whose other rows are 37 — the toggle read as
      half a row, and "Reset to default" was a text-height target against the screen
@@ -1780,7 +1981,6 @@ body.preload * { transition: none !important; }
 .token { font-size: var(--fs-sm); background: var(--panel); padding: 1px 4px 1px 6px; }
 .token-x { font: inherit; font-size: var(--fs-xs); line-height: 1; background: none; border: 0; padding: 2px; color: var(--ink-3); cursor: pointer; }
 @media (hover: hover) { .token-x:hover { color: var(--ink); } }
-.pick-new .tagpill { background: var(--panel-2); }
 .token .repo-dot { flex: none; }
 .token-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 15ch; }
 
@@ -1935,8 +2135,7 @@ body.viewing-puck .detail-crumb { display: none; }
 .demo-ribbon {
   display: block; text-align: center; text-decoration: none;
   font-family: var(--mono); font-size: var(--fs-md); font-weight: var(--fw-medium);
-  padding: 9px 12px; background: var(--accent); color: #fff8f3;
+  padding: 9px 12px; background: var(--accent); color: var(--on-solid);
 }
-:root[data-theme="dark"] .demo-ribbon { color: #140d08; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .demo-ribbon { color: #140d08; } }
 .demo-ribbon b, .demo-ribbon strong { font-weight: var(--fw-semibold); }

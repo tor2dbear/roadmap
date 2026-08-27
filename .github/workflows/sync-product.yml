@@ -98,10 +98,15 @@ jobs:
           # sync with the tool. The demo's ribbon is config-driven (board data's
           # config.ribbon), not baked into index.html, so copying it is safe.
           cp app.js styles.css index.html "$RUNNER_TEMP/site/demo/"
-          # copy font files flat (idempotent — cp -r a dir onto an existing one
-          # nests it as demo/fonts/fonts on re-runs)
+          # The whole fonts directory, not just *.woff2: the OFL notice that has to
+          # travel with the binaries is not a woff2, and copying only the binaries
+          # would republish the fonts without the licence they ship under.
+          # Cleared first, then contents-only (`fonts/.`) — clearing is what makes a
+          # typeface dropped upstream stop being served here instead of lingering
+          # forever, and `/.` is what keeps a re-run from nesting demo/fonts/fonts.
+          rm -rf "$RUNNER_TEMP/site/demo/fonts"
           mkdir -p "$RUNNER_TEMP/site/demo/fonts"
-          cp fonts/*.woff2 "$RUNNER_TEMP/site/demo/fonts/"
+          cp -r fonts/. "$RUNNER_TEMP/site/demo/fonts/"
           cd "$RUNNER_TEMP/site"
           git config user.name "roadmap-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

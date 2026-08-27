@@ -15,13 +15,24 @@ name: PR checks + preview
 on:
   pull_request:
     branches: [main]
+  # The manual escape hatch the other two workflows already had. A run can fail to
+  # start on GitHub's side (`startup_failure` seconds in, with the file unchanged) and
+  # the push after it can produce no run at all — and then the preview URL silently
+  # keeps serving an older commit, which is worse than a red check because it looks
+  # fine. Without a dispatch the only way back was another push, i.e. a commit whose
+  # whole purpose is to kick CI.
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "PR number to check and preview"
+        required: true
 
 permissions:
   contents: read
   pull-requests: write
 
 concurrency:
-  group: pr-preview-${{ github.event.pull_request.number }}
+  group: pr-preview-${{ github.event.pull_request.number || inputs.pr }}
   cancel-in-progress: true
 
 jobs:
@@ -32,6 +43,25 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0 # full history so the harvester can derive puck created-dates
+          # On `pull_request` the empty ref is the merge commit GitHub already prepared;
+          # a manual run has no such context and has to name it.
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/pull/{0}/merge', inputs.pr) || '' }}
+
+      # Both triggers have to answer "which PR, and who wrote it" the same way: the
+      # event carries it, a manual run has to look it up.
+      - name: Resolve the PR
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NUM: ${{ github.event.pull_request.number || inputs.pr }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: |
+          set -euo pipefail
+          author="$AUTHOR"
+          [ -n "$author" ] || author=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$NUM" --jq .user.login)
+          echo "number=$NUM" >> "$GITHUB_OUTPUT"
+          echo "author=$author" >> "$GITHUB_OUTPUT"
+          echo "PR #$NUM by @$author"
 
       - uses: actions/setup-node@v4
         with:
@@ -47,6 +77,34 @@ jobs:
           for f in app.js scripts/*.mjs scripts/lib/*.mjs; do
             node --check "$f" && echo "ok: $f"
           done
+
+      # Cached on the Playwright version, so a run that changes nothing about the browser
+      # restores in a few seconds instead of pulling ~100 MB again.
+      - name: Resolve the Playwright version
+        id: pw
+        run: echo "v=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the browser
+        id: pwcache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-${{ runner.os }}-${{ steps.pw.outputs.v }}
+
+      - name: Install the browser
+        if: steps.pwcache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium-headless-shell
+
+      # The system libraries are not in the cache — only the browser is — so they are
+      # (re)installed on a hit too. It is a no-op when they are already present.
+      - name: Ensure browser system libraries
+        if: steps.pwcache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium-headless-shell
+
+      # The board's own behaviour, against a synthetic payload — deliberately before the
+      # harvest below, which rewrites `data/` and would otherwise be what the tests read.
+      - name: Test the board
+        run: npm test
 
       - name: Clone source repos (treeless, read-only)
         env:
@@ -99,7 +157,7 @@ jobs:
         id: cf
         env:
           TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          IS_OWNER: ${{ github.event.pull_request.user.login == github.repository_owner }}
+          IS_OWNER: ${{ steps.pr.outputs.author == github.repository_owner }}
         run: |
           if [ -n "$TOKEN" ] && [ "$IS_OWNER" = "true" ]; then
             echo "ok=true" >> "$GITHUB_OUTPUT"
@@ -115,7 +173,7 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          PR: ${{ github.event.pull_request.number }}
+          PR: ${{ steps.pr.outputs.number }}
         run: |
           set -euo pipefail
           # A named preview alias gives one *stable* URL per PR that just re-points at
@@ -135,13 +193,15 @@ jobs:
         uses: actions/github-script@v7
         env:
           PREVIEW_URL: ${{ steps.preview.outputs.url }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
         with:
           script: |
             const marker = '<!-- pr-preview -->';
             const url = process.env.PREVIEW_URL;
             const body = `${marker}\n### 🔍 Staging preview\n**${url}**\n\nStabil länk för den här PR:en — den pekar om till senaste versionen vid varje push (bokmärk den gärna). Detta är en Worker-*version*; prod (roadmap.tor2dbear.com) påverkas inte förrän du mergar till \`main\`.`;
             const { owner, repo } = context.repo;
-            const issue_number = context.issue.number;
+            // Not `context.issue.number`: a manual run carries no issue context.
+            const issue_number = Number(process.env.PR_NUMBER);
             // Paginate so the marker is found even past the first 30 comments.
             const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number, per_page: 100 });
             const existing = comments.find(c => c.body && c.body.includes(marker));

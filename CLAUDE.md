@@ -105,9 +105,20 @@ sources.json ──▶ scripts/harvest.mjs ──▶ data/roadmap.json + data/ro
     Marked `adapted`.
 - **`board.config.json`** is the instance's own config — title, description,
   `repoUrl`, and `views[]`: saved views, each a named
-  `{ q, group, sort, layout, done, empty }` using the same keys as the URL.
+  `{ view, q, group, layout, sort, done, empty, collapsed }` — `VIEW_KEYS` in `app.js`,
+  the same keys as the URL. All eight: a view that names a built-in scope (`view`) or
+  folds groups in the list layout (`collapsed`) carries those too, and listing a subset
+  here is how a plan comes to specify a lossy round trip.
   Configuration, not truth (the pucks stay the only data), and hand-editable;
-  *Display → Save as view* on the board writes it for you, as a commit.
+  the board writes it for you, as a commit: **Save view** in the chip row (where you
+  just built the filter), *Save this view…* behind the view title (where the saved
+  view lands), or the same command in ⌘K. Once a view exists, the chip row reads the
+  board against it — untouched, it offers nothing; changed, it offers **Reset** (back
+  to the view's parameters) and **Update "<name>"**, which rewrites that entry *in
+  place* rather than by name collision. Rename / Duplicate / Remove live in the `⋯` on
+  its sidebar row. Which view you came from is `state.fromView`, remembered for the
+  session only and deliberately absent from the URL: the parameters are what a link
+  carries, so a reload of a changed view is honestly just a filter.
 - **Backends** (`lib/repo.mjs`): if `ROADMAP_LOCAL_ROOT` points at local checkouts
   it reads from disk (CI clones the repos there — no API limits); otherwise it
   fetches via the GitHub API + raw endpoints (`GITHUB_TOKEN` optional).
@@ -176,6 +187,62 @@ page behind it (`body.scroll-locked`, a fixed body at a negative offset, since
 *began* inside a surface is never an outside click, and the sheet's height is frozen
 for the length of a touch, because letting it re-size mid-gesture moves the row out
 from under the finger.
+
+## UI: one thing, one place
+
+Cards leave the board three ways — the `Filter` panel, a column's `⋯`, and Display's
+**Show done & cancelled** — and the board used to explain each differently: sometimes a
+chip, sometimes the `HIDDEN` tray, sometimes both, and for the archive toggle *nothing at
+all*. One rule settles it:
+
+> **A whole column missing → the `HIDDEN` tray. Cards missing inside the columns → the
+> chip row.**
+
+- The tray answers for **both causes**. The archive toggle is not a query term — it lives
+  in `viewTerms()` as `-is:done`, invisible to the chip row — so `hiddenColumns()` asks
+  the board twice (`wouldShow(g, false)` and `wouldShow(g, true)`) to tell a column the
+  query hid from one the toggle hid. Each row's eye then does the matching repair, and a
+  column hidden by *both* comes back in one click.
+- The counts follow the same split: a query-hidden column is counted with the archive as
+  it stands, an archive-hidden one with it lifted. Otherwise hiding a repo while the
+  archive is off would advertise its landed pucks as waiting.
+- A chip stands down only for the **exact duplicate** — a term that is nothing but "hide
+  these columns", in the polarity that hides (`columnTerm`'s `hideNeg`), whose columns
+  are in the tray. A positive term (`Status: Now, Next, Later`) is the scope you chose,
+  not a column you hid; it keeps its chip, and the tray saying what fell outside it is a
+  different sentence.
+- **The list layout has no tray**, so there everything is a chip. `trayColumns` is null
+  whenever no tray was drawn, which is the whole mechanism.
+
+One thing the rule does **not** cover yet, so read it as scoped to columns. Under a
+non-status grouping the archive takes *cards* rather than columns, and there it is still
+silent: `?group=repo` with it off shows PIA's 6 open pucks and drops 39 landed ones, with
+no chip and no tray row (a repo lands in the tray only when *every* one of its pucks is
+archived, as Workshop's single done puck does). Status grouping never hits this — done and
+cancelled are whole columns there. This predates the tray work and is unchanged by it; what
+is new is that the sentence above would otherwise promise a chip that no code emits. Closing
+it means giving the archive a chip of its own, which is a fourth place for one switch and a
+product decision, not a bug fix — so it stands open rather than half-done.
+
+## UI: the sidebar's own state
+
+Two things live in the sidebar that are neither data nor a view:
+
+- **Folded sections.** Each heading (`Views`, `Signals`, `Saved`, `Agents`, `Repos`) *is*
+  its own fold control — the heading already names exactly what folds, so a separate
+  chevron button would add a target that could say nothing the first one doesn't. State
+  in `localStorage` under `roadmap-sidefold`, never in the URL and never in `VIEW_KEYS`:
+  `collapsed` there already means *which groups are folded in the list layout*, and a
+  shared link must not rearrange the recipient's furniture. Folding sets `hidden` on the
+  body rather than a class of its own — `[hidden] { display: none !important }` already
+  exists for exactly this, and a `.side-folded` class loses the specificity fight with
+  `.side-views .focusseg`.
+- **The theme is not here.** It has three states (light / dark / auto, where auto is the
+  *absence* of a stored choice), and it lives in Settings as one segment and in ⌘K as the
+  same three by name. The sidebar used to carry a fourth entry point — a permanent `◐`
+  that only flipped light⇄dark, so it could not reach the third state at all and sat in
+  the floor forever to offer something Settings already offered completely. `setTheme` is
+  the one writer both surfaces call.
 
 ## Auto-status signals
 
