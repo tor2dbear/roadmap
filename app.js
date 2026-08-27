@@ -3331,13 +3331,22 @@
       }
       // A real value. `-has:<field>` (and `-is:member`) empties every real column.
       if (absence) { if (term.neg) return; out.push(term); return; }
-      var vals = term.values.slice();
-      var at = -1;
-      for (var vi = 0; vi < vals.length; vi++) {
-        if (valueNamesColumn(g, vals[vi], key)) { at = vi; break; }
+      // *Every* spelling that names me, not the first one found. One term can list the
+      // same column twice — `-repo:tor2dbear/roadmap,roadmap` is one exclusion written
+      // two ways — and stopping at the first left the other still excluding it. The eye
+      // then redrew the very column it had promised to bring back, and since the chip
+      // stands down whenever the tray owns the column, that left no working way out at
+      // all. Removing one of two names for one thing was never the intent; it only
+      // looked like it while aliases were invisible here.
+      var kept = term.values.filter(function (v) { return !valueNamesColumn(g, v, key); });
+      var vals;
+      if (term.neg) vals = kept; // drop every name that excludes me
+      else {
+        // A positive term lists the columns that may stand. Naming me once is enough,
+        // so nothing is removed — add me only when no spelling of me is there already.
+        vals = term.values.slice();
+        if (kept.length === term.values.length) vals.push(t.value);
       }
-      if (term.neg) { if (at >= 0) vals.splice(at, 1); }
-      else if (at < 0) vals.push(t.value);
       if (vals.length) { term.values = vals; out.push(term); }
     });
     setQueryTerms(out);
