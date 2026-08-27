@@ -75,6 +75,9 @@ export async function makeOpener(browser, origin) {
 
 export async function withBrowser(fn) {
   const site = await serve();
+  // `chromium` resolves to the headless shell when only that is installed, which is the
+  // smaller download and needs fewer system libraries — so CI installs the shell and
+  // nothing here has to know which one it got.
   const browser = await chromium.launch();
   try {
     const open = await makeOpener(browser, site.origin);

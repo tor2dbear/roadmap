@@ -1,6 +1,20 @@
 // The phone sheet, measured against the *page* rather than against itself. Every number
 // here comes from a token, never a literal: `margin: 0 -10px` is a value whose result you
 // have to derive from two others, while `calc(var(--sheet-gap) - var(--pad))` is the claim.
+//
+// There is no separate pixel-reading file, and that is a decision rather than an omission.
+// `polering-av-egenskapsskenan` describes a `paint.mjs` that screenshots and reads colours,
+// written after a green test measured a row that *lay* at 8 and was *painted* at 22 —
+// `getBoundingClientRect()` cannot see an ancestor clipping. That lesson is kept, but as
+// the `clipLeft`/`clipRight` reads below: the scroller's padding box *is* its clip edge,
+// so asking for it answers the same question a screenshot would.
+//
+// One was written anyway, to check. It could not reach anything worth measuring: the only
+// row highlight a sheet paints without a write token turned out to be `:hover`, which
+// Playwright leaves behind after a click and which no phone has. It passed by measuring an
+// artefact — the exact failure the lesson is about — so it was deleted rather than kept
+// for the sake of the prose that named it. If a sheet ever paints a real selected state,
+// a pixel read is the right way to prove it and this comment is where to start.
 import { group, eq, ok, near } from "./assert.mjs";
 
 const PHONE = { width: 390, height: 780 };
