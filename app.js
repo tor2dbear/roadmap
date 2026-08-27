@@ -3226,7 +3226,16 @@
           key: k, label: g.labelOf(k), archive: archive,
           n: (archive ? full.count : byQuery.count)[k] || 0,
         };
-      });
+      })
+      // An eye that would produce nothing is worse than no row. With "Show empty
+      // columns" off, restoring a column that turns out to be empty leaves the board
+      // exactly as it was and the tray row simply disappears — the affordance promises
+      // a column and then swallows it. `n` is already "what the eye would put on the
+      // board" for both causes, so one test covers both: the archive's `Cancelled 0`
+      // on a default board, and a `-status:x` on a status nothing is in. With the
+      // setting on, the same click *does* produce a column — an empty one, which is
+      // what that setting asks for — so the row stays.
+      .filter(function (h) { return state.showEmpty || h.n > 0; });
   }
   // Putting a column back means editing the term that actually excluded it — which is
   // not always the term that names it. Adding this column's own predicate instead was
