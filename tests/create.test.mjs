@@ -211,4 +211,59 @@ export async function run({ open }) {
     eq(await p.locator(".pick-create").count(), 0, "men ingen skaparad mot en anpassad källa");
     eq(gh.writes.length, 0, "och ingenting skrevs");
   }
+
+  group("en blockerare skapas och länkas");
+  {
+    // The ordinary Blocked by case: the new puck is the blocker, so the reference is
+    // authored on the puck we are standing in — two writes, like the etapp.
+    const gh = githubStub();
+    const p = await open("#alpha/a-now", { token: true, github: gh.handler });
+    await trigger(p, /^Add$/).click();
+    await p.waitForTimeout(250);
+    await typeIn(p, "Needs a decision");
+    await p.locator(".pick-create").click();
+    await p.waitForTimeout(900);
+    eq(gh.writes.length, 2, "två commits");
+    eq(gh.writes[0].path, "acme/alpha:roadmap/needs-a-decision.md", "blockeraren skapas först");
+    ok(gh.writes[1].content.includes("depends: [needs-a-decision]"),
+      `och refereras från pucken vi stod i:\n${gh.writes[1].content}`);
+  }
+
+  group("en hängande referens repareras, inte dubbleras");
+  {
+    // `depends-missing` flags a reference to something not on the board, and creating
+    // that thing is exactly the repair it asks for — the reference was right, the file
+    // was missing. Appending it again would commit `depends: [foo, foo]` and draw the
+    // same relationship twice.
+    const dangling = (d) => {
+      const a = d.items.find((i) => i.slug === "a-now");
+      a.depends = ["foo"]; a.missingDepends = ["foo"]; a.blockedBy = ["foo"];
+      return d;
+    };
+    const gh = githubStub();
+    const p = await open("#alpha/a-now", { token: true, github: gh.handler, data: dangling });
+    await trigger(p, /^Add$/).click();
+    await p.waitForTimeout(250);
+    await typeIn(p, "Foo");
+    eq(await p.locator(".pick-create").count(), 1, "raden erbjuds — pucken finns ju inte");
+    await p.locator(".pick-create").click();
+    await p.waitForTimeout(900);
+
+    eq(gh.writes.length, 1, "bara filen skapas — referensen fanns redan");
+    eq(gh.writes[0].path, "acme/alpha:roadmap/foo.md", "och det är den som saknades");
+    eq(await p.locator(".dep-chip").count(), 1, "en relation, ett chip");
+
+    // The derived edges, read off the board's own model (`DATA` *is* `window.__ROADMAP__`,
+    // line 5). They have no picture on this page — the chip renders from the authored
+    // `depends:`, not from these — so the model is where the assertion has to go, and
+    // the rule it guards is the codebase's own: an optimistic edit must never leave the
+    // two directions disagreeing. Without the recompute the reference stays dangling in
+    // `blockedBy` and the new puck blocks nobody, until the next harvest says otherwise.
+    const edges = await p.evaluate(() => {
+      const by = (s) => window.__ROADMAP__.items.find((i) => i.slug === s);
+      return { blockedBy: by("a-now").blockedBy, blocks: by("foo") && by("foo").blocks };
+    });
+    eq(edges.blockedBy, ["alpha/foo"], "referensen pekar på en puck som finns nu");
+    eq(edges.blocks, ["alpha/a-now"], "och den nya pucken vet att den blockerar");
+  }
 }

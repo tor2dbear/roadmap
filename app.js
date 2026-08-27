@@ -6710,6 +6710,14 @@
             var made = createPuck(item.repo, title, "later", [], null, "", { open: false });
             if (made) made.then(function (p) {
               if (!p) return;
+              // The puck may be exactly what an existing `depends:` was already naming.
+              // Creating the thing you declared yourself blocked by is the repair
+              // `depends-missing` asks for — the reference was right, the file was
+              // missing — so appending it again would commit `depends: [foo, foo]` and
+              // draw the same relationship twice. `createPuck` has already recomputed
+              // the edges, so the dangling reference resolves on its own.
+              var already = (item.depends || []).some(function (r) { return resolveRef(item, r) === p; });
+              if (already) { afterEdit(item); return; }
               var ref = refFor(item, p);
               changeDepends(item, (item.depends || []).concat([ref]),
                 "roadmap: " + item.slug + " blocked by " + ref);
@@ -7164,6 +7172,11 @@
     // supposed to have just grown.
     DATA.items.push(item); DATA.total += 1;
     if (parentItm) relink(item, parentItm.id, parentRef);
+    // A new puck can satisfy a `depends:` that named something not on the board yet —
+    // anywhere, not only on the puck we came from. The derived edges are recomputed
+    // from the authored refs, so adding an item is enough to change them, and nothing
+    // else was going to notice until the next harvest.
+    recomputeDeps();
     buildAgentChips();
     var opened = opts.open !== false;
     // Both ends changed, and with `open: false` the etapp is the page still on screen —
@@ -7181,7 +7194,7 @@
         noteWriteError({ repo: repo }, err);
         if (parentItm) relink(item, null, null); // take the optimistic edge back out
         var i = DATA.items.indexOf(item); if (i >= 0) DATA.items.splice(i, 1);
-        DATA.total -= 1; buildAgentChips();
+        DATA.total -= 1; recomputeDeps(); buildAgentChips();
         afterEdit(parentItm || null); // the rollback is as visible as the addition was
         // Only the modal we opened. Closing unconditionally would have shut the puck
         // the picker was called from — the one page the caller asked to stay on.
