@@ -95,6 +95,20 @@ export const READ = {
   groups: () => [...document.querySelectorAll(".list-group .lh-label")].map((e) => e.textContent.trim()),
 };
 
+// Clicking a tray row, with the missing-row case answered here rather than by a
+// 30-second Playwright timeout and a stack trace. A test that fails because the row
+// it needed was absent should say *that* — the timeout says "click failed", which is
+// true and useless.
+export async function trayEye(page, text) {
+  const row = page.locator(".hidden-col").filter({ hasText: text });
+  if (await row.count() === 0) {
+    const rows = await page.locator(".hidden-col").allTextContents();
+    throw new Error(`ingen fackrad matchar ${JSON.stringify(text)} — facket har: ${JSON.stringify(rows.map((r) => r.replace(/\s+/g, " ").trim()))}`);
+  }
+  await row.first().click({ timeout: 5000 });
+  await page.waitForTimeout(150);
+}
+
 export function snapshot(page) {
   return page.evaluate(() => ({
     columns: [...document.querySelectorAll(".board > .column:not(.hidden-cols) .col-head h2")]

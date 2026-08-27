@@ -1,12 +1,8 @@
 // The rule from #21: a whole column missing → the HIDDEN tray. Cards missing inside
 // the columns → the chip row. Every assertion here is one half of that sentence.
-import { snapshot } from "./fixture.mjs";
+import { snapshot, trayEye } from "./fixture.mjs";
 import { group, eq } from "./assert.mjs";
 
-async function clickTray(page, text) {
-  await page.locator(".hidden-col").filter({ hasText: text }).click();
-  await page.waitForTimeout(150);
-}
 async function hideColumn(page, label) {
   const col = page.locator(".board > .column:not(.hidden-cols)")
     .filter({ has: page.locator(".col-head h2", { hasText: new RegExp(`^${label}$`, "i") }) });
@@ -30,7 +26,7 @@ export async function run({ open }) {
   group("ögat på en arkivkolumn");
   {
     const p = await open();
-    await clickTray(p, "Done");
+    await trayEye(p, "Done");
     const s = await snapshot(p);
     eq(s.columns, ["Now", "Next", "Later", "Done", "Cancelled"], "ögat lyfter växeln, inte bara sin egen kolumn");
     eq(s.tray, [], "facket är tomt när ingenting är gömt");
@@ -86,7 +82,7 @@ export async function run({ open }) {
   {
     const p = await open("?q=-status%3Adone");
     eq((await snapshot(p)).tray, ["Done3", "Cancelled1"], "facket listar den ändå");
-    await clickTray(p, "Done");
+    await trayEye(p, "Done");
     const s = await snapshot(p);
     eq(s.columns.includes("Done"), true, "ETT klick räcker — växeln och termen lagas ihop");
     eq(s.query, null, "termen är borta");

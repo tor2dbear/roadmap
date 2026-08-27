@@ -32,7 +32,8 @@ await withBrowser(async (ctx) => {
       console.log(`\n  ✗ ${name} kastade: ${err && err.stack ? err.stack : err}`);
     }
     const ms = Date.now() - t0;
-    console.log(failed() === before ? `ok (${ms} ms)` : `FEL (${ms} ms)`);
+    const threwHere = threw[threw.length - 1] === name;
+    console.log(failed() === before && !threwHere ? `ok (${ms} ms)` : `FEL (${ms} ms)`);
   }
 });
 
