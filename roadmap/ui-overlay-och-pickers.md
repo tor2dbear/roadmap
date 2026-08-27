@@ -1,8 +1,8 @@
 ---
 title: "UI-ramar: overlay-primitiv och pickers"
-status: now
+status: done
 tags: [ui, product]
-updated: 2026-08-25
+updated: 2026-08-27
 created: 2026-08-21
 order: 5
 parent: gui-hantverk

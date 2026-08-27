@@ -1,8 +1,8 @@
 ---
 title: "Dölj en kolumn — och has: som gör tomma-hinken sägbar"
-status: now
+status: done
 tags: [ui, product]
-updated: 2026-08-26
+updated: 2026-08-27
 created: 2026-08-26
 order: 5
 ---

@@ -1,8 +1,8 @@
 ---
 title: "Navigation är en ren start, och bara en rad tänds"
-status: now
+status: done
 tags: [ui]
-updated: 2026-08-26
+updated: 2026-08-27
 created: 2026-08-26
 order: 5
 ---
