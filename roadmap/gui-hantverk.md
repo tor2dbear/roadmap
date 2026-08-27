@@ -1,8 +1,8 @@
 ---
 title: "GUI-hantverk"
-status: now
+status: done
 tags: [ui]
-updated: 2026-08-24
+updated: 2026-08-27
 created: 2026-08-24
 order: 5
 ---
@@ -32,7 +32,21 @@ Den enda som sitter här av arbetsskäl snarare än tematiska är `skapa-puck-ur
 den hör lika mycket hemma i `gui-editing` (skrivvägen), men arbetet sker här. En puck
 har en förälder, och det är en verklig kostnad för att slippa en andra posttyp.
 
+## Delivered
+Sju pass, alla stängda. Fyra fanns när etappen skrevs; tre kom till på vägen, vilket
+är vad man ska vänta sig av arbete som delar filer — varje pass hittade fynd som hörde
+hemma i ett av de andra, vilket var argumentet för att de är *en* sak.
+
+**Den öppna frågan är besvarad, och svaret var ingetdera.** Rollupen skulle röra sig
+och sedan berätta om ett antal eller en andel är det man jämför. Den rörde sig, och
+`etapp-tydlighet-i-gui` prövade bägge formerna: ringen föll först, stapeln landade i
+#11 och togs bort igen i #13. Vid 1–5 delar är siffran exakt och fullständig — varje
+proportionsmarkering är en andra, grövre kopia av vad `2/3` redan sagt. En rak regel
+längs underkanten av en helt rundad pilla klipps dessutom av radien i bägge ändar och
+läser som ett understruket "2/".
+
+Frågan var alltså rätt ställd och svaret blev att inget av alternativen behövdes.
+Det är värt att skilja från "vi hann inte": måttet prövades i två former, mättes på en
+telefon, och avfärdades på egna meriter.
+
 ## Open questions
-- Rollupen står på `0/5` tills något av passen stängs. Det är först när den rör sig
-  som vi vet om ett *antal* eller en *andel* är det man faktiskt jämför — se
-  progressringen i `etapp-tydlighet-i-gui`.
