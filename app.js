@@ -6774,6 +6774,12 @@
     if (wouldLoop(item, parentId)) { toast("✗ That would make an etapp loop", true); return; }
     var raw = target ? refFor(item, target) : null;
     var prevRef = item.parentRef, prevRaw = item.parent, prevU = item.updated;
+    // Saved, not recomputed. `relink` clears `parent-missing` when the link resolves and
+    // deliberately never raises it — an unresolved `parent:` is either a typo or a loop,
+    // and choosing between those is the harvester's job. A rollback has no such problem:
+    // it knows exactly which flag stood there, so it puts that one back. (`filter` builds
+    // a new array, so holding the old reference is holding the old value.)
+    var prevSignals = item.signals;
     relink(item, parentId, raw);
     item.updated = today();
     // Both ends changed, and the etapp is as likely to be the page you're on: adding
@@ -6785,6 +6791,7 @@
       .then(function () { toast(raw ? "✓ In etapp " + target.title + " — live in ~1 min" : "✓ Out of its etapp — live in ~1 min"); })
       .catch(function (err) {
         relink(item, prevRef, prevRaw);
+        item.signals = prevSignals;
         item.updated = prevU;
         noteWriteError(item, err);
         afterEdit(item, prevRef, parentId);

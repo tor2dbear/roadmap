@@ -344,4 +344,34 @@ export async function run({ open }) {
     eq(await trigger(p, /^Set etapp$/).count(), 0,
       "och kontrollerna är borta när repot visat sig skrivskyddat");
   }
+
+  group("och kommer tillbaka när länkningen faller");
+  {
+    // The other half of clearing it: `relink` never raises `parent-missing`, so a
+    // rollback that restores the unresolved `parent:` would leave the puck quietly
+    // un-flagged — out of Needs attention, with nothing explaining its broken link
+    // until the next harvest. The rollback restores the flag it saved rather than
+    // deciding which one to raise; a rollback knows, a recompute would have to guess
+    // between a typo and a loop.
+    const dangling = (d) => {
+      const a = d.items.find((i) => i.slug === "a-now");
+      a.parent = "foo"; a.parentRef = null;
+      a.signals = [{ type: "parent-missing" }];
+      return d;
+    };
+    const gh = githubStub({ failWrites: true });
+    const p = await open("#alpha/a-now", { token: true, github: gh.handler, data: dangling });
+    const flagged = () => p.evaluate(() =>
+      window.__ROADMAP__.items.find((i) => i.slug === "a-now").signals.map((g) => g.type));
+    eq(await flagged(), ["parent-missing"], "flaggan står där först");
+
+    // Pick the existing etapp rather than creating one: the create would fail on its own
+    // first write, and the flag we are chasing is restored by the *link's* rollback.
+    await trigger(p, /^⋯$|^Set etapp$/).click();
+    await p.waitForTimeout(250);
+    await typeIn(p, "An etapp");
+    await p.locator(".pick-mi").first().click();
+    await p.waitForTimeout(1000);
+    eq(await flagged(), ["parent-missing"], "och står kvar när skrivningen nekats");
+  }
 }
