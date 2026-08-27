@@ -251,8 +251,17 @@ Two consequences worth knowing before touching this:
 - **A section's key is not its query field.** Three sections write `is:`, so anything
   reading *this section's* part of the query must ask the section (`sectionValues`,
   `termInSection`), never the field. `countFor` in particular lifts out only its own
-  section's terms — dropping every `is:` term would count a Membership click against a
+  section's terms — dropping every `is:` term would count a Membership row against a
   board that had forgotten the Readiness ticks still on screen.
+- **The number beside a value says how many cards carry it**, given every *other*
+  section's filters — one sentence, and the same one whether the row is ticked or not.
+  It used to model the click instead ("how many you would get if you pressed this"),
+  which on a ticked row meant "if you unticked it": two sentences on rows that look
+  identical, and ticking `Is an etapp` sent its own number from 1 to the whole board,
+  where it read as a claim about how many etapps there are. The cost of the change is
+  that the numbers no longer predict a click exactly when values overlap (a puck can be
+  `blocked` and `blocking`, so 2 + 2 ticks to 3) — true of facet counts everywhere, and
+  not what they are for.
 - **Union is the convention, not a claim about the values.** A section's values are not
   mutually exclusive — a puck can be `blocked` and `blocking`, and a nested etapp is
   `etapp` and `member` both. `tags` has always OR'd values that co-occur, and two ticked
