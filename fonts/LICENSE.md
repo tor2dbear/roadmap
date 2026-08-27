@@ -9,6 +9,7 @@ the demo mirror, which copy this directory wholesale.
 | File | Family | Notice |
 |---|---|---|
 | `geist.woff2` | Geist | Copyright 2024 The Geist Project Authors |
+| `geist-italic.woff2` | Geist Italic | Copyright 2024 The Geist Project Authors |
 | `geist-mono.woff2` | Geist Mono | Copyright 2024 The Geist Project Authors |
 
 Upstream: https://github.com/vercel/geist-font
