@@ -3270,7 +3270,14 @@
     var full = archiveOff ? wouldShow(g, true) : byQuery;
     var reachable = {};
     byQuery.keys.forEach(function (k) { reachable[k] = 1; });
-    return full.keys.filter(function (k) { return !here[k] && columnTerm(g, k); })
+    // A column the *archive* hid needs no name to come back — its eye presses the
+    // toggle, and a toggle takes no argument. Demanding a nameable term anyway lost
+    // the Target grouping entirely: a month is a range over a date, two terms whose
+    // conjunction this grammar cannot negate, so `columnTerm` returns null for every
+    // real month. An archive-only month then had no tray row *and* no chip, which is
+    // precisely the silence this whole change exists to end. A column the *query* hid
+    // still has to be nameable, because mending that term is the only way back to it.
+    return full.keys.filter(function (k) { return !here[k] && (!reachable[k] || columnTerm(g, k)); })
       .map(function (k) {
         var archive = !reachable[k];
         return {
@@ -3309,13 +3316,16 @@
   // both halves. One eye, one click, one column back — which is the whole point of it.
   function unhideColumn(g, key, archive) {
     var t = columnTerm(g, key);
-    if (!t) return;
+    if (!t && !archive) return; // nothing to mend and no toggle to lift
     if (archive) {
       state.showDone = true;
       saveDisplay("done", "1"); // the same key `setDisplay("showDone", …, "done")` writes
       refreshDisplayDot();
       refreshNav(); // the sidebar's counts read `state.showDone`
     }
+    // An unnameable column (a target month) is only ever here for the archive, so the
+    // lift above *is* the whole repair; render it, since no term edit will.
+    if (!t) { renderBoard(); return; }
     var none = key === NO_VALUE;
     var out = [];
     parseQuery(state.query).forEach(function (term) {
