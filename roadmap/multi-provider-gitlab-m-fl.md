@@ -2,10 +2,9 @@
 title: Multi-provider (GitLab m.fl.)
 status: later
 tags: [product]
-updated: 2026-08-24
+updated: 2026-08-27
 created: 2026-08-17
 order: 34
-parent: productize
 ---
 
 ## Mål
@@ -28,7 +27,11 @@ GitHub-flavored idag.
 - **Deploy** — GitLab Pages i stället för GitHub Pages/Cloudflare.
 
 ## Avgränsning
-Inte dag ett — men arkitekturen förhindrar det inte. Sekvens: gör `sync.yml`-deployen
+Inte dag ett — men arkitekturen förhindrar det inte. Står utanför `productize`
+sedan 2026-08-27: den etappen handlar om att dela produkten från instansen, och
+den är gjord. Att stödja fler git-värdar är en egen ambition som väntar på att
+någon faktiskt vill köra på GitLab — den hörde inte till leveransen, den höll bara
+etappen öppen. Sekvens: gör `sync.yml`-deployen
 och issue-kollen pluggbara, lägg sen en GitLab-profil bredvid GitHub-profilen.
 
 ## Öppna frågor

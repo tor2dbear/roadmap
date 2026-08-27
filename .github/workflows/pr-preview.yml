@@ -78,6 +78,34 @@ jobs:
             node --check "$f" && echo "ok: $f"
           done
 
+      # Cached on the Playwright version, so a run that changes nothing about the browser
+      # restores in a few seconds instead of pulling ~100 MB again.
+      - name: Resolve the Playwright version
+        id: pw
+        run: echo "v=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the browser
+        id: pwcache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-${{ runner.os }}-${{ steps.pw.outputs.v }}
+
+      - name: Install the browser
+        if: steps.pwcache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium-headless-shell
+
+      # The system libraries are not in the cache — only the browser is — so they are
+      # (re)installed on a hit too. It is a no-op when they are already present.
+      - name: Ensure browser system libraries
+        if: steps.pwcache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium-headless-shell
+
+      # The board's own behaviour, against a synthetic payload — deliberately before the
+      # harvest below, which rewrites `data/` and would otherwise be what the tests read.
+      - name: Test the board
+        run: npm test
+
       - name: Clone source repos (treeless, read-only)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
