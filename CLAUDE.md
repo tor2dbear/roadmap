@@ -214,6 +214,16 @@ all*. One rule settles it:
 - **The list layout has no tray**, so there everything is a chip. `trayColumns` is null
   whenever no tray was drawn, which is the whole mechanism.
 
+One thing the rule does **not** cover yet, so read it as scoped to columns. Under a
+non-status grouping the archive takes *cards* rather than columns, and there it is still
+silent: `?group=repo` with it off shows PIA's 6 open pucks and drops 39 landed ones, with
+no chip and no tray row (a repo lands in the tray only when *every* one of its pucks is
+archived, as Workshop's single done puck does). Status grouping never hits this — done and
+cancelled are whole columns there. This predates the tray work and is unchanged by it; what
+is new is that the sentence above would otherwise promise a chip that no code emits. Closing
+it means giving the archive a chip of its own, which is a fourth place for one switch and a
+product decision, not a bug fix — so it stands open rather than half-done.
+
 ## Auto-status signals
 
 So status upkeep isn't purely self-reported, the board flags pucks whose declared
