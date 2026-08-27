@@ -1,8 +1,8 @@
 ---
 title: "Polering av egenskapsskenan"
-status: now
+status: done
 tags: [ui]
-updated: 2026-08-25
+updated: 2026-08-27
 created: 2026-08-22
 order: 5
 depends: [ui-overlay-och-pickers]
@@ -224,10 +224,14 @@ Felet var att två betydelser fick samma kläder. `No priority` och `Unassigned`
   padding-ruta — som också är dess klippkant — redan ute vid 8, och raden målas dit
   den ligger. Den fasta fältrutan (`.sheet-pin`) får samma behandling, annars hade en
   tänd rad lyst igenom i de 14px som blev över bredvid fältet.
-  Ett nytt test (`paint.mjs`) läser **pixlarna** i en skärmdump i stället för rutor:
-  det mäter var färgen faktiskt slutar. Kört mot den gamla koden faller det med
-  22 mot väntat 8 — alltså hade det fångat felet första gången. `surface.mjs` frågar
-  dessutom nu efter scrollerns *content*-kant och kräver att ingen rad hamnar utanför
-  klippkanten.
-  Läxan är inte "testa mer" utan **testa i rätt lager**: allt som handlar om vad man
-  *ser* måste mätas på det som målas. Layoutrutan är en modell av sidan, inte sidan.
+  Ett pixelläsande test skrevs, var grönt, och **ströks igen** när selen commitades
+  (#23): den enda radmarkering ett ark målar utan skrivtoken är `:hover`, som
+  Playwright lämnar kvar efter ett klick och som ingen telefon har. Det mätte alltså
+  ett artefakt, inte designen.
+  Läxan bor kvar, men i rätt lager: `tests/surface.test.mjs` frågar efter scrollerns
+  *content*-kant — dess padding-ruta **är** dess klippkant, så att fråga efter den
+  besvarar samma fråga som en skärmdump. Bevisat: samma sabotage (scrollern klipper
+  vid 22 i stället för 8) fälls av bägge, och den här gör det utan att avkoda en PNG.
+  Sensmoralen står: allt som handlar om vad man *ser* måste mätas på det som målas,
+  och en layoutruta vet ingenting om att en förfader klipper. Men "läs pixlarna" var
+  inte svaret — att fråga rätt ruta var.

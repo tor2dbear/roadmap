@@ -1,8 +1,8 @@
 ---
 title: "Etapp: tydlighet i GUI:t"
-status: now
+status: done
 tags: [ui, product]
-updated: 2026-08-25
+updated: 2026-08-27
 created: 2026-08-23
 order: 5
 depends: [ui-primitiv-och-skalor]
