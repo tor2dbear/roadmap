@@ -4187,17 +4187,21 @@
     if (t === "light") return false;
     return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
   }
-  // One writer for all three states. `auto` is the *absence* of a choice, so it removes
-  // the attribute and the stored value rather than storing the word — which is what
-  // makes a device that later changes its own scheme still be followed.
+  // One writer for all three states — and the attribute is not the same thing as the
+  // stored choice. The attribute is what the page is *rendering*, and it is always one
+  // of the three: the dark palette lives under
+  // `@media (prefers-color-scheme: dark) { :root[data-theme="auto"] }`, so `auto` has to
+  // be spelled out or a dark device falls through to the light palette with no rule
+  // matching it at all. (`index.html` ships `data-theme="auto"` for exactly this reason;
+  // removing the attribute was undoing the markup's own default.) The stored value is
+  // the *choice*, and there `auto` genuinely is an absence — nothing is written, so a
+  // browser that later gains a stored value from somewhere else does not shadow it.
   function setTheme(v) {
-    if (v === "auto") {
-      root.removeAttribute("data-theme");
-      try { localStorage.removeItem("roadmap-theme"); } catch (e) {}
-    } else {
-      root.setAttribute("data-theme", v);
-      try { localStorage.setItem("roadmap-theme", v); } catch (e) {}
-    }
+    root.setAttribute("data-theme", v);
+    try {
+      if (v === "auto") localStorage.removeItem("roadmap-theme");
+      else localStorage.setItem("roadmap-theme", v);
+    } catch (e) {}
     applyThemeColor();
   }
   // Follow the system scheme while on "auto" — the page repaints itself through CSS,
