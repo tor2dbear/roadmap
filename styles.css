@@ -954,8 +954,17 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 /* The footer belongs to the board: it counts and dates the harvest behind it. On a
    puck page there is no board under it, so it hid nothing and only reported on a
    view the reader had left. */
+/* And so does the chip row — it sits *outside* `.vhead` in the markup, which is the
+   whole reason it was missing from this list and rode along into the puck page. There
+   it says what the board behind it was narrowed to, which is not what you are reading,
+   and its `Save view` offered to save a view from a page that is not a board.
+   Hidden here rather than in `openDetail`, because `chipRow.hidden` answers a different
+   question — "is there anything to say" — and `renderChips` rewrites it on every render.
+   One flag for content, one for which page you are on; folding them together would let
+   a render while a puck is open put the row back. */
 body.viewing-puck #board,
 body.viewing-puck .foot,
+body.viewing-puck .chiprow,
 body.viewing-puck .vhead { display: none; }
 .detail-pane {
   background: var(--bg);
