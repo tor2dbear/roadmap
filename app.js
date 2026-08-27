@@ -2037,25 +2037,42 @@
               list.appendChild(mi);
             });
             // Search-and-create, the same shape the labels box uses — but a puck is a
-            // file in a repo, so the row has to name the repo it would be written in.
-            // Offered only when the search found no puck by that exact title: a row
-            // that would make a second "Auth" beside the "Auth" listed above it is an
-            // invitation to a duplicate, not a shortcut.
-            var exact = q && pool.some(function (it) { return lower(it.title) === q; });
-            if (opts.create && ghToken() && q && !exact) {
+            // file in a repo, and that is what both guards below are about.
+            //
+            // The duplicate is measured **where the file would land**, and by two
+            // rules, because there are two ways to be in the way. The *slug* is what
+            // `createPuck` refuses on — an id is `<repo>/<slug>` — so offering a row
+            // whose commit is rejected on arrival would be a lie. The *title* is what
+            // the reader would be confused by: a second "Auth" beside the "Auth"
+            // listed right above it. Neither implies the other. The fixture has both
+            // ends of that: a puck titled "An etapp" whose slug is `a-etapp`, which a
+            // slug test alone would happily duplicate by title.
+            //
+            // Both are scoped to the destination repo. A puck called "Auth" in another
+            // repo neither collides nor confuses — it is a different project's Auth,
+            // and the cross-repo pool this picker offers is full of them.
+            //
+            // And the row is offered only where the write could land: `canAddMember`
+            // deliberately opens the picker when a *foreign* child can be added to an
+            // etapp in a read-only repo, but creating always writes to this one — so
+            // without the second guard the row would promise a commit that is rejected
+            // on arrival.
+            var writable = opts.create && ghToken() && canWriteRepo(opts.create.repo || opts.repo);
+            var typed = search.value.trim();
+            var dest = opts.create && opts.create.repo || opts.repo;
+            var taken = typed && DATA.items.some(function (it) {
+              return it.repo === dest && (it.slug === slugify(typed) || lower(it.title) === lower(typed));
+            });
+            if (writable && q && !taken) {
               var mk = el("button", "row pick-mi pick-create");
               mk.type = "button";
               mk.appendChild(icon("plus", "pick-createmark"));
-              mk.appendChild(el("span", "pick-title", "New " + opts.create.noun + " \u201c" + search.value.trim() + "\u201d"));
-              mk.appendChild(el("span", "pick-repo", "in " + repoNameOf(opts.repo)));
-              mk.addEventListener("click", function () {
-                var typed = search.value.trim();
-                api.close();
-                opts.create.run(typed);
-              });
+              mk.appendChild(el("span", "pick-title", "New " + opts.create.noun + " \u201c" + typed + "\u201d"));
+              mk.appendChild(el("span", "pick-repo", "in " + repoNameOf(dest)));
+              mk.addEventListener("click", function () { api.close(); opts.create.run(typed); });
               list.appendChild(mk);
             }
-            if (!hits.length && !(opts.create && ghToken() && q)) {
+            if (!hits.length && !(writable && q && !taken)) {
               list.appendChild(el("div", "fp-empty", q ? "No puck matches" : "Nothing to pick"));
             }
             if (hits.length > CAP) list.appendChild(el("div", "fp-empty", "\u2026and " + (hits.length - CAP) + " more \u2014 keep typing"));
@@ -5887,11 +5904,14 @@
   // a fine-grained token's permissions.push can read true while Contents: write is
   // missing. Learned from real failures; cleared on sign-in.
   var readOnlyRepos = new Set();
-  function canWrite(item) {
+  // Permission is a property of the *repo*, and some questions are about a repo with
+  // no item to ask through — "could a puck be created here" is one.
+  function canWriteRepo(repo) {
     // == null also catches `undefined` — card() calls this during the first render,
     // before writableRepos/readOnlyRepos are assigned (they mean "not checked yet").
-    return (writableRepos == null || writableRepos.has(item.repo)) && !(readOnlyRepos && readOnlyRepos.has(item.repo));
+    return (writableRepos == null || writableRepos.has(repo)) && !(readOnlyRepos && readOnlyRepos.has(repo));
   }
+  function canWrite(item) { return canWriteRepo(item.repo); }
   function noteWriteError(item, err) {
     if (err && (err.status === 403 || err.status === 404)) readOnlyRepos.add(item.repo);
   }
@@ -6762,6 +6782,10 @@
   }
   function canAddMember(item) {
     if (!ghToken()) return false;
+    // Creating the first member is precisely what an empty etapp needs, and the old
+    // condition made that unreachable: no existing candidate, no picker, no way to
+    // make one. The picker is worth drawing whenever *either* end is possible.
+    if (canWriteRepo(item.repo)) return true;
     for (var i = 0; i < DATA.items.length; i++) {
       if (memberCandidate(item, DATA.items[i])) return true;
     }

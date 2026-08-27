@@ -85,4 +85,52 @@ export async function run({ open }) {
     const p = await open("#alpha/a-now");
     eq(await trigger(p, "Set etapp").count(), 0, "skenan är inte ens redigerbar");
   }
+
+  group("dubbletten mäts där filen ska ligga");
+  {
+    // A puck titled the same in *another* repo neither collides nor confuses — it is a
+    // different project's, and the picker's pool is full of them. The old guard asked
+    // the whole cross-repo pool and hid the row for exactly that case.
+    const gh = githubStub();
+    const p = await open("#alpha/a-now", { token: true, github: gh.handler });
+    await trigger(p, "Set etapp").click();
+    await p.waitForTimeout(250);
+    await typeIn(p, "b-later");
+    ok((await rows(p)).some((r) => r.startsWith("b-later")), "den finns i listan, från beta");
+    eq(await p.locator(".pick-create").count(), 1, "men den hindrar inte ett alpha med samma namn");
+  }
+
+  group("ett skrivskyddat mål erbjuder inget skapande");
+  {
+    // `canAddMember` opens the picker deliberately when a *foreign* child can be added
+    // to an etapp in a repo one cannot write. Creating always writes to the etapp's own
+    // repo, so the row would promise a commit that is rejected on arrival.
+    const gh = githubStub({ readOnly: ["acme/alpha"] });
+    const p = await open("#alpha/a-etapp", { token: true, github: gh.handler });
+    await p.waitForTimeout(700); // the permissions probe is a fetch; before it lands, unknown means writable
+    eq(await trigger(p, "Add puck").count(), 1, "väljaren står kvar — ett barn i beta går att lägga till");
+    await trigger(p, "Add puck").click();
+    await p.waitForTimeout(250);
+    await typeIn(p, "Something new");
+    eq(await p.locator(".pick-create").count(), 0, "men ingen skaparad mot ett repo som säger nej");
+    eq(gh.writes.length, 0, "och ingenting skrevs");
+  }
+
+  group("en tom etapp kan få sin första medlem");
+  {
+    // The old condition needed an existing candidate, so an etapp with none had no
+    // picker — and therefore no way to make the very first one.
+    const only = (d) => { d.items = d.items.filter((i) => i.slug === "a-etapp"); d.items[0].children = []; d.total = 1; return d; };
+    const gh = githubStub();
+    const p = await open("#alpha/a-etapp", { token: true, github: gh.handler, data: only });
+    eq(await trigger(p, "Add puck").count(), 1, "väljaren finns fast ingen kandidat gör det");
+    await trigger(p, "Add puck").click();
+    await p.waitForTimeout(250);
+    await typeIn(p, "First member");
+    eq(await p.locator(".pick-create").count(), 1, "och den erbjuder att skapa");
+    await p.locator(".pick-create").click();
+    await p.waitForTimeout(600);
+    eq(gh.writes.length, 1, "en commit");
+    ok(gh.writes[0].content.includes("parent: a-etapp"), "med relationen i filen");
+  }
 }

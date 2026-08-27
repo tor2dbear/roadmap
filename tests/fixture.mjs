@@ -127,8 +127,11 @@ export function snapshot(page) {
 // *commit* rather than on what the board happens to render afterwards. `writes`
 // collects every PUT with its path and its decoded file, in order — the order is half
 // the assertion when a relation takes two commits.
-export function githubStub() {
+export function githubStub(opts = {}) {
   const writes = [];
+  // `readOnly` answers the permissions probe with push:false for those repos, which is
+  // how the board learns a repo it can see is one it cannot write.
+  const readOnly = new Set(opts.readOnly || []);
   const ok = (body) => ({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
   return {
     writes,
@@ -149,7 +152,9 @@ export function githubStub() {
         const md = "---\ntitle: Placeholder\nstatus: now\nupdated: 2026-08-20\n---\n\nBody\n";
         return route.fulfill(ok({ sha: "sha", content: Buffer.from(md).toString("base64") }));
       }
-      return route.fulfill(ok({ login: "tester", permissions: { push: true } }));
+      const m = /\/repos\/([^/]+\/[^/?]+)/.exec(req.url());
+      const repo = m && m[1];
+      return route.fulfill(ok({ login: "tester", permissions: { push: !repo || !readOnly.has(repo) } }));
     },
   };
 }
