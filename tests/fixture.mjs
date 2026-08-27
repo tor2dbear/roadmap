@@ -56,6 +56,13 @@ export async function makeOpener(browser, origin) {
       deviceScaleFactor: opts.deviceScaleFactor || 1,
     });
     pages.push(page);
+    // A write path only exists when a token does — every editable control in the rail
+    // is gated on one. Seeded before load, because the board reads it while building.
+    if (opts.token) {
+      await page.addInitScript((t) => { try { localStorage.setItem("roadmap-gh-token", t); } catch (e) {} },
+        typeof opts.token === "string" ? opts.token : "ghp_test");
+    }
+    if (opts.github) await page.route("https://api.github.com/**", opts.github);
     const payload = opts.data ? opts.data(structuredClone(PAYLOAD)) : PAYLOAD;
     await page.route("**/data/roadmap.js", (route) =>
       route.fulfill({
@@ -114,4 +121,35 @@ export function snapshot(page) {
     groups: [...document.querySelectorAll(".list-group .lh-label")].map((e) => e.textContent.trim()),
     query: new URLSearchParams(location.search).get("q"),
   }));
+}
+
+// A stand-in for GitHub's Contents API, so a write can be asserted on what it would
+// *commit* rather than on what the board happens to render afterwards. `writes`
+// collects every PUT with its path and its decoded file, in order — the order is half
+// the assertion when a relation takes two commits.
+export function githubStub() {
+  const writes = [];
+  const ok = (body) => ({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+  return {
+    writes,
+    handler(route) {
+      const req = route.request();
+      if (req.method() === "PUT") {
+        const b = JSON.parse(req.postData() || "{}");
+        writes.push({
+          path: new URL(req.url()).pathname.replace(/^\/repos\//, "").replace("/contents/", ":"),
+          content: b.content ? Buffer.from(b.content, "base64").toString("utf8") : "",
+          message: b.message || "",
+        });
+        return route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ content: { sha: "sha" } }) });
+      }
+      // A field edit reads the file before it writes it, and commits against *that*
+      // read's sha — so a GET has to answer with something parseable.
+      if (req.url().includes("/contents/")) {
+        const md = "---\ntitle: Placeholder\nstatus: now\nupdated: 2026-08-20\n---\n\nBody\n";
+        return route.fulfill(ok({ sha: "sha", content: Buffer.from(md).toString("base64") }));
+      }
+      return route.fulfill(ok({ login: "tester", permissions: { push: true } }));
+    },
+  };
 }

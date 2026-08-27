@@ -2036,8 +2036,29 @@
               mi.addEventListener("click", function () { api.close(); opts.onPick(it); });
               list.appendChild(mi);
             });
-            if (!hits.length) list.appendChild(el("div", "fp-empty", q ? "No puck matches" : "Nothing to pick"));
-            else if (hits.length > CAP) list.appendChild(el("div", "fp-empty", "\u2026and " + (hits.length - CAP) + " more \u2014 keep typing"));
+            // Search-and-create, the same shape the labels box uses — but a puck is a
+            // file in a repo, so the row has to name the repo it would be written in.
+            // Offered only when the search found no puck by that exact title: a row
+            // that would make a second "Auth" beside the "Auth" listed above it is an
+            // invitation to a duplicate, not a shortcut.
+            var exact = q && pool.some(function (it) { return lower(it.title) === q; });
+            if (opts.create && ghToken() && q && !exact) {
+              var mk = el("button", "row pick-mi pick-create");
+              mk.type = "button";
+              mk.appendChild(icon("plus", "pick-createmark"));
+              mk.appendChild(el("span", "pick-title", "New " + opts.create.noun + " \u201c" + search.value.trim() + "\u201d"));
+              mk.appendChild(el("span", "pick-repo", "in " + repoNameOf(opts.repo)));
+              mk.addEventListener("click", function () {
+                var typed = search.value.trim();
+                api.close();
+                opts.create.run(typed);
+              });
+              list.appendChild(mk);
+            }
+            if (!hits.length && !(opts.create && ghToken() && q)) {
+              list.appendChild(el("div", "fp-empty", q ? "No puck matches" : "Nothing to pick"));
+            }
+            if (hits.length > CAP) list.appendChild(el("div", "fp-empty", "\u2026and " + (hits.length - CAP) + " more \u2014 keep typing"));
           }
           search.addEventListener("input", paint);
           paint();
@@ -6647,6 +6668,20 @@
           changeDepends(item, (item.depends || []).concat([ref]),
             "roadmap: " + item.slug + " blocked by " + ref);
         },
+        // Same two-write shape as the etapp, and the puck argued for having it: the
+        // blocker you cannot find is more often work nobody has written down yet
+        // than an etapp is.
+        create: {
+          noun: "blocker",
+          run: function (title) {
+            var made = createPuck(item.repo, title, "later", [], null, "", { open: false });
+            if (made) made.then(function (p) {
+              var ref = refFor(item, p);
+              changeDepends(item, (item.depends || []).concat([ref]),
+                "roadmap: " + item.slug + " blocked by " + ref);
+            }).catch(function () {});
+          },
+        },
       }));
     }
     return wrap;
@@ -6739,6 +6774,14 @@
       repo: item.repo,
       exclude: function (other) { return !memberCandidate(item, other); },
       onPick: function (chosen) { if (chosen) changeParent(chosen, item.id); },
+      // The one place where creating is a single commit: membership is authored on
+      // the child, and here the child is the thing being made. `later` rather than
+      // `inbox` because putting a puck in an etapp *is* filing it — an inbox stub
+      // would be filed and then hidden by the board it was filed on.
+      create: {
+        noun: "puck",
+        run: function (title) { createPuck(item.repo, title, "later", [], null, "", { parent: item.id, open: false }); },
+      },
     });
   }
 
@@ -6785,6 +6828,19 @@
           }];
         },
         onPick: function (target) { changeParent(item, target && target.id); },
+        // Two writes, and they cannot be one: the etapp is the *parent*, so the
+        // relation is authored on the puck we are standing in, not on the file being
+        // created. The second only runs if the first committed — otherwise a puck
+        // would point at an etapp that had just been rolled back. If the link fails
+        // the etapp still exists and is on the board, which is recoverable in one
+        // click, and `changeParent` says so itself.
+        create: {
+          noun: "etapp",
+          run: function (title) {
+            var made = createPuck(item.repo, title, "later", [], null, "", { open: false });
+            if (made) made.then(function (p) { changeParent(item, p.id); }).catch(function () {});
+          },
+        },
       }));
     }
     return wrap;
@@ -6992,11 +7048,15 @@
     if (context) body = context + "\n\n" + body; // a lead paragraph above the skeleton
     return body;
   }
-  function puckTemplate(title, status, tags, agent, context) {
+  function puckTemplate(title, status, tags, agent, context, parentRef) {
     var t = /[:#]/.test(title) ? JSON.stringify(title) : title;
     var lines = ["---", "title: " + t, "status: " + status];
     if (tags.length) lines.push("tags: [" + tags.join(", ") + "]");
     if (agent) lines.push("agent: " + agent);
+    // Membership is authored on the child, so a puck created *from* its etapp can
+    // carry the relation in the file it is born with — one write instead of two,
+    // and no window where the puck exists outside the etapp it was made for.
+    if (parentRef) lines.push("parent: " + parentRef);
     lines.push("updated: " + today(), "created: " + today(), "---", "");
     var body = puckBody(context);
     return lines.join("\n") + (body ? "\n" + body : "");
@@ -7031,11 +7091,17 @@
   }
 
   // Optimistic create: add to the board now, commit in the background, revert on failure.
-  function createPuck(repo, title, status, tags, agent, context) {
+  // `opts.parent` writes the relation into the template (one commit, see above).
+  // `opts.open` false keeps you where you are — creating a puck from a picker is
+  // something you did *while* in the middle of something else, and yanking the page
+  // to the new file is the interruption the picker existed to avoid. Returns the
+  // commit promise so a caller that needs a second write can wait for the first.
+  function createPuck(repo, title, status, tags, agent, context, opts) {
+    opts = opts || {};
     var slug = slugify(title);
     var short = repo.split("/").pop();
     var id = short + "/" + slug;
-    if (DATA.items.some(function (x) { return x.id === id; })) { toast('✗ A puck "' + slug + '" already exists here', true); return; }
+    if (DATA.items.some(function (x) { return x.id === id; })) { toast('✗ A puck "' + slug + '" already exists here', true); return null; }
     var src = DATA.sources.filter(function (s) { return s.repo === repo; })[0] || {};
     var meta = sourceMeta(repo);
     var path = meta.dir + "/" + slug + ".md";
@@ -7048,16 +7114,30 @@
       sourcePath: path, sourceUrl: "https://github.com/" + repo + "/blob/" + meta.branch + "/" + path,
       adapter: "pucks", native: true, blockedBy: [], signals: [],
     };
+    var parentItm = opts.parent ? itemById(opts.parent) : null;
+    var parentRef = parentItm ? refFor(item, parentItm) : null;
+    // Pushed before linked: `relink` recounts the etapp's rollup through `itemById`,
+    // so a child that is not in the list yet would be left out of the number that is
+    // supposed to have just grown.
     DATA.items.push(item); DATA.total += 1;
-    renderBoard(); buildAgentChips(); openModal(item);
+    if (parentItm) relink(item, parentItm.id, parentRef);
+    renderBoard(); buildAgentChips();
+    var opened = opts.open !== false;
+    if (opened) openModal(item);
     toast("Creating…");
-    commitCreate(repo, path, meta.branch, puckTemplate(title, status, tags, agent, context), "roadmap: add " + slug)
-      .then(function () { toast("✓ Created — live in ~1 min"); })
+    return commitCreate(repo, path, meta.branch,
+      puckTemplate(title, status, tags, agent, context, parentRef), "roadmap: add " + slug)
+      .then(function () { toast("✓ Created — live in ~1 min"); return item; })
       .catch(function (err) {
         noteWriteError({ repo: repo }, err);
+        if (parentItm) relink(item, null, null); // take the optimistic edge back out
         var i = DATA.items.indexOf(item); if (i >= 0) DATA.items.splice(i, 1);
-        DATA.total -= 1; renderBoard(); buildAgentChips(); closeModal();
+        DATA.total -= 1; renderBoard(); buildAgentChips();
+        // Only the modal we opened. Closing unconditionally would have shut the puck
+        // the picker was called from — the one page the caller asked to stay on.
+        if (opened) closeModal();
         toast("✗ " + err.message, true);
+        throw err;
       });
   }
 
