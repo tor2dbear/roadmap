@@ -5600,7 +5600,16 @@
     if (!trayColumns) return false;
     var g = trayColumns.g;
     if (!termAboutGroup(t, g)) return false;
-    if (t.field === "has" || t.field === "is") return !t.neg && !!trayColumns.keys[NO_VALUE];
+    // The absence bucket, and only when the term is *nothing but* that constraint. The
+    // rule the chip row stands down for is the exact duplicate — a term that says no
+    // more than "hide these columns" — and a multi-value `is:` can now say more:
+    // `is:stale,member` also filters by staleness, and suppressing its chip left that
+    // half invisible on the board and unreachable from the row that exists to remove
+    // it, while the tray looked like it accounted for the whole predicate. `has:` is
+    // single-valued by construction, so the length test simply always passes there.
+    if (t.field === "has" || t.field === "is") {
+      return !t.neg && t.values.length === 1 && !!trayColumns.keys[NO_VALUE];
+    }
     if (!t.neg) return false;
     return t.values.every(function (v) {
       return Object.keys(trayColumns.keys).some(function (k) { return valueNamesColumn(g, v, k); });

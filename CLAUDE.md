@@ -208,7 +208,10 @@ all*. One rule settles it:
   archive is off would advertise its landed pucks as waiting.
 - A chip stands down only for the **exact duplicate** — a term that is nothing but "hide
   these columns", in the polarity that hides (`columnTerm`'s `hideNeg`), whose columns
-  are in the tray. A positive term (`Status: Now, Next, Later`) is the scope you chose,
+  are in the tray. Since `is:` terms gained alternatives, "nothing but" is a *length*
+  test as well: `is:stale,member` hides the No etapp column and also filters by
+  staleness, and suppressing its chip left that half invisible on the board and
+  unreachable from the one row that exists to remove it. A positive term (`Status: Now, Next, Later`) is the scope you chose,
   not a column you hid; it keeps its chip, and the tray saying what fell outside it is a
   different sentence.
 - **The list layout has no tray**, so there everything is a chip. `trayColumns` is null

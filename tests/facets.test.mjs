@@ -182,6 +182,29 @@ export async function run({ open }) {
     ok((await cols()).includes("No etapp"), "ögat tar tillbaka den");
   }
 
+  group("chippet står ned bara för den exakta dubbletten");
+  {
+    // The repo's own rule: a chip stands down only for a term that says no more than
+    // "hide these columns". A multi-value `is:` can now say more, and suppressing its
+    // chip left the other half invisible on the board and unreachable from the row
+    // that exists to remove it — while the tray looked like it spoke for the whole
+    // predicate. Both halves of the rule are pinned here, because a fix that keeps
+    // every chip would pass a test that only checked the first.
+    const mixed = await open("?group=parent&q=is:stale,member");
+    const seen = (p) => p.evaluate(() => ({
+      chips: [...document.querySelectorAll(".fchip-label")].map((c) => c.textContent.trim()),
+      tray: [...document.querySelectorAll(".hidden-col")].map((r) => r.textContent.replace(/\s+/g, " ").trim()),
+    }));
+    const a = await seen(mixed);
+    eq(a.chips, ["stale, member"], "det blandade termet behåller sitt chip");
+    ok(a.tray.some((t) => t.startsWith("No etapp")), `och ligger ändå i facket (${JSON.stringify(a.tray)})`);
+
+    const pure = await open("?group=parent&q=is:member");
+    const b = await seen(pure);
+    eq(b.chips, [], "det rena kolumntermet står fortfarande ned");
+    ok(b.tray.some((t) => t.startsWith("No etapp")), "facket säger det i stället");
+  }
+
   group("facket läser hela termet, inte första värdet");
   {
     // The panel writes one section per term, but the grammar does not require it — a
