@@ -6598,6 +6598,22 @@
       live.forEach(function (d) { d.blocks.push(it.id); });
     });
     DATA.items.forEach(function (it) { it.blocks.sort(); });
+    // `depends-missing` is derived from `missingDepends`, so it has to move with it.
+    // The note is built by joining that list — leave the two out of step and the puck
+    // says "Depends on , which doesn't exist", with the name it is complaining about
+    // missing from the complaint. Reachable two ways: remove a broken reference (which
+    // predates this work), or create the puck the reference was naming.
+    //
+    // Only this one type is touched. The harvester stays the authority on every signal
+    // — this is the same promise `blockedBy` already makes, that an optimistic edit
+    // must not leave the derived state disagreeing with itself between renders.
+    DATA.items.forEach(function (it) {
+      var had = (it.signals || []).some(function (g) { return g.type === "depends-missing"; });
+      var needs = it.missingDepends.length > 0;
+      if (had === needs) return;
+      var rest = (it.signals || []).filter(function (g) { return g.type !== "depends-missing"; });
+      it.signals = needs ? rest.concat([{ type: "depends-missing" }]) : rest;
+    });
   }
   // Would depending on `target` close a loop? Walk the *authored* graph, since a
   // landed blocker still counts as an edge.

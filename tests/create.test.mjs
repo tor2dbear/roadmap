@@ -238,10 +238,16 @@ export async function run({ open }) {
     const dangling = (d) => {
       const a = d.items.find((i) => i.slug === "a-now");
       a.depends = ["foo"]; a.missingDepends = ["foo"]; a.blockedBy = ["foo"];
+      a.signals = [{ type: "depends-missing" }]; // the flag the repair is answering
       return d;
     };
     const gh = githubStub();
     const p = await open("#alpha/a-now", { token: true, github: gh.handler, data: dangling });
+    const said = () => p.evaluate(() =>
+      document.body.innerText.split("\n").filter((l) => l.includes("which doesn")).map((l) => l.trim()));
+    // Without this the check below passes on a board that never complained in the first
+    // place — which is exactly what it did until a sabotage failed one assertion short.
+    eq((await said()).length, 1, "klagan står där innan reparationen");
     await trigger(p, /^Add$/).click();
     await p.waitForTimeout(250);
     await typeIn(p, "Foo");
@@ -265,5 +271,33 @@ export async function run({ open }) {
     });
     eq(edges.blockedBy, ["alpha/foo"], "referensen pekar på en puck som finns nu");
     eq(edges.blocks, ["alpha/a-now"], "och den nya pucken vet att den blockerar");
+
+    // The signal is derived from `missingDepends`, and the note is built by joining that
+    // list — out of step, the puck says "Depends on , which doesn't exist", missing the
+    // very name it complains about. Asserted on the rendered sentence rather than on the
+    // signal array, because the empty join is what the reader would actually meet.
+    const complaint = await said();
+    eq(complaint, [], `ingen kvarglömd klagan: ${JSON.stringify(complaint)}`);
+  }
+
+  group("och samma klagan försvinner när referensen tas bort");
+  {
+    // The other door to the same room, and it predates this work: removing a broken
+    // reference empties `missingDepends` the same way. Both go through `recomputeDeps`,
+    // which is why the fix lives there and not in either caller.
+    const dangling = (d) => {
+      const a = d.items.find((i) => i.slug === "a-now");
+      a.depends = ["foo"]; a.missingDepends = ["foo"]; a.blockedBy = ["foo"];
+      a.signals = [{ type: "depends-missing" }];
+      return d;
+    };
+    const gh = githubStub();
+    const p = await open("#alpha/a-now", { token: true, github: gh.handler, data: dangling });
+    const said = () => p.evaluate(() =>
+      document.body.innerText.split("\n").filter((l) => l.includes("which doesn")).map((l) => l.trim()));
+    eq((await said()).length, 1, "klagan står där till att börja med");
+    await p.locator(".dep-x").first().click();
+    await p.waitForTimeout(900);
+    eq(await said(), [], "och är borta när det den gällde är borta");
   }
 }
