@@ -534,11 +534,10 @@
   }
   function toggleFilterValue(field, value, neg) {
     var terms = parseQuery(state.query), hit = -1;
-    // `is:` belongs to a panel section, and the section owns the term shape. Hiding the
-    // No etapp column writes `is:member` from the column menu rather than the panel, so
-    // without this it would write a second, differently shaped term beside the one the
-    // Membership checkboxes keep — two terms for one question, and the tick the panel
-    // shows would stop matching the term the board runs.
+    // `is:` belongs to a panel section, and the section owns the term shape: one term
+    // per section, so a tick lands beside the others instead of starting a second term
+    // the panel would not show as ticked. (A *column* constraint is not a tick and does
+    // not come through here — see `hideColumnTerm`.)
     if (field === "is") {
       var sec = sectionForState(value);
       if (sec) return toggleSectionValue(sec, value, neg);
@@ -3412,6 +3411,28 @@
                 values: [t.value], neg: !t.hideNeg });
     setQueryTerms(rest);
   }
+  // "Hide column" is a constraint, and a constraint narrows. That is not what a facet
+  // tick does: ticking Membership *widens* the board, because a section's values are
+  // ORed. So routing the hide through the tick added `member` to `is:standalone` and
+  // published `is:standalone,member` — every standalone puck still matched, the column
+  // the menu had just promised to hide stayed exactly where it was, and the etapp
+  // columns appeared beside it. The menu made the board bigger.
+  //
+  // Only the absence bucket hits this: every other column hides by negation, and a
+  // negated term ANDs with the section's without touching it. `No etapp` is the one
+  // that needs a *positive* `is:member` (a puck can carry a `parent:` that resolves to
+  // nothing, so `has:parent` answers about the file while the column buckets on the
+  // resolved link), and positive is exactly where it collides with the facet.
+  //
+  // Setting the section to `member` alone is the honest reading of the command: hiding
+  // the pucks that stand outside every etapp *is* "show only the ones inside one". It
+  // drops the other ticks, and it has to — those ticks are what was keeping the column
+  // on screen. `unhideColumn` is the mirror: it drops the term entirely.
+  function hideColumnTerm(t) {
+    var sec = t.field === "is" && !t.hideNeg ? sectionForState(t.value) : null;
+    if (sec) return setSectionValues(sec, [t.value], false);
+    toggleFilterValue(t.field, t.value, t.hideNeg);
+  }
   // The column head's ⋯ — same shape as the puck's, and the only two things you can
   // say about a column that aren't about the pucks in it.
   function colMenu(g, key, label) {
@@ -3461,7 +3482,7 @@
           // place called "not PIA" — which is what `readUrl`'s `!t.neg` guard says — and
           // an absence bucket is not somewhere you can stand.
           row("eye", "Show only this", function () { showOnlyColumn(g, key); });
-          row("eye-off", "Hide column", function () { toggleFilterValue(t.field, t.value, t.hideNeg); });
+          row("eye-off", "Hide column", function () { hideColumnTerm(t); });
         },
       });
     });

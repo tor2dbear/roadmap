@@ -138,6 +138,33 @@ export async function run({ open }) {
     eq(await cards(both), 3, "tillsammans tre — unionen, inte den ena som är bägge");
   }
 
+  group("dölj kolumn är en begränsning, inte ett kryss");
+  {
+    // The collision Codex found: a facet tick widens, a column constraint narrows, and
+    // the No etapp column is hidden by a *positive* `is:member` — the one place the two
+    // meet. Routed through the tick it published `is:standalone,member`, so every
+    // standalone puck still matched: the menu left the column it promised to hide and
+    // added the etapp columns beside it. The board grew.
+    const p = await open("?group=parent&q=is:standalone");
+    const cols = () => p.evaluate(() =>
+      [...document.querySelectorAll(".board > .column:not(.hidden-cols) .col-head h2")].map((h) => h.textContent.trim()));
+    eq(await cols(), ["No etapp"], "bara den kolumnen syns till att börja med");
+
+    const col = p.locator(".board > .column:not(.hidden-cols)")
+      .filter({ has: p.locator(".col-head h2", { hasText: /^No etapp$/ }) });
+    await col.locator(".col-more button").click({ force: true });
+    await p.getByRole("button", { name: "Hide column" }).click();
+    await p.waitForTimeout(250);
+
+    eq(queryOf(p), "is:member", "kryssen som höll kolumnen kvar ersätts, inte utökas");
+    const after = await cols();
+    ok(!after.includes("No etapp"), `kolumnen är borta (kvar: ${JSON.stringify(after)})`);
+
+    // And the mirror still works: the eye drops the term and the column returns.
+    await trayEye(p, "No etapp");
+    ok((await cols()).includes("No etapp"), "ögat tar tillbaka den");
+  }
+
   group("facket läser hela termet, inte första värdet");
   {
     // The panel writes one section per term, but the grammar does not require it — a
