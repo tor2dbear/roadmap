@@ -1,6 +1,7 @@
-// One runner, no framework. The suite is five files of assertions against a real
-// browser; a test framework would add a dependency, a config and a vocabulary to
-// learn, and buy nothing this file does not already do in forty lines.
+// One runner, no framework. The suite is assertions against a real browser, plus one
+// file (`parse`) that needs no browser and simply ignores the context it is handed; a
+// test framework would add a dependency, a config and a vocabulary to learn, and buy
+// nothing this file does not already do in forty lines.
 import { readdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { withBrowser } from "./fixture.mjs";
