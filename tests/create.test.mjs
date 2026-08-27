@@ -300,4 +300,48 @@ export async function run({ open }) {
     await p.waitForTimeout(900);
     eq(await said(), [], "och är borta när det den gällde är borta");
   }
+
+  group("en saknad etapp som skapas slutar vara saknad");
+  {
+    // Symmetric to the dangling dependency: `parent: foo` naming nothing is what
+    // `parent-missing` flags, and creating that etapp is the repair it asks for. The
+    // note names the raw reference, so left alone it insists a puck that is now on the
+    // board does not exist.
+    const dangling = (d) => {
+      const a = d.items.find((i) => i.slug === "a-now");
+      a.parent = "foo"; a.parentRef = null;
+      a.signals = [{ type: "parent-missing" }];
+      return d;
+    };
+    const gh = githubStub();
+    const p = await open("#alpha/a-now", { token: true, github: gh.handler, data: dangling });
+    const said = () => p.evaluate(() =>
+      document.body.innerText.split("\n").filter((l) => l.includes("doesn’t exist")).map((l) => l.trim()));
+    eq((await said()).length, 1, "klagan står där först");
+
+    await trigger(p, /^⋯$|^Set etapp$/).click();
+    await p.waitForTimeout(250);
+    await typeIn(p, "Foo");
+    await p.locator(".pick-create").click();
+    await p.waitForTimeout(900);
+    eq(await said(), [], "och är borta när etappen finns");
+  }
+
+  group("en nekad skrivning ritar om pucken man står i");
+  {
+    // The permissions probe can say yes and the write still come back 403 — that is the
+    // case `readOnlyRepos` exists to learn. Creating from the Etapp picker has no parent
+    // to refresh, so the rollback passed `null` and left the rail offering the very
+    // controls that had just proved they do not work.
+    const gh = githubStub({ failWrites: true });
+    const p = await open("#alpha/a-now", { token: true, github: gh.handler });
+    eq(await trigger(p, /^Set etapp$/).count(), 1, "skenan är redigerbar till att börja med");
+    await trigger(p, /^Set etapp$/).click();
+    await p.waitForTimeout(250);
+    await typeIn(p, "Doomed");
+    await p.locator(".pick-create").click();
+    await p.waitForTimeout(1200);
+    eq(await trigger(p, /^Set etapp$/).count(), 0,
+      "och kontrollerna är borta när repot visat sig skrivskyddat");
+  }
 }

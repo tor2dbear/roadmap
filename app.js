@@ -6574,6 +6574,17 @@
     }
     recountEtapp(old);
     recountEtapp(parentId);
+    // `parent-missing` says the etapp named in the file does not exist. Once the link
+    // resolves it plainly does, so the flag goes — creating the etapp a puck already
+    // named is the repair the flag asks for, and the note would otherwise keep naming
+    // a puck that is now on the board.
+    //
+    // Only cleared, never raised. An unresolved `parent:` has two possible flags and
+    // two different fixes — a typo (`parent-missing`) or a loop (`parent-cycle`) — and
+    // choosing between them is the harvester's job, not a guess made here.
+    if (parentId) {
+      item.signals = (item.signals || []).filter(function (g) { return g.type !== "parent-missing"; });
+    }
   }
 
   // ── dependencies (`depends`) ────────────────────────────────────────────────
@@ -7211,7 +7222,12 @@
         if (parentItm) relink(item, null, null); // take the optimistic edge back out
         var i = DATA.items.indexOf(item); if (i >= 0) DATA.items.splice(i, 1);
         DATA.total -= 1; recomputeDeps(); buildAgentChips();
-        afterEdit(parentItm || null); // the rollback is as visible as the addition was
+        // The rollback is as visible as the addition was — and `currentDetailItem` is
+        // the point, not just `parentItm`. Creating from the Etapp or Blocked by picker
+        // has no parent to refresh, so this passed `null` and left the puck you are
+        // standing in untouched. `noteWriteError` has *just* learned the repo is
+        // read-only, and the rail was still offering the controls that had proved it.
+        afterEdit(parentItm || null, currentDetailItem || null);
         // Only the modal we opened. Closing unconditionally would have shut the puck
         // the picker was called from — the one page the caller asked to stay on.
         if (opened) closeModal();
