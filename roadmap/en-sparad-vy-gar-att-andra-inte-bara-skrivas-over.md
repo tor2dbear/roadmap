@@ -1,8 +1,8 @@
 ---
 title: En sparad vy går att ändra, inte bara skrivas över
-status: now
+status: done
 tags: [ui]
-updated: 2026-08-26
+updated: 2026-08-27
 created: 2026-08-26
 ---
 

@@ -1,8 +1,8 @@
 ---
 title: "Ett minne i stället för två: platser blir frågeformade"
-status: now
+status: done
 tags: [ui, dx]
-updated: 2026-08-26
+updated: 2026-08-27
 created: 2026-08-26
 order: 5
 ---
