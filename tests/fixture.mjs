@@ -8,7 +8,7 @@
 // That produced two false passes before this was written down.
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
-import { extname, join, normalize } from "node:path";
+import { extname, join, normalize, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 import { PAYLOAD } from "./data.mjs";
@@ -30,7 +30,9 @@ export async function serve() {
     // Contain the read inside the repo: a served path is data, and `..` in it is a
     // request to read something the board never ships.
     const file = normalize(join(ROOT, path === "/" ? "/index.html" : path));
-    if (!file.startsWith(ROOT)) { res.writeHead(403).end(); return; }
+    // The separator matters: without it `/../roadmap-secrets/x` normalises to a
+    // sibling directory that still *starts with* the repo path as a string.
+    if (file !== ROOT && !file.startsWith(ROOT + sep)) { res.writeHead(403).end(); return; }
     try {
       const body = await readFile(file);
       res.writeHead(200, { "content-type": TYPES[extname(file)] || "application/octet-stream" });
@@ -87,16 +89,6 @@ export async function withBrowser(fn) {
     await site.close();
   }
 }
-
-// The board's own reading of itself, as the tests want to talk about it.
-export const READ = {
-  columns: () => [...document.querySelectorAll(".board > .column:not(.hidden-cols) .col-head h2")]
-    .map((h) => h.textContent.trim()),
-  tray: () => [...document.querySelectorAll(".hidden-col")]
-    .map((r) => r.textContent.replace(/\s+/g, " ").trim()),
-  chips: () => [...document.querySelectorAll(".fchip-label")].map((c) => c.textContent.trim()),
-  groups: () => [...document.querySelectorAll(".list-group .lh-label")].map((e) => e.textContent.trim()),
-};
 
 // Clicking a tray row, with the missing-row case answered here rather than by a
 // 30-second Playwright timeout and a stack trace. A test that fails because the row

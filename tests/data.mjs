@@ -84,10 +84,3 @@ export const PAYLOAD = {
   config: { title: "Test board", description: "", repoUrl: "https://github.com/acme/alpha", views: [] },
 };
 
-// What the fixture asserts against, derived from ITEMS so the two cannot drift.
-export const LIVE = ITEMS.filter(function (i) {
-  return i.status !== "inbox" && i.status !== "done" && i.status !== "cancelled";
-}).length;
-export const ARCHIVED = ITEMS.filter(function (i) {
-  return i.status === "done" || i.status === "cancelled";
-}).length;

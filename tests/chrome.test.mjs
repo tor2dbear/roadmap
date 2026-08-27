@@ -3,6 +3,17 @@
 import { snapshot } from "./fixture.mjs";
 import { group, eq, ok } from "./assert.mjs";
 
+// The palette omits the state you are already in, so a pick is only offered from a
+// different one — which is also why the round trip below has to pin first.
+async function palettePick(page, label) {
+  await page.keyboard.press("Meta+k");
+  await page.waitForTimeout(250);
+  await page.keyboard.type(label);
+  await page.waitForTimeout(300);
+  await page.keyboard.press("Enter");
+  await page.waitForTimeout(250);
+}
+
 export async function run({ open }) {
   group("sidomenyns sektioner fälls");
   {
@@ -55,17 +66,14 @@ export async function run({ open }) {
     const p = await open("", { colorScheme: scheme });
     const bg = () => p.evaluate(() => getComputedStyle(document.body).backgroundColor);
     eq(await bg(), autoBg, `${scheme}: auto följer systemet från start`);
-    // Pin it away from the system scheme, then back to auto — the round trip is the
-    // thing that broke: auto used to *remove* the attribute and land on the wrong palette.
-    const pinned = scheme === "dark" ? "light" : "dark";
-    await p.evaluate((v) => document.documentElement.setAttribute("data-theme", v), pinned);
-    await p.waitForTimeout(80);
+    // Through ⌘K, which is one of the two surfaces that actually call `setTheme` — a
+    // first draft set `data-theme` by hand here and was therefore green against the very
+    // regression the comment above names. Setting the attribute yourself tests the CSS;
+    // only the palette tests the writer.
+    const pinned = scheme === "dark" ? "Light" : "Dark";
+    await palettePick(p, `Theme: ${pinned}`);
     eq(await bg(), otherBg, `${scheme}: ${pinned} nålar fast motsatt palett`);
-    await p.evaluate(() => {
-      document.documentElement.setAttribute("data-theme", "auto");
-      try { localStorage.removeItem("roadmap-theme"); } catch (e) {}
-    });
-    await p.waitForTimeout(100);
+    await palettePick(p, "Theme: Auto");
     eq(await bg(), autoBg, `${scheme}: tillbaka till auto ger systemets palett igen`);
     await p.emulateMedia({ colorScheme: scheme === "dark" ? "light" : "dark" });
     await p.waitForTimeout(150);

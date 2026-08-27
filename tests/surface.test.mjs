@@ -100,11 +100,17 @@ export async function run({ open }) {
     await openSheet(p, /^Display/);
     const bottom = await p.evaluate(() => {
       const body = document.querySelector(".sheet .surface-body");
-      const kids = [...body.querySelectorAll("*")].filter((e) => e.getBoundingClientRect().height > 0);
-      const last = kids[kids.length - 1];
-      return { gap: window.innerHeight - last.getBoundingClientRect().bottom };
+      // The *lowest* box, not the last in DOM order. Taking the last child read a
+      // `<span>` sitting 9px above the real last control, so a button genuinely inside
+      // the thumb band passed.
+      const boxes = [...body.querySelectorAll("*")]
+        .map((e) => ({ tag: e.tagName + "." + String(e.className).split(" ")[0], r: e.getBoundingClientRect() }))
+        .filter((x) => x.r.height > 0);
+      const lowest = boxes.reduce((a, b) => (b.r.bottom > a.r.bottom ? b : a));
+      return { gap: window.innerHeight - lowest.r.bottom, tag: lowest.tag };
     });
-    ok(bottom.gap >= 20, `botten lämnar plats för tummen (fick ${Math.round(bottom.gap)}px)`);
+    ok(bottom.gap >= 20,
+      `botten lämnar plats för tummen (lägst: ${bottom.tag} på ${Math.round(bottom.gap)}px)`);
   }
 
   group("allt i ett ark är tumstort");
@@ -118,6 +124,12 @@ export async function run({ open }) {
       [...document.querySelectorAll(".sheet button, .sheet label, .sheet a.row")]
         .map((e) => ({ t: e.textContent.trim().slice(0, 24), h: Math.round(e.getBoundingClientRect().height) }))
         .filter((x) => x.h > 0 && x.h < 30));
+    // Guarded like the bleed group above: a selector that matches nothing would make
+    // `eq(small, [])` pass by finding no controls rather than by finding good ones.
+    const total = await p.evaluate(() =>
+      [...document.querySelectorAll(".sheet button, .sheet label, .sheet a.row")]
+        .filter((e) => e.getBoundingClientRect().height > 0).length);
+    ok(total > 0, `${variant.name}: det finns kontroller att mäta`);
     eq(small, [], `${variant.name}: ingen kontroll under 30px hög`);
   }
 }
