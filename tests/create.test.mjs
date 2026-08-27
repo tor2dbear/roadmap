@@ -183,4 +183,26 @@ export async function run({ open }) {
     ok(after.rollup.every((r) => r === "0/1"), `och siffran med: ${JSON.stringify(after.rollup)}`);
     eq(after.still, "alpha/a-etapp", "och etappen är fortfarande öppen — inte stängd av felvägen");
   }
+
+  group("en anpassad källa går att skriva i men inte att skapa i");
+  {
+    // A `checklist`/`prose` repo can be perfectly writable, and its items can be picked
+    // as children. But the harvester runs *that repo's* adapter, which reads one file
+    // and one section and has never heard of `roadmap/<slug>.md` — so a puck created
+    // there would commit, sit on the board, and be gone at the next sync. The closed-set
+    // rule again, one layer down: a write that looks like it worked and vanishes.
+    const adapted = (d) => {
+      d.sources = d.sources.map((s) => (s.repo === "acme/alpha" ? { ...s, adapter: "checklist" } : s));
+      d.items = d.items.map((i) => (i.repo === "acme/alpha" ? { ...i, native: false } : i));
+      return d;
+    };
+    const gh = githubStub();
+    const p = await open("#alpha/a-etapp", { token: true, github: gh.handler, data: adapted });
+    eq(await trigger(p, "Add puck").count(), 1, "väljaren står kvar — ett barn i beta går att lägga till");
+    await trigger(p, "Add puck").click();
+    await p.waitForTimeout(250);
+    await typeIn(p, "Would vanish");
+    eq(await p.locator(".pick-create").count(), 0, "men ingen skaparad mot en anpassad källa");
+    eq(gh.writes.length, 0, "och ingenting skrevs");
+  }
 }

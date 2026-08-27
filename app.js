@@ -2057,7 +2057,7 @@
             // etapp in a read-only repo, but creating always writes to this one — so
             // without the second guard the row would promise a commit that is rejected
             // on arrival.
-            var writable = opts.create && ghToken() && canWriteRepo(opts.create.repo || opts.repo);
+            var writable = opts.create && canCreateIn(opts.create.repo || opts.repo);
             var typed = search.value.trim();
             var dest = opts.create && opts.create.repo || opts.repo;
             var taken = typed && DATA.items.some(function (it) {
@@ -5912,6 +5912,19 @@
     return (writableRepos == null || writableRepos.has(repo)) && !(readOnlyRepos && readOnlyRepos.has(repo));
   }
   function canWrite(item) { return canWriteRepo(item.repo); }
+  // Writing is not the same question as *creating*. A `checklist`/`prose` source can be
+  // perfectly writable and still be the wrong place for a new file: the harvester runs
+  // that repo's own adapter, which reads one file and one section and has never heard of
+  // `roadmap/<slug>.md`. The puck would commit, sit on the board optimistically, and be
+  // gone at the next sync — a write that looks like it worked and vanishes an hour
+  // later, which is the same failure the closed-set rule exists to prevent.
+  // Existing children from such a repo are still pickable; only *making* one is not.
+  function canCreateIn(repo) {
+    if (!ghToken() || !canWriteRepo(repo)) return false;
+    var src = DATA.sources.filter(function (s) { return s.repo === repo; })[0];
+    if (src) return src.adapter === "pucks";
+    return DATA.items.some(function (it) { return it.repo === repo && it.native; });
+  }
   function noteWriteError(item, err) {
     if (err && (err.status === 403 || err.status === 404)) readOnlyRepos.add(item.repo);
   }
@@ -6784,8 +6797,9 @@
     if (!ghToken()) return false;
     // Creating the first member is precisely what an empty etapp needs, and the old
     // condition made that unreachable: no existing candidate, no picker, no way to
-    // make one. The picker is worth drawing whenever *either* end is possible.
-    if (canWriteRepo(item.repo)) return true;
+    // make one. The picker is worth drawing whenever *either* end is possible — but
+    // "can create here" is `canCreateIn`, not merely "can write here".
+    if (canCreateIn(item.repo)) return true;
     for (var i = 0; i < DATA.items.length; i++) {
       if (memberCandidate(item, DATA.items[i])) return true;
     }
