@@ -5154,10 +5154,23 @@
   // How many pucks each candidate value would leave — counted against the *other*
   // active terms, so the numbers describe the click you're about to make.
   function countFor(f, value) {
-    // Only *this section's* terms are lifted out. Three sections share the `is:` field,
-    // so dropping every `is:` term would have counted a Membership click against a
-    // board that had quietly forgotten the Readiness ticks still on screen.
-    var base = activeTerms().filter(function (t) { return !termInSection(t, f, false); });
+    // The probe has to be what the click *does*, and the click only ever touches this
+    // section's values — `setSectionValues` leaves the rest of a term standing. So the
+    // base strips those values out rather than dropping whole terms, which matters
+    // twice over.
+    //
+    // Three sections share the `is:` field, so dropping every `is:` term would count a
+    // Membership click against a board that had quietly forgotten the Readiness ticks
+    // still on screen. And dropping the whole of a *mixed* term — `is:stale,member`,
+    // which the panel does not write but a link or a saved view can carry — counted
+    // against no filter at all: the row beside In an etapp advertised 7 where clicking
+    // it gave 0, because unticking leaves `is:stale` standing and nothing is stale.
+    var base = [];
+    activeTerms().forEach(function (t) {
+      if (!termInSection(t, f, false)) { base.push(t); return; }
+      var kept = t.values.filter(function (v) { return !ownsState(f, v); });
+      if (kept.length) base.push({ field: t.field, op: t.op, values: kept, neg: t.neg });
+    });
     // Model the toggle, not the value: with `status:now` on, clicking Next gives
     // `status:now,next` (an OR — a *bigger* set), and clicking Now removes the
     // filter entirely. Counting the candidate alone would predict neither.

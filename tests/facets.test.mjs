@@ -138,6 +138,23 @@ export async function run({ open }) {
     eq(await cards(both), 3, "tillsammans tre — unionen, inte den ena som är bägge");
   }
 
+  group("siffran lovar det klicket ger");
+  {
+    // The invariant, asserted rather than described: the number beside a row is the
+    // board you get by clicking it. It broke on a *mixed* term — `is:stale,member`,
+    // which the panel does not write but a link or a saved view can carry. countFor
+    // lifted the whole term out of its probe, so it counted against no filter at all
+    // and advertised 7 where the click gave 0: unticking leaves `is:stale` standing,
+    // and nothing in the fixture is stale.
+    const p = await open("?q=is:stale,member");
+    eq(await cards(p), 1, "det blandade termet visar medlemmen");
+    await openFacet(p, "Membership");
+    const promised = Number(await countOf(p, "In an etapp"));
+    await tick(p, "In an etapp");
+    eq(await cards(p), promised, `siffran (${promised}) är brädan man får`);
+    eq(queryOf(p), "is:stale", "och klicket rör bara sektionens värde");
+  }
+
   group("dölj kolumn är en begränsning, inte ett kryss");
   {
     // The collision Codex found: a facet tick widens, a column constraint narrows, and
