@@ -224,6 +224,26 @@ is new is that the sentence above would otherwise promise a chip that no code em
 it means giving the archive a chip of its own, which is a fourth place for one switch and a
 product decision, not a bug fix — so it stands open rather than half-done.
 
+## UI: the sidebar's own state
+
+Two things live in the sidebar that are neither data nor a view:
+
+- **Folded sections.** Each heading (`Views`, `Signals`, `Saved`, `Agents`, `Repos`) *is*
+  its own fold control — the heading already names exactly what folds, so a separate
+  chevron button would add a target that could say nothing the first one doesn't. State
+  in `localStorage` under `roadmap-sidefold`, never in the URL and never in `VIEW_KEYS`:
+  `collapsed` there already means *which groups are folded in the list layout*, and a
+  shared link must not rearrange the recipient's furniture. Folding sets `hidden` on the
+  body rather than a class of its own — `[hidden] { display: none !important }` already
+  exists for exactly this, and a `.side-folded` class loses the specificity fight with
+  `.side-views .focusseg`.
+- **The theme is not here.** It has three states (light / dark / auto, where auto is the
+  *absence* of a stored choice), and it lives in Settings as one segment and in ⌘K as the
+  same three by name. The sidebar used to carry a fourth entry point — a permanent `◐`
+  that only flipped light⇄dark, so it could not reach the third state at all and sat in
+  the floor forever to offer something Settings already offered completely. `setTheme` is
+  the one writer both surfaces call.
+
 ## Auto-status signals
 
 So status upkeep isn't purely self-reported, the board flags pucks whose declared
