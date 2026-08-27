@@ -128,4 +128,31 @@ export async function run({ open }) {
       await p.waitForTimeout(120);
     }
   }
+
+  group("rollup-brickan bär ingen andel");
+  {
+    // The bar is gone, and this guards its absence. Not in pixels: the only mark a
+    // 0/1 rollup would paint is a zero-width gradient, invisible to a screenshot but
+    // plainly there in the computed style — so asking the style answers the question
+    // a picture could not. A restored bar shows up two ways, and both are checked:
+    // the rule paints a `background-image`, and the renderer sets `--frac` inline.
+    const p = await open();
+    const b = await p.evaluate(() => {
+      const e = document.querySelector(".rollup");
+      if (!e) return null;
+      const cs = getComputedStyle(e);
+      return {
+        text: e.textContent.trim(),
+        image: cs.backgroundImage,
+        frac: e.style.getPropertyValue("--frac"),
+      };
+    });
+    // Without this the two checks below pass on a board that renders no etapp at all.
+    ok(b, "det finns en rollup-bricka att mäta");
+    if (b) {
+      eq(b.text, "0/1", "och den bär räkningen");
+      eq(b.image, "none", "ingen andel målad som bakgrund");
+      eq(b.frac, "", "och ingen --frac satt på elementet");
+    }
+  }
 }
