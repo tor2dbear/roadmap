@@ -112,7 +112,13 @@ sources.json ──▶ scripts/harvest.mjs ──▶ data/roadmap.json + data/ro
   Configuration, not truth (the pucks stay the only data), and hand-editable;
   the board writes it for you, as a commit: **Save view** in the chip row (where you
   just built the filter), *Save this view…* behind the view title (where the saved
-  view lands), or the same command in ⌘K.
+  view lands), or the same command in ⌘K. Once a view exists, the chip row reads the
+  board against it — untouched, it offers nothing; changed, it offers **Reset** (back
+  to the view's parameters) and **Update "<name>"**, which rewrites that entry *in
+  place* rather than by name collision. Rename / Duplicate / Remove live in the `⋯` on
+  its sidebar row. Which view you came from is `state.fromView`, remembered for the
+  session only and deliberately absent from the URL: the parameters are what a link
+  carries, so a reload of a changed view is honestly just a filter.
 - **Backends** (`lib/repo.mjs`): if `ROADMAP_LOCAL_ROOT` points at local checkouts
   it reads from disk (CI clones the repos there — no API limits); otherwise it
   fetches via the GitHub API + raw endpoints (`GITHUB_TOKEN` optional).
