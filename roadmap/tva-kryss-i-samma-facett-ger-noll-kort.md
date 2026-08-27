@@ -1,6 +1,6 @@
 ---
 title: Två kryss i samma facett ger noll kort
-status: next
+status: done
 tags: [ui]
 updated: 2026-08-27
 created: 2026-08-27

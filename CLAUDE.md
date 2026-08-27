@@ -224,6 +224,36 @@ is new is that the sentence above would otherwise promise a chip that no code em
 it means giving the archive a chip of its own, which is a fourth place for one switch and a
 product decision, not a bug fix — so it stands open rather than half-done.
 
+## UI: or within a facet, and between them
+
+Ticking two values in one facet is a **union**; ticking values in two facets is an
+**intersection**. Every field followed that rule except `is:`, which wrote one term per
+value — and since `runQuery` ANDs terms, `is:etapp` + `is:standalone` asked for "is an
+etapp *and* stands outside every etapp" and emptied a board where the two together cover
+all of it. `is:` terms now carry alternatives (`is:a,b`, matched with `.some()`), which is
+what the rule needs to be expressible at all.
+
+That alone would have been the wrong fix. **`State` was never one facet** — it held three
+independent questions in one list, and across them the intersection is the useful reading:
+`is:ready is:member` means "ready, *and* inside an etapp", a question a flat OR would have
+thrown away to rescue the first one. So the list is three: **Readiness**
+(`ready`/`blocked`/`blocking`), **Membership** (`etapp`/`member`/`standalone`), **Flags**
+(`flagged`/`stale`/`adapted`). Split, the ordinary rule is exactly right with no special
+case for `is:` anywhere — and the grouping stops being invisible, since two ticks behave
+differently depending on which rows they are.
+
+Two consequences worth knowing before touching this:
+
+- **A section's key is not its query field.** Three sections write `is:`, so anything
+  reading *this section's* part of the query must ask the section (`sectionValues`,
+  `termInSection`), never the field. `countFor` in particular lifts out only its own
+  section's terms — dropping every `is:` term would count a Membership click against a
+  board that had forgotten the Readiness ticks still on screen.
+- **Nothing may read `values[0]` for an `is:` term.** That assumption sat in five places,
+  and the last one found — `termAboutGroup`, which decides whether a term speaks about the
+  column grouping — answered yes for `is:member` and no for `is:stale,member`, which is a
+  tray offering an eye that redraws nothing. `tests/facets.test.mjs` holds that case.
+
 ## UI: the sidebar's own state
 
 Two things live in the sidebar that are neither data nor a view:
