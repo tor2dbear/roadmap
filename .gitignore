@@ -5,3 +5,4 @@ scratchpad-*.png
 *.log
 *.tmp.*
 .wrangler/
+wrangler-out.txt

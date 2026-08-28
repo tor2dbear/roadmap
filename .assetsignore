@@ -35,6 +35,10 @@ node_modules
 # leaking the runner's absolute path in `sourceRoot`. Harmless content, exactly the
 # class this file exists to prevent.
 .wrangler
+# Same class, same reason: a deploy log `tee`d into the root exists before wrangler
+# walks the tree and after the guard has. It is written to RUNNER_TEMP now, so this
+# line is only here to stop a re-introduction from being silent.
+wrangler-out.txt
 .DS_Store
 scratchpad-*.png
 *.log
