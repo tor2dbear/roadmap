@@ -969,6 +969,16 @@ body.viewing-puck .vhead { display: none; }
 .detail-pane {
   background: var(--bg);
   padding: 16px var(--pad) 56px; display: flex; flex-direction: column;
+  /* A grid item's `min-width` defaults to `auto`, which means "never narrower than my
+     content's minimum" — and a `<pre>` has no minimum worth speaking of: it is one long
+     line. So a puck whose body holds a terminal transcript pushed this pane wider than
+     the phone, the page gained a horizontal scroll, and the browser's text autosizing
+     read the too-wide layout as a reason to inflate every font on the page. One puck
+     rendered large and draggable while the one beside it was fine.
+     `overflow-x: auto` on the `pre` was already there and was never the missing piece:
+     a scroll container still contributes its content's minimum width upward until an
+     ancestor is allowed to shrink. This is that permission. */
+  min-width: 0;
 }
 .detail-close { display: none; }
 .detail-content { max-width: 760px; width: 100%; margin: 0 auto; }

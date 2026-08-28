@@ -155,4 +155,42 @@ export async function run({ open }) {
       eq(b.frac, "", "och ingen --frac satt på elementet");
     }
   }
+
+  group("en bred kodrad ger inte sidan en sidled");
+  {
+    // Reported from a phone: one puck rendered in *larger* text than the one beside it,
+    // and the page could be dragged sideways. Two symptoms, one cause — the pane grew
+    // wider than the screen, and a mobile browser reads a too-wide layout as a reason to
+    // inflate every font on the page. So the assertion is on the width; the text size
+    // follows it.
+    //
+    // A grid item's `min-width` defaults to `auto` — never narrower than its content's
+    // minimum — and a `<pre>` is one long line with no minimum to speak of. The
+    // `overflow-x: auto` on the block was there all along and was never the missing
+    // piece: a scroll container still pushes its content's minimum width upward until an
+    // ancestor is allowed to shrink.
+    const withCode = (d) => {
+      const a = d.items.find((i) => i.slug === "a-now");
+      a.body = "Innan\n\n```\n" + "$ brew install cowsay ==> Fetching cowsay ==> Registering: cowsay, cowthink\n" +
+        "installed cowsay\n```\n\nEfter\n";
+      return d;
+    };
+    const p = await open("#alpha/a-now", { viewport: { width: 390, height: 844 }, data: withCode });
+    const m = await p.evaluate(() => {
+      const pre = document.querySelector(".modal-body pre");
+      return {
+        page: document.documentElement.scrollWidth,
+        view: window.innerWidth,
+        pre: pre && { client: pre.clientWidth, scroll: pre.scrollWidth, ov: getComputedStyle(pre).overflowX },
+      };
+    });
+    ok(m.pre, "kodblocket ritas");
+    eq(m.page, m.view, `sidan är inte bredare än skärmen (${m.page} mot ${m.view})`);
+    // The other half, and it is not the same statement: wrapping the code would also
+    // stop the page scroll, and would be a worse answer — a transcript's lines are its
+    // meaning. The block has to stay too wide *and* be scrollable inside itself.
+    ok(m.pre.scroll > m.pre.client,
+      `och kodblocket är fortfarande brett, i sin egen scroll (${m.pre.scroll} > ${m.pre.client})`);
+    eq(m.pre.ov, "auto", "vilket är vad overflow-x lovar");
+  }
 }
