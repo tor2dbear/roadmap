@@ -590,40 +590,42 @@
   // Only non-defaults are included, so a plain board keeps a clean URL.
   function viewParamObject() {
     var o = {};
+    // A key is written only where it changes what you see. Four are conditional, and
+    // each condition is the same question asked of a different fallback:
+    //
+    //   group      `groupUsable` drops `status` where the view has already fixed it, so
+    //              in the inbox — one status column — `status` and `repo` draw the same
+    //              board. Compared through `effectiveGroup`, not the raw default.
+    //   done       the archive toggle does nothing outside an ARCHIVABLE view, and the
+    //              Display menu does not offer the row there.
+    //   empty      `renderList` drops empty groups unconditionally ("a flat list has no
+    //              drop targets"), and Display hides that control outside the board.
+    //   collapsed  a fold means nothing outside the list layout.
+    //
+    // Three of the four were found the same way and for the same reason: `goToView` and
+    // the Display menu deliberately keep your choices across a navigation, so a setting
+    // follows you into a view that cannot act on it. Written anyway it did two kinds of
+    // damage — an untouched view offered to save a duplicate of itself, and two boards
+    // drawn identically compared unequal, so a saved view could fail to light up on the
+    // board it describes.
+    //
+    // Nothing is lost by leaving them out. `state` still carries every setting, so
+    // stepping back into a view that can use one writes it again; the Display toggles
+    // additionally persist in localStorage. The one honest cost: reload while standing
+    // in a view that ignores the setting, having arrived from a link that set it and
+    // never touched the control. A preference that does nothing where you are looking
+    // is the right thing to drop there.
+    //
+    // What is *emitted* stays the choice (`state.group`), not the fallback: a saved
+    // view has to be reproducible, and the fallback is derived from wherever it lands.
     if (state.focus !== "all") o.view = state.focus;
     var q = serializeTerms(filterTerms());
     if (q) o.q = q;
-    // Compared through the fallback, not against the raw default. `groupUsable` drops
-    // `status` where the view has already fixed it — the inbox is one status column —
-    // so there `status` and `repo` draw the same board, and emitting `group=repo`
-    // made an untouched Inbox look changed exactly as `done` did below. The test is
-    // therefore "does this change what you see", which is one question for both the
-    // chosen grouping and the one the view falls back to.
-    // What is *emitted* is still `state.group`, the choice: a saved view has to be
-    // reproducible, and the fallback is derived from the view it lands in anyway.
     if (effectiveGroup() !== defaultGroup()) o.group = state.group;
     if (state.view !== DISPLAY_DEFAULTS.view) o.layout = state.view;
     if (state.sort !== DISPLAY_DEFAULTS.sort) o.sort = state.sort;
-    // Only where it does something. `goToView` deliberately keeps the archive toggle
-    // across a navigation (it is a display preference, not a filter), so turning it on
-    // in All pucks and clicking Ready used to leave `done=1` riding along — a key the
-    // board cannot act on, since Ready is not ARCHIVABLE, and one the Display menu does
-    // not even offer there. That made an untouched built-in view look changed: it is
-    // what `ownParams` subtracts `view` for, and the leftover walked straight past it
-    // and offered Save view again.
-    // The flag is not lost by leaving it out. Within the session `state.showDone` is
-    // what carries it — `goToView` keeps it — so stepping through Ready and back to
-    // All pucks brings the archive with you and the URL says `done=1` again. Across a
-    // reload the toggle itself persists, in localStorage under `roadmap-done`, which
-    // is written when you flip it (not when a link sets it). The one thing that goes:
-    // reload while standing in Ready, having arrived from a shared `?done=1` link and
-    // never touched the switch. A preference that does nothing on the view you are
-    // looking at is the right thing to drop there.
-    // `collapsed`, three lines down, has always
-    // been written this way — a key that means nothing outside the list layout is not
-    // emitted outside it. This is the same rule, applied to the other conditional key.
     if (state.showDone && ARCHIVABLE[state.focus]) o.done = "1";
-    if (!state.showEmpty) o.empty = "0";
+    if (!state.showEmpty && state.view === "board") o.empty = "0";
     // Sorted, not in click order: the same set of folded groups has to serialize to
     // the same string every time, or the URL churns and two identical views compare
     // unequal.

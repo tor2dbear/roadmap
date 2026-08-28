@@ -167,4 +167,44 @@ export async function run({ open }) {
     const board = await open("?group=repo", { token: true });
     eq((await acts(board)).acts, ["Save view"], "på All pucks är repo-gruppering en riktig ändring");
   }
+
+  group("en visningsflagga som listläget ignorerar skrivs inte");
+  {
+    // Third of a kind, after the archive toggle and the grouping, and the reason
+    // `viewParamObject` now states the rule once instead of justifying each key.
+    // `renderList` drops empty groups unconditionally — "a flat list has no drop
+    // targets, so no empty headers" — and Display hides the control outside the board.
+    // So `empty=0` rode into the list layout doing nothing, and two boards drawn
+    // identically serialised differently: a saved list view could fail to light up on
+    // the very board it describes.
+    const heads = (p) => p.evaluate(() =>
+      [...document.querySelectorAll(".list-head h2, .col-head h2")].map((e) => e.textContent.trim()));
+
+    const list = await open("?layout=list", { token: true });
+    const listEmpty = await open("?layout=list&empty=0", { token: true });
+    eq(await heads(listEmpty), await heads(list), "med och utan empty=0 ritar listläget samma bräda");
+    eq(new URL(listEmpty.url()).search, "?layout=list",
+      `så nyckeln skrivs inte (${new URL(listEmpty.url()).search})`);
+
+    // Still written where it does something — the board layout has empty columns, and
+    // they are drop targets.
+    const board = await open("?empty=0", { token: true });
+    eq(new URL(board.url()).search, "?empty=0", "men i brädlayouten står den kvar");
+    ok((await heads(board)).length > (await heads(list)).length,
+      "där den faktiskt ändrar vad som ritas");
+
+    // And the setting is not lost by passing through the list: `state` carries it, so
+    // stepping back writes it again. Without this the fix would trade an inert key for
+    // a real lost preference.
+    await board.getByRole("button", { name: /Display/ }).first().click();
+    await board.waitForTimeout(200);
+    await board.getByRole("button", { name: /^List$/ }).first().click();
+    await board.waitForTimeout(250);
+    eq(new URL(board.url()).search, "?layout=list", "växlar man till List faller nyckeln bort");
+    // No second Display click: the menu stays open after a pick, on purpose — you may
+    // want to change more than one thing — so clicking the button again would close it.
+    await board.getByRole("button", { name: /^Board$/ }).first().click();
+    await board.waitForTimeout(250);
+    eq(new URL(board.url()).search, "?empty=0", "och tillbaka i Board är den där igen");
+  }
 }
