@@ -435,7 +435,7 @@ body {
 .hidden-col .swatch { width: 10px; height: 10px; border-radius: var(--r-xs); flex: none; background: var(--ink-3); }
 .hidden-col .hidden-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* The count sits with the label; the eye takes the right edge, where the action is. */
-.hidden-col .count { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.hidden-col .count { color: var(--ink-3); font-size: var(--fs-base); font-variant-numeric: tabular-nums; }
 .hidden-col .icn { margin-left: auto; width: 15px; height: 15px; color: var(--ink-3); }
 @media (hover: hover) { .hidden-col:hover .icn { color: var(--accent); } }
 /* The status swatches already have their colours; a hidden column keeps its identity. */
@@ -1215,7 +1215,16 @@ body.preload * { transition: none !important; }
 .view-title { font-size: var(--fs-lg); font-weight: var(--fw-semibold); margin: 0; letter-spacing: var(--tr-tight); }
 /* keep a long composed "view · scope" title from pushing the view-options off */
 .vhead .view-title { max-width: 55ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.view-count { font-family: var(--mono); font-size: var(--fs-sm); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+/* One count mark, one size, no exception. "How many cards are behind this label" is
+   the same sentence beside the view title, on a column head, on a list head, on a
+   sidebar view row and on a tray row, so it is `--fs-base` in all five — the size
+   the scale itself names for counts.
+   It used to be four values: 11 here and on `.focus-n`, 12 on the column and list
+   heads, 13 inherited in the tray. No rule explained them, and the proof is that the
+   sidebar row and the column head are *both* `--fs-md` and their counts still
+   disagreed — same label size, same mark, two answers. The largest heading on the
+   board (the 14px view title) carried the smallest count. */
+.view-count { font-family: var(--mono); font-size: var(--fs-base); color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .vopts { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .newbtn { gap: 5px; background: var(--panel-2); }
 .newbtn:hover { border-color: var(--ink-3); }
@@ -1343,7 +1352,12 @@ body.preload * { transition: none !important; }
    works in the mono sidebar and in the switcher's larger sheet rows. */
 .focus-icn { width: 1.15em; height: 1.15em; color: var(--ink-3); }
 .focusbtn.on .focus-icn, .row.on .focus-icn { color: inherit; }
-.focus-n { font-family: var(--mono); font-size: var(--fs-sm); color: var(--ink-3); flex: none; }
+/* Fixed like the rest, and `em` would have been wrong here even though this row has
+   two sizes (`--fs-md` in the popover, `--fs-xl` in the sheet). The neighbouring icon
+   looks like a precedent for scaling and is not one: `.focus-icn` asks for `1.15em`,
+   but `.pick-menu .row > .icn` outranks it and pins the icon to 15px in the menu, so
+   `em` there would have grown the number past a mark that stayed put. */
+.focus-n { font-family: var(--mono); font-size: var(--fs-base); color: var(--ink-3); font-variant-numeric: tabular-nums; flex: none; }
 .side-views .focusbtn.on .focus-n { color: var(--ink-2); }
 
 /* filter popover in the view-header */

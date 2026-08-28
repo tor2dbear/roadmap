@@ -193,4 +193,66 @@ export async function run({ open }) {
       `och kodblocket är fortfarande brett, i sin egen scroll (${m.pre.scroll} > ${m.pre.client})`);
     eq(m.pre.ov, "auto", "vilket är vad overflow-x lovar");
   }
+
+  group("räknaren har en storlek");
+  {
+    // "How many cards are behind this label" is one sentence, and it was drawn in four
+    // sizes: 11px beside the view title and on the sidebar's view rows, 12px on the
+    // column heads, 13px inherited in the HIDDEN tray. The proof that no rule explained
+    // it: a sidebar row and a column head are *both* --fs-md, and their counts still
+    // disagreed — same label size, same mark, two answers. The biggest heading on the
+    // board carried the smallest number.
+    // Asked one selector at a time, not as one comma-joined sweep. Three of the five
+    // share the class `count`, so a single pass cannot tell them apart — and a selector
+    // that silently stopped matching would let the whole thing pass on what was left.
+    const MARKS = [".view-count", ".col-head .count", ".list-head .count", ".hidden-col .count", ".focus-n"];
+    const sizes = (p, sel) => p.evaluate((s) =>
+      [...document.querySelectorAll(s)]
+        .filter((e) => e.getBoundingClientRect().height > 0)
+        .map((e) => getComputedStyle(e).fontSize), sel);
+
+    // `.list-head` only exists in the list layout; everything else is on the board.
+    const board = await open();
+    const list = await open("?layout=list");
+    const found = {};
+    for (const sel of MARKS) {
+      const hits = (await sizes(board, sel)).concat(await sizes(list, sel));
+      found[sel] = hits;
+      ok(hits.length > 0, `${sel} ritas någonstans att mäta (${hits.length} st)`);
+    }
+    const seen = [...new Set([].concat(...Object.values(found)))].sort();
+    eq(seen, ["12px"], `och alla fem märkena är 12px — storlekar sedda: ${JSON.stringify(seen)}`);
+  }
+
+  group("räknaren växer inte med arkets rader");
+  {
+    // The sheet is the case a plausible fix gets wrong. `.focus-n` sits in a `.row`,
+    // which is --fs-md in the popover and --fs-xl in the sheet, so sizing it in `em`
+    // looks right — and the icon beside it seems to set that precedent, since
+    // `.focus-icn` asks for 1.15em. It does not: `.pick-menu .row > .icn` outranks it
+    // and pins the icon to 15px in the menu. An `em` count would grow past a mark that
+    // stayed put, in the one place a thumb reads them side by side.
+    const p = await open("", { viewport: { width: 390, height: 844 } });
+    await p.evaluate(() => {
+      const b = [...document.querySelectorAll("#viewTitleBtn, #topTitleBtn")]
+        .find((e) => e.getBoundingClientRect().height > 0);
+      b.click();
+    });
+    await p.waitForTimeout(300);
+    const m = await p.evaluate(() => {
+      const row = document.querySelector(".view-menu .row");
+      const n = row && row.querySelector(".focus-n");
+      const i = row && row.querySelector(".focus-icn");
+      return {
+        sheet: !!document.querySelector(".sheet.view-menu"),
+        row: row && getComputedStyle(row).fontSize,
+        n: n && getComputedStyle(n).fontSize,
+        icn: i && getComputedStyle(i).width,
+      };
+    });
+    eq(m.sheet, true, "vid 390px blir vymenyn ett ark");
+    eq(m.row, "15px", "vars rader är --fs-xl");
+    eq(m.icn, "15px", "ikonen pinnas till 15px trots sin 1.15em");
+    eq(m.n, "12px", "och räknaren står kvar på 12px, som på brädan");
+  }
 }
