@@ -197,31 +197,39 @@ export async function run({ open }) {
   group("räknaren har en storlek");
   {
     // "How many cards are behind this label" is one sentence, and it was drawn in four
-    // sizes: 11px beside the view title and on the sidebar's view rows, 12px on the
-    // column heads, 13px inherited in the HIDDEN tray. The proof that no rule explained
-    // it: a sidebar row and a column head are *both* --fs-md, and their counts still
-    // disagreed — same label size, same mark, two answers. The biggest heading on the
-    // board carried the smallest number.
-    // Asked one selector at a time, not as one comma-joined sweep. Three of the five
-    // share the class `count`, so a single pass cannot tell them apart — and a selector
-    // that silently stopped matching would let the whole thing pass on what was left.
-    const MARKS = [".view-count", ".col-head .count", ".list-head .count", ".hidden-col .count", ".focus-n"];
-    const sizes = (p, sel) => p.evaluate((s) =>
-      [...document.querySelectorAll(s)]
+    // sizes: 11px on the sidebar's repo and agent rows, 11px beside the view title,
+    // 12px on the column heads, 13px inherited in the HIDDEN tray. The proof that no
+    // rule explained it: a sidebar view row and a column head are *both* --fs-md, and
+    // their counts still disagreed.
+    //
+    // Found by looking, not by listing. The first version of this test named five
+    // selectors and passed while a sixth — `.chip .n`, the repo and agent rows, the
+    // longest list of counts on the board — sat a pixel smaller and unmatched. A
+    // hand-kept list of what to check is a second place to remember, and this is the
+    // one that was forgotten. So the sweep asks the DOM instead: every leaf whose whole
+    // text is digits and whose face is the mono. A seventh mark cannot hide from that.
+    const found = (p) => p.evaluate(() =>
+      [...document.querySelectorAll("body *")]
+        .filter((e) => !e.children.length && /^\d+$/.test(e.textContent.trim()))
         .filter((e) => e.getBoundingClientRect().height > 0)
-        .map((e) => getComputedStyle(e).fontSize), sel);
+        .filter((e) => /Geist Mono|monospace/i.test(getComputedStyle(e).fontFamily))
+        .map((e) => ({ cls: e.getAttribute("class") || e.tagName, size: getComputedStyle(e).fontSize })));
 
-    // `.list-head` only exists in the list layout; everything else is on the board.
-    const board = await open();
-    const list = await open("?layout=list");
-    const found = {};
-    for (const sel of MARKS) {
-      const hits = (await sizes(board, sel)).concat(await sizes(list, sel));
-      found[sel] = hits;
-      ok(hits.length > 0, `${sel} ritas någonstans att mäta (${hits.length} st)`);
+    // Several boards, because a mark only renders where its surface does: the tray
+    // needs a hidden column, `.list-head` needs the list layout, the repo rows need the
+    // sidebar. A token, since some chrome is gated on one.
+    const marks = [];
+    for (const url of ["", "?layout=list", "?group=repo", "?view=ready", "?done=1"]) {
+      marks.push(...await found(await open(url, { token: true })));
     }
-    const seen = [...new Set([].concat(...Object.values(found)))].sort();
-    eq(seen, ["12px"], `och alla fem märkena är 12px — storlekar sedda: ${JSON.stringify(seen)}`);
+    const kinds = [...new Set(marks.map((m) => m.cls))].sort();
+    // Named as well as swept: if a selector stops rendering, the sweep would quietly
+    // pass on whatever is left, which is exactly the failure mode being fixed.
+    eq(kinds, ["count", "focus-n", "n", "view-count"],
+      `varje sorts räknare ritas någonstans (${JSON.stringify(kinds)})`);
+
+    const sizes = [...new Set(marks.map((m) => m.size))].sort();
+    eq(sizes, ["11px"], `och varenda en är 11px — ${marks.length} märken, storlekar: ${JSON.stringify(sizes)}`);
   }
 
   group("räknaren växer inte med arkets rader");
@@ -253,6 +261,6 @@ export async function run({ open }) {
     eq(m.sheet, true, "vid 390px blir vymenyn ett ark");
     eq(m.row, "15px", "vars rader är --fs-xl");
     eq(m.icn, "15px", "ikonen pinnas till 15px trots sin 1.15em");
-    eq(m.n, "12px", "och räknaren står kvar på 12px, som på brädan");
+    eq(m.n, "11px", "och räknaren står kvar på 11px, som på brädan");
   }
 }
