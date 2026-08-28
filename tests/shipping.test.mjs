@@ -93,4 +93,32 @@ export async function run() {
     const loose = onDisk.filter((e) => !SERVED.has(e) && !excluded(e));
     eq(loose, [], `inget i arbetskatalogen skulle följa med oavsiktligt — dessa skulle: ${JSON.stringify(loose)}`);
   }
+
+  group("vakten körs innan något laddas upp");
+  {
+    // Found in review, and it was the sharpest of the three: the guard above existed
+    // and did not guard. `npm run deploy` calls wrangler directly, and sync.yml — which
+    // deploys hourly on a schedule, with no PR gate in front of it — went Harvest →
+    // `npx wrangler deploy`. So the on-disk reading, written for exactly the local
+    // deploy case, only ran if someone happened to type `npm test` first.
+    //
+    // Asked of the scripts rather than of one name, so a new upload path (a second
+    // preview command, say) is held to the same rule instead of quietly skipping it.
+    const pkg = JSON.parse(await readFile(ROOT + "package.json", "utf8"));
+    const uploads = Object.keys(pkg.scripts).filter((k) =>
+      /wrangler\s+(deploy|versions\s+upload)/.test(pkg.scripts[k]));
+    ok(uploads.length > 0, `det finns skript som laddar upp bundlen (${JSON.stringify(uploads)})`);
+    const unguarded = uploads.filter((k) => !/tests\/run\.mjs shipping/.test(pkg.scripts["pre" + k] || ""));
+    eq(unguarded, [], `vart och ett har en pre-hook som kör vakten — dessa saknar: ${JSON.stringify(unguarded)}`);
+
+    // And the scheduled deploy, which npm's pre-hooks never see: it runs wrangler
+    // through npx. Order matters, so this asserts position, not presence.
+    const sync = await readFile(ROOT + ".github/workflows/sync.yml", "utf8");
+    const guardAt = sync.indexOf("node tests/run.mjs shipping");
+    const deployAt = sync.indexOf("npx wrangler deploy");
+    ok(guardAt !== -1, "sync.yml kör vakten");
+    ok(deployAt !== -1, "och deployar med wrangler");
+    ok(guardAt !== -1 && deployAt !== -1 && guardAt < deployAt,
+      `och vakten står före deployen (${guardAt} < ${deployAt})`);
+  }
 }

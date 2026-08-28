@@ -593,7 +593,15 @@
     if (state.focus !== "all") o.view = state.focus;
     var q = serializeTerms(filterTerms());
     if (q) o.q = q;
-    if (state.group !== DISPLAY_DEFAULTS.group) o.group = state.group;
+    // Compared through the fallback, not against the raw default. `groupUsable` drops
+    // `status` where the view has already fixed it — the inbox is one status column —
+    // so there `status` and `repo` draw the same board, and emitting `group=repo`
+    // made an untouched Inbox look changed exactly as `done` did below. The test is
+    // therefore "does this change what you see", which is one question for both the
+    // chosen grouping and the one the view falls back to.
+    // What is *emitted* is still `state.group`, the choice: a saved view has to be
+    // reproducible, and the fallback is derived from the view it lands in anyway.
+    if (effectiveGroup() !== defaultGroup()) o.group = state.group;
     if (state.view !== DISPLAY_DEFAULTS.view) o.layout = state.view;
     if (state.sort !== DISPLAY_DEFAULTS.sort) o.sort = state.sort;
     // Only where it does something. `goToView` deliberately keeps the archive toggle
@@ -3139,6 +3147,9 @@
   // URL still carries the choice you made.
   function groupUsable(k) { return k !== "status" || columnsForFocus().length > 1; }
   function effectiveGroup() { return groupUsable(state.group) ? state.group : "repo"; }
+  // The same fallback applied to the default, so "did you change the grouping" can be
+  // asked about what the board *drew* rather than about what `state.group` holds.
+  function defaultGroup() { return groupUsable(DISPLAY_DEFAULTS.group) ? DISPLAY_DEFAULTS.group : "repo"; }
   function activeGroup() { return GROUPS[effectiveGroup()] || GROUPS.status; }
   // "Manual" is the only ordering where a hand-placed position means anything —
   // every other mode derives it from a field (see sortComparator).

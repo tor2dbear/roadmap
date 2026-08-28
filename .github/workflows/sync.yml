@@ -92,6 +92,17 @@ jobs:
             echo "::notice::CLOUDFLARE_API_TOKEN not set — data/ harvested but not deployed. Add CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID to deploy your board."
           fi
 
+      # The served bundle is the repo root, so what wrangler uploads is decided by
+      # `.assetsignore` — an exclusion list, which fails silently in the one direction
+      # that matters: a file nobody thought about is published rather than left out.
+      # This job runs the harvest above and pushes on a schedule with no PR gate in
+      # front of it, so the guard belongs here and not only in the PR checks. It reads
+      # the repo and never opens a page (the browser is launched lazily), so it needs
+      # no chromium — which is why it can sit in a deploy path that installs neither.
+      - name: Guard the bundle (nothing unintended gets served)
+        if: steps.cf.outputs.deploy == 'true'
+        run: node tests/run.mjs shipping
+
       - name: Deploy to Cloudflare
         if: steps.cf.outputs.deploy == 'true'
         env:

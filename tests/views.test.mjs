@@ -134,4 +134,37 @@ export async function run({ open }) {
     eq(new URL(p.url()).search, "?done=1", "och den kommer tillbaka i en vy som kan använda den");
     eq((await acts(p)).acts, ["Save view"], "med sin knapp igen");
   }
+
+  group("en gruppering som ritar samma bräda räknas inte som en ändring");
+  {
+    // The same review finding as the archive flag, in the other conditional key, and
+    // the reason `viewParamObject` now asks through `effectiveGroup()`. `groupUsable`
+    // drops `status` where the view has already fixed it — the inbox is one status
+    // column — so in the inbox `status` and `repo` draw the identical board. Choosing
+    // Repo grouping elsewhere and clicking Inbox therefore carried `group=repo` in,
+    // and an untouched Inbox offered to save a view indistinguishable from itself.
+    const plain = await open("?view=inbox", { token: true });
+    const heads = (p) => p.evaluate(() =>
+      [...document.querySelectorAll(".col-head h2, .list-head h2")].map((e) => e.textContent.trim()));
+    // The premise, asserted rather than assumed: untouched Inbox is *already* grouped
+    // by repo. Without this the group below would pass for the wrong reason.
+    eq(await heads(plain), ["Alpha"], "orörd Inbox faller redan tillbaka på repo-gruppering");
+    eq((await acts(plain)).acts, [], "och erbjuder ingenting");
+
+    const same = await open("?view=inbox&group=repo", { token: true });
+    eq(await heads(same), ["Alpha"], "med group=repo ritas exakt samma bräda");
+    eq((await acts(same)).acts, [], "så den erbjuder fortfarande ingenting");
+    eq(new URL(same.url()).search, "?view=inbox",
+      `och nyckeln skrivs inte till URL:en (${new URL(same.url()).search})`);
+
+    // A grouping that *does* change the board is still yours to save — the rule is
+    // "does this change what you see", not "is the inbox special".
+    const other = await open("?view=inbox&group=agent", { token: true });
+    eq(await heads(other), ["Unrouted"], "group=agent ritar en annan bräda");
+    eq((await acts(other)).acts, ["Save view"], "och den går att spara");
+
+    // And nothing was traded away outside the inbox, where status is usable.
+    const board = await open("?group=repo", { token: true });
+    eq((await acts(board)).acts, ["Save view"], "på All pucks är repo-gruppering en riktig ändring");
+  }
 }
