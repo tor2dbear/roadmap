@@ -5,6 +5,7 @@
 // not installed. This file asserts the rule holds for *this* repo, and — the half
 // that was missing twice over — that the guard is actually wired into every path
 // that uploads a bundle, including the exported product.
+import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { auditBundle, served } from "../scripts/check-bundle.mjs";
@@ -57,6 +58,56 @@ export async function run() {
     ok(deployAt !== -1, "och deployar med wrangler");
     ok(guardAt !== -1 && deployAt !== -1 && guardAt < deployAt,
       `och vakten står före deployen (${guardAt} < ${deployAt})`);
+  }
+
+  group("varje wrangler-uppladdning går genom vakten");
+  {
+    // The fifth finding on this guard, and the one that should end the series: npm's
+    // pre-hooks only fire when the script is invoked *through npm*. Every documented
+    // path went around them — the README told adopters to set Cloudflare's deploy
+    // command to `npx wrangler deploy`, the generated product README said the same,
+    // and pr-preview.yml ran `npx wrangler versions upload` directly *after* the
+    // harvest, so even the `npm test` earlier in that job had checked a different tree.
+    //
+    // So this stops naming files and asks the repo instead: find every invocation,
+    // then prove each one is guarded. A sixth bypass cannot be added quietly.
+    const files = execFileSync("git", ["ls-files"], { cwd: ROOT, encoding: "utf8" })
+      .split("\n").filter(Boolean).filter((f) => !/\.(woff2|png|ico)$/.test(f));
+    const INVOKE = /(npx wrangler|"wrangler) +(deploy|versions upload)/;
+
+    const hits = [];
+    for (const f of files) {
+      // `roadmap/` is history — a landed puck describing what the deploy used to be —
+      // and this file quotes the command in its own comments and assertions. Neither
+      // runs anything. Every other file is fair game.
+      if (f.startsWith("roadmap/") || f === "tests/shipping.test.mjs") continue;
+      const text = await readFile(ROOT + f, "utf8");
+      text.split("\n").forEach((line, i) => { if (INVOKE.test(line)) hits.push({ f, n: i + 1, line: line.trim() }); });
+    }
+    ok(hits.length >= 3, `det finns uppladdningar att granska (${hits.length})`);
+
+    const pkg = JSON.parse(await readFile(ROOT + "package.json", "utf8"));
+    const guardedScript = (line) => Object.keys(pkg.scripts).some((k) =>
+      line.includes(`"${k}"`) && /check-bundle\.mjs/.test(pkg.scripts["pre" + k] || ""));
+    const workflowGuarded = async (f, n) => {
+      const text = await readFile(ROOT + f, "utf8");
+      const guard = text.split("\n").findIndex((l) => /check-bundle\.mjs/.test(l));
+      return guard !== -1 && guard + 1 < n; // and it has to come first
+    };
+
+    const unguarded = [];
+    for (const h of hits) {
+      if (h.f === "package.json" && guardedScript(h.line)) continue;
+      if (h.f.startsWith(".github/workflows/") && await workflowGuarded(h.f, h.n)) continue;
+      // The exporter writes the product's package.json; that one line is guarded by the
+      // `predeploy` beside it. Scoped to the line, not the file — excluding the whole
+      // file let the *prose* in the generated README point at bare `wrangler deploy`
+      // and pass, which is the bypass this group exists to catch. Found by sabotage.
+      if (h.f === "scripts/export-product.mjs" && /^deploy:\s*"wrangler deploy",?$/.test(h.line)
+          && /predeploy:\s*"node scripts\/check-bundle\.mjs"/.test(await readFile(ROOT + h.f, "utf8"))) continue;
+      unguarded.push(`${h.f}:${h.n}`);
+    }
+    eq(unguarded, [], `varje wrangler-anrop är grindat — dessa är inte: ${JSON.stringify(unguarded)}`);
   }
 
   group("produkten får vakten också");

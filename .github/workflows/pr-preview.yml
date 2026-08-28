@@ -166,6 +166,12 @@ jobs:
             [ "$IS_OWNER" = "true" ] || echo "::notice::Preview skipped — credentialed deploy only runs on owner PRs (checks still ran)."
           fi
 
+      # `npm test` ran before the harvest above, and the harvest writes into the tree —
+      # so the bundle this step uploads is not the one that was checked. A preview alias
+      # is publicly reachable, so a stray file is published there like anywhere else.
+      - name: Guard the bundle (nothing unintended gets served)
+        run: node scripts/check-bundle.mjs
+
       - name: Upload preview version (no prod impact)
         id: preview
         if: steps.cf.outputs.ok == 'true'
