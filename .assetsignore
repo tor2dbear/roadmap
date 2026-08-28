@@ -28,6 +28,13 @@ node_modules
 # upload the next one while the guard, reading the git index, saw nothing.
 # .sources/ is the worst of them — the harvester clones the source repos into it.
 .sources
+# wrangler's own scratch, created in the repo root *during* the deploy — which is why
+# check-bundle.mjs cannot see it: the guard runs first. Found by reading a green CI log
+# instead of trusting it. Every deploy was publishing
+# /.wrangler/tmp/deploy-<rand>/no-op-worker.js.map — verified 200 on the PR preview,
+# leaking the runner's absolute path in `sourceRoot`. Harmless content, exactly the
+# class this file exists to prevent.
+.wrangler
 .DS_Store
 scratchpad-*.png
 *.log
