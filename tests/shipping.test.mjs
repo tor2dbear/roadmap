@@ -17,42 +17,74 @@ import { group, eq, ok } from "./assert.mjs";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 
-// The board and what it loads. Everything else is machinery, docs, or source data.
-const SERVED = new Set(["index.html", "app.js", "styles.css", "data", "fonts", "_headers", "ROADMAP.md"]);
+// What the board serves, and what may live inside each of it. Stated as patterns over
+// *paths*, not as a set of top-level names: `data` and `fonts` are directories, and a
+// name-only rule passes anything dropped inside them — `data/notes.txt` publishes just
+// as readily as a file in the root does. Naming the contents is also the only way the
+// list says what it means: `data/` holds the two harvested payloads and nothing else.
+const SERVED = {
+  "index.html": /^index\.html$/,
+  "app.js": /^app\.js$/,
+  "styles.css": /^styles\.css$/,
+  "_headers": /^_headers$/,
+  "ROADMAP.md": /^ROADMAP\.md$/,
+  data: /^data\/roadmap\.(json|js)$/,
+  // LICENSE.md belongs in the bundle and is not an oversight: Geist is OFL-1.1, which
+  // requires the licence to travel with the font files. The recursive check found it
+  // immediately — the old name-only rule could not see inside `fonts` at all.
+  fonts: /^fonts\/([\w.-]+\.woff2|LICENSE\.md)$/,
+};
+const servedPath = (rel) => Object.keys(SERVED).some((k) => SERVED[k].test(rel));
 
 const lines = (text) => text.split("\n").map((l) => l.trim()).filter((l) => l && !l.startsWith("#"));
 
 // `.assetsignore` takes .gitignore-style patterns (Cloudflare's own migration guide
-// writes `**/node_modules`), so a plain Set lookup answers only for the literal names.
-// Top-level entries are all this file asks about, which keeps the matcher to the two
-// forms in use: a name, and a `*` glob. A trailing slash and a leading `**/` are
-// stripped rather than modelled — at the root they say nothing extra.
+// writes `**/node_modules`), so a plain Set lookup answers only for literal names. Two
+// forms are in use — a name and a `*` glob — and gitignore's rule that a slash-free
+// pattern matches at any depth is what makes `roadmap` exclude `roadmap/x.md`.
 function matcher(pattern) {
   const p = pattern.replace(/^\*\*\//, "").replace(/\/$/, "");
-  if (!p.includes("*")) return (name) => name === p;
-  const rx = new RegExp("^" + p.split("*").map((s) => s.replace(/[.+?^${}()|[\]\\]/g, "\\$&")).join("[^/]*") + "$");
-  return (name) => rx.test(name);
+  const rx = p.includes("*")
+    ? new RegExp("^" + p.split("*").map((x) => x.replace(/[.+?^${}()|[\]\\]/g, "\\$&")).join("[^/]*") + "$")
+    : null;
+  const hit = (seg) => (rx ? rx.test(seg) : seg === p);
+  return (rel) => rel.split("/").some(hit);
+}
+
+// Walks what wrangler would upload: everything under the root that is not excluded.
+// Excluded directories are not descended into — `node_modules` is the reason, and it is
+// also the honest model, since wrangler does not look inside them either.
+async function walk(dir, excluded, prefix = "") {
+  const out = [];
+  for (const e of await readdir(dir, { withFileTypes: true })) {
+    const rel = prefix + e.name;
+    if (rel === ".git" || excluded(rel)) continue;
+    if (e.isDirectory()) out.push(...await walk(dir + e.name + "/", excluded, rel + "/"));
+    else out.push(rel);
+  }
+  return out;
 }
 
 export async function run() {
   const ignoreLines = lines(await readFile(ROOT + ".assetsignore", "utf8"));
   const ignoreMatch = ignoreLines.map(matcher);
-  const excluded = (name) => ignoreMatch.some((m) => m(name));
+  const excluded = (rel) => ignoreMatch.some((m) => m(rel));
 
   group("ingenting oavsiktligt skeppas");
   {
+    // Full paths, not first components. Truncating at the first slash was the earlier
+    // shape and it answered "is `data` allowed" for every file inside `data/`.
     const tracked = execFileSync("git", ["ls-files"], { cwd: ROOT, encoding: "utf8" })
-      .split("\n").filter(Boolean).map((p) => p.split("/")[0]);
-    const top = [...new Set(tracked)].sort();
-    ok(top.length > 5, `git svarade med något (${top.length} poster)`);
+      .split("\n").filter(Boolean);
+    ok(tracked.length > 20, `git svarade med något (${tracked.length} filer)`);
 
-    const loose = top.filter((e) => !SERVED.has(e) && !excluded(e));
-    eq(loose, [], `varje spårad toppnivåpost är antingen serverad eller utesluten — dessa är ingetdera: ${JSON.stringify(loose)}`);
+    const loose = tracked.filter((f) => !servedPath(f) && !excluded(f));
+    eq(loose, [], `varje spårad fil är antingen serverad eller utesluten — dessa är ingetdera: ${JSON.stringify(loose)}`);
 
-    // And the other direction, so the served set cannot rot into a list of names that
-    // no longer exist: everything we claim to serve has to be there.
-    const missing = [...SERVED].filter((e) => !top.includes(e));
-    eq(missing, [], `allt som påstås serveras finns också: ${JSON.stringify(missing)}`);
+    // And the other direction, so the served list cannot rot into patterns that match
+    // nothing: everything we claim to serve has to be there.
+    const empty = Object.keys(SERVED).filter((k) => !tracked.some((f) => SERVED[k].test(f)));
+    eq(empty, [], `allt som påstås serveras finns också: ${JSON.stringify(empty)}`);
   }
 
   group("de två uteslutningslistorna får inte säga olika");
@@ -86,11 +118,12 @@ export async function run() {
     // checks above are blind to. It can only speak for the checkout it runs in, so in
     // CI (a fresh clone) it repeats the first group. That is the point: the value is
     // local, on the machine where `npm run deploy` would be typed.
-    const onDisk = (await readdir(ROOT, { withFileTypes: true }))
-      .map((e) => e.name).filter((n) => n !== ".git").sort();
-    ok(onDisk.length > 5, `roten har innehåll att läsa (${onDisk.length} poster)`);
+    const onDisk = (await walk(ROOT, excluded)).sort();
+    // The bundle is small on purpose — a board, its data, its fonts. Eleven files as
+    // this is written, so the floor says "something was walked", not "a lot was".
+    ok(onDisk.length > 5, `arbetskatalogen har innehåll att läsa (${onDisk.length} filer)`);
 
-    const loose = onDisk.filter((e) => !SERVED.has(e) && !excluded(e));
+    const loose = onDisk.filter((f) => !servedPath(f));
     eq(loose, [], `inget i arbetskatalogen skulle följa med oavsiktligt — dessa skulle: ${JSON.stringify(loose)}`);
   }
 
