@@ -1,8 +1,8 @@
 ---
 title: "Skapa en puck ur väljaren"
-status: next
+status: done
 tags: [ui, dx]
-updated: 2026-08-24
+updated: 2026-08-27
 created: 2026-08-21
 order: 15
 depends: [ui-overlay-och-pickers]
@@ -51,8 +51,53 @@ En ny label är en sträng i frontmatter. En ny puck är:
 - Optimistisk render som allt annat: pucken finns på tavlan direkt, rullas tillbaka
   om commiten faller.
 
-## Open questions
-- Ska den nya pucken öppnas efteråt, eller ska man stanna kvar i pucken man kom från?
-  (Förslag: stanna kvar — man var mitt i något annat. En toast med länk räcker.)
-- `Blocked by` med — eller bara `Etapp` först? Blockeraren man saknar är oftare
-  arbete som *inte* är formulerat än en etapp är.
+## Delivered
+- **Raden finns i väljarprimitiven, inte i tre kopior.** `puckPicker` fick ett
+  `create`-alternativ, så alla tre referensfälten ärver den. Den syns bara när
+  sökningen är ifylld och ingen puck har **exakt** den titeln — en rad som skulle
+  göra ett andra "Auth" bredvid det "Auth" som står ovanför den är en inbjudan till
+  en dubblett, inte en genväg. En delträff hindrar den däremot inte.
+- **Repot står i raden**, i samma slot som listan använder för att namnge ett
+  främmande repo — den svarar på samma fråga: *var skulle det här hamna.*
+- **Man står kvar.** Den öppna frågan är besvarad: att skapa ur en väljare är
+  något man gör *mitt i* något annat, och att slänga sidan till den nya filen är
+  precis avbrottet väljaren fanns till för att slippa. `createPuck` fick
+  `open: false`.
+  En fälla i just den ändringen: felvägen anropade `closeModal()` villkorslöst, så
+  ett misslyckat commit hade stängt pucken man stod i. Den stänger bara den modal
+  den själv öppnade nu.
+- **`Blocked by` är med.** Den andra öppna frågan, och pucken svarade själv:
+  blockeraren man saknar är oftare arbete ingen skrivit ned än en etapp är.
+  Maskineriet är delat, så det kostade sex rader.
+
+### En commit — eller två, och det beror på vilken ände man står i
+Snittet ovan säger att `parent`/`depends` förskrivet i mallen gör det till **ett**
+commit. Det stämmer bara när den nya pucken är **barnet**:
+
+| Var man står | Den nya pucken är | Skrivningar |
+|---|---|---|
+| Etappens sida, `＋ Add puck` | barnet | **1** — `parent:` föds med filen |
+| Puckens `Etapp`-fält | föräldern | 2 |
+| Puckens `Blocked by` | blockeraren | 2 |
+
+Relationen är authored på barnet, och i två av tre fall är barnet den puck man
+redan står i — alltså en fil till som måste skrivas. Ordningen är
+skapa-sedan-länka, och länken körs bara om skapandet gick igenom: annars hade en
+puck pekat på en etapp som just rullats tillbaka. Faller länken i stället finns
+etappen kvar och ligger på tavlan, vilket är en klickning från att lagas, och
+`changeParent` säger det själv.
+
+- **`later`, inte `inbox`.** Att lägga en puck i en etapp *är* att sortera den; en
+  inbox-stubbe hade sorterats och sedan gömts av tavlan man sorterade den på.
+
+## Verifiering
+16 kontroller i `tests/create.test.mjs` — sviten första skrivvägstest, så fixturen
+fick två saker: en token som sätts före laddning (varje redigerbar kontroll i skenan
+är grindad på en) och en GitHub-stubbe som fångar varje `PUT` med sin sökväg och sin
+avkodade fil. Påståendena ligger på vad som **commitas**, inte på vad tavlan råkar
+rita efteråt: ett optimistiskt gränssnitt visar rätt sak ett ögonblick oavsett om
+filen det skrev är vettig.
+
+Fyra sabotage körda var för sig — mallen utan relationen, Contains via två
+skrivningar, dubblettspärren borta, och den nya pucken öppnad ändå — fäller var sin
+uppsättning.

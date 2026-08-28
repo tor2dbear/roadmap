@@ -1,8 +1,8 @@
 ---
 title: "UI-primitiv och skalor"
-status: now
+status: done
 tags: [ui, dx]
-updated: 2026-08-25
+updated: 2026-08-27
 created: 2026-08-23
 order: 5
 depends: [polering-av-egenskapsskenan]
@@ -51,7 +51,7 @@ Flikarna är däremot rätt: `.tab-btn` (understruken, innehåll) och `.focusbtn
   hade dessutom ingen mörk variant: en hårdkodad röd följer inte temat.
 
 - **Två skalor i stället för trettio beslut.** Radien har fem steg (`--r-xs` … 
-  `--r-pill`) och typen nio (`--fs-xs` … `--fs-4xl`). Varje literal i filen är
+  `--r-pill`) och typen åtta (`--fs-xs` … `--fs-3xl`). Varje literal i filen är
   borta utom tre som förtjänar att vara literaler: `50%` för prickar, sheetens
   `16px 16px 0 0`, och `0.92em` för kod inuti brödtext — den sista är ett
   *förhållande*, inte ett steg, och ska följa texten den sitter i.

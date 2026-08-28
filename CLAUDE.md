@@ -171,6 +171,12 @@ Two rules the pucks paid for:
   and `priority` are closed interface fields: an invented value would commit fine
   and then be dropped by `normalize*()` at the next harvest — a write that looks
   like it worked and vanishes an hour later.
+  Creating a *puck* from a picker costs one commit or two, and which one is not a
+  choice: membership is authored on the child, so the relation fits in the new file
+  only when the new puck is the child (`＋ Add puck` on an etapp). From the `Etapp`
+  or `Blocked by` field the new puck is the other end, and the link is a second write
+  to the puck you are standing in — create first, link only if the create committed,
+  or a puck would point at a file that had just been rolled back.
 - **The sheet doesn't resize for the keyboard.** It keeps its height and lets the
   keyboard cover the bottom (no reflow, no `visualViewport` listener). What makes
   that correct: the field stays pinned at the top, the first rows sit in the band
