@@ -3,6 +3,16 @@
   "use strict";
 
   var DATA = window.__ROADMAP__;
+  // Up here rather than beside `ghToken`, where it used to sit and where it read more
+  // naturally. `var` hoists the *declaration* and not the assignment, and the boot
+  // render (`renderBoard()`, a top-level call) runs some thirty lines above the old
+  // spot — so at first paint `ghToken()` was asking localStorage for the key
+  // `undefined`, answering "" for a browser that had a token. Every token-gated
+  // affordance was therefore missing until something re-rendered: open a shared link
+  // with a filter in it and the chip row had no Save view until you touched the board;
+  // click a sidebar row and it appeared. A constant read during boot has to be
+  // assigned before boot, which on one long IIFE means the top.
+  var TOKEN_KEY = "roadmap-gh-token";
   var board = document.getElementById("board");
 
   if (!DATA) {
@@ -596,6 +606,20 @@
       state.collapsed.forEach(function (k) { folded.push(k); });
       o.collapsed = folded.sort().join(",");
     }
+    return o;
+  }
+  // What the board carries *beyond* the view it is standing in. A built-in view is not
+  // yours to save: "Ready" is already a row in the sidebar, and a saved copy of it is
+  // the same list under two names — the drift `viewsShown` exists to avoid ("All pucks
+  // 31 / Standalone 31"). Changes made *on top of* one are yours, so this subtracts the
+  // scope rather than refusing whenever one is set, and a saved view still stores its
+  // `view` key: "Ready, grouped by repo" is a view, "Ready" is a duplicate.
+  // Only `view` is subtracted. Every other key in `viewParamObject` is already a
+  // non-default — a thing you did — which is why the default board answers empty here
+  // exactly as it did before.
+  function ownParams() {
+    var o = viewParamObject();
+    delete o.view;
     return o;
   }
   // The view's keys, in one place. Three readers used to keep their own copy of this
@@ -5515,7 +5539,17 @@
   }
   function saveCurrentView(wrap, cls) {
     var params = viewParamObject();
-    if (!Object.keys(params).length) { toast("✗ Nothing to save — this is the default board", true); return; }
+    // The title switcher and ⌘K offer this door unconditionally and lean on the refusal
+    // here, so this is the one place the rule can live for all three. It used to ask
+    // only whether the board was the *default*, which let an untouched built-in view
+    // through: "Ready" would commit to board.config.json as a saved view identical to
+    // the row above it.
+    if (!Object.keys(ownParams()).length) {
+      toast(params.view
+        ? "✗ Nothing to save — “" + ((VIEW_DEFS[params.view] || {}).label || params.view) + "” is already a view"
+        : "✗ Nothing to save — this is the default board", true);
+      return;
+    }
     inputSurface(wrap || null, {
       cls: cls,
       title: "Save view",
@@ -5783,9 +5817,12 @@
       }
       // Gated on there being anything to save, not on there being chips: a view can be
       // nothing but a grouping (`Testvy` is exactly that), and `saveCurrentView` already
-      // refuses an empty board with a toast. Reading the same question the write path
-      // asks is what keeps the button off the default board.
-      if (ghToken() && Object.keys(viewParamObject()).length) {
+      // refuses with a toast. Reading the same question the write path asks is what
+      // keeps the button off the default board — and, since that question became
+      // `ownParams`, off an untouched built-in view too. Standing in Ready having
+      // changed nothing, this row now has neither chips nor actions and hides itself,
+      // which is the same silence a saved view gets in the branch above.
+      if (ghToken() && Object.keys(ownParams()).length) {
         var wrap = el("div", "filter-wrap"); // the positioned parent the popover anchors in
         var save = el("button", "fchip-save", "Save view");
         save.type = "button";
@@ -5886,7 +5923,7 @@
   // localStorage) the board commits roadmap/<slug>.md straight to api.github.com
   // — the same edit the CLI makes, from the web. Edit controls appear only when a
   // token is set, so the public board is identical for everyone else.
-  var TOKEN_KEY = "roadmap-gh-token";
+  // TOKEN_KEY itself is declared at the top of the file, not here — see the note there.
   function ghToken() { try { return localStorage.getItem(TOKEN_KEY) || ""; } catch (e) { return ""; } }
   function setGhToken(v) { try { v ? localStorage.setItem(TOKEN_KEY, v) : localStorage.removeItem(TOKEN_KEY); } catch (e) {} }
   function b64encode(s) { return btoa(unescape(encodeURIComponent(s))); }
