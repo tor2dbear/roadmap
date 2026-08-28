@@ -1,6 +1,6 @@
 ---
 title: Arkivväxeln tar kort tyst utanför statusgruppering
-status: next
+status: done
 tags: [ui]
 updated: 2026-08-28
 created: 2026-08-28
@@ -48,6 +48,32 @@ Alternativ som inte kräver ett fjärde ställe:
   utan en ny yta, men lägger brus i varje kolumnhuvud.
 - **Lämna det.** Då ska meningen i CLAUDE.md skrivas om så den inte lovar ett chip som
   ingen kod skriver.
+
+## Delivered
+Tredje svaret, i stället för ett fjärde ställe: **arkivet säger vad det håller tillbaka i
+huvudet på den kolumn som saknar det** — `Alpha 5 · 2 archived 👁` — och att trycka på det
+är samma reparation som fackets öga. Ingen ny förklaring, samma dörr i en närmare vägg.
+
+Av de tre skisserade alternativen valdes kolumnhuvudet. Ett eget chip hade blivit ett
+fjärde ställe; att låta det stå hade krävt att meningen i CLAUDE.md skrevs om till ett
+löfte den inte kan hålla.
+
+**Listläget var värre, och det upptäcktes under arbetet.** Det har inget fack alls, så
+`?layout=list` med arkivet av hade helt enkelt ingen `Done`-sektion — i
+standardgrupperingen — utan att något sa det. Listan gör därför inget undantag: märket
+sitter på varje rubrik, och en grupp arkivet tömt helt kommer tillbaka som en ren rubrik
+på sin egen plats. Den rubriken är ett `<span>`, inte en kontroll — det finns inget under
+den att fälla ut förrän växeln lyfts.
+
+**Inget undantag för statusgruppering, och inget behövs.** Ett arkiverat kort ligger per
+definition i `Done` eller `Cancelled`, och växeln har redan tagit bort de kolumnerna — så
+en kolumn som fortfarande står kan aldrig hålla tillbaka något. En grind skrevs först och
+togs bort när sabotage inte kunde få den att göra någon skillnad i någon vy.
+
+`liftArchive()` är enda skrivaren, delad med fackets öga.
+
+Mätt efteråt, `?group=repo`: `Alpha 5 · 2 archived`, `Beta 2 · 1 archived` — och med växeln
+på blir det `Alpha 7`, `Beta 3`. Siffrorna är alltså exakt vad ett klick ger.
 
 ## Notes
 Föregick fackarbetet i #21 och ändrades inte av det. Skriven nu, inte då, eftersom regeln

@@ -3450,15 +3450,20 @@
   // with the archive lifted and the term still standing, and the column would flash
   // back into hiding before the second half ran. The term edit below renders once, for
   // both halves. One eye, one click, one column back — which is the whole point of it.
+  // Lifting the archive, from wherever the board admits a card is missing. Two callers
+  // — the tray's eye on a whole column, and a column head's own mark on the cards it is
+  // hiding — and they have to write the same key, or the Display menu and the sidebar
+  // counts end up disagreeing with the board they describe.
+  function liftArchive() {
+    state.showDone = true;
+    saveDisplay("done", "1"); // the same key `setDisplay("showDone", …, "done")` writes
+    refreshDisplayDot();
+    refreshNav(); // the sidebar's counts read `state.showDone`
+  }
   function unhideColumn(g, key, archive) {
     var t = columnTerm(g, key);
     if (!t && !archive) return; // nothing to mend and no toggle to lift
-    if (archive) {
-      state.showDone = true;
-      saveDisplay("done", "1"); // the same key `setDisplay("showDone", …, "done")` writes
-      refreshDisplayDot();
-      refreshNav(); // the sidebar's counts read `state.showDone`
-    }
+    if (archive) liftArchive();
     // An unnameable column (a target month) is only ever here for the archive, so the
     // lift above *is* the whole repair; render it, since no term edit will.
     if (!t) { renderBoard(); return; }
@@ -3597,8 +3602,52 @@
     return wrap;
   }
 
+  // "N archived", in the head of the column that is short of them. Not a label: it
+  // presses the same toggle the tray's eye does, so the thing that says what is missing
+  // is also the thing that brings it back.
+  function archivedMark(n) {
+    var b = el("button", "col-archived");
+    b.type = "button";
+    b.title = "Show " + n + " archived " + (n === 1 ? "puck" : "pucks") + " in this column";
+    b.setAttribute("aria-label", b.title);
+    b.appendChild(el("span", "count", String(n) + " archived"));
+    b.appendChild(icon("eye"));
+    b.addEventListener("click", function (e) { e.stopPropagation(); liftArchive(); renderBoard(); });
+    return b;
+  }
+  // How many cards the archive is holding back from each column that *is* on the board.
+  //
+  // The tray answers for a whole column missing; under a non-status grouping the archive
+  // takes cards *inside* the columns instead, and there the tray cannot speak: a repo
+  // reaches it only when every one of its pucks is archived. So `?group=repo` with the
+  // toggle off showed PIA's 6 open pucks and dropped 39 landed ones with nothing on
+  // screen saying so — the one case the "a column → the tray, cards → the chip row" rule
+  // did not cover, because the chip row cannot see this switch either (`viewTerms()`
+  // holds it as `-is:done`, outside `state.query`).
+  //
+  // The exemption lives in the *callers*, not here: the data is the data, and only the
+  // board can say "the tray already covers this". `order` comes back too, because the
+  // list has to slot a fully-archived group into its own place rather than at the end.
+  function archivedPerColumn() {
+    if (state.showDone || !ARCHIVABLE[state.focus]) return null;
+    var count = {}, order = [];
+    withShowDone(true, function () {
+      var q = activeTerms();
+      var all = DATA.items.filter(function (it) { return runQuery(it, q); });
+      groupsOf(all).forEach(function (grp) { count[grp.key] = grp.items.length; order.push(grp.key); });
+    });
+    return { count: count, order: order };
+  }
   function renderColumns(groups) {
     var g = activeGroup();
+    // No guard for status grouping, and none is needed — which is worth writing down,
+    // because the obvious thing to write here is one. Under status grouping an archived
+    // card is *by definition* in the Done or Cancelled column, and the toggle has already
+    // taken those off the board; a column that still stands can never be holding one
+    // back, so `held` is zero for every one of them and no mark is drawn. The tray keeps
+    // its job without anyone arranging it. A guard was written first and removed after
+    // sabotage failed to break anything: it could not fire in any view.
+    var archived = archivedPerColumn();
     groups.forEach(function (grp) {
       if (!grp.items.length && !state.showEmpty) return;
       var col = el("div", "column" + (g.cls ? " " + g.cls(grp.key) : " col-plain"));
@@ -3607,6 +3656,8 @@
       head.appendChild(el("span", "swatch"));
       head.appendChild(el("h2", null, grp.label));
       head.appendChild(el("span", "count", String(grp.items.length)));
+      var held = archived ? (archived.count[grp.key] || 0) - grp.items.length : 0;
+      if (held > 0) head.appendChild(archivedMark(held));
       if (g.headExtra) { var hx = g.headExtra(grp.key); if (hx) head.appendChild(hx); }
       // Only where the column can actually be named by a term — a target month
       // cannot, and offering a dead menu item is worse than offering none.
@@ -3703,8 +3754,32 @@
   }
   function renderList(groups) {
     var g = activeGroup();
+    // No exemption for status grouping here, unlike the board. The list has no tray, so
+    // nothing else can speak for the archive — and `?layout=list` with the toggle off
+    // simply had no Done section, in the *default* grouping, with nothing saying so. The
+    // chip row cannot cover it either (`viewTerms()` holds the switch outside
+    // `state.query`), which is what left this layout silent in every grouping.
+    var archived = archivedPerColumn();
+    var shownKeys = {};
+    groups.forEach(function (grp) { if (grp.items.length) shownKeys[grp.key] = 1; });
+    // A group the archive emptied *entirely* never reaches `groups`, so it has to be put
+    // back as a heading with nothing under it — the list's answer to what the tray does
+    // on the board. Walked in the archive's own order so it lands in its own place
+    // rather than after everything else.
+    if (archived) {
+      var stubs = archived.order.filter(function (k) { return !shownKeys[k] && archived.count[k]; });
+      if (stubs.length) {
+        var byKey = {};
+        groups.forEach(function (grp) { byKey[grp.key] = grp; });
+        groups = archived.order.map(function (k) {
+          return byKey[k] || { key: k, label: g.labelOf(k), items: [], archivedOnly: true };
+        });
+      }
+    }
     groups.forEach(function (grp) {
-      if (!grp.items.length) return; // a flat list has no drop targets, so no empty headers
+      // A flat list has no drop targets, so no empty headers — except one the archive
+      // emptied, which is exactly the thing that has to be said out loud.
+      if (!grp.items.length && !grp.archivedOnly) return;
       var section = el("section", "list-group" + (g.cls ? " " + g.cls(grp.key) : " col-plain"));
       if (g.tint && g.tint(grp.key)) section.style.setProperty("--tint", g.tint(grp.key));
       var shut = state.collapsed.has(grp.key);
@@ -3715,6 +3790,21 @@
       // headings would have dropped out of the heading map. The rollup badge stays
       // outside the button — it is the etapp's number, not part of the control.
       var h = el("h2");
+      // A group the archive emptied has nothing to collapse and no visible count worth
+      // printing — "Done 0 · 3 archived" says zero twice. So it is a plain heading, not
+      // a control: swatch and label, and the mark carries both the number and the way
+      // back. The chevron would promise rows that do not exist until the toggle lifts.
+      if (grp.archivedOnly) {
+        var stub = el("span", "lh-toggle lh-stub");
+        stub.appendChild(el("span", "swatch"));
+        stub.appendChild(el("span", "lh-label", grp.label));
+        h.appendChild(stub);
+        head.appendChild(h);
+        head.appendChild(archivedMark(archived.count[grp.key]));
+        section.appendChild(head);
+        board.appendChild(section);
+        return;
+      }
       var toggle = el("button", "lh-toggle");
       toggle.type = "button";
       toggle.setAttribute("aria-expanded", shut ? "false" : "true");
@@ -3726,6 +3816,10 @@
       toggle.addEventListener("click", function () { toggleGroup(grp.key); });
       h.appendChild(toggle);
       head.appendChild(h);
+      // Outside the toggle, for the reason stated above it: a <button> inside a <button>
+      // is invalid, and this one has its own click.
+      var held = archived ? (archived.count[grp.key] || 0) - grp.items.length : 0;
+      if (held > 0) head.appendChild(archivedMark(held));
       if (g.headExtra) { var hx = g.headExtra(grp.key); if (hx) head.appendChild(hx); }
       section.appendChild(head);
       if (!shut) grp.items.forEach(function (it) { section.appendChild(listRow(it)); });

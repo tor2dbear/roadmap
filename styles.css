@@ -486,6 +486,24 @@ body {
 .col-head .swatch { width: 10px; height: 10px; border-radius: var(--r-xs); }
 .col-head h2 { margin: 0; font-size: var(--fs-md); text-transform: uppercase; letter-spacing: var(--tr-eyebrow); }
 .col-head .count { color: var(--ink-3); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+/* "N archived" — what the archive is holding back from *this* column, in the head of
+   the column that is short of it. Shaped like the tray's row rather than like a chip:
+   a quiet count and the same eye, because it is the same repair in a different place.
+   Word included, not a bare number: the head already carries one count, and two
+   numbers side by side read as two counts of the same kind. */
+.col-archived {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: none; border: 0; padding: 0 2px; cursor: pointer;
+  color: var(--ink-3); font: inherit; font-size: var(--fs-sm);
+  font-family: var(--mono); white-space: nowrap;
+}
+.col-archived .count { font-size: inherit; }
+/* The stub heading a fully archived group leaves behind: it borrows the row's shape so
+   it lines up with its neighbours, but it is a <span> and not a control — there is
+   nothing under it to expand. The caret's width is kept so the labels stay aligned. */
+.lh-stub { cursor: default; padding-left: calc(13px + 8px); }
+.col-archived .icn { width: 13px; height: 13px; }
+@media (hover: hover) { .col-archived:hover { color: var(--accent); } }
 .col-status-now .swatch { background: var(--now); }
 .col-status-next .swatch { background: var(--next); }
 .col-status-later .swatch { background: var(--later); }

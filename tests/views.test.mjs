@@ -190,8 +190,19 @@ export async function run({ open }) {
     // they are drop targets.
     const board = await open("?empty=0", { token: true });
     eq(new URL(board.url()).search, "?empty=0", "men i brädlayouten står den kvar");
-    ok((await heads(board)).length > (await heads(list)).length,
-      "där den faktiskt ändrar vad som ritas");
+    // And it does something there — but only on a board that *has* an empty column, so
+    // the check has to make one. The default fixture has cards in every status, which is
+    // why the line this replaces could never have proved what it claimed: it held
+    // `?empty=0` (board) against `?layout=list`, two URLs differing in two ways, and
+    // passed on the coincidence that the board had more headings than the list. It broke
+    // the moment the list grew a heading for a group the archive had emptied — a change
+    // with nothing to do with `empty` at all.
+    const cols = (p) => p.evaluate(() =>
+      [...document.querySelectorAll(".column:not(.hidden-cols) .col-head h2")].map((e) => e.textContent.trim()));
+    const withEmpty = await open("?q=tag%3Aui", { token: true });
+    const without = await open("?q=tag%3Aui&empty=0", { token: true });
+    eq(await cols(withEmpty), ["Now", "Next", "Later"], "tag:ui lämnar Next tom men ritad");
+    eq(await cols(without), ["Now", "Later"], "och empty=0 tar bort den");
 
     // And the setting is not lost by passing through the list: `state` carries it, so
     // stepping back writes it again. Without this the fix would trade an inert key for
