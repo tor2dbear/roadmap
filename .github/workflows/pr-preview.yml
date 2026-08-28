@@ -166,6 +166,12 @@ jobs:
             [ "$IS_OWNER" = "true" ] || echo "::notice::Preview skipped — credentialed deploy only runs on owner PRs (checks still ran)."
           fi
 
+      # `npm test` ran before the harvest above, and the harvest writes into the tree —
+      # so the bundle this step uploads is not the one that was checked. A preview alias
+      # is publicly reachable, so a stray file is published there like anywhere else.
+      - name: Guard the bundle (nothing unintended gets served)
+        run: node scripts/check-bundle.mjs
+
       - name: Upload preview version (no prod impact)
         id: preview
         if: steps.cf.outputs.ok == 'true'
@@ -180,10 +186,17 @@ jobs:
           # the newest version on every push — so the sticky comment link stays the
           # same and can be bookmarked, instead of a fresh per-version hash each time.
           alias="pr-$PR"
-          npx wrangler versions upload --preview-alias "$alias" 2>&1 | tee wrangler-out.txt
+          # The log goes to RUNNER_TEMP, not the repo root. The root *is* the assets
+          # directory, and `tee` creates its file the moment the pipeline starts —
+          # before wrangler walks the tree — so a log written here was uploaded and
+          # served. It was: /wrangler-out.txt answered 200 on the preview, publishing
+          # the runner's absolute path and the whole asset list. check-bundle.mjs
+          # cannot catch this class, because the file does not exist when it runs.
+          log="$RUNNER_TEMP/wrangler-out.txt"
+          npx wrangler versions upload --preview-alias "$alias" 2>&1 | tee "$log"
           # Prefer the stable alias URL; fall back to the per-version URL if absent.
-          url=$(grep -oE "https://${alias}-[^ ]*workers\.dev" wrangler-out.txt | head -1 || true)
-          [ -n "$url" ] || url=$(grep -oE 'https://[^ ]*workers\.dev' wrangler-out.txt | head -1 || true)
+          url=$(grep -oE "https://${alias}-[^ ]*workers\.dev" "$log" | head -1 || true)
+          [ -n "$url" ] || url=$(grep -oE 'https://[^ ]*workers\.dev' "$log" | head -1 || true)
           echo "url=$url" >> "$GITHUB_OUTPUT"
 
       # Only touch the comment when we actually have a URL, so a transient upload

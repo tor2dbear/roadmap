@@ -48,7 +48,7 @@ The board is **config-driven** — point it at your repos, no code changes:
 4. **[`wrangler.jsonc`](wrangler.jsonc)** — set `name` (your Worker) and, for a
    custom domain, `routes`.
 5. **Cloudflare** — Workers & Pages → *Import a repository* → your fork, deploy
-   command `npx wrangler deploy`, production branch `main` (exact settings under
+   command `npm run deploy`, production branch `main` (exact settings under
    *Deploy*).
 
 That's it — the hourly Sync Action harvests your repos and redeploys. No backend,
@@ -140,7 +140,8 @@ bundle; [`.assetsignore`](.assetsignore) keeps `scripts/`, config and docs out.
 - **One-time setup (Cloudflare dashboard):** *Workers & Pages → Create
   application → Import a repository* → `tor2dbear/roadmap`. Project name
   `roadmap` (must equal `name` in `wrangler.jsonc`), production branch `main`,
-  build command empty, deploy command `npx wrangler deploy`, branch builds on.
+  build command empty, deploy command `npm run deploy` (not bare `wrangler` — the
+  npm script carries the bundle guard), branch builds on.
   The first deploy claims `roadmap.tor2dbear.com` and its DNS record from
   `routes` (an existing `A`/`AAAA`/`CNAME` on that name would block it).
 

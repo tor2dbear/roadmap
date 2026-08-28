@@ -47,10 +47,12 @@ export async function serve() {
 }
 
 // `open("?group=repo", { data: p => …, colorScheme, viewport })`
-export async function makeOpener(browser, origin) {
+// `getBrowser` rather than a browser: it is called on the first `open()` and never at
+// all by a file that only reads the repo (`shipping`, `parse`). See `withBrowser`.
+export async function makeOpener(getBrowser, origin) {
   const pages = [];
   async function open(query = "", opts = {}) {
-    const page = await browser.newPage({
+    const page = await (await getBrowser()).newPage({
       viewport: opts.viewport || { width: 1400, height: 900 },
       colorScheme: opts.colorScheme || "light",
       deviceScaleFactor: opts.deviceScaleFactor || 1,
@@ -84,15 +86,21 @@ export async function makeOpener(browser, origin) {
 
 export async function withBrowser(fn) {
   const site = await serve();
+  // Launched on the first page anyone opens, not up front. `shipping` and `parse` read
+  // the repo and never open one, and making them pay for a chromium launch is what kept
+  // the shipping guard *out* of the deploy path: `npm run deploy` and `sync.yml` install
+  // the npm packages but not the browser binary, so a guard that needed one could not
+  // run there. Lazy, it can — which is the whole point of a guard that guards.
   // `chromium` resolves to the headless shell when only that is installed, which is the
   // smaller download and needs fewer system libraries — so CI installs the shell and
   // nothing here has to know which one it got.
-  const browser = await chromium.launch();
+  let browser = null;
+  const getBrowser = async () => (browser = browser || await chromium.launch());
   try {
-    const open = await makeOpener(browser, site.origin);
-    return await fn({ open, origin: site.origin, browser });
+    const open = await makeOpener(getBrowser, site.origin);
+    return await fn({ open, origin: site.origin, browser: getBrowser });
   } finally {
-    await browser.close();
+    if (browser) await browser.close();
     await site.close();
   }
 }

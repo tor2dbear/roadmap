@@ -155,4 +155,112 @@ export async function run({ open }) {
       eq(b.frac, "", "och ingen --frac satt på elementet");
     }
   }
+
+  group("en bred kodrad ger inte sidan en sidled");
+  {
+    // Reported from a phone: one puck rendered in *larger* text than the one beside it,
+    // and the page could be dragged sideways. Two symptoms, one cause — the pane grew
+    // wider than the screen, and a mobile browser reads a too-wide layout as a reason to
+    // inflate every font on the page. So the assertion is on the width; the text size
+    // follows it.
+    //
+    // A grid item's `min-width` defaults to `auto` — never narrower than its content's
+    // minimum — and a `<pre>` is one long line with no minimum to speak of. The
+    // `overflow-x: auto` on the block was there all along and was never the missing
+    // piece: a scroll container still pushes its content's minimum width upward until an
+    // ancestor is allowed to shrink.
+    const withCode = (d) => {
+      const a = d.items.find((i) => i.slug === "a-now");
+      a.body = "Innan\n\n```\n" + "$ brew install cowsay ==> Fetching cowsay ==> Registering: cowsay, cowthink\n" +
+        "installed cowsay\n```\n\nEfter\n";
+      return d;
+    };
+    const p = await open("#alpha/a-now", { viewport: { width: 390, height: 844 }, data: withCode });
+    const m = await p.evaluate(() => {
+      const pre = document.querySelector(".modal-body pre");
+      return {
+        page: document.documentElement.scrollWidth,
+        view: window.innerWidth,
+        pre: pre && { client: pre.clientWidth, scroll: pre.scrollWidth, ov: getComputedStyle(pre).overflowX },
+      };
+    });
+    ok(m.pre, "kodblocket ritas");
+    eq(m.page, m.view, `sidan är inte bredare än skärmen (${m.page} mot ${m.view})`);
+    // The other half, and it is not the same statement: wrapping the code would also
+    // stop the page scroll, and would be a worse answer — a transcript's lines are its
+    // meaning. The block has to stay too wide *and* be scrollable inside itself.
+    ok(m.pre.scroll > m.pre.client,
+      `och kodblocket är fortfarande brett, i sin egen scroll (${m.pre.scroll} > ${m.pre.client})`);
+    eq(m.pre.ov, "auto", "vilket är vad overflow-x lovar");
+  }
+
+  group("räknaren har en storlek");
+  {
+    // "How many cards are behind this label" is one sentence, and it was drawn in four
+    // sizes: 11px on the sidebar's repo and agent rows, 11px beside the view title,
+    // 12px on the column heads, 13px inherited in the HIDDEN tray. The proof that no
+    // rule explained it: a sidebar view row and a column head are *both* --fs-md, and
+    // their counts still disagreed.
+    //
+    // Found by looking, not by listing. The first version of this test named five
+    // selectors and passed while a sixth — `.chip .n`, the repo and agent rows, the
+    // longest list of counts on the board — sat a pixel smaller and unmatched. A
+    // hand-kept list of what to check is a second place to remember, and this is the
+    // one that was forgotten. So the sweep asks the DOM instead: every leaf whose whole
+    // text is digits and whose face is the mono. A seventh mark cannot hide from that.
+    const found = (p) => p.evaluate(() =>
+      [...document.querySelectorAll("body *")]
+        .filter((e) => !e.children.length && /^\d+$/.test(e.textContent.trim()))
+        .filter((e) => e.getBoundingClientRect().height > 0)
+        .filter((e) => /Geist Mono|monospace/i.test(getComputedStyle(e).fontFamily))
+        .map((e) => ({ cls: e.getAttribute("class") || e.tagName, size: getComputedStyle(e).fontSize })));
+
+    // Several boards, because a mark only renders where its surface does: the tray
+    // needs a hidden column, `.list-head` needs the list layout, the repo rows need the
+    // sidebar. A token, since some chrome is gated on one.
+    const marks = [];
+    for (const url of ["", "?layout=list", "?group=repo", "?view=ready", "?done=1"]) {
+      marks.push(...await found(await open(url, { token: true })));
+    }
+    const kinds = [...new Set(marks.map((m) => m.cls))].sort();
+    // Named as well as swept: if a selector stops rendering, the sweep would quietly
+    // pass on whatever is left, which is exactly the failure mode being fixed.
+    eq(kinds, ["count", "focus-n", "n", "view-count"],
+      `varje sorts räknare ritas någonstans (${JSON.stringify(kinds)})`);
+
+    const sizes = [...new Set(marks.map((m) => m.size))].sort();
+    eq(sizes, ["11px"], `och varenda en är 11px — ${marks.length} märken, storlekar: ${JSON.stringify(sizes)}`);
+  }
+
+  group("räknaren växer inte med arkets rader");
+  {
+    // The sheet is the case a plausible fix gets wrong. `.focus-n` sits in a `.row`,
+    // which is --fs-md in the popover and --fs-xl in the sheet, so sizing it in `em`
+    // looks right — and the icon beside it seems to set that precedent, since
+    // `.focus-icn` asks for 1.15em. It does not: `.pick-menu .row > .icn` outranks it
+    // and pins the icon to 15px in the menu. An `em` count would grow past a mark that
+    // stayed put, in the one place a thumb reads them side by side.
+    const p = await open("", { viewport: { width: 390, height: 844 } });
+    await p.evaluate(() => {
+      const b = [...document.querySelectorAll("#viewTitleBtn, #topTitleBtn")]
+        .find((e) => e.getBoundingClientRect().height > 0);
+      b.click();
+    });
+    await p.waitForTimeout(300);
+    const m = await p.evaluate(() => {
+      const row = document.querySelector(".view-menu .row");
+      const n = row && row.querySelector(".focus-n");
+      const i = row && row.querySelector(".focus-icn");
+      return {
+        sheet: !!document.querySelector(".sheet.view-menu"),
+        row: row && getComputedStyle(row).fontSize,
+        n: n && getComputedStyle(n).fontSize,
+        icn: i && getComputedStyle(i).width,
+      };
+    });
+    eq(m.sheet, true, "vid 390px blir vymenyn ett ark");
+    eq(m.row, "15px", "vars rader är --fs-xl");
+    eq(m.icn, "15px", "ikonen pinnas till 15px trots sin 1.15em");
+    eq(m.n, "11px", "och räknaren står kvar på 11px, som på brädan");
+  }
 }

@@ -3,3 +3,6 @@ node_modules/
 .DS_Store
 scratchpad-*.png
 *.log
+*.tmp.*
+.wrangler/
+wrangler-out.txt
