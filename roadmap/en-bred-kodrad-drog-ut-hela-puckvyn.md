@@ -16,9 +16,16 @@ den bredvid, *och* sidan gick att dra i sidled. Två symptom, en orsak — och o
 den mindre uppenbara av dem.
 
 Panelen blev bredare än skärmen, och en mobil webbläsare läser en för bred layout som
-ett skäl att blåsa upp varje typsnitt på sidan. Den större texten var alltså inte en
-egen bugg utan en följd, vilket är varför den bara syntes på vissa puckar. Mätt vid
-390px skärmbredd:
+ett skäl att blåsa upp text. Den större texten var alltså inte en egen bugg utan en
+följd, vilket är varför den bara syntes på vissa puckar.
+
+**Och den drabbar inte allt — den drabbar enstaka block.** Mätt i skärmbilderna, pixel
+för pixel: de tre sektionsrubrikerna kom tillbaka 38px höga mot 22px på pucken bredvid,
+medan varje radetikett på samma sida var identisk. Det är därför symptomet läser som
+"den här sidan ser konstig ut" snarare än "allt är förstorat", och det var vad som gjorde
+att jag först trodde att jag såg fel.
+
+Mätt vid 390px skärmbredd:
 
 | Puck | sidans bredd |
 |---|---|
@@ -43,6 +50,11 @@ scrolla i sig självt — därför kräver testet bägge sakerna, och sabotaget 
 `pre-wrap` fäller den andra kontrollen medan den första fortfarande passerar.
 
 `Discussion`-fliken använder samma panel, så en fix täcker bägge markdown-ytorna.
+
+**`text-size-adjust: 100%` är ett skydd, inte fixen.** Det hindrar webbläsaren från att
+skala om text på eget bevåg, men en sida som växer ur skärmen är fortfarande fel och
+sidled-scrollen säger det fortfarande. Skyddet tar bara bort vanställningen, så att nästa
+sådan bugg läser som ett symptom i stället för två.
 
 ## Verifiering
 Fyra kontroller i `tests/chrome.test.mjs`, mätta i telefonvyport med ett kodblock

@@ -211,6 +211,18 @@ button, input, select, textarea, optgroup {
    above an empty list. One rule, and nothing can forget it. */
 [hidden] { display: none !important; }
 html, body { margin: 0; }
+/* Never let the browser resize text on its own.
+   A mobile engine inflates *some* blocks when it decides a page is laid out wider than
+   the screen — and it picks them per block, so the result is not "everything is bigger"
+   but one element out of scale with the rest. Measured on a phone: a puck whose body
+   held a wide code block pushed the page to 540px in a 390px screen, and its three
+   section headings came back 38px tall against 22px on the puck beside it, while every
+   row label on the same page was identical to the pixel.
+   The width bug is fixed where it belongs (`.detail-pane`), and this is not a substitute
+   for that: a page that outgrows the screen is still wrong, and the sideways scroll still
+   says so. This only takes away the disfigurement, so the next such bug reads as one
+   symptom instead of two. */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 body {
   background: var(--bg);
   color: var(--ink);
