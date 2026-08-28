@@ -104,4 +104,34 @@ export async function run({ open }) {
     eq(anonActs.acts, [], "och utan token erbjuds ingenting");
     eq(anonActs.hidden, false, "fast raden syns ändå, för chippet står kvar");
   }
+
+  group("en flagga som inte gör något räknas inte som en ändring");
+  {
+    // Found in review, on the fix above. `goToView` keeps the archive toggle across a
+    // navigation on purpose — it is a display preference, not a filter — so turning on
+    // "Show done & cancelled" in All pucks and clicking Ready carried `done=1` along.
+    // Ready is not ARCHIVABLE: the flag cannot change a single card there, and the
+    // Display menu does not even offer the row. But `viewParamObject` emitted it
+    // anyway, `ownParams` subtracts only `view`, and so the untouched view offered
+    // Save view again — by a different door than the one just closed.
+    const p = await open("?done=1", { token: true });
+    eq((await acts(p)).acts, ["Save view"], "på All pucks är arkivväxeln en riktig ändring");
+
+    await p.getByRole("button", { name: /^Ready/ }).first().click();
+    await p.waitForTimeout(250);
+    eq(await acts(p), { hidden: true, acts: [] }, "men i Ready är den verkningslös och raden tiger");
+    eq(new URL(p.url()).search, "?view=ready",
+      `och den skrivs inte till URL:en där den inte gör något (${new URL(p.url()).search})`);
+
+    // Dropping it from the URL must not drop the setting, or the fix trades a false
+    // "changed" for a real lost preference. `state.showDone` is what carries it through
+    // a navigation, so stepping back has to bring the archive with you.
+    // (localStorage is *not* what does it here: `roadmap-done` is written when you flip
+    // the switch, not when a link sets it — which is why this asserts the round trip
+    // rather than the stored key.)
+    await p.getByRole("button", { name: /^All pucks/ }).first().click();
+    await p.waitForTimeout(250);
+    eq(new URL(p.url()).search, "?done=1", "och den kommer tillbaka i en vy som kan använda den");
+    eq((await acts(p)).acts, ["Save view"], "med sin knapp igen");
+  }
 }

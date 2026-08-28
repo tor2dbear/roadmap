@@ -596,7 +596,25 @@
     if (state.group !== DISPLAY_DEFAULTS.group) o.group = state.group;
     if (state.view !== DISPLAY_DEFAULTS.view) o.layout = state.view;
     if (state.sort !== DISPLAY_DEFAULTS.sort) o.sort = state.sort;
-    if (state.showDone) o.done = "1";
+    // Only where it does something. `goToView` deliberately keeps the archive toggle
+    // across a navigation (it is a display preference, not a filter), so turning it on
+    // in All pucks and clicking Ready used to leave `done=1` riding along — a key the
+    // board cannot act on, since Ready is not ARCHIVABLE, and one the Display menu does
+    // not even offer there. That made an untouched built-in view look changed: it is
+    // what `ownParams` subtracts `view` for, and the leftover walked straight past it
+    // and offered Save view again.
+    // The flag is not lost by leaving it out. Within the session `state.showDone` is
+    // what carries it — `goToView` keeps it — so stepping through Ready and back to
+    // All pucks brings the archive with you and the URL says `done=1` again. Across a
+    // reload the toggle itself persists, in localStorage under `roadmap-done`, which
+    // is written when you flip it (not when a link sets it). The one thing that goes:
+    // reload while standing in Ready, having arrived from a shared `?done=1` link and
+    // never touched the switch. A preference that does nothing on the view you are
+    // looking at is the right thing to drop there.
+    // `collapsed`, three lines down, has always
+    // been written this way — a key that means nothing outside the list layout is not
+    // emitted outside it. This is the same rule, applied to the other conditional key.
+    if (state.showDone && ARCHIVABLE[state.focus]) o.done = "1";
     if (!state.showEmpty) o.empty = "0";
     // Sorted, not in click order: the same set of folded groups has to serialize to
     // the same string every time, or the URL churns and two identical views compare
