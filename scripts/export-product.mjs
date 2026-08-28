@@ -19,6 +19,11 @@ const OUT = path.resolve(process.argv[2] || path.join(ROOT, "..", "etapp-export"
 const COPY = [
   "scripts/harvest.mjs",
   "scripts/roadmap.mjs",
+  // The bundle guard travels with the deploy it guards. Etapp users follow the
+  // generated README straight to `wrangler deploy`, and without this they can publish
+  // a stray root file exactly as this repo twice did. It is dependency-free for that
+  // reason — the product ships no test runner and no browser.
+  "scripts/check-bundle.mjs",
   "scripts/lib",
   "scripts/sources.schema.json",
   "index.html",
@@ -44,6 +49,7 @@ const PKG = {
     "harvest:local": "ROADMAP_LOCAL_ROOT=../ node scripts/harvest.mjs",
     roadmap: "node scripts/roadmap.mjs",
     dev: "wrangler dev",
+    predeploy: "node scripts/check-bundle.mjs",
     deploy: "wrangler deploy",
   },
   engines: { node: ">=20" },

@@ -96,12 +96,11 @@ jobs:
       # `.assetsignore` — an exclusion list, which fails silently in the one direction
       # that matters: a file nobody thought about is published rather than left out.
       # This job runs the harvest above and pushes on a schedule with no PR gate in
-      # front of it, so the guard belongs here and not only in the PR checks. It reads
-      # the repo and never opens a page (the browser is launched lazily), so it needs
-      # no chromium — which is why it can sit in a deploy path that installs neither.
+      # front of it, so the guard belongs here and not only in the PR checks. A plain
+      # script with no dependencies, so it runs anywhere wrangler does.
       - name: Guard the bundle (nothing unintended gets served)
         if: steps.cf.outputs.deploy == 'true'
-        run: node tests/run.mjs shipping
+        run: node scripts/check-bundle.mjs
 
       - name: Deploy to Cloudflare
         if: steps.cf.outputs.deploy == 'true'

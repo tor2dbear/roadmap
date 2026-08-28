@@ -16,8 +16,8 @@
     "deploy": "wrangler deploy",
     "versions:upload": "wrangler versions upload",
     "test": "node tests/run.mjs",
-    "predeploy": "node tests/run.mjs shipping",
-    "preversions:upload": "node tests/run.mjs shipping"
+    "predeploy": "node scripts/check-bundle.mjs",
+    "preversions:upload": "node scripts/check-bundle.mjs"
   },
   "engines": {
     "node": ">=20"
