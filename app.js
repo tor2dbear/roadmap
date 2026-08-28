@@ -588,53 +588,70 @@
   // The view as data: the same keys the URL uses and a saved view stores, so a
   // link, a config entry and the live board are three encodings of one thing.
   // Only non-defaults are included, so a plain board keeps a clean URL.
+  // Which keys mean anything, in one place. Both producers go through it — the live
+  // board (`viewParamObject`) and a stored entry (`paramsOf`) — because they have to
+  // answer identically or a saved view stops matching the board it describes. They did
+  // not, once: gating the live side alone made an untouched "Inbox by repo" load as
+  // *(edited)* and offer to Update itself, since the stored `group` survived and the
+  // live one had just been dropped. Hand-editing board.config.json is a first-class
+  // path (AGENTS.md), so a redundant-but-valid entry has to load consistently too.
+  //
+  // Four keys are conditional, and each condition is the same question asked of a
+  // different fallback:
+  //
+  //   group      `groupUsable` drops `status` where the view has already fixed it, so
+  //              in the inbox — one status column — `status` and `repo` draw the same
+  //              board. Compared through the fallback, not against the raw default.
+  //   done       the archive toggle does nothing outside an ARCHIVABLE view, and the
+  //              Display menu does not offer the row there.
+  //   empty      `renderList` drops empty groups unconditionally ("a flat list has no
+  //              drop targets"), and Display hides that control outside the board.
+  //   collapsed  a fold means nothing outside the list layout.
+  //
+  // Three of the four were found the same way and for the same reason: `goToView` and
+  // the Display menu deliberately keep your choices across a navigation, so a setting
+  // follows you into a view that cannot act on it. Written anyway it did two kinds of
+  // damage — an untouched view offered to save a duplicate of itself, and two boards
+  // drawn identically compared unequal.
+  //
+  // Nothing is lost by dropping them. `state` still carries every setting, so stepping
+  // back into a view that can use one writes it again; the Display toggles additionally
+  // persist in localStorage. The one honest cost: reload while standing in a view that
+  // ignores the setting, having arrived from a link that set it and never touched the
+  // control. A preference that does nothing where you are looking is the right thing to
+  // drop there.
+  function effectiveParams(o) {
+    var focus = o.view || "all";
+    var layout = o.layout || DISPLAY_DEFAULTS.view;
+    var cols = columnsForFocus(focus, o.done === "1");
+    var eff = function (k) { return k !== "status" || cols.length > 1 ? k : "repo"; };
+    if (o.group && eff(o.group) === eff(DISPLAY_DEFAULTS.group)) delete o.group;
+    if (o.done && !ARCHIVABLE[focus]) delete o.done;
+    if (o.empty && layout !== "board") delete o.empty;
+    if (o.collapsed && layout !== "list") delete o.collapsed;
+    return o;
+  }
   function viewParamObject() {
     var o = {};
-    // A key is written only where it changes what you see. Four are conditional, and
-    // each condition is the same question asked of a different fallback:
-    //
-    //   group      `groupUsable` drops `status` where the view has already fixed it, so
-    //              in the inbox — one status column — `status` and `repo` draw the same
-    //              board. Compared through `effectiveGroup`, not the raw default.
-    //   done       the archive toggle does nothing outside an ARCHIVABLE view, and the
-    //              Display menu does not offer the row there.
-    //   empty      `renderList` drops empty groups unconditionally ("a flat list has no
-    //              drop targets"), and Display hides that control outside the board.
-    //   collapsed  a fold means nothing outside the list layout.
-    //
-    // Three of the four were found the same way and for the same reason: `goToView` and
-    // the Display menu deliberately keep your choices across a navigation, so a setting
-    // follows you into a view that cannot act on it. Written anyway it did two kinds of
-    // damage — an untouched view offered to save a duplicate of itself, and two boards
-    // drawn identically compared unequal, so a saved view could fail to light up on the
-    // board it describes.
-    //
-    // Nothing is lost by leaving them out. `state` still carries every setting, so
-    // stepping back into a view that can use one writes it again; the Display toggles
-    // additionally persist in localStorage. The one honest cost: reload while standing
-    // in a view that ignores the setting, having arrived from a link that set it and
-    // never touched the control. A preference that does nothing where you are looking
-    // is the right thing to drop there.
-    //
-    // What is *emitted* stays the choice (`state.group`), not the fallback: a saved
-    // view has to be reproducible, and the fallback is derived from wherever it lands.
     if (state.focus !== "all") o.view = state.focus;
     var q = serializeTerms(filterTerms());
     if (q) o.q = q;
-    if (effectiveGroup() !== defaultGroup()) o.group = state.group;
+    // What is *emitted* is the choice, not the fallback: a saved view has to be
+    // reproducible, and the fallback is derived from wherever it lands.
+    if (state.group !== DISPLAY_DEFAULTS.group) o.group = state.group;
     if (state.view !== DISPLAY_DEFAULTS.view) o.layout = state.view;
     if (state.sort !== DISPLAY_DEFAULTS.sort) o.sort = state.sort;
-    if (state.showDone && ARCHIVABLE[state.focus]) o.done = "1";
-    if (!state.showEmpty && state.view === "board") o.empty = "0";
+    if (state.showDone) o.done = "1";
+    if (!state.showEmpty) o.empty = "0";
     // Sorted, not in click order: the same set of folded groups has to serialize to
     // the same string every time, or the URL churns and two identical views compare
-    // unequal.
-    if (state.view === "list" && state.collapsed.size) {
+    // unequal. Whether a fold means anything at all is `effectiveParams`' call.
+    if (state.collapsed.size) {
       var folded = [];
       state.collapsed.forEach(function (k) { folded.push(k); });
       o.collapsed = folded.sort().join(",");
     }
-    return o;
+    return effectiveParams(o);
   }
   // What the board carries *beyond* the view it is standing in. A built-in view is not
   // yours to save: "Ready" is already a row in the sidebar, and a saved copy of it is
@@ -3149,9 +3166,6 @@
   // URL still carries the choice you made.
   function groupUsable(k) { return k !== "status" || columnsForFocus().length > 1; }
   function effectiveGroup() { return groupUsable(state.group) ? state.group : "repo"; }
-  // The same fallback applied to the default, so "did you change the grouping" can be
-  // asked about what the board *drew* rather than about what `state.group` holds.
-  function defaultGroup() { return groupUsable(DISPLAY_DEFAULTS.group) ? DISPLAY_DEFAULTS.group : "repo"; }
   function activeGroup() { return GROUPS[effectiveGroup()] || GROUPS.status; }
   // "Manual" is the only ordering where a hand-placed position means anything —
   // every other mode derives it from a field (see sortComparator).
@@ -3808,20 +3822,24 @@
 
   // Which status groups the current view shows. Inbox is its own space, so it's
   // absent from every board view except the Inbox view itself.
-  function columnsForFocus() {
-    if (state.focus === "inbox") return ["inbox"];
-    if (state.focus === "ready") return ["now", "next"];
-    if (state.focus === "attention") return DATA.statuses; // flagged can be any status
+  // Parameterised, defaulting to the live board: `effectiveParams` has to ask the same
+  // question about a *stored* view, whose focus is not the one you are standing in.
+  function columnsForFocus(focus, showDone) {
+    if (focus == null) focus = state.focus;
+    if (showDone == null) showDone = state.showDone;
+    if (focus === "inbox") return ["inbox"];
+    if (focus === "ready") return ["now", "next"];
+    if (focus === "attention") return DATA.statuses; // flagged can be any status
     // An etapp is any puck that holds others, so it can sit anywhere — including
     // inbox, which the committed board hides. Without this the sidebar counted one
     // and the board showed none, which is exactly the drift viewCounts exists to
     // prevent. Done still follows the toggle.
-    if (state.focus === "etapps") {
-      return DATA.statuses.filter(function (s) { return !TERMINAL[s] || state.showDone; });
+    if (focus === "etapps") {
+      return DATA.statuses.filter(function (s) { return !TERMINAL[s] || showDone; });
     }
     // "all" = the committed board: now/next/later (+done/cancelled when shown), never inbox.
     return DATA.statuses.filter(function (s) {
-      return s !== "inbox" && (!TERMINAL[s] || state.showDone);
+      return s !== "inbox" && (!TERMINAL[s] || showDone);
     });
   }
 
@@ -5379,7 +5397,9 @@
       if (v[k] != null && v[k] !== "") o[k] = String(v[k]);
     });
     if (o.q) o.q = canonicalQuery(o.q); // compare like against like — see canonicalQuery
-    return o;
+    // Through the same normaliser as the live board, or the two disagree — see
+    // `effectiveParams`. This is the half that was missing.
+    return effectiveParams(o);
   }
   function sameParams(a, b) {
     for (var i = 0; i < VIEW_KEYS.length; i++) {

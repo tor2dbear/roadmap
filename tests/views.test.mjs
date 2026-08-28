@@ -207,4 +207,34 @@ export async function run({ open }) {
     await board.waitForTimeout(250);
     eq(new URL(board.url()).search, "?empty=0", "och tillbaka i Board är den där igen");
   }
+
+  group("en sparad vy laddas inte som redan ändrad");
+  {
+    // The regression the gating above created, found in review. `paramsOf` kept the
+    // stored `group` while `viewParamObject` had just learned to drop it, so applying
+    // a perfectly valid entry — the shape the *old* Save flow produced, and the shape
+    // a hand-edit produces, which AGENTS.md makes a first-class path — landed on a
+    // board that did not match it: the title said "(edited)" and the chip row offered
+    // to Update a view nobody had touched.
+    //
+    // Both producers now go through one normaliser. This is the test that says so, and
+    // it is worth having beyond this bug: the two used to be separate code paths that
+    // had to agree, which is the arrangement that fails quietly.
+    const stored = (d) => {
+      d.config = d.config || {};
+      d.config.views = [{ name: "Inbox by repo", view: "inbox", group: "repo" }];
+      return d;
+    };
+    const p = await open("", { token: true, data: stored });
+    await p.getByRole("button", { name: /Inbox by repo/ }).first().click();
+    await p.waitForTimeout(300);
+    const seen = await p.evaluate(() => ({
+      url: location.search,
+      acts: [...document.querySelectorAll("#chipRow .fchip-acts button")].map((e) => e.textContent.trim()),
+      title: (document.querySelector("#viewTitleBtn, #topTitleBtn") || {}).textContent.replace(/\s+/g, " ").trim(),
+    }));
+    eq(seen.acts, [], "en orörd sparad vy erbjuder varken Reset eller Update");
+    ok(!/edited/.test(seen.title), `och titeln säger inte att den är ändrad: ${JSON.stringify(seen.title)}`);
+    eq(seen.url, "?view=inbox", "den redundanta nyckeln normaliseras bort ur URL:en också");
+  }
 }
