@@ -1,7 +1,7 @@
 // The rule from #21: a whole column missing → the HIDDEN tray. Cards missing inside
 // the columns → the chip row. Every assertion here is one half of that sentence.
 import { snapshot, trayEye } from "./fixture.mjs";
-import { group, eq } from "./assert.mjs";
+import { group, eq, ok } from "./assert.mjs";
 
 async function hideColumn(page, label) {
   const col = page.locator(".board > .column:not(.hidden-cols)")
@@ -192,5 +192,47 @@ export async function run({ open }) {
       { col: "Beta", n: "2", held: "1 archived", stub: false },
       { col: "Landed", n: null, held: "1 archived", stub: true },
     ], "en tömd grupp står på sin plats, inte sist");
+
+    // Only a group the archive actually holds something back from becomes a stub. The
+    // key list under status grouping is fixed, so a status with nothing archived in it
+    // was still synthesised into a heading with `archivedMark(undefined)` under it —
+    // "Cancelled · undefined archived", pointing at nothing and offering an eye that
+    // would redraw the same page. Reported by Codex; the filter existed one line above
+    // and the map then walked the unfiltered list anyway.
+    // Beta has a `done` puck and no `cancelled` one, so scoping to it leaves Cancelled
+    // with nothing archived in it — and the key list under status grouping is fixed, so
+    // the key is still there to be synthesised from. Measured on the live demo first
+    // (`?layout=list&q=repo:aurora` drew `Cancelled · 0 archived`), then reproduced here.
+    const grupper = await rows(await open("?layout=list&q=" + encodeURIComponent("repo:acme/beta")));
+    eq(grupper.filter((r) => r.stub && !/^[1-9]/.test(String(r.held))), [],
+      `ingen stubbe utan något arkiverat att hämta tillbaka: ${JSON.stringify(grupper)}`);
+  }
+
+  group("märket fäller ut gruppen det lovar att fylla");
+  {
+    // In the list a collapsed group still gets the mark — it is short of those cards
+    // whether or not it is open. Pressing it lifted the archive and left the group in
+    // `state.collapsed`, so the cards it named came back into a section that was still
+    // shut: a control whose label is "Show 3 archived pucks in this column" and which
+    // visibly shows nothing. Reported by Codex.
+    const p = await open("?layout=list&group=repo&collapsed=" + encodeURIComponent("acme/alpha"));
+    const före = await p.evaluate(() => ({
+      shut: !!document.querySelector(".list-group.shut"),
+      märke: !!document.querySelector(".list-group.shut .col-archived"),
+      kort: document.querySelectorAll(".list-group .list-row").length,
+    }));
+    eq(före.shut, true, "gruppen är ihopfälld");
+    eq(före.märke, true, "och bär ändå märket — den saknar korten oavsett");
+
+    await p.locator(".list-group.shut .col-archived").click();
+    await p.waitForTimeout(400);
+    const efter = await p.evaluate(() => ({
+      shutKvar: !!document.querySelector(".list-group.shut"),
+      kort: document.querySelectorAll(".list-group .list-row").length,
+      url: location.search,
+    }));
+    eq(efter.shutKvar, false, "efter klicket är den utfälld");
+    ok(efter.kort > före.kort, `och korten syns: ${före.kort} → ${efter.kort}`);
+    ok(!/collapsed=/.test(efter.url), `och URL:en har släppt vecket: ${efter.url}`);
   }
 }

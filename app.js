@@ -3620,14 +3620,24 @@
   // "N archived", in the head of the column that is short of them. Not a label: it
   // presses the same toggle the tray's eye does, so the thing that says what is missing
   // is also the thing that brings it back.
-  function archivedMark(n) {
+  // `key` is the group it stands in, and only the list passes one: a collapsed section
+  // still carries the mark — it is short of those cards whether it is open or shut — so
+  // pressing it lifted the archive into a section that stayed closed. A control labelled
+  // "Show 3 archived pucks in this column" that visibly shows nothing. Unfolding is part
+  // of the repair, not a second click for the reader to find.
+  function archivedMark(n, key) {
     var b = el("button", "col-archived");
     b.type = "button";
     b.title = "Show " + n + " archived " + (n === 1 ? "puck" : "pucks") + " in this column";
     b.setAttribute("aria-label", b.title);
     b.appendChild(el("span", "count", String(n) + " archived"));
     b.appendChild(icon("eye"));
-    b.addEventListener("click", function (e) { e.stopPropagation(); liftArchive(); renderBoard(); });
+    b.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (key != null) state.collapsed.delete(key);
+      liftArchive();
+      renderBoard();
+    });
     return b;
   }
   // How many cards the archive is holding back from each column that *is* on the board.
@@ -3782,13 +3792,21 @@
     // on the board. Walked in the archive's own order so it lands in its own place
     // rather than after everything else.
     if (archived) {
-      var stubs = archived.order.filter(function (k) { return !shownKeys[k] && archived.count[k]; });
-      if (stubs.length) {
+      var stubs = {};
+      archived.order.forEach(function (k) { if (!shownKeys[k] && archived.count[k]) stubs[k] = 1; });
+      if (Object.keys(stubs).length) {
         var byKey = {};
         groups.forEach(function (grp) { byKey[grp.key] = grp; });
-        groups = archived.order.map(function (k) {
-          return byKey[k] || { key: k, label: g.labelOf(k), items: [], archivedOnly: true };
-        });
+        // Walked in the archive's order so a stub lands in its own place — but only the
+        // keys `stubs` named. Mapping the whole order synthesised a group for every key
+        // that had merely fallen out of `groups`, count zero included: `repo:aurora` has
+        // no cancelled puck at all and still drew `Cancelled · 0 archived`, a heading
+        // pointing at nothing with an eye that would redraw the same page. The filter
+        // was already written one line up; the map then walked the unfiltered list.
+        groups = archived.order.filter(function (k) { return byKey[k] || stubs[k]; })
+          .map(function (k) {
+            return byKey[k] || { key: k, label: g.labelOf(k), items: [], archivedOnly: true };
+          });
       }
     }
     groups.forEach(function (grp) {
@@ -3815,7 +3833,7 @@
         stub.appendChild(el("span", "lh-label", grp.label));
         h.appendChild(stub);
         head.appendChild(h);
-        head.appendChild(archivedMark(archived.count[grp.key]));
+        head.appendChild(archivedMark(archived.count[grp.key], grp.key));
         section.appendChild(head);
         board.appendChild(section);
         return;
@@ -3834,7 +3852,7 @@
       // Outside the toggle, for the reason stated above it: a <button> inside a <button>
       // is invalid, and this one has its own click.
       var held = archived ? (archived.count[grp.key] || 0) - grp.items.length : 0;
-      if (held > 0) head.appendChild(archivedMark(held));
+      if (held > 0) head.appendChild(archivedMark(held, grp.key));
       if (g.headExtra) { var hx = g.headExtra(grp.key); if (hx) head.appendChild(hx); }
       section.appendChild(head);
       if (!shut) grp.items.forEach(function (it) { section.appendChild(listRow(it)); });
@@ -5714,7 +5732,9 @@
       cls: cls,
       title: "Save view",
       placeholder: "Name this view",
-      hint: "Saved to board.config.json as a commit — it joins the list behind the title.",
+      hint: DEMO
+        ? "It joins the list behind the title — in this browser only, nothing is committed."
+        : "Saved to board.config.json as a commit — it joins the list behind the title.",
       action: "Save",
       onSave: function (name) {
         name = String(name).trim();
@@ -7451,12 +7471,18 @@
 
   // Toast
   var toastEl, toastTimer;
+  // Every clause that promises the commit will become live somewhere. `live in ~1 min` is
+  // the hourly harvest; `live after next sync` is the same promise worded for a delete
+  // and for the workspace settings. The demo makes no commit, so both are untrue there —
+  // rewritten in one place rather than at the seventeen call sites, for the same reason
+  // the network is intercepted in one place.
+  //
+  // Covering only the first variant is how the fix looked finished and left two receipts
+  // still saying the change would go live: deleting a puck and saving Settings, which are
+  // exactly the two writes a visitor is most likely to hesitate over.
+  var DEMO_PROMISE = / — live (?:in ~1 min|after next sync)/g;
   function toast(msg, isErr) {
-    // "live in ~1 min" is a promise about the hourly harvest picking the commit up. The
-    // demo makes no commit, so that clause is the one sentence on screen that would be
-    // untrue — rewritten here rather than at the fifteen call sites that say it, for the
-    // same reason the network is intercepted in one place.
-    if (DEMO) msg = String(msg).replace(/ — live in ~1 min/g, " — in this browser only");
+    if (DEMO) msg = String(msg).replace(DEMO_PROMISE, " — in this browser only");
     if (!toastEl) { toastEl = el("div", "toast"); document.body.appendChild(toastEl); }
     toastEl.textContent = msg;
     toastEl.className = "toast show" + (isErr ? " err" : "");
@@ -7971,7 +7997,9 @@
 
     p.appendChild(el("div", "set-eyebrow", "Workspace"));
     p.appendChild(el("p", "set-note", repo
-      ? "Writes board.config.json in " + repo + " — live after the next sync."
+      ? (DEMO
+        ? "Editable here, but nothing is written — changes live in this browser tab until you reload."
+        : "Writes board.config.json in " + repo + " — live after the next sync.")
       : "No source repo configured, so board.config.json can’t be located."));
     var title = settingsField(p, "Name (organisation / workspace)", CFG.title || "");
     var desc = settingsField(p, "Description", CFG.description || "");

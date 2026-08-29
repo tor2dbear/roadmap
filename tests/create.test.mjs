@@ -6,6 +6,7 @@
 // different number of commits depending on which end you start from. That difference
 // is the thing worth pinning.
 import { githubStub } from "./fixture.mjs";
+import { readFile } from "node:fs/promises";
 import { group, eq, ok } from "./assert.mjs";
 
 const trigger = (page, text) => page.locator(".prop-trigger", { hasText: text });
@@ -498,5 +499,46 @@ export async function run({ open }) {
     eq(okänd, 404, `en okänd ändpunkt får 404, inte behörighetssvaret (${okänd})`);
 
     eq(gh.writes, [], `fortfarande ingenting mot GitHub — stubben såg ${gh.writes.length} skrivningar`);
+  }
+
+  group("inget kvitto i demot lovar att något blir live");
+  {
+    // The first rewrite covered `— live in ~1 min` and stopped there. Deleting a puck and
+    // saving Workspace settings say `— live after next sync` instead, and the Settings
+    // note says in prose that it writes board.config.json — so the two writes a visitor
+    // hesitates over most were also the two that still promised a commit. Reported by
+    // Codex.
+    //
+    // Asked of the source rather than of a list of strings I keep by hand: that list is
+    // exactly what went stale, and a seventeenth call site can be added without anyone
+    // noticing. Every literal that makes the promise has to be reachable by the one
+    // rewrite in `toast`, or be guarded by DEMO where it stands.
+    const lines = (await readFile(new URL("../app.js", import.meta.url), "utf8")).split("\n");
+    const claims = lines
+      .map((line, i) => ({ n: i + 1, line, near: lines.slice(Math.max(0, i - 3), i + 2).join("\n") }))
+      .filter(({ line }) => / — live (in ~1 min|after next sync|after the next sync)/.test(line))
+      .filter(({ line }) => !/DEMO_PROMISE/.test(line));
+    // Either it goes through `toast()`, which rewrites it, or a DEMO branch stands close
+    // enough above it to be the thing choosing the wording. Anything else is a promise
+    // the demo would make and not keep.
+    const utanför = claims.filter(({ line, near }) => !/toast\(/.test(line) && !/\bDEMO\b/.test(near));
+    eq(utanför.map((c) => c.n), [],
+      `varje löfte om att något blir live går genom toast() eller står i en DEMO-gren — dessa gör ingetdera: ${JSON.stringify(utanför.map((c) => c.line.trim().slice(0, 70)))}`);
+    ok(claims.length > 10, `och det finns faktiskt löften att räkna (${claims.length})`);
+
+    // Then the behaviour, through the real path: delete a puck in demo mode.
+    const demo = (d) => { d.config = Object.assign({}, d.config, { demo: true }); return d; };
+    const gh2 = githubStub();
+    const p2 = await open("", { data: demo, github: gh2.handler });
+    p2.on("dialog", (d) => d.accept());
+    await p2.locator(".card").first().click();
+    await p2.waitForSelector('.prop[data-field="status"]');
+    await p2.locator(".puck-more button").first().click();
+    await p2.waitForSelector(".pop, .sheet");
+    await p2.locator(".pop, .sheet").getByText(/Delete/).first().click();
+    await p2.waitForTimeout(900);
+    const kvitto = await p2.evaluate(() => ((document.querySelector(".toast") || {}).textContent || "").trim());
+    ok(/in this browser only/.test(kvitto), `raderingens kvitto lovar inget mer: ${JSON.stringify(kvitto)}`);
+    eq(gh2.writes, [], `och ingenting nådde GitHub (${gh2.writes.length})`);
   }
 }
