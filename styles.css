@@ -2182,10 +2182,25 @@ body.preload * { transition: none !important; }
 .prop .blocker-link.done { color: var(--ink-3); }
 
 /* ── PO-layer: agent routing (card badge + sidebar queues) ──────────────────── */
-.agent-arrow { color: var(--accent); font-weight: var(--fw-semibold); }
+/* The routing mark. `.icn.agent-glyph` and not `.agent-glyph` alone — and to be exact
+   about what that buys: a bare class would work *today*, because this rule already sits
+   later in the file than `.icn` and wins the tie on order. It is written qualified
+   because that is an accident of position, not a rule, and `.lh-caret` is what the
+   accident costs when it goes the other way: it declared 13px, sat above `.icn`, and
+   drew at 16 for its whole life. Sabotage confirms the honest version of this — removing
+   the qualifier changes nothing measurable right now; it is insurance against a future
+   move of either block, not a fix for a present bug.
+   Two sizes because the mark sits in two type sizes: --fs-xs in a card badge, --fs-md in
+   a sidebar row. One size for both left the badge wearing a glyph taller than its own
+   text.
+   12px and not 11: measured in real pixels, at 11 the two eyes start to merge into the
+   dome and the antenna loses its length, which is the same failure `etapp` avoids by
+   being dots instead of an outline. A face that has stopped having eyes is just a blob,
+   and then the glyph says less than the arrow it replaced. */
+.icn.agent-glyph { width: 12px; height: 12px; color: var(--accent); }
+.side-repos .chip.agent .icn.agent-glyph { width: 13px; height: 13px; }
 .agent-inline { display: inline-flex; align-items: center; }
 .side-repos .chip.agent { color: var(--ink-2); gap: 5px; }
-.side-repos .chip.agent .agent-arrow { flex: none; }
 .side-repos .chip.agent[aria-pressed="true"] { background: var(--panel-2); color: var(--ink); }
 
 /* ── mobile topbar goes contextual when a puck is open (Linear-style) ───────── */

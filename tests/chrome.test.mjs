@@ -263,4 +263,43 @@ export async function run({ open }) {
     eq(m.icn, "15px", "ikonen pinnas till 15px trots sin 1.15em");
     eq(m.n, "11px", "och räknaren står kvar på 11px, som på brädan");
   }
+
+  group("inget märke ritas som ett skrivtecken");
+  {
+    // Three marks have been caught being typographic characters rather than paths from
+    // the set — `⚠`, `✕`, and now the agent routing `→` — and each time the reason was
+    // the same: a character takes its weight, its optical size and its baseline from
+    // whatever font resolves it, so it never quite matches the marks beside it, and on a
+    // machine that renders it as colour emoji the CSS colour does nothing at all.
+    //
+    // Fixed three times, asserted zero times. This sweep asks the *page* instead of a
+    // list I keep by hand — the same move the counter sweep made after its hand-kept
+    // selector list was what failed. A leaf element whose entire text is one symbol is a
+    // mark drawn as text; prose that happens to contain an arrow is not.
+    const routed = (d) => {
+      d.items.forEach((i) => { if (i.id === "alpha/a-now") i.agent = "backend"; });
+      return d;
+    };
+    const p = await open("", { data: routed });
+    const tecken = await p.evaluate(() =>
+      [...document.querySelectorAll("body *")]
+        .filter((e) => !e.children.length && /^[\u2190-\u21FF\u2600-\u27BF\u2B00-\u2BFF]$/.test((e.textContent || "").trim()))
+        .map((e) => (e.textContent || "").trim() + " i ." + (e.className || e.tagName)));
+    eq(tecken, [], `varje märke är en path ur setet — dessa är tecken: ${JSON.stringify(tecken)}`);
+
+    // And the one this round replaced, specifically: it is an svg from the set, it
+    // carries the accent, and it is sized rather than left at the 16px `.icn` default.
+    const märke = await p.evaluate(() => {
+      const g = document.querySelector(".agent-badge .agent-glyph");
+      if (!g) return null;
+      const c = getComputedStyle(g);
+      return { tagg: g.tagName.toLowerCase(), klasser: g.getAttribute("class"), bredd: c.width, paths: g.querySelectorAll("path").length };
+    });
+    // Reported, not thrown: when the mark is missing entirely — which is what reverting
+    // it to a <span> does — a bare `märke.tagg` takes the whole file down with a
+    // TypeError, and a suite that crashes says less than one that fails.
+    eq(märke ? märke.tagg : null, "svg", `agentmärket är en svg ur setet: ${JSON.stringify(märke)}`);
+    eq(märke ? märke.bredd : null, "12px", "storleksatt, inte kvar på .icn:s 16px");
+    ok(märke && märke.paths >= 6, `och ritas ur setet (${märke ? märke.paths : 0} paths)`);
+  }
 }
