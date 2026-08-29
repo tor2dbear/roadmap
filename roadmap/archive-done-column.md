@@ -44,6 +44,7 @@ in. Brädan hann inte bli gammal nog för problemet pucken förutsåg.
 Blir den det, är det en ny puck med en riktig fördelning bakom sig, inte den här.
 
 ## Notes
-Den kvarvarande arkivfrågan är en annan och ligger i
-`arkivvaxeln-tar-kort-tyst-utanfor-statusgruppering`: växeln säger inte var korten tog
-vägen när brädan är grupperad på något annat än status.
+Den kvarvarande arkivfrågan — att växeln inte sa var korten tog vägen när brädan är
+grupperad på något annat än status — lagades i samma PR som stängde den här. Svaret står
+i `CLAUDE.md` under *UI: one thing, one place*: arkivet säger vad det håller tillbaka i
+huvudet på den kolumn som saknar det.
