@@ -208,6 +208,43 @@ export async function run({ open }) {
       `ingen stubbe utan något arkiverat att hämta tillbaka: ${JSON.stringify(grupper)}`);
   }
 
+  group("stubben ser inte ut som en kontroll, och står på linje");
+  {
+    // The stub wore `.lh-toggle` and tried to correct it from further up the file — a
+    // fight it loses on source order, so `cursor: default` and its padding both sat
+    // above the rule they were correcting and neither ever applied. It kept the pointer,
+    // took the full hover background, and sat 24px left of every real heading, while the
+    // comment above it claimed alignment. Reported by Codex; three dead declarations in
+    // one place, and nothing measured any of them.
+    //
+    // Measured against a real heading rather than against the sum in the stylesheet: the
+    // caret renders at 16px (`.icn` wins over `.lh-caret`'s 13px on order), so a padding
+    // copied from the rule instead of from the page is 3px out — which is exactly how the
+    // first version of this fix was wrong.
+    const p = await open("?layout=list");
+    const geom = await p.evaluate(() => {
+      const q = (sel) => document.querySelector(sel);
+      const x = (el) => Math.round(el.getBoundingClientRect().x);
+      return {
+        toggleLabel: x(q("button.lh-toggle .lh-label")),
+        stubLabel: x(q(".lh-stub .lh-label")),
+        stubCursor: getComputedStyle(q(".lh-stub")).cursor,
+        stubTag: q(".lh-stub").tagName,
+      };
+    });
+    eq(geom.stubLabel, geom.toggleLabel, `stubbens etikett står på samma linje som en riktig rubriks (${geom.stubLabel} vs ${geom.toggleLabel})`);
+    eq(geom.stubCursor, "default", "och den bjuder inte in till ett klick");
+    eq(geom.stubTag, "SPAN", "för den är ingen kontroll");
+
+    // The hover state is the other half of the promise: a background that lights up says
+    // "press me" as loudly as the cursor does.
+    const bgFöre = await p.evaluate(() => getComputedStyle(document.querySelector(".lh-stub")).backgroundColor);
+    await p.locator(".lh-stub").first().hover();
+    await p.waitForTimeout(250);
+    const bgEfter = await p.evaluate(() => getComputedStyle(document.querySelector(".lh-stub")).backgroundColor);
+    eq(bgEfter, bgFöre, `och den tänds inte under pekaren (${bgFöre} → ${bgEfter})`);
+  }
+
   group("märket fäller ut gruppen det lovar att fylla");
   {
     // In the list a collapsed group still gets the mark — it is short of those cards

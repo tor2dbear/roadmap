@@ -3828,7 +3828,11 @@
       // a control: swatch and label, and the mark carries both the number and the way
       // back. The chevron would promise rows that do not exist until the toggle lifts.
       if (grp.archivedOnly) {
-        var stub = el("span", "lh-toggle lh-stub");
+        // `lh-stub` alone, never `lh-toggle` too: the shape is shared through the stylesheet's
+        // selector list, so wearing the control's class here bought nothing but its cursor
+        // and its hover. Correcting that from CSS is a fight over source order that this
+        // lost three declarations in a row.
+        var stub = el("span", "lh-stub");
         stub.appendChild(el("span", "swatch"));
         stub.appendChild(el("span", "lh-label", grp.label));
         h.appendChild(stub);
