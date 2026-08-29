@@ -6152,13 +6152,96 @@
       if (u.indexOf("https://api.github.com/user") === 0) {
         return json({ login: "demo", avatar_url: "" });
       }
-      var m = /\/repos\/([^/]+\/[^/?]+)(?:\/contents\/([^?]+))?/.exec(u);
+      // Route on the path *after* the repo, one case per endpoint the board calls.
+      // The first version of this matched "a repo URL without /contents/" and answered
+      // it with the permissions probe — which is every other endpoint there is. The
+      // Activity tab reads /commits, Discussion reads /issues/:n and its comments, and
+      // Link issue POSTs to /issues; all three got `{permissions:{push:true}}` under a
+      // 200, so Activity claimed the puck had no history, Discussion drew
+      // "undefined #undefined", and creating an issue resolved to nothing and left the
+      // puck silently unlinked.
+      //
+      // The bug was not the missing cases, it was the *shape* of the fallthrough: a
+      // catch-all that answers 200 makes the next endpoint the board learns to call
+      // fail the same quiet way. So the default below is a 404 — an endpoint the demo
+      // has not thought about fails where you can see it.
+      var m = /^https:\/\/api\.github\.com\/repos\/([^/]+\/[^/?#]+)([^?#]*)/.exec(u);
       var repo = m && m[1];
-      var path = m && m[2] && decodeURIComponent(m[2]);
-      if (!repo) return json({}, 404);
+      var rest = (m && m[2]) || "";
+      if (!repo) return json({ message: "Not Found" }, 404);
+      var query = {};
+      (u.split("?")[1] || "").split("&").forEach(function (kv) {
+        var i = kv.indexOf("=");
+        if (i > 0) query[kv.slice(0, i)] = decodeURIComponent(kv.slice(i + 1));
+      });
+      var find = function (pred) {
+        for (var i = 0; i < DATA.items.length; i++) {
+          if (DATA.items[i].repo === repo && pred(DATA.items[i])) return DATA.items[i];
+        }
+        return null;
+      };
+
       // The permissions probe: every repo is writable here, so no card is marked
       // read-only and the rail stays editable.
-      if (!path) return json({ permissions: { push: true } });
+      if (rest === "" || rest === "/") return json({ permissions: { push: true } });
+
+      // Activity: the file's history. Invented from what the puck already carries —
+      // its `created` and `updated` dates — the same way `seed()` invents the file
+      // itself. Returning [] instead would have been honest and would also have shown
+      // a demo where a shipped feature does nothing.
+      var mc = /^\/commits$/.exec(rest);
+      if (mc && method === "GET") {
+        var ci = find(function (x) { return x.sourcePath === query.path; });
+        if (!ci) return json([]);
+        var who = ci.owner || "demo";
+        var at = function (d) { return d + "T09:00:00Z"; };
+        var commit = function (msg, date) {
+          return {
+            sha: "demo" + date.replace(/-/g, ""),
+            html_url: ci.sourceUrl || "",
+            author: { login: who, avatar_url: "" },
+            commit: { message: msg, author: { name: who, date: at(date) } },
+          };
+        };
+        var log = [commit(ci.status + ": " + ci.title, ci.updated || today())];
+        if (ci.created && ci.created !== ci.updated) log.push(commit("Add " + ci.sourcePath, ci.created));
+        return json(log);
+      }
+
+      // Discussion: the linked issue, derived from the puck that links it, and no
+      // comments — an issue nobody has replied to yet is a state the real board draws.
+      var mi = /^\/issues\/(\d+)$/.exec(rest);
+      if (mi && method === "GET") {
+        var num = Number(mi[1]);
+        var ii = find(function (x) { return Number(x.issue) === num; });
+        if (!ii) return json({ message: "Not Found" }, 404);
+        return json({
+          number: num,
+          state: ii.issueState || "open",
+          title: ii.title,
+          html_url: "https://github.com/" + repo + "/issues/" + num,
+          body: ii.body || "",
+          user: { login: ii.owner || "demo" },
+          created_at: (ii.created || today()) + "T09:00:00Z",
+        });
+      }
+      if (/^\/issues\/\d+\/comments$/.test(rest) && method === "GET") return json([]);
+
+      // Link issue → Create issue. Answering with a number is what lets the write path
+      // finish and put `issue:` in the file, which is the half worth demonstrating.
+      if (rest === "/issues" && method === "POST") {
+        var body = {};
+        try { body = JSON.parse((opts && opts.body) || "{}"); } catch (e) {}
+        var n = 1000 + (++sha);
+        return json({
+          number: n, state: "open", title: body.title || "",
+          html_url: "https://github.com/" + repo + "/issues/" + n,
+        }, 201);
+      }
+
+      var mp = /^\/contents\/(.+)$/.exec(rest);
+      if (!mp) return json({ message: "Not Found" }, 404);
+      var path = decodeURIComponent(mp[1]);
       var key = repo + ":" + path;
       if (method === "PUT") {
         var body = {};

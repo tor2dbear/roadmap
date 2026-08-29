@@ -429,4 +429,74 @@ export async function run({ open }) {
     // The point of the whole thing.
     eq(gh.writes, [], `ingenting nådde GitHub — stubben såg ${gh.writes.length} skrivningar`);
   }
+
+  group("demostubben svarar per ändpunkt, och säger nej till resten");
+  {
+    // The first stub matched "a repo URL without /contents/" and answered it with the
+    // permissions probe. That is every *other* endpoint the board calls: Activity reads
+    // /commits, Discussion reads /issues/:n and its comments, and Link issue POSTs to
+    // /issues. All three got {permissions:{push:true}} with a 200 on it, so Activity
+    // said "no history", Discussion drew "undefined #undefined", and creating an issue
+    // resolved to nothing and left the puck silently unlinked.
+    //
+    // A catch-all that returns a *success* shape is the shape of the bug: the next
+    // endpoint the board learns to call would fail the same silent way. So the default
+    // is now a 404, and that is what the last assertion here holds.
+    const demoIssue = (d) => {
+      d.config = Object.assign({}, d.config, { demo: true });
+      d.items = d.items.map((it) => (it.slug === "a-now" ? Object.assign({}, it, { issue: 42, issueState: "open" }) : it));
+      return d;
+    };
+    const gh = githubStub();
+    const p = await open("", { data: demoIssue, github: gh.handler });
+    await p.locator(".card").first().click();
+    await p.waitForSelector(".tab-btn");
+
+    const tabs = await p.$$eval(".tab-btn", (n) => n.map((b) => b.textContent.trim()));
+    eq(tabs, ["Overview", "Activity", "Discussion"], `pucken har alla tre flikarna: ${JSON.stringify(tabs)}`);
+
+    await p.locator('.tab-btn:has-text("Activity")').click();
+    await p.waitForTimeout(700);
+    const akt = await p.evaluate(() => ({
+      rader: document.querySelectorAll(".activity-item").length,
+      tomt: !!document.querySelector(".activity-empty"),
+      text: ((document.querySelector(".tab-panel:not([hidden])") || {}).textContent || "").trim().slice(0, 80),
+    }));
+    ok(akt.rader > 0, `Activity visar historik i stället för tomhet: ${JSON.stringify(akt)}`);
+    eq(akt.tomt, false, "och påstår inte att pucken saknar historik");
+
+    await p.locator('.tab-btn:has-text("Discussion")').click();
+    await p.waitForTimeout(700);
+    const disk = await p.evaluate(() => ({
+      titel: ((document.querySelector(".disc-title") || {}).textContent || "").trim(),
+      state: ((document.querySelector(".disc-state") || {}).textContent || "").trim(),
+    }));
+    eq(disk.titel, "a-now #42", `Discussion har puckens titel och nummer: ${JSON.stringify(disk.titel)}`);
+    eq(disk.state, "Open", "och den state pucken påstår");
+
+    // The third caller: POST /issues. It resolved to `{permissions:…}` before, so
+    // `data.number` was undefined and the puck was left unlinked with no toast — the
+    // quietest of the three failures, and the one a screenshot would never show.
+    await p.keyboard.press("Escape");
+    await p.waitForTimeout(300);
+    p.on("dialog", (d) => d.accept());
+    await p.locator(".card").nth(1).click();
+    await p.waitForSelector('.prop[data-field="issue"]');
+    await p.locator('.prop[data-field="issue"] button').first().click();
+    await p.waitForSelector(".pop, .sheet");
+    await p.locator(".pop, .sheet").getByText(/New issue in/).first().click();
+    await p.waitForTimeout(1200);
+    const länkad = await p.evaluate(() => ({
+      cell: ((document.querySelector('.prop[data-field="issue"] .prop-v') || {}).textContent || "").trim(),
+      toast: ((document.querySelector(".toast") || {}).textContent || "").trim(),
+    }));
+    ok(/#\d+/.test(länkad.cell), `Create issue länkar pucken: ${JSON.stringify(länkad)}`);
+
+    // The structural half: an endpoint the stub does not know must fail loudly.
+    const okänd = await p.evaluate(() =>
+      fetch("https://api.github.com/repos/acme/alpha/pulls").then((r) => r.status));
+    eq(okänd, 404, `en okänd ändpunkt får 404, inte behörighetssvaret (${okänd})`);
+
+    eq(gh.writes, [], `fortfarande ingenting mot GitHub — stubben såg ${gh.writes.length} skrivningar`);
+  }
 }
