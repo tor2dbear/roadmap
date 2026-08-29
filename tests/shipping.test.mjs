@@ -8,7 +8,7 @@
 import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { auditBundle, served } from "../scripts/check-bundle.mjs";
+import { auditBundle, matcher, served } from "../scripts/check-bundle.mjs";
 import { group, eq, ok } from "./assert.mjs";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -34,6 +34,44 @@ export async function run() {
     const core = ["index.html", "app.js", "styles.css"];
     eq(core.filter((f) => !a.tracked.includes(f) || !served(f)), [],
       "brädans egna filer finns och räknas som serverade");
+  }
+
+  group("mönstermatcharen följer gitignores två former");
+  {
+    // Found by running the guard in the sibling site repo, whose `.assetsignore` has a
+    // slashed pattern: matched segment by segment, `demo/data/build.mjs` equals none of
+    // `demo`, `data` or `build.mjs`, so it excluded nothing and the file was reported as
+    // about to be published. No pattern in *this* repo has a slash, which is exactly why
+    // it went unnoticed here — worth checking anyway, since the first slashed pattern
+    // anyone adds would otherwise be silently inert.
+    const m = (pat, rel) => matcher(pat)(rel);
+    eq(m("roadmap", "roadmap/x.md"), true, "utan snedstreck: matchar på alla nivåer");
+    eq(m("roadmap", "roadmap"), true, "och katalogen själv");
+    eq(m("demo/data/build.mjs", "demo/data/build.mjs"), true, "med snedstreck: hela sökvägen");
+    eq(m("demo/data/build.mjs", "build.mjs"), false, "men inte ett löst segment");
+    eq(m("*.tmp.*", "probe.tmp.mjs"), true, "globb utan snedstreck");
+    eq(m("*.tmp.*", "sub/probe.tmp.mjs"), true, "på alla nivåer");
+    eq(m("demo/*.log", "demo/a.log"), true, "globb med snedstreck, förankrad");
+    eq(m("demo/*.log", "other/a.log"), false, "och bara där");
+
+    // gitignore's third form, and the one the first fix missed: a *leading* slash is
+    // what anchors a pattern that has no slash of its own. `/scripts` is root-anchored
+    // while `scripts` matches at any depth — and the leading slash was left on `p`, so
+    // it was compared against a `rel` that never carries one and matched nothing at all.
+    // The guard would then report a deliberately excluded file as loose and fail the
+    // deploy: the safe direction, and still wrong.
+    eq(m("/demo/data/build.mjs", "demo/data/build.mjs"), true, "inledande snedstreck: samma sökväg");
+    eq(m("/demo/*.log", "demo/a.log"), true, "och samma globb");
+    eq(m("/demo/*.log", "x/demo/a.log"), false, "men förankrad i roten");
+    eq(m("/scripts", "scripts"), true, "en katalog med bara inledande snedstreck");
+    eq(m("/scripts", "a/scripts"), false, "matchar inte längre ner");
+
+    // A directory pattern has to answer for what is *inside* it too: `git ls-files`
+    // hands the walker whole file paths, so a pattern that only matched the directory
+    // entry would call every tracked file under it loose.
+    eq(m("/scripts", "scripts/check-bundle.mjs"), true, "och för filerna under sig");
+    eq(m("demo/data", "demo/data/roadmap.json"), true, "samma sak för en förankrad katalog");
+    eq(m("/scripts", "scriptsy/x.js"), false, "men bara vid en katalogfog");
   }
 
   group("vakten körs innan något laddas upp");

@@ -1,7 +1,7 @@
 // The rule from #21: a whole column missing → the HIDDEN tray. Cards missing inside
 // the columns → the chip row. Every assertion here is one half of that sentence.
 import { snapshot, trayEye } from "./fixture.mjs";
-import { group, eq } from "./assert.mjs";
+import { group, eq, ok } from "./assert.mjs";
 
 async function hideColumn(page, label) {
   const col = page.locator(".board > .column:not(.hidden-cols)")
@@ -86,5 +86,190 @@ export async function run({ open }) {
     const s = await snapshot(p);
     eq(s.columns.includes("Done"), true, "ETT klick räcker — växeln och termen lagas ihop");
     eq(s.query, null, "termen är borta");
+  }
+
+  group("arkivet säger var korten tog vägen, även utanför statusgruppering");
+  {
+    // The gap the tray rule did not cover, and the reason it stood open: the archive
+    // takes *columns* under status grouping — where the tray speaks for it — but under
+    // any other grouping it takes cards from *inside* the columns, and nothing said so.
+    // The chip row cannot: `viewTerms()` holds the switch as `-is:done`, outside
+    // `state.query`, which is exactly what makes it invisible there.
+    const heads = (p) => p.evaluate(() =>
+      [...document.querySelectorAll(".column:not(.hidden-cols) .col-head")].map((h) => ({
+        col: h.querySelector("h2").textContent.trim(),
+        n: h.querySelector(".count").textContent.trim(),
+        held: h.querySelector(".col-archived") ? h.querySelector(".col-archived").textContent.trim() : null,
+      })));
+
+    const repo = await open("?group=repo");
+    eq(await heads(repo),
+      [{ col: "Alpha", n: "5", held: "2 archived" }, { col: "Beta", n: "2", held: "1 archived" }],
+      "varje kolumn säger hur många den håller tillbaka");
+
+    // The numbers have to be the ones the toggle would actually reveal — not a count of
+    // all done pucks, which would over-promise wherever a query is also narrowing.
+    const lifted = await open("?group=repo&done=1");
+    eq(await heads(lifted),
+      [{ col: "Alpha", n: "7", held: null }, { col: "Beta", n: "3", held: null }, { col: "Landed", n: "1", held: null }],
+      "och 5+2 / 2+1 är precis vad växeln ger");
+
+    // Status grouping keeps its silence, and the tray keeps its rows. Stated as an
+    // observation, not as proof of a guard: there is no guard, because an archived card
+    // under status grouping is always in Done or Cancelled and those columns are already
+    // gone. The tray line below is the load-bearing half — it fails if the tray stops
+    // answering — while the line above it holds structurally either way.
+    const byStatus = await open("");
+    eq((await heads(byStatus)).filter((h) => h.held), [], "under statusgruppering säger facket det i stället");
+    const trayLabels = (p) => p.evaluate(() =>
+      [...document.querySelectorAll(".hidden-col .hidden-label")].map((e) => e.textContent.trim()));
+    eq(await trayLabels(byStatus), ["Done", "Cancelled"], "och facket har sina rader");
+  }
+
+  group("märket är repareringen, inte bara en etikett");
+  {
+    // Same affordance as the tray's eye, in the place where the cards are missing. If it
+    // only labelled the absence it would be a fourth explanation of one switch; pressing
+    // it makes it the same door in a nearer wall.
+    const p = await open("?group=repo");
+    const before = await p.evaluate(() => document.querySelectorAll(".card").length);
+    await p.locator(".col-archived").first().click();
+    await p.waitForTimeout(250);
+    const after = await p.evaluate(() => ({
+      kort: document.querySelectorAll(".card").length,
+      kvar: document.querySelectorAll(".col-archived").length,
+      url: location.search,
+      lagrat: localStorage.getItem("roadmap-done"),
+    }));
+    eq(before, 7, "sju kort med arkivet av");
+    eq(after.kort, 11, "elva efter ett klick");
+    eq(after.kvar, 0, "och inga märken kvar att trycka på");
+    eq(after.url, "?group=repo&done=1", "växeln syns i URL:en");
+    eq(after.lagrat, "1", "och skrivs till samma localStorage-nyckel som Display-menyn");
+  }
+
+  group("listläget var tyst i varje gruppering");
+  {
+    // Worse than the board, and missed until now: the list has no tray *at all*, so
+    // `?layout=list` with the archive off simply had no Done section — in the default
+    // grouping — with nothing anywhere saying so.
+    const rows = (p) => p.evaluate(() =>
+      [...document.querySelectorAll(".list-group")].map((s) => ({
+        col: s.querySelector(".lh-label").textContent.trim(),
+        n: s.querySelector(".lh-toggle .count") ? s.querySelector(".lh-toggle .count").textContent.trim() : null,
+        held: s.querySelector(".col-archived") ? s.querySelector(".col-archived").textContent.trim() : null,
+        stub: !!s.querySelector(".lh-stub"),
+      })));
+
+    eq(await rows(await open("?layout=list")), [
+      { col: "Now", n: "3", held: null, stub: false },
+      { col: "Next", n: "2", held: null, stub: false },
+      { col: "Later", n: "2", held: null, stub: false },
+      { col: "Done", n: null, held: "3 archived", stub: true },
+      { col: "Cancelled", n: null, held: "1 archived", stub: true },
+    ], "en helt arkiverad grupp kommer tillbaka som en ren rubrik, på sin egen plats");
+
+    eq(await rows(await open("?layout=list&group=repo")), [
+      { col: "Alpha", n: "5", held: "2 archived", stub: false },
+      { col: "Beta", n: "2", held: "1 archived", stub: false },
+      { col: "Landed", n: null, held: "1 archived", stub: true },
+    ], "och de två svaren samsas: märke på de som ritas, stubbe på den som tömts");
+
+    // Nothing to say once the toggle is on — the mark is about absence, not a permanent
+    // fixture of the head.
+    eq((await rows(await open("?layout=list&done=1"))).filter((r) => r.held || r.stub), [],
+      "med arkivet på finns varken märke eller stubbe");
+
+    // The stub has to land in its own place, not after everything else — and in the
+    // default fixture the archived group is last anyway, so the claim was untested until
+    // this case made one that is first. Alpha sorts before Beta and is entirely archived.
+    const alphaDone = (d) => {
+      d.items.forEach((i) => { if (i.repo === "acme/alpha") i.status = "done"; });
+      return d;
+    };
+    eq(await rows(await open("?layout=list&group=repo", { data: alphaDone })), [
+      { col: "Alpha", n: null, held: "8 archived", stub: true },
+      { col: "Beta", n: "2", held: "1 archived", stub: false },
+      { col: "Landed", n: null, held: "1 archived", stub: true },
+    ], "en tömd grupp står på sin plats, inte sist");
+
+    // Only a group the archive actually holds something back from becomes a stub. The
+    // key list under status grouping is fixed, so a status with nothing archived in it
+    // was still synthesised into a heading with `archivedMark(undefined)` under it —
+    // "Cancelled · undefined archived", pointing at nothing and offering an eye that
+    // would redraw the same page. Reported by Codex; the filter existed one line above
+    // and the map then walked the unfiltered list anyway.
+    // Beta has a `done` puck and no `cancelled` one, so scoping to it leaves Cancelled
+    // with nothing archived in it — and the key list under status grouping is fixed, so
+    // the key is still there to be synthesised from. Measured on the live demo first
+    // (`?layout=list&q=repo:aurora` drew `Cancelled · 0 archived`), then reproduced here.
+    const grupper = await rows(await open("?layout=list&q=" + encodeURIComponent("repo:acme/beta")));
+    eq(grupper.filter((r) => r.stub && !/^[1-9]/.test(String(r.held))), [],
+      `ingen stubbe utan något arkiverat att hämta tillbaka: ${JSON.stringify(grupper)}`);
+  }
+
+  group("stubben ser inte ut som en kontroll, och står på linje");
+  {
+    // The stub wore `.lh-toggle` and tried to correct it from further up the file — a
+    // fight it loses on source order, so `cursor: default` and its padding both sat
+    // above the rule they were correcting and neither ever applied. It kept the pointer,
+    // took the full hover background, and sat 24px left of every real heading, while the
+    // comment above it claimed alignment. Reported by Codex; three dead declarations in
+    // one place, and nothing measured any of them.
+    //
+    // Measured against a real heading rather than against the sum in the stylesheet: the
+    // caret renders at 16px (`.icn` wins over `.lh-caret`'s 13px on order), so a padding
+    // copied from the rule instead of from the page is 3px out — which is exactly how the
+    // first version of this fix was wrong.
+    const p = await open("?layout=list");
+    const geom = await p.evaluate(() => {
+      const q = (sel) => document.querySelector(sel);
+      const x = (el) => Math.round(el.getBoundingClientRect().x);
+      return {
+        toggleLabel: x(q("button.lh-toggle .lh-label")),
+        stubLabel: x(q(".lh-stub .lh-label")),
+        stubCursor: getComputedStyle(q(".lh-stub")).cursor,
+        stubTag: q(".lh-stub").tagName,
+      };
+    });
+    eq(geom.stubLabel, geom.toggleLabel, `stubbens etikett står på samma linje som en riktig rubriks (${geom.stubLabel} vs ${geom.toggleLabel})`);
+    eq(geom.stubCursor, "default", "och den bjuder inte in till ett klick");
+    eq(geom.stubTag, "SPAN", "för den är ingen kontroll");
+
+    // The hover state is the other half of the promise: a background that lights up says
+    // "press me" as loudly as the cursor does.
+    const bgFöre = await p.evaluate(() => getComputedStyle(document.querySelector(".lh-stub")).backgroundColor);
+    await p.locator(".lh-stub").first().hover();
+    await p.waitForTimeout(250);
+    const bgEfter = await p.evaluate(() => getComputedStyle(document.querySelector(".lh-stub")).backgroundColor);
+    eq(bgEfter, bgFöre, `och den tänds inte under pekaren (${bgFöre} → ${bgEfter})`);
+  }
+
+  group("märket fäller ut gruppen det lovar att fylla");
+  {
+    // In the list a collapsed group still gets the mark — it is short of those cards
+    // whether or not it is open. Pressing it lifted the archive and left the group in
+    // `state.collapsed`, so the cards it named came back into a section that was still
+    // shut: a control whose label is "Show 3 archived pucks in this column" and which
+    // visibly shows nothing. Reported by Codex.
+    const p = await open("?layout=list&group=repo&collapsed=" + encodeURIComponent("acme/alpha"));
+    const före = await p.evaluate(() => ({
+      shut: !!document.querySelector(".list-group.shut"),
+      märke: !!document.querySelector(".list-group.shut .col-archived"),
+      kort: document.querySelectorAll(".list-group .list-row").length,
+    }));
+    eq(före.shut, true, "gruppen är ihopfälld");
+    eq(före.märke, true, "och bär ändå märket — den saknar korten oavsett");
+
+    await p.locator(".list-group.shut .col-archived").click();
+    await p.waitForTimeout(400);
+    const efter = await p.evaluate(() => ({
+      shutKvar: !!document.querySelector(".list-group.shut"),
+      kort: document.querySelectorAll(".list-group .list-row").length,
+      url: location.search,
+    }));
+    eq(efter.shutKvar, false, "efter klicket är den utfälld");
+    ok(efter.kort > före.kort, `och korten syns: ${före.kort} → ${efter.kort}`);
+    ok(!/collapsed=/.test(efter.url), `och URL:en har släppt vecket: ${efter.url}`);
   }
 }

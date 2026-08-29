@@ -223,15 +223,29 @@ all*. One rule settles it:
 - **The list layout has no tray**, so there everything is a chip. `trayColumns` is null
   whenever no tray was drawn, which is the whole mechanism.
 
-One thing the rule does **not** cover yet, so read it as scoped to columns. Under a
-non-status grouping the archive takes *cards* rather than columns, and there it is still
-silent: `?group=repo` with it off shows PIA's 6 open pucks and drops 39 landed ones, with
-no chip and no tray row (a repo lands in the tray only when *every* one of its pucks is
-archived, as Workshop's single done puck does). Status grouping never hits this — done and
-cancelled are whole columns there. This predates the tray work and is unchanged by it; what
-is new is that the sentence above would otherwise promise a chip that no code emits. Closing
-it means giving the archive a chip of its own, which is a fourth place for one switch and a
-product decision, not a bug fix — so it stands open rather than half-done.
+The archive needed a third answer, because it fits neither half of the rule. It takes
+whole columns under status grouping — the tray's case — but under any other grouping it
+takes *cards from inside* the columns, and the chip row cannot speak for it either: the
+switch lives in `viewTerms()` as `-is:done`, outside `state.query`. So `?group=repo` with
+it off showed PIA's 6 open pucks and dropped 39 landed ones in silence.
+
+> **The archive says what it is holding back, in the head of the column that is short of
+> it** — `Alpha 5 · 2 archived 👁` — and pressing that is the same repair as the tray's
+> eye. Not a fourth explanation: the same door, in a nearer wall.
+
+- **No guard for status grouping, and none is needed.** An archived card is *by
+  definition* in Done or Cancelled, and the toggle has already taken those columns off
+  the board — so a column that still stands can never be holding one back, and no mark is
+  drawn. A guard was written first and removed after sabotage could not break anything.
+- **The list layout was worse, and this is where it was found.** It has no tray at all, so
+  `?layout=list` with the archive off simply had no Done section — in the *default*
+  grouping — with nothing anywhere saying so. It therefore makes no exemption: the mark
+  goes on every head, and a group the archive emptied entirely comes back as a plain
+  heading in its own place, carrying only the mark. That heading is a `<span>`, not a
+  control: there is nothing under it to expand until the toggle lifts.
+- **`liftArchive()` is the one writer**, shared with the tray's eye. Two callers writing
+  `roadmap-done` differently is how the Display menu and the sidebar counts would come to
+  disagree with the board they describe.
 
 ## UI: or within a facet, and between them
 
