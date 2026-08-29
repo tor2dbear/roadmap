@@ -263,4 +263,65 @@ export async function run({ open }) {
     eq(m.icn, "15px", "ikonen pinnas till 15px trots sin 1.15em");
     eq(m.n, "11px", "och räknaren står kvar på 11px, som på brädan");
   }
+
+  group("inget märke ritas som ett skrivtecken");
+  {
+    // Four marks have been caught being typographic characters rather than paths from the
+    // set — `⚠`, `✕`, the agent routing `→`, and the urgent priority `!` — and each time
+    // for the same reason: a character takes its weight, its optical size and its
+    // baseline from whatever font resolves it, so it never matches the marks beside it,
+    // and on a machine that renders it as colour emoji the CSS colour does nothing.
+    //
+    // The fourth is why this sweep is written the way it is. Its first version tested a
+    // set of Unicode symbol *ranges*, and `!` is ASCII — so the rule was "not a
+    // typographic character" while the test said "not one of these characters", and the
+    // urgent mark sat in the gap between them for exactly one commit. The predicate is
+    // now the rule itself: a leaf whose entire text is a single non-word character is a
+    // mark drawn as text. Prose containing an arrow is not, because it is not alone in
+    // its element.
+    //
+    // Measured against an untouched board before widening: it catches nothing
+    // legitimate, so it costs no exemptions.
+    const marked = (d) => {
+      d.items.forEach((i) => {
+        if (i.id === "alpha/a-now") { i.agent = "backend"; i.priority = "urgent"; }
+      });
+      return d;
+    };
+    const p = await open("", { data: marked });
+    const tecken = await p.evaluate(() =>
+      [...document.querySelectorAll("body *")]
+        .filter((e) => !e.children.length && /^[^\w\s]$/u.test((e.textContent || "").trim()))
+        .map((e) => (e.textContent || "").trim() + " i ." + (e.className || e.tagName)));
+    eq(tecken, [], `varje märke är en path ur setet — dessa är tecken: ${JSON.stringify(tecken)}`);
+
+    // And the one this round replaced, specifically: it is an svg from the set, it
+    // carries the accent, and it is sized rather than left at the 16px `.icn` default.
+    const märke = await p.evaluate(() => {
+      const g = document.querySelector(".agent-badge .agent-glyph");
+      if (!g) return null;
+      const c = getComputedStyle(g);
+      return { tagg: g.tagName.toLowerCase(), klasser: g.getAttribute("class"), bredd: c.width, paths: g.querySelectorAll("path").length };
+    });
+    // Reported, not thrown: when the mark is missing entirely — which is what reverting
+    // it to a <span> does — a bare `märke.tagg` takes the whole file down with a
+    // TypeError, and a suite that crashes says less than one that fails.
+    eq(märke ? märke.tagg : null, "svg", `agentmärket är en svg ur setet: ${JSON.stringify(märke)}`);
+    eq(märke ? märke.bredd : null, "12px", "storleksatt, inte kvar på .icn:s 16px");
+    ok(märke && märke.paths >= 6, `och ritas ur setet (${märke ? märke.paths : 0} paths)`);
+
+    // Same three questions of the urgent mark, which is the one the widened predicate
+    // was written for.
+    const brådska = await p.evaluate(() => {
+      const g = document.querySelector(".pri-urgent .pri-glyph");
+      if (!g) return null;
+      return { tagg: g.tagName.toLowerCase(), paths: g.querySelectorAll("path").length,
+               bakgrund: getComputedStyle(g.parentElement).backgroundColor };
+    });
+    eq(brådska ? brådska.tagg : null, "svg", `brådskemärket är en svg ur setet: ${JSON.stringify(brådska)}`);
+    eq(brådska ? brådska.paths : 0, 3, "cirkel, streck och punkt");
+    // The fill is gone on purpose: an outline glyph inside a filled 13px chip is two
+    // containers in the room for one. If a solid ever comes back, this is what says so.
+    eq(brådska ? brådska.bakgrund : null, "rgba(0, 0, 0, 0)", "och står utan fylld bricka bakom sig");
+  }
 }
