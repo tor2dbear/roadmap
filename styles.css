@@ -113,14 +113,15 @@
      light and lightens in dark without a second declaration. */
   --later-ink: color-mix(in srgb, var(--later) 85%, var(--ink));
   /* Three reds with three jobs, named so they stop being literals: a destructive
-     *word* (Delete), the urgent priority *mark*, and the one solid surface that
-     carries white text. The link red and the menu-item red were the same job in two
-     shades, forty lines apart. */
+     *word* (Delete), the urgent priority *mark* (now a stroke, not a fill), and the one
+     solid surface that carries white text. The link red and the menu-item red were the
+     same job in two shades, forty lines apart. */
   --danger: #ae453e;
   --urgent: #c42b2b;
   --danger-solid: #b91c1c;
   /* The ink that sits ON a filled brand or semantic surface — a chosen status pill,
-     the primary button, a pressed label chip, the urgent mark. It is the mirror of the
+     the primary button, a pressed label chip. (The urgent mark was on this list until it
+     stopped being a character reversed out of a solid square.) It is the mirror of the
      rule above: those tokens are tuned to be *read against* the page, and in dark that
      makes them light, so white on them fails everywhere — `--later` at 2.37:1, `--next`
      at 2.78, and that was true before the palette moved. The page's own ground reads on
@@ -1350,10 +1351,15 @@ body.preload * { transition: none !important; }
 .pri.pri-low .pri-bar.on { background: var(--ink-2); }
 .pri.pri-medium .pri-bar.on { background: var(--later); }
 .pri.pri-high .pri-bar.on { background: var(--now); }
-.pri.pri-urgent {
-  width: 13px; height: 13px; border-radius: var(--r-xs); background: var(--urgent); color: var(--on-solid);
-  font-size: var(--fs-xs); font-weight: var(--fw-semibold); align-items: center; justify-content: center;
-}
+/* Urgent is the one level that is not bars, and it used to be a "!" reversed out of a
+   solid red square. The mark is a path now, and an *outline* path — inside a 13px filled
+   chip that is a circle inside a rounded square, two containers at a size that has room
+   for one, with the stroke of the exclamation nearly lost against the red. Measured side
+   by side, the glyph alone is the legible one.
+   What that costs: urgent no longer shouts with a solid surface, it shouts with a shape
+   the other three levels do not have. The colour is unchanged. */
+.pri.pri-urgent { color: var(--urgent); align-items: center; }
+.pri.pri-urgent .icn.pri-glyph { width: 13px; height: 13px; }
 /* detail rail: static badge + label */
 .pri-inline { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); }
 /* detail rail: editable priority chips share .edit-btn; active gets a filled color */

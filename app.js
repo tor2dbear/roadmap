@@ -56,7 +56,13 @@
     var b = el("span", "pri pri-" + level);
     b.title = "Priority: " + (PRIORITY_LABEL[level] || level);
     if (level === "urgent") {
-      b.appendChild(document.createTextNode("!"));
+      // Was the character "!" in a red square — the fourth mark on this board drawn as
+      // text rather than as a path, after `warn`, `x` and the agent arrow. It slipped
+      // past the sweep those three paid for, because that sweep guards the symbol
+      // ranges and "!" is ASCII: the rule was "not a typographic character", the test
+      // said "not one of these characters", and the gap between the two is exactly
+      // where this sat. The sweep is widened in the same commit.
+      b.appendChild(icon("alert", "pri-glyph"));
     } else {
       var filled = PRIORITY_BARS[level] || 0;
       for (var i = 0; i < 3; i++) {
@@ -931,6 +937,16 @@
     // destination — it is *which discipline profile a runner should read*. The board has
     // real direction marks (`chev-*`), and having the routing field borrow their shape
     // made the one field that is about a reader look like a field about a place.
+    // alert-circle (Feather), scaled to the 15 grid like `warn` and `x` before it. Its
+    // circle comes out byte-identical to `slash`'s, which is the cross-check that the
+    // scaling landed: they are the same circle in the source set.
+    //
+    // `warn` is the drift triangle — something disagrees with reality. This is the
+    // urgent *priority* mark, which is a claim about importance and not about
+    // correctness, so it stays a separate shape rather than reusing the triangle at a
+    // different colour.
+    alert: ["M1.25 7.5a6.25 6.25 0 1 0 12.5 0 6.25 6.25 0 1 0 -12.5 0",
+            "m7.5 5 0 2.5", "m7.5 10 0.00625 0"],
     agent: ["M14.25 12.75c0 0.3978 -0.158 0.7794 -0.4393 1.0607C13.5294 14.092 13.1478 14.25 12.75 14.25h-10.5c-0.3978 0 -0.7794 -0.158 -1.0607 -0.4393C0.908 13.5294 0.75 13.1478 0.75 12.75V10.5c0 -1.7902 0.7112 -3.5071 1.977 -4.773C3.9929 4.4612 5.7098 3.75 7.5 3.75c1.7902 0 3.5071 0.7112 4.773 1.977C13.5388 6.9929 14.25 8.7098 14.25 10.5v2.25Z",
             "M7.5 3.75v-3",
             "M4.5 11.25c-0.4142 0 -0.75 -0.3358 -0.75 -0.75s0.3358 -0.75 0.75 -0.75",
