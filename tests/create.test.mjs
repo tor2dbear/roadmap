@@ -374,4 +374,59 @@ export async function run({ open }) {
     await p.waitForTimeout(1000);
     eq(await flagged(), ["parent-missing"], "och står kvar när skrivningen nekats");
   }
+
+  group("demoläget låser upp brädan och skriver ingenting");
+  {
+    // The public demo is logged out, so every write affordance is gated off and a
+    // visitor sees the read half of a product whose claim is read *and* write. Demo
+    // mode opens the interface and answers GitHub inside the page.
+    //
+    // The strongest assertion available is a negative one: the stub is installed and
+    // never sees a request. `page.route` intercepts the *network*; the seam replaces
+    // `window.fetch`, so a captured write would mean the seam had been bypassed.
+    const demo = (d) => { d.config = Object.assign({}, d.config, { demo: true }); return d; };
+    const affordances = (p) => p.evaluate(() => ({
+      kolumnPlus: document.querySelectorAll(".col-add").length,
+      band: ((document.querySelector(".demo-ribbon") || {}).textContent || "").trim(),
+      redigerbara: document.querySelectorAll(".prop button").length,
+    }));
+
+    // Without the flag and without a token, nothing is offered. This is the state the
+    // live demo was in, and the half of the pair that makes the other half mean
+    // something.
+    const plain = await open("");
+    eq((await affordances(plain)).kolumnPlus, 0, "utloggad utan flaggan: inget att skriva med");
+
+    const gh = githubStub();
+    const p = await open("", { data: demo, github: gh.handler });
+    const a = await affordances(p);
+    ok(a.kolumnPlus > 0, `demoläget låser upp kolumnernas + (${a.kolumnPlus})`);
+    ok(/nothing is committed/.test(a.band), `bandet säger vad som gäller: ${JSON.stringify(a.band)}`);
+    // The rail only exists inside an open puck, so it has to be asked there — measuring
+    // the board found nothing and said the rail was locked, which was my mistake, not
+    // the feature's.
+    await p.locator(".card").first().click();
+    await p.waitForTimeout(400);
+    const rail = await p.evaluate(() =>
+      [...document.querySelectorAll(".prop")].filter((r) => r.querySelector("button"))
+        .map((r) => (r.querySelector(".prop-k") || {}).textContent));
+    ok(rail.length > 4, `och egenskapsskenan: ${JSON.stringify(rail)}`);
+    await p.keyboard.press("Escape");
+    await p.waitForTimeout(300);
+
+    // Create one, for real, through the ordinary path.
+    await p.locator(".col-add").first().click();
+    await p.waitForTimeout(300);
+    await p.locator('input[placeholder="Title"]').fill("Skapad i demoläget");
+    await p.getByRole("button", { name: /^Create$/ }).click();
+    await p.waitForTimeout(600);
+    const after = await p.evaluate(() => ({
+      finns: [...document.querySelectorAll(".card")].some((c) => /Skapad i demoläget/.test(c.textContent)),
+      toast: ((document.querySelector(".toast") || {}).textContent || "").trim(),
+    }));
+    eq(after.finns, true, "kortet står på brädan");
+    ok(/in this browser only/.test(after.toast), `och toasten lovar inget mer: ${JSON.stringify(after.toast)}`);
+    // The point of the whole thing.
+    eq(gh.writes, [], `ingenting nådde GitHub — stubben såg ${gh.writes.length} skrivningar`);
+  }
 }

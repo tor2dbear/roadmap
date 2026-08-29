@@ -3,6 +3,21 @@
   "use strict";
 
   var DATA = window.__ROADMAP__;
+  // ── demo mode ───────────────────────────────────────────────────────────────────
+  // A board that is fully operable and commits nothing.
+  //
+  // The public demo is logged out, so every write affordance is gated off and a visitor
+  // sees a read-only board — for a product whose whole claim is that both a human and an
+  // agent write back to git. Demo mode unlocks the interface and answers GitHub locally.
+  //
+  // *One seam, not fifty.* The write paths are untouched and still speak to
+  // api.github.com; the request is answered in the page instead of sent. That is what
+  // makes the demo honest: the optimistic update, the rollback on failure, the toasts
+  // and the sha bookkeeping are the same code the real board runs, exercised for real.
+  //
+  // Only `config.demo` turns it on — no URL parameter, no key combination. A switch that
+  // silently stops committing must not be reachable on a board that has a token.
+  var DEMO = !!(DATA && DATA.config && DATA.config.demo);
   // Up here rather than beside `ghToken`, where it used to sit and where it read more
   // naturally. `var` hoists the *declaration* and not the assignment, and the boot
   // render (`renderBoard()`, a top-level call) runs some thirty lines above the old
@@ -6003,9 +6018,14 @@
   // Optional ribbon banner (config-driven, e.g. the live-demo strip) — rendered
   // here so the demo's chrome isn't baked into index.html, which lets the mirror
   // ship index.html verbatim and keep the demo's structure in sync with the tool.
-  if (CFG.ribbon) {
+  // In demo mode the band is not optional. A visitor who creates a puck and sees it
+  // land has to be told, on screen and without hunting, that it went nowhere — a toast
+  // that says "✓ Created" is true and still misleading on its own.
+  var ribbonText = CFG.ribbon || (DEMO ? "**live demo**" : "");
+  if (DEMO) ribbonText += " · editable — changes stay in this browser, nothing is committed";
+  if (ribbonText) {
     var ribbon = el(CFG.ribbonHref ? "a" : "div", "demo-ribbon");
-    ribbon.innerHTML = renderMd(CFG.ribbon).replace(/^<p>|<\/p>\s*$/g, "");
+    ribbon.innerHTML = renderMd(ribbonText).replace(/^<p>|<\/p>\s*$/g, "");
     if (CFG.ribbonHref) { ribbon.href = CFG.ribbonHref; }
     document.body.insertBefore(ribbon, document.body.firstChild);
   }
@@ -6029,6 +6049,9 @@
     else sourceLink.style.display = "none"; // no repo configured → hide the dead link
   }
 
+  // Before anything can write: the seam has to be in place ahead of the first render,
+  // because the writable-repo probe fires from there.
+  if (DEMO) installDemoGitHub();
   buildModal();
   readUrl(); // a shared link decides the view before anything paints it
   buildRepoChips();
@@ -6069,8 +6092,85 @@
   // — the same edit the CLI makes, from the web. Edit controls appear only when a
   // token is set, so the public board is identical for everyone else.
   // TOKEN_KEY itself is declared at the top of the file, not here — see the note there.
-  function ghToken() { try { return localStorage.getItem(TOKEN_KEY) || ""; } catch (e) { return ""; } }
+  function ghToken() {
+    // The demo's sentinel unlocks every write affordance in one line rather than fifty.
+    // `ghToken()` is the gate on all of them — the `+` in a column, Save view, the
+    // editable rail rows, drag-to-status — so a board that answers it truthfully is a
+    // board that demonstrates the read half of a product whose claim is read *and*
+    // write. What stops the writes is the `fetch` seam in `installDemoGitHub`, not this.
+    if (DEMO) return "demo";
+    try { return localStorage.getItem(TOKEN_KEY) || ""; } catch (e) { return ""; }
+  }
   function setGhToken(v) { try { v ? localStorage.setItem(TOKEN_KEY, v) : localStorage.removeItem(TOKEN_KEY); } catch (e) {} }
+  // Answers api.github.com from inside the page. Everything else — the gates, the
+  // optimistic updates, the rollbacks — is the production path, untouched.
+  //
+  // A map of path → content, not a fixed placeholder: a field edit reads the file,
+  // rewrites one line and commits against that read's sha, so the second edit of a puck
+  // has to read back what the first one wrote. Without that, editing twice would build
+  // the second change on the original text and the demo would quietly lie about what
+  // the product does.
+  function installDemoGitHub() {
+    var files = {}; // "owner/repo:path" → text
+    var sha = 0;
+    var real = window.fetch.bind(window);
+    var json = function (body, status) {
+      return Promise.resolve(new Response(JSON.stringify(body), {
+        status: status || 200, headers: { "Content-Type": "application/json" },
+      }));
+    };
+    // The file as it would be on disk, rebuilt from the item the board already holds.
+    // Only used on a first read; after that the map has the real thing.
+    function seed(repo, path) {
+      var it = null;
+      for (var i = 0; i < DATA.items.length; i++) {
+        if (DATA.items[i].repo === repo && DATA.items[i].sourcePath === path) { it = DATA.items[i]; break; }
+      }
+      if (!it) return "---\ntitle: Untitled\nstatus: inbox\nupdated: " + today() + "\n---\n\n";
+      // Quoted the same way `puckTemplate` quotes it — `formatValue` lives in the CLI,
+      // not here, and reaching for it threw the first time this ran.
+      var t = /[:#]/.test(it.title) ? JSON.stringify(it.title) : it.title;
+      var fm = ["---", "title: " + t, "status: " + it.status];
+      if (it.tags && it.tags.length) fm.push("tags: [" + it.tags.join(", ") + "]");
+      if (it.priority) fm.push("priority: " + it.priority);
+      if (it.agent) fm.push("agent: " + it.agent);
+      if (it.owner) fm.push("owner: " + it.owner);
+      if (it.target) fm.push("target: " + it.target);
+      if (it.parent) fm.push("parent: " + it.parent);
+      if (it.depends && it.depends.length) fm.push("depends: [" + it.depends.join(", ") + "]");
+      if (it.issue) fm.push("issue: " + it.issue);
+      fm.push("updated: " + (it.updated || today()));
+      if (it.created) fm.push("created: " + it.created);
+      fm.push("---", "");
+      return fm.join("\n") + "\n" + (it.body || "");
+    }
+    window.fetch = function (url, opts) {
+      var u = String(url && url.url ? url.url : url);
+      if (u.indexOf("https://api.github.com/") !== 0) return real(url, opts);
+      var method = (opts && opts.method) || "GET";
+      // Who you are. The account menu reads this to draw the identity row.
+      if (u.indexOf("https://api.github.com/user") === 0) {
+        return json({ login: "demo", avatar_url: "" });
+      }
+      var m = /\/repos\/([^/]+\/[^/?]+)(?:\/contents\/([^?]+))?/.exec(u);
+      var repo = m && m[1];
+      var path = m && m[2] && decodeURIComponent(m[2]);
+      if (!repo) return json({}, 404);
+      // The permissions probe: every repo is writable here, so no card is marked
+      // read-only and the rail stays editable.
+      if (!path) return json({ permissions: { push: true } });
+      var key = repo + ":" + path;
+      if (method === "PUT") {
+        var body = {};
+        try { body = JSON.parse((opts && opts.body) || "{}"); } catch (e) {}
+        if (body.content) files[key] = b64decode(body.content);
+        return json({ content: { sha: "demo-" + (++sha) } }, 201);
+      }
+      if (method === "DELETE") { delete files[key]; return json({ commit: { sha: "demo-" + (++sha) } }); }
+      if (!(key in files)) files[key] = seed(repo, path);
+      return json({ sha: "demo-" + sha, content: b64encode(files[key]), path: path });
+    };
+  }
   function b64encode(s) { return btoa(unescape(encodeURIComponent(s))); }
   function b64decode(b) { return decodeURIComponent(escape(atob(String(b).replace(/\s/g, "")))); }
   function today() { return new Date().toISOString().slice(0, 10); }
@@ -7269,6 +7369,11 @@
   // Toast
   var toastEl, toastTimer;
   function toast(msg, isErr) {
+    // "live in ~1 min" is a promise about the hourly harvest picking the commit up. The
+    // demo makes no commit, so that clause is the one sentence on screen that would be
+    // untrue — rewritten here rather than at the fifteen call sites that say it, for the
+    // same reason the network is intercepted in one place.
+    if (DEMO) msg = String(msg).replace(/ — live in ~1 min/g, " — in this browser only");
     if (!toastEl) { toastEl = el("div", "toast"); document.body.appendChild(toastEl); }
     toastEl.textContent = msg;
     toastEl.className = "toast show" + (isErr ? " err" : "");
@@ -7535,6 +7640,7 @@
       fetch("https://api.github.com/user", { headers: { Authorization: "Bearer " + ghToken(), Accept: "application/vnd.github+json" } })
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (u) {
+          if (DEMO) { name.textContent = "Demo — not signed in"; head.classList.add("demo-who"); return; }
           if (u && u.login) {
             name.textContent = "@" + u.login;
             var img = document.createElement("img");
@@ -7543,14 +7649,20 @@
           } else { name.textContent = "token invalid"; head.classList.add("bad"); }
         })
         .catch(function () { name.textContent = "signed in"; });
-      var change = el("button", "row user-mi", "Change token");
-      change.type = "button";
-      change.addEventListener("click", function () { menu.remove(); openTokenPanel(afterAuth); });
-      var out = el("button", "row user-mi danger", "Sign out");
-      out.type = "button";
-      out.addEventListener("click", function () { menu.remove(); setGhToken(""); afterAuth(); });
-      menu.appendChild(change);
-      menu.appendChild(out);
+      // There is no token to change or sign out of in the demo, and offering either
+      // would be a control that cannot do what it says. The note takes their place.
+      if (DEMO) {
+        menu.appendChild(el("div", "fp-empty", "Everything here is editable and nothing is committed — changes live in this browser tab until you reload."));
+      } else {
+        var change = el("button", "row user-mi", "Change token");
+        change.type = "button";
+        change.addEventListener("click", function () { menu.remove(); openTokenPanel(afterAuth); });
+        var out = el("button", "row user-mi danger", "Sign out");
+        out.type = "button";
+        out.addEventListener("click", function () { menu.remove(); setGhToken(""); afterAuth(); });
+        menu.appendChild(change);
+        menu.appendChild(out);
+      }
     } else {
       menu.appendChild(settingsItem());
       var signin = el("button", "row user-mi", "Sign in to edit");
