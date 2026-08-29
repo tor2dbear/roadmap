@@ -556,15 +556,19 @@ body {
 /* The stub has no caret, so it pays the caret's width in padding instead and its label
    lands where every other label in the list does. There is nothing under it to expand
    until the archive toggle lifts, so it offers no cursor and no hover.
-   16px is what the caret actually renders at — `.icn` sets it and wins on order over
-   `.lh-caret`'s 13px — not what any single declaration here says. A number copied from
-   the rule rather than from the page is how the first version came to be 3px out, so
-   `tests/board.test.mjs` measures the two labels against each other instead of trusting
-   this sum. */
-.lh-stub { cursor: default; padding-left: calc(8px + 16px + 8px); }
+   The 13px below is the caret's *rendered* width, which is the only number that can be
+   right here — a sum copied from a rule that turns out to be overridden is how the first
+   version of this came to be 3px out. `tests/board.test.mjs` measures the two labels
+   against each other rather than trusting the arithmetic. */
+.lh-stub { cursor: default; padding-left: calc(8px + 13px + 8px); }
 /* The caret is the one part that is chrome rather than content: it stays quiet until
-   the header is under the pointer, the way a disclosure does everywhere else. */
-.lh-caret { width: 13px; height: 13px; color: var(--ink-3); }
+   the header is under the pointer, the way a disclosure does everywhere else.
+   Descendant selector, not `.lh-caret` alone: `.icn` sets every icon to 16px and sits
+   later in this file, so a bare class ties on specificity and loses on order — these
+   13px were dead for as long as the rule existed, and the caret drew at 16px while the
+   stylesheet said otherwise. The caret only ever appears inside a toggle, so nothing is
+   narrowed by qualifying it. */
+.lh-toggle .lh-caret { width: 13px; height: 13px; color: var(--ink-3); }
 .lh-toggle:hover .lh-caret { color: var(--ink-2); }
 /* A folded group keeps its heading and loses its bottom margin — the gap belonged to
    the rows that are no longer there. */

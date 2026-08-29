@@ -217,10 +217,11 @@ export async function run({ open }) {
     // comment above it claimed alignment. Reported by Codex; three dead declarations in
     // one place, and nothing measured any of them.
     //
-    // Measured against a real heading rather than against the sum in the stylesheet: the
-    // caret renders at 16px (`.icn` wins over `.lh-caret`'s 13px on order), so a padding
-    // copied from the rule instead of from the page is 3px out — which is exactly how the
-    // first version of this fix was wrong.
+    // Measured against a real heading rather than against the sum in the stylesheet. The
+    // first version of this fix copied 13px out of `.lh-caret` and landed 3px short,
+    // because `.icn` was overriding it to 16px — so the number in the rule and the number
+    // on the page were two different things. They agree again now that the caret rule is
+    // qualified, and this assertion is what would say so if they ever part company.
     const p = await open("?layout=list");
     const geom = await p.evaluate(() => {
       const q = (sel) => document.querySelector(sel);
