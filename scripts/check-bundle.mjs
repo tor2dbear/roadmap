@@ -48,11 +48,19 @@ export const lines = (text) =>
 // `roadmap/x.md`.
 export function matcher(pattern) {
   const p = pattern.replace(/^\*\*\//, "").replace(/\/$/, "");
+  // gitignore's two shapes, and the difference is load-bearing. A pattern *without* a
+  // slash matches at any depth — that is what makes `roadmap` exclude `roadmap/x.md`.
+  // One *with* a slash is anchored to the root and matched against the whole path.
+  // Comparing a slashed pattern segment by segment, as this did at first, means it can
+  // never match anything: `demo/data/build.mjs` is not equal to `demo`, `data` or
+  // `build.mjs`. It went unnoticed here because no pattern in this repo has a slash —
+  // the sibling site repo, whose `.assetsignore` does, is where the guard caught it.
+  const anchored = p.includes("/");
   const rx = p.includes("*")
-    ? new RegExp("^" + p.split("*").map((x) => x.replace(/[.+?^${}()|[\]\\]/g, "\\$&")).join("[^/]*") + "$")
+    ? new RegExp("^" + p.split("*").map((x) => x.replace(/[.+?^${}()|[\]\\]/g, "\\$&")).join(anchored ? "[^/]*" : "[^/]*") + "$")
     : null;
-  const hit = (seg) => (rx ? rx.test(seg) : seg === p);
-  return (rel) => rel.split("/").some(hit);
+  const hit = (part) => (rx ? rx.test(part) : part === p);
+  return (rel) => (anchored ? hit(rel) : rel.split("/").some(hit));
 }
 
 // Walks what wrangler would upload: everything under the root that is not excluded.
