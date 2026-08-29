@@ -44,6 +44,14 @@
       "path": "roadmap"
     },
     {
+      "repo": "tor2dbear/etapp-site",
+      "name": "Etapp site",
+      "blurb": "Landing page + live demo for Etapp — the marketing surface, not the tool.",
+      "color": "#886854",
+      "adapter": "pucks",
+      "path": "roadmap"
+    },
+    {
       "repo": "tor2dbear/portfolio",
       "name": "tor-bjorn.com",
       "blurb": "Personal Hugo site — design system, typography, terminal, header/footer redesign.",
