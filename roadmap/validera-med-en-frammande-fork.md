@@ -26,7 +26,7 @@ CLI:t på npm. Demot finns nu. De andra två gör inte.
 
 ### Varför det är den dyraste luckan just nu
 
-Brädan har noll i Now och Next och 49 klara puckar på fjorton dagar. Kön är inte
+Etapp har noll i Now och Next och 49 klara puckar på fjorton dagar. Kön är inte
 stockad — den är slut. Det som återstår delar sig i två sorter, och skillnaden är
 hela argumentet:
 
