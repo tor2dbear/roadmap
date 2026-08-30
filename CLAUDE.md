@@ -63,13 +63,23 @@ site belongs in the site's repo, not in the aggregator's. The pair therefore
 carries traffic both ways — code down, plans up — and that is not a cycle: the two
 never touch the same files.
 
-**The site is half authored, half generated, and both of its open pucks sit on that
-seam.** The mirror copies the demo's *engine* but not `demo/data/`, so the board
-code stays fresh while the numbers it renders age (`demofixturen-driver-isar-fran-produkten`).
-And `scripts/check-bundle.mjs` reaches the product by generation but the site by
-hand — one guard, two ways of arriving, and only one of them can drift
-(`repot-har-ingen-testsvit`). Both are the same mistake: something that should be
-generated is maintained instead.
+**The site is half authored, half generated, and its open pucks sit on that seam.**
+The mirror carries the demo's data too, and the way it does so is the point: the site
+owns the *story* (`demo/data/fixture/**` — fictional pucks written as real markdown)
+while the payload is produced by **this repo's harvester**, run over that fixture by
+`demo/data/build.mjs`. It used to be hand-built, which meant a second copy of every
+derivation — parent → children, the rollup, all eight signal rules — so a rule added
+here never reached the demo and the board grew features its own shop window could not
+show. Two stubs make it work, both of them sources rather than authoring paths:
+`ROADMAP_ROOT` points the harvester at the fixture's config, `ROADMAP_ISSUE_STATES`
+answers for issues fictional repos do not have. The fixture's ages are relative — every
+date is shifted forward to today at build time — because the board renders "N days
+without an update" from the visitor's clock, so frozen dates age in public.
+
+Still on that seam: `scripts/check-bundle.mjs` reaches the product by generation but
+the site by hand — one guard, two ways of arriving, and only one of them can drift
+(`repot-har-ingen-testsvit`). It is the same mistake the demo data just stopped making:
+something that should be generated is maintained instead.
 
 ## Product direction — keep the USP intact
 
