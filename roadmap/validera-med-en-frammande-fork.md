@@ -26,8 +26,11 @@ CLI:t på npm. Demot finns nu. De andra två gör inte.
 
 ### Varför det är den dyraste luckan just nu
 
-Brädan har noll i Now och Next, 49 klara puckar på fjorton dagar, och sex saker i
-`later` som alla vilar på gissningar om en användare som inte finns än:
+Brädan har noll i Now och Next och 49 klara puckar på fjorton dagar. Kön är inte
+stockad — den är slut. Det som återstår delar sig i två sorter, och skillnaden är
+hela argumentet:
+
+**Fyra puckar vilar på ett antagande om en användare som inte finns än:**
 
 | puck | antagandet |
 |---|---|
@@ -36,9 +39,19 @@ Brädan har noll i Now och Next, 49 klara puckar på fjorton dagar, och sex sake
 | `multi-provider-gitlab-m-fl` | att någon vill köra på GitLab |
 | `mina-vyer` | att flera läsare vill ha olika vyer |
 
-Var och en kan vara rätt. Ingen av dem är *mätt*. En enda utomstående deploy
-skulle avgöra flera av dem på en eftermiddag — och sannolikt hitta något ingen av
-dem beskriver.
+Var och en kan vara rätt. Ingen är *mätt*.
+
+**Resten av `later` är inte av den sorten**, och det är värt att säga rakt ut så att
+den här puckens prioritet inte vilar på mer än den bär:
+`markdown-rendering-genomgang` dokumenterar fel som redan är sedda i skarp text,
+`doda-css-regler-som-forlorar-pa-ordning` bygger på ett mätt svep, och
+`produktspegeln-ar-obevakad` beskriver en konkret CI-lucka. De väntar på tid, inte på
+en användare.
+
+Påståendet är alltså smalare än "hela kön är gissningar": **den halva av kön som
+handlar om adoption kan bara avgöras av någon utifrån**, och en enda utomstående
+deploy skulle avgöra flera av de fyra på en eftermiddag — och sannolikt hitta något
+ingen av dem beskriver.
 
 ### Vad som redan är på plats
 

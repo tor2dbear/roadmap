@@ -29,21 +29,40 @@ här och trasig där. Den enda som märker det är den första främlingen som f
 vilket är exakt den person `validera-med-en-frammande-fork` handlar om att inte
 bränna.
 
-### Vad ett minsta nät skulle svara på
+### Vad produkten faktiskt är, innan man planerar kontroller
 
-- **Går den att installera?** `npm ci` i en ren klon av produktrepot.
-- **Går skörden att köra?** `node scripts/harvest.mjs` mot exempelkonfigen, med
-  `ROADMAP_LOCAL_ROOT` mot en attrapp — hela poängen är att den inte ska behöva
-  nätet.
-- **Är sviten med, och grön?** Exporten tar med `tests/` i dag; kör den där.
-- **Renderar brädan?** Samma boot-kontroll som instansen har.
+`COPY` i `export-product.mjs` tar med harvestern, CLI:t, `lib/`, vakten, brädans tre
+filer, typsnitten, konventionen och `templates/`. Den tar **inte** med `tests/`, och
+den genererade `package.json` har varken ett `test`-skript, en lockfil eller
+playwright — bara wrangler. Filens egen kommentar säger det rakt ut:
+
+> the product ships no test runner and no browser.
+
+Det är ett medvetet val, inte en lucka: en forkare ska kunna deploya utan att först
+installera en testsele. Men det betyder att **kontrollerna inte kan bo i produkten**.
+`npm ci` faller på avsaknaden av lockfil, och det finns ingen svit att köra där.
+
+### Vad ett minsta nät skulle svara på, härifrån
+
+Kör mot den genererade katalogen (`$RUNNER_TEMP/etapp-new`) med **det här repots**
+sele, innan den pushas:
+
+- **Går beroendena att lösa?** `npm install --dry-run` — inte `npm ci`, som kräver en
+  lockfil produkten inte har.
+- **Går skörden att köra?** `node scripts/harvest.mjs` mot den exporterade
+  exempelkonfigen med `ROADMAP_LOCAL_ROOT` mot en attrapp — hela poängen är att den
+  inte ska behöva nätet.
+- **Går vakten att köra?** `node scripts/check-bundle.mjs` i trädet. Den är
+  beroendefri av just det här skälet och är den enda kontroll som faktiskt *följer med*.
+- **Renderar brädan?** Instansens boot-kontroll, pekad på den genererade `index.html`.
+  Browsern finns här, inte där.
 
 ### Var det hör hemma
 
-Antingen som ett extra steg i `sync-product.yml` här (kör mot `$RUNNER_TEMP/etapp-new`
-*innan* den pushas — då blir en trasig export aldrig publicerad), eller som en egen
-workflow i produktrepot. Det första är strikt bättre: en export som inte går att köra
-ska inte nå `main` alls, och då behöver produktrepot ingen egen CI.
+Ett extra steg i `sync-product.yml` här, före pushen — då blir en trasig export aldrig
+publicerad, och produktrepot behöver ingen egen CI. Alternativet, en workflow i
+produktrepot, kräver att produkten börjar skeppa en testsele, vilket är precis vad
+exporten valt bort.
 
 ## Open questions
 - Ska en misslyckad kontroll **stoppa** speglingen eller bara flagga? Att stoppa
