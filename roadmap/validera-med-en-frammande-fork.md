@@ -3,7 +3,7 @@ title: Validera med en främmande fork
 status: later
 priority: high
 tags: [product, adoption]
-updated: 2026-08-29
+updated: 2026-08-30
 ---
 
 ## Goal
@@ -41,17 +41,26 @@ hela argumentet:
 
 Var och en kan vara rätt. Ingen är *mätt*.
 
-**Resten av `later` är inte av den sorten**, och det är värt att säga rakt ut så att
+**Tre av de övriga är inte av den sorten**, och det är värt att säga rakt ut så att
 den här puckens prioritet inte vilar på mer än den bär:
 `markdown-rendering-genomgang` dokumenterar fel som redan är sedda i skarp text,
 `doda-css-regler-som-forlorar-pa-ordning` bygger på ett mätt svep, och
 `produktspegeln-ar-obevakad` beskriver en konkret CI-lucka. De väntar på tid, inte på
 en användare.
 
-Påståendet är alltså smalare än "hela kön är gissningar": **den halva av kön som
-handlar om adoption kan bara avgöras av någon utifrån**, och en enda utomstående
-deploy skulle avgöra flera av de fyra på en eftermiddag — och sannolikt hitta något
-ingen av dem beskriver.
+**Den åttonde, `instant-cross-repo-sync-opt-in`, hör till ingendera** — och att tvinga
+in den i en av högarna vore att förlora just det som skiljer den. Den vilar på ett
+antagande om en användare, men användaren är *den här instansen*: den kör på mina egna
+källrepon, inte på en forks. Den ställer själv frågan som avgör den — "räcker tätare
+schema (var 10–15 min) egentligen, så instant aldrig behövs?" — och den frågan besvaras
+av att köra brädan i två veckor, inte av att någon utifrån deployar den. Att den legat
+still sedan 17 augusti är i sig en delvis mätning: ingen har saknat den.
+
+Uppdelningen är alltså 4 · 3 · 1 över de åtta andra `later`-puckarna. Påståendet är
+smalare än "hela kön är gissningar", men landar på samma tal: **halva kön handlar om
+adoption och kan bara avgöras av någon utifrån**, och en enda utomstående deploy skulle
+avgöra flera av de fyra på en eftermiddag — och sannolikt hitta något ingen av dem
+beskriver.
 
 ### Vad som redan är på plats
 

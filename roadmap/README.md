@@ -3,5 +3,5 @@
      source (the tool tracking itself). -->
 # Roadmap — this repo's own pucks
 
-One markdown file per item, YAML frontmatter, status `inbox → now/next/later → done`.
+One markdown file per item, YAML frontmatter, status `inbox → now/next/later → done`/`cancelled`.
 Full spec: ../CONVENTION.md · create with `roadmap new "…"`.
