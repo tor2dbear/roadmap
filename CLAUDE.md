@@ -256,6 +256,25 @@ page behind it (`body.scroll-locked`, a fixed body at a negative offset, since
 for the length of a touch, because letting it re-size mid-gesture moves the row out
 from under the finger.
 
+## UI: the toast was laid out in half the screen
+
+`.toast` is `position: fixed; left: 50%` with `translateX(-50%)` to centre it. A fixed
+box with `left` and no `right` takes its shrink-to-fit width from `left` to the
+containing block's right edge — **half the viewport** — so `max-width: 90vw` never
+decided anything, and any message longer than a few words wrapped inside a 50vw column.
+On a 390px phone the sync and token errors measured 195px wide and five lines tall.
+
+The transform is why it went unnoticed: the result was centred, so it read as clumsy
+copy or a font problem rather than as a box that had been laid out in the right-hand
+half. `width: max-content` lets `max-width` be the thing that decides, and the guard in
+`tests/chrome.test.mjs` asserts the *width*, on a phone, because that is the number that
+was wrong.
+
+Two consequences settled with it: the radius is `--r-lg`, not `--r-pill` — a pill is a
+shape for one line, and at four it draws a lozenge whose curve cuts into the first and
+last rows — and `text-wrap: balance` evens a two-line message rather than leaving an
+orphan.
+
 ## UI: one thing, one place
 
 Cards leave the board three ways — the `Filter` panel, a column's `⋯`, and Display's
