@@ -14,6 +14,23 @@ import { group, eq, ok } from "./assert.mjs";
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 
 export async function run() {
+  group("roten får sluta med snedstreck eller inte");
+  {
+    // Every path inside auditBundle is built by concatenation, so the root had to end
+    // in a separator — and the one caller passes `fileURLToPath(new URL("..", …))`,
+    // which always does. This file's own ROOT is built the same way, so the suite
+    // inherited the assumption it was supposed to be testing and could not see it.
+    // Found in the sibling repo, by the first test ever written against the function
+    // by someone who passed the path the obvious way and got back the guard's loudest
+    // message — "no .assetsignore" — about a repo where the file was sitting there.
+    const bare = ROOT.replace(/\/$/, "");
+    const a = await auditBundle(bare);
+    const b = await auditBundle(bare + "/");
+    ok(!a.fatal, `en vanlig sökväg läses inte som en saknad lista (${a.fatal || "ok"})`);
+    eq(a.looseTracked, b.looseTracked, "samma svar med och utan avslutande snedstreck");
+    eq(a.looseOnDisk, b.looseOnDisk, "och samma läsning av arbetskatalogen");
+  }
+
   group("ingenting oavsiktligt skeppas");
   {
     // Three readings, because the git index and the directory wrangler uploads are
