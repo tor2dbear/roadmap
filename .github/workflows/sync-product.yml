@@ -107,6 +107,15 @@ jobs:
           rm -rf "$RUNNER_TEMP/site/demo/fonts"
           mkdir -p "$RUNNER_TEMP/site/demo/fonts"
           cp -r fonts/. "$RUNNER_TEMP/site/demo/fonts/"
+          # And the data the board runs on. This is the half the mirror used to skip,
+          # which is how the demo came to render an engine its own numbers could not
+          # exercise — no etapps, no targets, no agents, in a product named Etapp.
+          # The site owns the story (demo/data/fixture/**, fictional pucks as real
+          # markdown); the harvester that turns it into a board is *here*, so this is
+          # where it runs. build.mjs shifts the fixture's ages forward to today and
+          # calls it — it no longer imitates the derivation, so a signal added to
+          # harvest.mjs reaches the demo by the same push that adds it.
+          ROADMAP_HARVEST="$PWD/scripts/harvest.mjs" node "$RUNNER_TEMP/site/demo/data/build.mjs"
           cd "$RUNNER_TEMP/site"
           git config user.name "roadmap-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
