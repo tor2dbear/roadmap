@@ -898,6 +898,32 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
   transition: opacity .18s ease, transform .18s ease; z-index: 10000; max-width: 90vw;
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* The sync run's progress. Indeterminate on purpose: the run clones seven repos,
+   harvests and deploys, and GitHub reports no fraction along the way — a bar that
+   claimed a percentage would be inventing one.
+   `position: fixed` and a z-index above the panels, because a 2px non-interactive
+   line is exactly the kind of thing that should still be legible over a sheet; the
+   footer's `syncing…` cannot, since a sheet covers it and a puck page removes it. */
+.syncbar {
+  position: fixed; top: 0; left: 0; right: 0; height: 2px;
+  background: var(--line); overflow: hidden;
+  z-index: 10002; pointer-events: none;
+}
+.syncbar::after {
+  content: ""; display: block; height: 100%; width: 40%;
+  background: var(--accent);
+  animation: syncslide 1.15s ease-in-out infinite;
+}
+@keyframes syncslide {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(350%); }
+}
+/* A minute and a half of looping motion is a lot to put in front of someone who asked
+   for less of it. The bar still says the run is live — by being there at all. */
+@media (prefers-reduced-motion: reduce) {
+  .syncbar::after { animation: none; width: 100%; opacity: .55; }
+}
 /* The one surface that stays white: --danger-solid is dark in both themes. */
 .toast.err { background: var(--danger-solid); color: #fff; }
 

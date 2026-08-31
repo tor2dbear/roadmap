@@ -96,7 +96,7 @@ export async function run({ open }) {
     await mark(p);
     await syncBtn(p).click();
     await p.waitForTimeout(600);
-    eq((await syncBtn(p).textContent()).trim(), "syncing…", "etiketten är hela framstegsindikatorn");
+    eq((await syncBtn(p).textContent()).trim(), "syncing…", "etiketten säger vad knappen gör");
     eq(await syncBtn(p).isDisabled(), true, "och knappen går inte att trycka igen");
 
     await syncBtn(p).click({ force: true });
@@ -139,6 +139,62 @@ export async function run({ open }) {
     const msg = await p.evaluate(() => (document.querySelector(".toast") || {}).textContent || "");
     ok(/newer sync/i.test(msg), `säger att en nyare körning tog över: ${JSON.stringify(msg)}`);
     eq(await reloaded(p), false, "och laddar inte om — den nyare körningen har inte deployat än");
+  }
+
+  group("förloppsraden syns där foten inte gör det");
+  {
+    // The whole reason it exists: the wait is spent scrolled down or inside a puck,
+    // and the footer's label is invisible in the first case and removed in the second.
+    const gh = actionsStub({ stayRunning: true });
+    const p = await open("", { token: true, github: gh.handler });
+    const barShown = () => p.evaluate(() => {
+      const b = document.getElementById("syncBar");
+      return !!(b && b.getBoundingClientRect().height > 0);
+    });
+    eq(await barShown(), false, "ingen rad innan man trycker");
+
+    await syncBtn(p).click();
+    await p.waitForTimeout(600);
+    eq(await barShown(), true, "raden syns under körningen");
+    eq(await p.evaluate(() => getComputedStyle(document.getElementById("syncBar")).position),
+      "fixed", "fäst i vyporten, inte i flödet — annars scrollar den bort med foten");
+
+    // The case the footer cannot answer at all: a puck page removes `.foot` entirely.
+    await p.evaluate(() => { location.hash = "alpha/a-now"; });
+    await p.waitForTimeout(400);
+    eq(await p.evaluate(() => {
+      const f = document.querySelector(".foot");
+      return !!(f && f.getBoundingClientRect().height > 0);
+    }), false, "puck-sidan tar bort foten");
+    eq(await barShown(), true, "men raden står kvar — signalen överlever sidbytet");
+  }
+
+  group("kvittot överlever omladdningen");
+  {
+    // The half that made the button get pressed twice: `location.reload()` destroys the
+    // toast and the state that knows the run succeeded, so the fact is handed across in
+    // sessionStorage and reported at boot.
+    const p = await open("", { token: true, github: actionsStub().handler });
+    await syncBtn(p).click();
+    await p.waitForFunction(() => window.__ROADMAP__ && !sessionStorage.getItem("roadmap-synced-from"),
+      null, { timeout: 15000 });
+    await p.waitForTimeout(400);
+    const msg = await p.evaluate(() => (document.querySelector(".toast") || {}).textContent || "");
+    ok(/Sync/i.test(msg), `sidan säger efter omladdningen att synken hände: ${JSON.stringify(msg)}`);
+    eq(await p.evaluate(() => sessionStorage.getItem("roadmap-synced-from")), null,
+      "och flaggan är förbrukad — kvittot visas en gång, inte vid varje omladdning");
+
+    // The fixture serves one payload, so generatedAt cannot move — which is exactly the
+    // unchanged case, and the message must not claim data it does not have.
+    ok(/no change/i.test(msg), `oförändrad data får sin egen mening: ${JSON.stringify(msg)}`);
+
+    await p.reload();
+    await p.waitForSelector(".board");
+    await p.waitForTimeout(500);
+    eq(await p.evaluate(() => {
+      const t = document.querySelector(".toast");
+      return !!(t && t.className.indexOf("show") >= 0);
+    }), false, "en vanlig omladdning efteråt visar inget kvitto");
   }
 
   group("⌘K når samma anrop, under samma grind");

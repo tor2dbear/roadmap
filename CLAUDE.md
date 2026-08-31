@@ -436,6 +436,19 @@ truth, which is the "close thin, via GitHub" rule the write path already follows
   endpoint, so a probe could only distinguish them by attempting the dispatch, which is
   the very thing being gated. Failing loudly with the fix in the sentence is the honest
   alternative.
+- **The wait is shown at the top of the viewport, not in the footer.** `.syncbar` is
+  fixed and indeterminate (GitHub reports no fraction, so a percentage would be
+  invented). The footer's `syncing…` label was the whole indicator once, which held
+  only where the footer is visible — and the minute or two is spent scrolled down the
+  board or inside a puck, where it is off screen and removed respectively.
+- **The receipt outlives the reload.** `finishSync` reloads, which destroys the toast
+  and the state that knows the run worked, so the run ended by restoring the page to
+  exactly its starting state — button back at `sync now`, nothing said — which reads
+  identically to having pressed nothing, and got the button pressed twice. The
+  pre-sync `generatedAt` is handed across in `sessionStorage` (`roadmap-synced-from`,
+  per tab, consumed on read) and reported at boot, so the message is *checked*: a moved
+  timestamp says "Synced — data from HH:MM", an identical one says "no change since"
+  rather than dressing up a harvest that legitimately produced the same payload.
 - **It waits by run *id*, not timestamp.** The newest dispatched run is read *before*
   the dispatch, and the poll takes the first run whose id exceeds it. `created_at` has
   second granularity and comes from GitHub's clock, so a time comparison mis-picks
