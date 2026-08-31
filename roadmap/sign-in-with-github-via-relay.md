@@ -1,8 +1,8 @@
 ---
 title: Sign in with GitHub via relay
-status: later
+status: next
 tags: [product, auth]
-updated: 2026-08-18
+updated: 2026-08-31
 created: 2026-08-17
 order: 33
 depends: [gui-editing]
