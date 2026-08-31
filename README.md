@@ -140,9 +140,10 @@ bundle; [`.assetsignore`](.assetsignore) keeps `scripts/`, config and docs out.
 - **Sync now:** the footer's `sync now` button (and `Sync now` in ⌘K) dispatches that
   same Action from the board and reloads when it lands — for the case the schedule
   cannot cover, an edit in a *source* repo that you want on the board immediately.
-  Needs `Actions: write` on this repo in your token; without it the button stays
-  hidden. `syncWorkflow` / `syncBranch` in `board.config.json` point it elsewhere,
-  and `"syncWorkflow": false` removes it.
+  Needs `Actions: write` on this repo in your token. The button shows for any token —
+  the permission cannot be pre-flighted — so a token without it draws the button and
+  says so on press. `syncWorkflow` / `syncBranch` in `board.config.json` point it
+  elsewhere, and `"syncWorkflow": false` removes it.
 - **One-time setup (Cloudflare dashboard):** *Workers & Pages → Create
   application → Import a repository* → `tor2dbear/roadmap`. Project name
   `roadmap` (must equal `name` in `wrangler.jsonc`), production branch `main`,

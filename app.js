@@ -8129,7 +8129,7 @@
     var p = el("div", "token-panel");
     p.appendChild(el("h3", "token-title", "Edit access"));
     p.appendChild(el("p", "token-note",
-      "Paste a GitHub fine-grained token with Contents: write on your roadmap repo(s). It’s stored only in this browser and used to commit edits straight to GitHub. Add Issues: write too for one-click “New issue”, and Actions: write on the board’s own repo for “sync now” (both optional — without them those controls fall back to GitHub, or don’t appear)."));
+      "Paste a GitHub fine-grained token with Contents: write on your roadmap repo(s). It’s stored only in this browser and used to commit edits straight to GitHub. Add Issues: write too for one-click “New issue” (optional — without it, that falls back to opening GitHub), and Actions: write on the board’s own repo for “sync now” (without it the button is there but the sync is refused)."));
     var help = el("a", "token-help", "Create a fine-grained token ↗");
     help.href = "https://github.com/settings/personal-access-tokens/new";
     help.target = "_blank"; help.rel = "noopener";

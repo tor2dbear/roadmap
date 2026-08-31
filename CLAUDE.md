@@ -427,8 +427,15 @@ and reloads. The Worker stays assets-only — no relay, no webhook, no second so
 truth, which is the "close thin, via GitHub" rule the write path already follows.
 
 - **The token needs `Actions: write` on the aggregator repo** — a different permission
-  from the `Contents: write` that editing uses, so the button is absent until the
-  token has it, and a 403 names the permission rather than the status code.
+  from the `Contents: write` that editing uses. The button is drawn for *any* token
+  (`canSync` asks whether a token exists, not what it may do) and the 403 on press
+  names the permission rather than the status code. That breaks the rule the edit
+  controls follow — "a control that only fails when you press it is not gated, it is
+  decorated" — and it is deliberate: there is no pre-flight for this one. A fine-grained
+  token's `actions: read` and `actions: write` answer the same on every readable
+  endpoint, so a probe could only distinguish them by attempting the dispatch, which is
+  the very thing being gated. Failing loudly with the fix in the sentence is the honest
+  alternative.
 - **It waits by run *id*, not timestamp.** The newest dispatched run is read *before*
   the dispatch, and the poll takes the first run whose id exceeds it. `created_at` has
   second granularity and comes from GitHub's clock, so a time comparison mis-picks
