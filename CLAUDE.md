@@ -418,6 +418,29 @@ traps. (The tradeoff: the in-repo `data/roadmap.json` is a frozen snapshot, not
 live — agents wanting current data read the deployed `roadmap.json` URL; primary
 truth is still the per-puck markdown in the source repos anyway.)
 
+**The board can ask for a harvest itself.** A puck edited in *this* repo redeploys on
+the push; one edited in any other source repo waits for the hourly schedule, and the
+person waiting is standing at the board reading the very timestamp that is stale. So
+the footer carries a **sync now** button beside that timestamp (and `Sync now` in ⌘K,
+same gate): it POSTs `workflow_dispatch` to `sync.yml`, waits for the run it created,
+and reloads. The Worker stays assets-only — no relay, no webhook, no second source of
+truth, which is the "close thin, via GitHub" rule the write path already follows.
+
+- **The token needs `Actions: write` on the aggregator repo** — a different permission
+  from the `Contents: write` that editing uses, so the button is absent until the
+  token has it, and a 403 names the permission rather than the status code.
+- **It waits by run *id*, not timestamp.** The newest dispatched run is read *before*
+  the dispatch, and the poll takes the first run whose id exceeds it. `created_at` has
+  second granularity and comes from GitHub's clock, so a time comparison mis-picks
+  whenever the two clocks disagree — once by waiting on an already-finished run, once
+  by reloading before its own run has started.
+- **`cancelled` is not a failure.** `sync.yml` runs under `concurrency:
+  cancel-in-progress`, so a push landing mid-run kills ours and the replacement
+  harvests the same sources. It says a newer sync took over, and does not reload.
+- **`syncWorkflow` / `syncBranch` in `board.config.json`** override the defaults
+  (`sync.yml`, `main`); `syncWorkflow: false` removes the button for an instance that
+  harvests some other way. Config, not truth — same as `views[]`.
+
 **Deployment is `wrangler deploy` from CI** (Pattern B in
 `tor2dbear.com/CONVENTIONS.md`; config in `wrangler.jsonc`, served at
 `roadmap.tor2dbear.com`). It needs two GitHub secrets — `CLOUDFLARE_API_TOKEN`
