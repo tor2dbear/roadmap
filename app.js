@@ -915,10 +915,18 @@
     "chev-down": ["m3.75 5.625 3.75 3.75 3.75 -3.75"],
     check: ["M12.5 3.75 5.625 10.625l-3.125 -3.125"],
     "chev-up": ["m11.25 9.375 -3.75 -3.75 -3.75 3.75"],
-    // refresh-cw — ask CI for a fresher harvest. Deliberately the mirror of `reset`
-    // (rotate-ccw) beside it: that one undoes an arrangement, this one goes and gets
-    // something, and at 15px the direction of the arrows is the only thing telling
-    // them apart. Scaled from Feather's 24 grid by the same 0.625 as its neighbour.
+    // refresh-cw — ask CI for a fresher harvest. Scaled from Feather's 24 grid by the
+    // same 0.625 as its neighbour `reset` (rotate-ccw), which is the nearest glyph in
+    // the set: that one undoes an arrangement, this one goes and gets something. They
+    // were checked side by side at 15px and read as two shapes, not one — two chasing
+    // arcs against a single open circle — so the pair needs no further separation.
+    //
+    // download-cloud was the alternative, and it is the better picture of the
+    // *direction* (this pulls seven repos inward; nothing is pushed). It lost on two
+    // counts: at 15px the cloud's shoulder thins to a smudge, and the footer row it
+    // belongs to already holds two literal downloads — `flat digest` and
+    // `roadmap.json` — beside which a download arrow names the wrong thing. Worth
+    // revisiting only if the action is ever renamed to something openly inward.
     sync: ["m14.375 2.5 0 3.75 -3.75 0",
            "m0.625 12.5 0 -3.75 3.75 0",
            "M2.19375 5.625a5.625 5.625 0 0 1 9.28125 -2.1L14.375 6.25",
