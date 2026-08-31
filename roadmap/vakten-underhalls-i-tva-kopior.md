@@ -6,8 +6,14 @@ updated: 2026-08-31
 ---
 
 ## Goal
-`scripts/check-bundle.mjs` ska finnas på ett ställe och nå de andra genom generering,
-som allt annat verktyget skickar vidare.
+Vaktens **regelverk** ska finnas på ett ställe och nå de andra repona genom generering,
+som allt annat verktyget skickar vidare. Instansens `SERVED`-karta ska däremot stå kvar
+i varje repo och skrivas för hand — den är påståendet om vad just den instansen
+publicerar, och två instanser som serverar olika filer *ska* ha olika kartor.
+
+Klart när regelverket har en enda källa och sajtens kopia av det är genererad. **Inte**
+när `check-bundle.mjs` finns i ett exemplar: en sådan läsning skriver över sajtens
+konfiguration, vilket är precis den halva som måste skilja sig.
 
 ## Research
 
