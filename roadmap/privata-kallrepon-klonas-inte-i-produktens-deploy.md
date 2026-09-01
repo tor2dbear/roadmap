@@ -1,6 +1,6 @@
 ---
 title: Privata källrepon klonas inte i produktens deploy
-status: next
+status: inbox
 tags: [product, ops]
 updated: 2026-09-01
 created: 2026-09-01
