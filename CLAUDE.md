@@ -256,6 +256,25 @@ page behind it (`body.scroll-locked`, a fixed body at a negative offset, since
 for the length of a touch, because letting it re-size mid-gesture moves the row out
 from under the finger.
 
+## UI: the toast was laid out in half the screen
+
+`.toast` is `position: fixed; left: 50%` with `translateX(-50%)` to centre it. A fixed
+box with `left` and no `right` takes its shrink-to-fit width from `left` to the
+containing block's right edge — **half the viewport** — so `max-width: 90vw` never
+decided anything, and any message longer than a few words wrapped inside a 50vw column.
+On a 390px phone the sync and token errors measured 195px wide and five lines tall.
+
+The transform is why it went unnoticed: the result was centred, so it read as clumsy
+copy or a font problem rather than as a box that had been laid out in the right-hand
+half. `width: max-content` lets `max-width` be the thing that decides, and the guard in
+`tests/chrome.test.mjs` asserts the *width*, on a phone, because that is the number that
+was wrong.
+
+Two consequences settled with it: the radius is `--r-lg`, not `--r-pill` — a pill is a
+shape for one line, and at four it draws a lozenge whose curve cuts into the first and
+last rows — and `text-wrap: balance` evens a two-line message rather than leaving an
+orphan.
+
 ## UI: one thing, one place
 
 Cards leave the board three ways — the `Filter` panel, a column's `⋯`, and Display's
@@ -427,8 +446,28 @@ and reloads. The Worker stays assets-only — no relay, no webhook, no second so
 truth, which is the "close thin, via GitHub" rule the write path already follows.
 
 - **The token needs `Actions: write` on the aggregator repo** — a different permission
-  from the `Contents: write` that editing uses, so the button is absent until the
-  token has it, and a 403 names the permission rather than the status code.
+  from the `Contents: write` that editing uses. The button is drawn for *any* token
+  (`canSync` asks whether a token exists, not what it may do) and the 403 on press
+  names the permission rather than the status code. That breaks the rule the edit
+  controls follow — "a control that only fails when you press it is not gated, it is
+  decorated" — and it is deliberate: there is no pre-flight for this one. A fine-grained
+  token's `actions: read` and `actions: write` answer the same on every readable
+  endpoint, so a probe could only distinguish them by attempting the dispatch, which is
+  the very thing being gated. Failing loudly with the fix in the sentence is the honest
+  alternative.
+- **The wait is shown at the top of the viewport, not in the footer.** `.syncbar` is
+  fixed and indeterminate (GitHub reports no fraction, so a percentage would be
+  invented). The footer's `syncing…` label was the whole indicator once, which held
+  only where the footer is visible — and the minute or two is spent scrolled down the
+  board or inside a puck, where it is off screen and removed respectively.
+- **The receipt outlives the reload.** `finishSync` reloads, which destroys the toast
+  and the state that knows the run worked, so the run ended by restoring the page to
+  exactly its starting state — button back at `sync now`, nothing said — which reads
+  identically to having pressed nothing, and got the button pressed twice. The
+  pre-sync `generatedAt` is handed across in `sessionStorage` (`roadmap-synced-from`,
+  per tab, consumed on read) and reported at boot, so the message is *checked*: a moved
+  timestamp says "Synced — data from HH:MM", an identical one says "no change since"
+  rather than dressing up a harvest that legitimately produced the same payload.
 - **It waits by run *id*, not timestamp.** The newest dispatched run is read *before*
   the dispatch, and the poll takes the first run whose id exceeds it. `created_at` has
   second granularity and comes from GitHub's clock, so a time comparison mis-picks

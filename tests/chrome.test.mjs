@@ -324,4 +324,37 @@ export async function run({ open }) {
     // containers in the room for one. If a solid ever comes back, this is what says so.
     eq(brådska ? brådska.bakgrund : null, "rgba(0, 0, 0, 0)", "och står utan fylld bricka bakom sig");
   }
+
+  group("toasten lägger ut sig på sitt innehåll, inte på halva vyporten");
+  {
+    // A fixed box with `left` and no `right` shrink-to-fits inside the space from `left`
+    // to the containing block's right edge — half the viewport — so `max-width` never
+    // decided anything and long messages wrapped into a 50vw column. `translateX(-50%)`
+    // then centred the result, which is why it read as a font or copy problem for months
+    // rather than as the layout bug it is. The width is therefore the assertion, and it
+    // is taken on a phone, where the difference was five lines against two.
+    const p = await open("", { viewport: { width: 390, height: 700 } });
+    const box = (msg) => p.evaluate((m) => {
+      document.querySelectorAll(".toast").forEach((t) => t.remove());
+      const el = document.createElement("div");
+      el.className = "toast show"; el.textContent = m;
+      document.body.appendChild(el);
+      const r = el.getBoundingClientRect();
+      return { w: Math.round(r.width), h: Math.round(r.height), left: Math.round(r.left),
+               right: Math.round(innerWidth - r.right), vw: innerWidth };
+    }, msg);
+
+    const long = await box("Token can’t create issues here — opening GitHub. Paste the number via Link issue.");
+    ok(long.w > long.vw * 0.8,
+      `en lång toast tar bredden den får (${long.w} av ${long.vw} px) — 50 % betyder att max-width är utanför spel igen`);
+    eq(long.left, long.right, "och står centrerad, med lika marginal på båda sidor");
+    ok(long.left >= 12, `med en marginal mot kanten (${long.left} px)`);
+    ok(long.h < 70, `på två rader, inte fem (${long.h} px hög)`);
+
+    // The short case is what the pill radius was tuned for; it must not have grown a
+    // fixed width in the process — a toast is as wide as its sentence.
+    const short = await box("✓ Saved");
+    ok(short.w < long.w * 0.6, `en kort toast krymper till sitt innehåll (${short.w} px)`);
+    eq(short.left, short.right, "och centreras likadant");
+  }
 }
