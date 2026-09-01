@@ -21,8 +21,18 @@ oberoende skäl:
   `extraheader`. Vanlig `git` bryr sig inte om `GH_TOKEN` — det är `gh` som gör det.
 
 `lib/repo.mjs` *läser* `GITHUB_TOKEN`, men bara i sin **http-backend**. I CI är
-`ROADMAP_LOCAL_ROOT` satt, så den vägen tas aldrig. En forkare med privata källrepon får
-alltså en tom tavla utan att något felar högljutt.
+`ROADMAP_LOCAL_ROOT` satt, så den vägen tas aldrig.
+
+**Hur det faktiskt fallerar** (rättat efter granskning — jag skrev först att det sker
+tyst): klonsteget kör under `set -euo pipefail`, och `git clone A || git clone B` gör B
+till listans sista kommando. Misslyckas även den fallerar hela listan, `set -e` slår till
+och **steget dör** — verifierat i ett skal, inte antaget. Skörden och deployen körs alltså
+aldrig, och körningen blir röd i Actions-fliken.
+
+Det som *inte* syns är sambandet. Tavlan står kvar på förra lyckade deployen (eller på
+ingenting alls vid första körningen), och loggen visar ett generiskt git-autentiseringsfel
+— inte "den här källan är privat och behöver en token". Felet är alltså högljutt på rätt
+plats men oläsbart för den som inte redan misstänker orsaken.
 
 Samma mönster finns i verkstadens `sync.yml` — det har bara inte märkts, eftersom källorna
 där är publika. Fixen hör hemma i båda, och `sync.yml` är den som går att verifiera på
@@ -60,6 +70,8 @@ En token i en klon-URL är den klassiska läckvägen:
 ## Öppna frågor
 - En secret för alla källor, eller `per-source`-token? En räcker för det kända fallet, och
   flera skulle betyda en nyckelhanterare vi inte vill ha.
-- Ska produktens README säga hur man mintar den, eller ska tavlan säga det i klartext när
-  en källa fallerar? Ett tyst tomt bräde är det nuvarande felet — det får inte överleva
-  fixen.
+- Räcker det att klonen lyckas, eller ska felet också bli läsbart? Detektionen finns redan
+  — jobbet blir rött — så det som saknas är att loggen säger *vad* som är fel. Ett eko i
+  klonsteget ("clone failed for <repo> — private sources need SOURCES_TOKEN") är billigare
+  än något i tavlan, och hamnar där någon redan tittar.
+- Ska produktens README säga hur man mintar token:en, eller räcker felmeddelandet ovan?
