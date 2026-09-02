@@ -1,6 +1,6 @@
 ---
 title: Redigeringen byter typsnitt mitt i texten
-status: next
+status: done
 tags: [ui, editing]
 updated: 2026-09-02
 created: 2026-09-01
@@ -58,21 +58,46 @@ rörde. Nu mäts precis det, genom commiten: öppna, rör ingenting, spara, och 
 ska komma ut tecken för tecken som den gick in. Ett påstående om utfallet överlever
 ett byte av mekanism; ett påstående om mekanismen gör det inte.
 
+## Delivered
+
+Två av de tre vägarna, och tillsammans försvinner hoppet helt: **läsningen lyftes**
+och **mono blev sans**. Efter det är redigering och läsning samma text i samma
+storlek med samma radhöjd — bara lådan skiljer.
+
+**`--prose`, inte ett tal.** Puck-brödtext är 16px på telefon och 14px över 640px,
+satt som en variabel på `.modal-body` och `.disc-body`. `.body-editor` *sitter inuti*
+`.modal-body` och ärver den, så de två går inte att ändra isär. Det är skillnaden mot
+att skriva 16 på två ställen: sabotaget som ger editorn ett eget tal fäller
+kontrollen, och sabotaget som tar bort lyftet på telefon fäller den också — genom att
+dra ner editorn i zoomen igen. De är hopsvetsade åt bägge hållen.
+
+Rubriker bär brödtextens storlek och skiljs åt med vikt, så en variabel räcker för
+bägge och en rubrik kan aldrig hamna mindre än texten under sig. `--prose-sm` är
+steget under, för kodblock och tabellceller.
+
+**Mono var andra halvan av hoppet.** Markdown-källa är kod-nära, men mono mäter
+bredare per tecken än sans i samma storlek — så samma text kom både större *och*
+bredare, och på 390px är det den bredden som läser som klumpig. Det mono faktiskt
+köpte var indraget, och `--lh-prose` med två stegs listindrag håller det läsbart ändå.
+
+**Verifiering.** Kontrollen mäter en *likhet*, inte ett tal: editorns storlek,
+typsnitt och radhöjd jämförs med en riktig `.modal-body` i samma pane. En hårdkodad
+siffra hade bara mätt att någon skrev 16 på två ställen, inte att de hör ihop. På
+telefonbredd tillkommer att talet ska vara 16px — där är det inte fritt. Tre sabotage
+fäller var sin del: mono tillbaka, lyftet borta, editorn med eget tal.
+
 ## Open questions
 
-Kvar står den ursprungliga frågan, och nu vet vi att den inte får kosta en zoom.
-Tre vägar, i den ordning jag skulle prova dem:
-
-1. **Lyft läsningen i stället för att sänka skrivandet.** `.modal-body` till 16px på
-   telefon. Då finns inget hopp kvar, bägge storlekarna är bekväma, och 16px är rätt
-   för brödtext på en telefon ändå — det är bara på desktop 14px är rätt. Billigast,
-   och den enda som inte slåss mot plattformen.
-2. **Ge komponisten skärmen** (Linear-mönstret på bilden som startade det här). 16px
-   känns inte klumpigt i en ruta som äger skärmen; det är i en trång kolumn det gör
-   det. `openSurface()` finns redan och gör ark på telefon.
-3. **Mono → sans i editorn.** Mindre än de andra, men mono på 16px mäter bredare per
-   tecken än sans på 16px, så en del av "klumpigheten" är typsnittet och inte
-   storleken.
+- **Väg 2 står kvar oprovad:** ge komponisten skärmen, Linear-mönstret på bilden som
+  startade det här. Den behövs inte för att stänga hoppet — det är stängt — men en
+  ruta som äger skärmen är fortfarande en bättre plats att skriva ett långt stycke på
+  än en kolumn i en puck. `openSurface()` gör redan ark på telefon.
+- Sans kostar indragets exakthet i källan: i mono radar två inledande blanksteg upp
+  sig under varandra, i sans ungefär. Om nästlade listor blir svåra att skriva är det
+  där det märks först.
+- Gränsen är `max-width: 640px`, samma som resten av filens telefonregler. En iPad i
+  landskap får därför 14px i editorn. Repot har redan den konventionen för varje
+  annat fält, så det är inte en ny risk — men det är en omätt.
 
 `user-scalable=no` står kvar som förkastad, av samma skäl som förut: den tar
 nyp-zoomen från alla för att slippa en zoom i ett fält.

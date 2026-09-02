@@ -568,13 +568,32 @@ export async function run({ open }) {
     await p.locator(".body-edit").click();
     await p.waitForSelector(".body-editor");
 
-    const box = await p.evaluate(() => {
+    // Kontraktet är inte ett tal utan en likhet: editorn ska bära texten den ersätter.
+    // Mätt mot en riktig `.modal-body` i samma pane, inte mot en hårdkodad siffra —
+    // annars mäter kontrollen att någon skrev 16 på två ställen, inte att de hör ihop.
+    const mät = (page) => page.evaluate(() => {
       const e = document.querySelector(".body-editor");
-      return { tagg: e.tagName.toLowerCase(), storlek: getComputedStyle(e).fontSize };
+      const läst = document.createElement("div");
+      läst.className = "modal-body";
+      läst.style.position = "absolute";
+      document.querySelector(".detail-content").appendChild(läst);
+      const r = getComputedStyle(läst);
+      const ut = {
+        tagg: e.tagName.toLowerCase(),
+        storlek: getComputedStyle(e).fontSize,
+        familj: getComputedStyle(e).fontFamily,
+        radhöjd: getComputedStyle(e).lineHeight,
+        rStorlek: r.fontSize, rFamilj: r.fontFamily, rRadhöjd: r.lineHeight,
+      };
+      läst.remove();
+      return ut;
     });
+
+    const box = await mät(p);
     eq(box.tagg, "textarea", "en textarea, som bevarar radbrytningar utan hjälp av CSS");
-    eq(box.storlek, "16px",
-      "16px — golvet iOS kräver av allt som går att redigera, mätt på enhet och inte antaget");
+    eq(box.storlek, box.rStorlek, `samma storlek som texten den ersätter (${box.storlek})`);
+    eq(box.familj, box.rFamilj, "och samma typsnitt — mono var andra halvan av hoppet");
+    eq(box.radhöjd, box.rRadhöjd, "och samma radhöjd, så texten inte ens flyttar sig");
 
     // Rör ingenting. Att öppna och spara ska vara en nulloperation.
     await p.locator(".body-edit-actions .primary").click();
@@ -585,5 +604,16 @@ export async function run({ open }) {
       `en orörd kropp kommer ut tecken för tecken som den gick in:\n${JSON.stringify(skrivet)}`);
     ok(!/Goal Första/.test(skrivet),
       `raderna klistras inte ihop — det var precis vad Safari gjorde med contenteditable-varianten:\n${JSON.stringify(skrivet)}`);
+
+    // Och på telefon, där hela frågan uppstod. Likheten ska hålla där också, men där
+    // är *vilket* tal den landar på inte fritt: iOS zoomar in allt redigerbart under
+    // 16px, så det är läsningen som lyfts dit och inte skrivandet som sänks.
+    const mobil = await open("#alpha/a-now", { token: true, github: gh.handler, data, viewport: { width: 390, height: 844 } });
+    await mobil.locator(".body-edit").click();
+    await mobil.waitForSelector(".body-editor");
+    const m = await mät(mobil);
+    eq(m.storlek, "16px", "på telefon är editorn 16px — golvet iOS kräver av allt redigerbart");
+    eq(m.rStorlek, "16px", "och läsningen är lyft dit, så det inte finns något hopp kvar");
+    eq(m.familj, m.rFamilj, "fortfarande samma typsnitt");
   }
 }
