@@ -1,8 +1,8 @@
 ---
 title: "Markdown-konformans (tillfällig)"
-status: inbox
+status: later
 tags: [ui, test]
-updated: 2026-09-01
+updated: 2026-09-02
 created: 2026-09-01
 ---
 
@@ -12,6 +12,10 @@ created: 2026-09-01
 ska rendera hela markdown-ytan på en riktig telefon, och dess kropp är ordagrant
 `tests/markdown.fixture.md` — samma text som assertions i `tests/markdown.test.mjs`
 mäter, så det som testas och det som betraktas inte kan glida isär.
+
+`status: later` och inte `inbox`, vilket den låg i först: `VIEWS.all` är literalt
+`-status:inbox`, så en inbox-puck syns inte på tavlan utan bara i Inbox-rummet. En
+puck vars hela syfte är att bli tittad på ska ligga där man tittar.
 
 Allt nedanför den här rubriken är fixturen.
 <!--
