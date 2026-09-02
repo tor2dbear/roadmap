@@ -80,18 +80,36 @@ bredare per tecken än sans i samma storlek — så samma text kom både större
 bredare, och på 390px är det den bredden som läser som klumpig. Det mono faktiskt
 köpte var indraget, och `--lh-prose` med två stegs listindrag håller det läsbart ändå.
 
+**Och en tredje sak, som bara syns när man använder det.** Med storlekarna lagade
+landade *Edit body* på telefonen bakom tangentbordet: man tryckte, och såg
+egenskapsskenan och en röd kant längst ner. Att fokusera ett fält scrollar det i sikte
+mot **layout**-vyn, som inte vet att ett tangentbord täcker nedre halvan — och
+`autoGrow` gör lådan tusentals pixlar hög *efter* den scrollen, så webbläsarens "i
+sikte" mättes på en låda som inte längre finns. Mätt vid 390×844 med en lång puck:
+toppen landade **498px** ner, med ungefär 410 kvar ovanför tangentbordet.
+
+Editorn pinnas nu strax under topbaren i stället — samma regel som arket redan följer:
+fältet överst, de första raderna i bandet ovanför tangentbordet. Efter fixen: 60px.
+iOS kan scrolla om *efter* fokus när tangentbordet är uppe, så en krympande
+`visualViewport` siktar om en gång till; en växande gör det inte, för det är
+tangentbordet som lämnar, och att rycka sidan då vore att gå emot den som stängde det.
+
 **Verifiering.** Kontrollen mäter en *likhet*, inte ett tal: editorns storlek,
 typsnitt och radhöjd jämförs med en riktig `.modal-body` i samma pane. En hårdkodad
 siffra hade bara mätt att någon skrev 16 på två ställen, inte att de hör ihop. På
 telefonbredd tillkommer att talet ska vara 16px — där är det inte fritt. Tre sabotage
-fäller var sin del: mono tillbaka, lyftet borta, editorn med eget tal.
+fäller var sin del: mono tillbaka, lyftet borta, editorn med eget tal. Placeringen har
+en egen kontroll med en lång kropp — en kort döljer felet — och två sabotage fäller
+den: `reveal()` borta ger 498, och en `scrollIntoView` som inte räknar bort topbaren
+ger 0, alltså under den.
 
 ## Open questions
 
-- **Väg 2 står kvar oprovad:** ge komponisten skärmen, Linear-mönstret på bilden som
-  startade det här. Den behövs inte för att stänga hoppet — det är stängt — men en
-  ruta som äger skärmen är fortfarande en bättre plats att skriva ett långt stycke på
-  än en kolumn i en puck. `openSurface()` gör redan ark på telefon.
+- **Väg 2 står kvar oprovad, och placeringsfelet är argumentet för den.** Att pinna
+  toppen är rätt svar på fel fråga: en låda som är 4454px hög i ett dokument som
+  scrollar bakom ett tangentbord kommer alltid att behöva knuffas i rätt läge. En
+  komponist som äger bandet ovanför tangentbordet och scrollar internt har inte
+  problemet alls. `openSurface()` gör redan ark på telefon.
 - Sans kostar indragets exakthet i källan: i mono radar två inledande blanksteg upp
   sig under varandra, i sans ungefär. Om nästlade listor blir svåra att skriva är det
   där det märks först.

@@ -7,7 +7,7 @@
 // is the thing worth pinning.
 import { githubStub } from "./fixture.mjs";
 import { readFile } from "node:fs/promises";
-import { group, eq, ok } from "./assert.mjs";
+import { group, eq, ok, near } from "./assert.mjs";
 
 const trigger = (page, text) => page.locator(".prop-trigger", { hasText: text });
 
@@ -605,15 +605,36 @@ export async function run({ open }) {
     ok(!/Goal Första/.test(skrivet),
       `raderna klistras inte ihop — det var precis vad Safari gjorde med contenteditable-varianten:\n${JSON.stringify(skrivet)}`);
 
-    // Och på telefon, där hela frågan uppstod. Likheten ska hålla där också, men där
-    // är *vilket* tal den landar på inte fritt: iOS zoomar in allt redigerbart under
-    // 16px, så det är läsningen som lyfts dit och inte skrivandet som sänks.
-    const mobil = await open("#alpha/a-now", { token: true, github: gh.handler, data, viewport: { width: 390, height: 844 } });
+    // Och på telefon, där hela frågan uppstod. Kroppen är lång här med flit: det är en
+    // lång kropp som avslöjar bägge felen nedan, och en kort som döljer dem.
+    const lång = Array.from({ length: 40 }, (_, i) => `Stycke ${i + 1} i en puck som är för lång för en skärm.`).join("\n\n");
+    const långData = (d) => { d.items.find((i) => i.slug === "a-now").body = lång; return d; };
+    const mobil = await open("#alpha/a-now", { token: true, github: gh.handler, data: långData, viewport: { width: 390, height: 844 } });
     await mobil.locator(".body-edit").click();
     await mobil.waitForSelector(".body-editor");
+    await mobil.waitForTimeout(200);
+
+    // Likheten ska hålla här också, men *vilket* tal den landar på är inte fritt: iOS
+    // zoomar in allt redigerbart under 16px, så det är läsningen som lyfts dit och
+    // inte skrivandet som sänks.
     const m = await mät(mobil);
     eq(m.storlek, "16px", "på telefon är editorn 16px — golvet iOS kräver av allt redigerbart");
     eq(m.rStorlek, "16px", "och läsningen är lyft dit, så det inte finns något hopp kvar");
     eq(m.familj, m.rFamilj, "fortfarande samma typsnitt");
+
+    // Och var den hamnar. Att fokusera ett fält scrollar det i sikte mot *layout*-vyn,
+    // som inte vet att ett tangentbord täcker nedre halvan — och autoGrow gör lådan
+    // tusentals pixlar hög efter den scrollen. Mätt före fixen: toppen landade 498px
+    // ner på en 844px-vy, alltså helt under tangentbordet. Ingen webbläsare här har ett
+    // tangentbord, så kontrollen mäter det som *går* att mäta: att toppen står i det
+    // översta bandet i stället för långt ner på sidan.
+    const plats = await mobil.evaluate(() => ({
+      topp: Math.round(document.querySelector(".body-editor").getBoundingClientRect().top),
+      barH: Math.round(document.querySelector(".topbar").getBoundingClientRect().height),
+      höjd: Math.round(document.querySelector(".body-editor").getBoundingClientRect().height),
+    }));
+    ok(plats.höjd > 844, `lådan är längre än skärmen, annars mäter kontrollen ingenting (${plats.höjd})`);
+    near(plats.topp, plats.barH + 8, 12,
+      `editorns topp står strax under topbaren, inte nedanför tangentbordet (${plats.topp})`);
   }
 }

@@ -7823,9 +7823,42 @@
     // Auto-grow so the whole body is visible without an inner scrollbar (nicer on mobile).
     function autoGrow() { ta.style.height = "auto"; ta.style.height = Math.max(200, ta.scrollHeight + 2) + "px"; }
     ta.addEventListener("input", autoGrow);
+
+    // Where the editor lands is not the browser's call on a phone. Focusing a field
+    // scrolls it into view against the *layout* viewport, which does not know a
+    // keyboard is about to cover the lower half — and `autoGrow` then makes the box
+    // thousands of pixels tall *after* that scroll, so the browser's idea of "in view"
+    // was measured on a box that no longer exists. Measured at 390×844 on a long puck:
+    // the editor's top landed 498px down, with the keyboard leaving about 410.
+    //
+    // Pin its top under the topbar instead, which is the rule the sheet already
+    // follows: the field at the top, the first lines in the band above the keyboard.
+    function reveal() {
+      if (!ta.isConnected) return;
+      var bar = document.querySelector(".topbar");
+      var barH = bar && getComputedStyle(bar).position === "sticky" ? bar.getBoundingClientRect().height : 0;
+      window.scrollTo(0, Math.max(0, ta.getBoundingClientRect().top + window.scrollY - barH - 8));
+    }
+    // iOS can scroll again *after* focus, once the keyboard is up, which would undo the
+    // line above. A shrinking visual viewport is the only event that says the keyboard
+    // arrived — a growing one is it leaving, and re-aiming then would yank the page out
+    // from under a reader who dismissed it on purpose.
+    var vv = window.visualViewport;
+    var vvHeight = vv ? vv.height : 0;
+    function onKeyboard() {
+      if (vv.height >= vvHeight) { vvHeight = vv.height; return; }
+      vv.removeEventListener("resize", onKeyboard);
+      reveal();
+    }
+    if (vv) vv.addEventListener("resize", onKeyboard);
+
     ta.focus();
-    setTimeout(autoGrow, 0);
-    function restore(md) { bodyEl.innerHTML = renderMd(md || "(no details)"); editBtn.style.display = ""; }
+    setTimeout(function () { autoGrow(); reveal(); }, 0);
+    function restore(md) {
+      if (vv) vv.removeEventListener("resize", onKeyboard);
+      bodyEl.innerHTML = renderMd(md || "(no details)");
+      editBtn.style.display = "";
+    }
     cancel.addEventListener("click", function () { restore(item.body); });
     save.addEventListener("click", function () {
       var newBody = ta.value, prev = item.body;
