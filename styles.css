@@ -1059,28 +1059,19 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 
 /* body editing */
 .body-edit { margin-top: 8px; }
-/* The editor is a contenteditable where the engine offers `plaintext-only`, and a
-   <textarea> where it does not (see startBodyEdit) — so this rule dresses both.
-   `white-space: pre-wrap` and `overflow-wrap: anywhere` were written here first and
-   removed after measuring: an engine that offers `plaintext-only` pins the box to
-   `pre-wrap` itself and will not let an author's `white-space: normal` win, and the
-   page-width guarantee a long URL needs already comes from `.detail-pane`'s
-   `min-width: 0` — with `anywhere` and without it the page measured 390 either way.
-   Two rules that could not decide anything, which is the whole of
-   `doda-css-regler-som-forlorar-pa-ordning`. The pinned `pre-wrap` is what makes the
-   round trip keep the author's own spacing, so it is asserted in create.test.mjs
-   rather than declared here. */
+/* 16px, and the size is not a free choice: iOS zooms the page in on *any* focused
+   editable under 16px. Measured on the device, not assumed — a 14px editor zoomed the
+   page by 1.147, and 16/14 is 1.143. See startBodyEdit for the contenteditable that
+   was tried here and reverted; the floor follows the editing, not the tag. What is
+   still open is the *jump* from the 14px rendered body to this, which is
+   `redigeringen-byter-typsnitt-mitt-i-texten`, and the answer is more likely to be
+   lifting the reading size on a phone than lowering this one. */
 .body-editor {
   width: 100%; box-sizing: border-box; min-height: 200px; resize: none; overflow: hidden;
-  font-family: var(--mono); font-size: var(--fs-lg); line-height: var(--lh-prose);
+  font-family: var(--mono); font-size: var(--fs-2xl); line-height: var(--lh-prose);
   padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r-lg);
   background: var(--bg); color: var(--ink);
 }
-/* The 16px floor, kept exactly where a native field remains. A class beats the bare
-   `textarea` rule below on specificity, so the fallback would otherwise inherit the
-   14px it is not allowed to have — and this is the one line that says out loud that
-   the floor is about the *element*, not about this editor. */
-@media (max-width: 640px) { textarea.body-editor { font-size: var(--fs-2xl); } }
 .body-editor:focus { outline: none; border-color: var(--accent); }
 .body-edit-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
 

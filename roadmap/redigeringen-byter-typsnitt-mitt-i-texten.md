@@ -1,6 +1,6 @@
 ---
 title: Redigeringen byter typsnitt mitt i texten
-status: done
+status: next
 tags: [ui, editing]
 updated: 2026-09-02
 created: 2026-09-01
@@ -14,8 +14,7 @@ inte som att man har börjat redigera.
 
 ## Research
 
-Mätt i webbläsaren, inte tyckt (listor, inte tabell — tavlan renderade inte
-tabeller när det här skrevs, se `markdown-rendering-genomgang-av-formateringen`):
+Mätt i webbläsaren:
 
 - **Renderad text** (`.modal-body`): 14px Geist, `line-height` 22.4px.
 - **Redigering** (`.body-editor`): 16px Geist Mono, `line-height` 25.6px.
@@ -23,64 +22,57 @@ tabeller när det här skrevs, se `markdown-rendering-genomgang-av-formateringen
 Två steg upp i skalan (`--fs-lg` → `--fs-2xl`) *och* proportionell → mono i ett
 enda byte, i en låda vars innehåll dessutom är samma text.
 
-**16px är inte godtyckligt, och det är halva problemet.** `--fs-2xl` är uttryckligen
-golvet iOS kräver för att inte zooma in ett fokuserat fält. Men det golvet gäller
-**formulärkontroller** — `input`, `textarea`, `select` — inte text i allmänhet. Och
-regeln för vad man gör åt det stod redan skriven i kommentaren ovanför själva golvet
-i `styles.css`:
+**16px är iOS golv för fokuserade fält, och det gick inte att ta sig runt.**
 
-> Where the floor is genuinely unwanted, the answer is to not have a native field.
+## Vad som provades, och vad enheten svarade
 
-Den meningen skrevs när de två `<select>`:arna blev `openSurface()`-väljare. Den var
-aldrig avgränsad till `select` — den var bara inte tillämpad på det sista fältet den
-gäller.
+Kommentaren ovanför golvet i `styles.css` säger *"where the floor is genuinely
+unwanted, the answer is to not have a native field"* — skrivet när de två
+`<select>`:arna blev `openSurface()`-väljare. Läsningen var att golvet gäller
+**formulärkontroller**, och att en `contenteditable` därför kommer undan. Editorn
+byggdes om till `contenteditable="plaintext-only"` på 14px.
 
-## Delivered
+**Mätt på telefonen: fel.** Att fokusera den 14px-editerbara diven zoomade sidan med
+faktorn **1,147**. `16/14 = 1,143`. Golvet gäller det fokuserade **redigerbara
+elementet**, inte vilken tagg det är. Måttet togs ur två skärmdumpar, avståndet från
+knappens vänsterkant till ikonens streck: 39→44, 74→85, 114→131, 156→179 px.
 
-Editorn är en `contenteditable="plaintext-only"` i stället för en `<textarea>`, och
-möter därför den renderade texten på 14px. Golvet står kvar exakt där en riktig
-formulärkontroll står kvar: `@media (max-width: 640px) { textarea.body-editor }` —
-klassen behövs för att slå den nakna `textarea`-regeln på specificitet, och raden
-säger samtidigt högt att golvet handlar om *elementet*, inte om den här editorn.
+Den del av regeln som *generaliserade* var en annan: `<select>` kom undan genom att
+inte ha någon redigerbar text alls, inte genom att inte vara en formulärkontroll. En
+väljare tar bort skrivandet; en contenteditable flyttar bara på det.
 
-**`plaintext-only` och inte `true`.** En vanlig contenteditable stoppar in `<div>`,
-`<br>` och `<span style>` vid radbrytning och inklistring. En markdown-källa som tyst
-får med sig markup in i .md-filen vore en värre bugg än ett stort typsnitt. Där
-`plaintext-only` saknas (Firefox före 136) kommer `<textarea>` tillbaka, golv och
-allt — detekterat, inte sniffat: IDL-settern tar bara emot värden motorn stöder.
+**Och den kostade under tiden.** I Safari stod hela kroppen som en enda hopklistrad
+klump — `## Goal Efter en omladdning på iPhone står…` — och ett *Save* hade skrivit
+den klumpen till .md-filen. Orsaken var `white-space: pre-wrap`, som togs bort efter
+att ha mätts som verkningslös: Chromiums egen stilmall pinnar den för en
+`plaintext-only`-låda, Safaris gör det inte. **En mätning i en motor generaliserades
+till en regel om alla motorer.** Ingenting hann committas.
 
-**Auto-grow försvann.** En låda webbläsaren låter växa av sig själv behöver ingen
-`scrollHeight`-mätning. Det är den enda maskindelen ändringen tar bort i stället för
-att lägga till.
+Ändringen är återställd. Editorn är en `<textarea>` på 16px igen, och kommentaren i
+`startBodyEdit` säger varför så att nästa person inte provar samma sak.
 
-**Två CSS-rader skrevs och togs bort efter mätning.** `white-space: pre-wrap` och
-`overflow-wrap: anywhere` såg nödvändiga ut och kunde inte avgöra någonting: en motor
-som erbjuder `plaintext-only` pinnar lådan till `pre-wrap` själv och låter inte en
-egen `white-space: normal` vinna, och sidbredden en lång URL hotar kommer redan från
-`min-width: 0` på `.detail-pane` — 390px med `anywhere` och 390px utan. Precis det
-`doda-css-regler-som-forlorar-pa-ordning` handlar om, fångat innan det landade.
-
-**Två rader försäkring står kvar, och de går inte att fälla härifrån.** `read()`
-använder `innerText` och tvättar hårda mellanslag. Mätt i Chromium gör ingendera
-någon skillnad: lådan innehåller bara textnoder med riktiga radbrytningar, och två
-anslag mellanslag ger två mellanslag. De står kvar för att webbläsaren ändringen
-*finns för* är den som inte går att mäta härifrån, och båda felen de skyddar mot är
-tysta och hamnar i git.
-
-**Verifiering.** Sex kontroller i `tests/create.test.mjs`, mätta genom commiten och
-inte genom lådan: elementet är ingen `textarea`, redigering och läsning har samma
-storlek, och en kropp som skrivs med tangentbordet — nästlad lista med två inledande
-blanksteg och en tomrad — kommer ut ur GitHub-stubben tecken för tecken. Sabotage som
-fäller dem: tillbaka till `textarea` (tre kontroller), tillbaka till 16px (en).
+**Testet byttes ut, och bytet är den andra lärdomen.** Den gamla gruppen skrev *ny*
+text med tangentbordet och kollade en beräknad `white-space`. Det som gick sönder var
+att öppna en *befintlig* flerradig kropp och spara den orörd — vilket ingen kontroll
+rörde. Nu mäts precis det, genom commiten: öppna, rör ingenting, spara, och kroppen
+ska komma ut tecken för tecken som den gick in. Ett påstående om utfallet överlever
+ett byte av mekanism; ett påstående om mekanismen gör det inte.
 
 ## Open questions
 
-- **Kvarstår att verifiera på enhet:** att iOS faktiskt låter bli att zooma en
-  `contenteditable` under 16px. Mekanismen säger det, och Chromium kan inte svara på
-  det — samma klass av fråga som `headern-malas-inte-vid-omladdning`. PR-previewen är
-  där den avgörs.
-- Mono behölls: markdown-källa *är* kod-nära, och indrag och kodstaket radar upp sig.
-  Om det ska ändras är det x-höjden som ska matcha, inte punktstorleken.
-- Samma golv gäller fortfarande de enradiga fälten (sök, titel, token) och `New
-  puck`-formulärets kontextruta. De är inte klumpiga på samma sätt — ett sökfält vill
-  vara stort — men kontextrutan är också flerradig och kan gå samma väg om den skaver.
+Kvar står den ursprungliga frågan, och nu vet vi att den inte får kosta en zoom.
+Tre vägar, i den ordning jag skulle prova dem:
+
+1. **Lyft läsningen i stället för att sänka skrivandet.** `.modal-body` till 16px på
+   telefon. Då finns inget hopp kvar, bägge storlekarna är bekväma, och 16px är rätt
+   för brödtext på en telefon ändå — det är bara på desktop 14px är rätt. Billigast,
+   och den enda som inte slåss mot plattformen.
+2. **Ge komponisten skärmen** (Linear-mönstret på bilden som startade det här). 16px
+   känns inte klumpigt i en ruta som äger skärmen; det är i en trång kolumn det gör
+   det. `openSurface()` finns redan och gör ark på telefon.
+3. **Mono → sans i editorn.** Mindre än de andra, men mono på 16px mäter bredare per
+   tecken än sans på 16px, så en del av "klumpigheten" är typsnittet och inte
+   storleken.
+
+`user-scalable=no` står kvar som förkastad, av samma skäl som förut: den tar
+nyp-zoomen från alla för att slippa en zoom i ett fält.

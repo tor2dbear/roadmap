@@ -542,63 +542,48 @@ export async function run({ open }) {
     eq(gh2.writes, [], `och ingenting nådde GitHub (${gh2.writes.length})`);
   }
 
-  group("kroppseditorn är inte ett formulärfält");
+  group("kroppseditorn lämnar ifrån sig exakt det som öppnades");
   {
-    // iOS Safari zooms the page in on a focused *form control* under 16px, so the
-    // editor stood two steps above the text it replaced. The way out is not a smaller
-    // textarea — it is not being a form control, which is the rule styles.css already
-    // wrote down when the two <select>s became openSurface() pickers.
+    // Den här gruppen bytte innehåll efter ett fynd på enhet, och bytet är poängen.
     //
-    // Asserted through the commit, not through the box: a plain-text editable keeps
-    // its line breaks in the DOM as elements and writes a non-breaking space where two
-    // spaces meet. Both are invisible on screen and both would reach the .md file.
+    // Editorn var en `contenteditable="plaintext-only"` ett tag, för att komma undan
+    // iOS 16px-golv. Mätt på telefonen zoomade en 14px editable div sidan med 1,147 —
+    // 16/14 är 1,143 — så golvet gäller det fokuserade *redigerbara elementet*, inte
+    // taggen. Den ändringen är återställd.
+    //
+    // Vad den kostade under tiden är den egentliga lärdomen: i Safari stod kroppen som
+    // en enda hopklistrad klump, eftersom `white-space: pre-wrap` togs bort efter att
+    // ha mätts som verkningslös i Chromium — där sätter motorns egen stilmall den, i
+    // Safari inte. Ett Save hade skrivit den klumpen till .md-filen.
+    //
+    // Den gamla gruppen kunde inte fånga det. Den skrev *ny* text med tangentbordet
+    // och kollade en beräknad `white-space`. Det som gick sönder var att öppna en
+    // *befintlig* flerradig kropp och spara den orörd — så det är vad som mäts nu,
+    // genom commiten. Ett påstående om utfallet överlever ett byte av mekanism; ett
+    // påstående om mekanismen gör det inte.
     const gh = githubStub();
-    const p = await open("#alpha/a-now", { token: true, github: gh.handler });
+    const kropp = "## Goal\nFörsta stycket.\n\n- Punkt\n  - Under, med två inledande blanksteg\n\n## Research\nSista stycket.";
+    const data = (d) => { d.items.find((i) => i.slug === "a-now").body = kropp; return d; };
+    const p = await open("#alpha/a-now", { token: true, github: gh.handler, data });
     await p.locator(".body-edit").click();
     await p.waitForSelector(".body-editor");
 
     const box = await p.evaluate(() => {
       const e = document.querySelector(".body-editor");
-      const probe = document.createElement("div");
-      probe.className = "modal-body";
-      document.querySelector(".detail-content").appendChild(probe);
-      const renderad = getComputedStyle(probe).fontSize;
-      probe.remove();
-      return {
-        tagg: e.tagName.toLowerCase(),
-        editable: e.getAttribute("contenteditable"),
-        roll: e.getAttribute("role"),
-        storlek: getComputedStyle(e).fontSize,
-        radbrytning: getComputedStyle(e).whiteSpace,
-        renderad,
-      };
+      return { tagg: e.tagName.toLowerCase(), storlek: getComputedStyle(e).fontSize };
     });
-    eq(box.tagg, "div", "editorn är ingen textarea");
-    eq(box.editable, "plaintext-only", "utan en contenteditable som inte kan bära markup");
-    eq(box.roll, "textbox", "och som säger vad den är för en skärmläsare");
-    eq(box.storlek, box.renderad,
-      `redigering och läsning har samma storlek (${box.storlek} mot ${box.renderad})`);
-    eq(box.radbrytning, "pre-wrap",
-      "motorn pinnar lådan till pre-wrap — mätt, inte deklarerat: en egen white-space i .body-editor vinner inte över den, och det är den som gör att blanksteg och radbrytningar överlever");
+    eq(box.tagg, "textarea", "en textarea, som bevarar radbrytningar utan hjälp av CSS");
+    eq(box.storlek, "16px",
+      "16px — golvet iOS kräver av allt som går att redigera, mätt på enhet och inte antaget");
 
-    // Skriven som en användare skriver, inte satt via DOM. De två sista kontrollerna
-    // mäter *utfallet* och inte vägen dit: i den här motorn räcker pre-wrap ensamt, så
-    // varken innerText eller nbsp-tvätten i read() kan fällas härifrån. De finns för
-    // Safari, som inte går att mäta härifrån — och det som skulle gå fel där är tyst
-    // och hamnar i git.
-    await p.locator(".body-editor").click();
-    await p.keyboard.press("ControlOrMeta+a");
-    await p.keyboard.type("- Punkt\n  - Under, med två inledande blanksteg\n\nEfter.");
+    // Rör ingenting. Att öppna och spara ska vara en nulloperation.
     await p.locator(".body-edit-actions .primary").click();
     await p.waitForTimeout(600);
-
     eq(gh.writes.length, 1, "en commit");
     const skrivet = gh.writes[0].content;
-    ok(skrivet.includes("\n  - Under, med två inledande blanksteg"),
-      `de två inledande blanktecknen är riktiga blanksteg:\n${JSON.stringify(skrivet)}`);
-    ok(!/\u00a0/.test(skrivet),
-      `och inget hårt mellanslag följde med in i filen:\n${JSON.stringify(skrivet)}`);
-    ok(/- Punkt\n {2}- Under[^\n]*\n\nEfter\./.test(skrivet),
-      `radbrytningarna överlevde, tomrad och allt:\n${JSON.stringify(skrivet)}`);
+    ok(skrivet.includes(kropp),
+      `en orörd kropp kommer ut tecken för tecken som den gick in:\n${JSON.stringify(skrivet)}`);
+    ok(!/Goal Första/.test(skrivet),
+      `raderna klistras inte ihop — det var precis vad Safari gjorde med contenteditable-varianten:\n${JSON.stringify(skrivet)}`);
   }
 }
