@@ -7794,27 +7794,79 @@
       .then(function (r) { assertOk(r, item); });
   }
 
-  // Swap the rendered body for a textarea; Save commits, Cancel restores.
+  // Whether this engine can give us a *plain-text* contenteditable. Without
+  // `plaintext-only` an editable box injects markup on Enter and on paste, which is
+  // the wrong shape entirely for a field whose content is committed to a .md file
+  // verbatim. Detected, not sniffed: the IDL setter only accepts values the engine
+  // supports, and throws on the rest (Firefox before 136).
+  var PLAINTEXT_EDITABLE = (function () {
+    var probe = document.createElement("div");
+    try { probe.contentEditable = "plaintext-only"; } catch (e) { return false; }
+    return probe.contentEditable === "plaintext-only";
+  })();
+
+  // Swap the rendered body for an editor; Save commits, Cancel restores.
+  //
+  // Deliberately not a <textarea>. iOS Safari zooms the whole page in whenever a
+  // focused *form control* carries a font under 16px, and there is no way back out
+  // except pinching — so the editor stood two steps above the 14px text it replaced,
+  // in mono, and reading turned into editing by way of a jump. The floor's own comment
+  // in styles.css already wrote the rule down: *where the floor is genuinely unwanted,
+  // the answer is to not have a native field.* That is what sent the two <select>s to
+  // openSurface(); this is the same rule applied to the field it hurt most. A
+  // contenteditable is not a form control, so the floor never reaches it.
+  //
+  // Where `plaintext-only` is missing the textarea comes back, floor and all: a
+  // markdown source box that quietly gains `<div>`s and `<span style>` on paste would
+  // be a worse bug than a large font.
   function startBodyEdit(item, bodyEl, editBtn) {
     editBtn.style.display = "none";
-    var ta = document.createElement("textarea");
+    var rich = PLAINTEXT_EDITABLE;
+    var ta = document.createElement(rich ? "div" : "textarea");
     ta.className = "body-editor";
-    ta.value = item.body || "";
+    if (rich) {
+      ta.contentEditable = "plaintext-only";
+      ta.setAttribute("role", "textbox");
+      ta.setAttribute("aria-multiline", "true");
+      ta.setAttribute("aria-label", "Puck body");
+      ta.textContent = item.body || "";
+    } else {
+      ta.value = item.body || "";
+    }
+    // Two lines of insurance, and it is worth being straight about what they are.
+    // Measured in Chromium, a `plaintext-only` box holds nothing but text nodes with
+    // real newlines: `textContent` equals `innerText`, and typing two spaces produces
+    // two spaces, because the engine pins the box to `white-space: pre-wrap`. Neither
+    // line changes anything there.
+    //
+    // They stay because the browser this change exists for is the one that cannot be
+    // measured from here. Where an editable box does keep its line breaks as elements,
+    // `textContent` hands back every line run together; where it writes a non-breaking
+    // space between two spaces, that character is invisible on screen and real in the
+    // committed file — and markdown counts leading spaces. Both failures are silent
+    // and both land in git. One line each is the right price for that.
+    function read() {
+      return rich ? ta.innerText.replace(/\u00a0/g, " ") : ta.value;
+    }
     var actions = el("div", "body-edit-actions");
     var save = el("button", "tbtn primary", "Save");
     var cancel = el("button", "tbtn", "Cancel");
     save.type = "button"; cancel.type = "button";
     actions.appendChild(save); actions.appendChild(cancel);
     bodyEl.innerHTML = ""; bodyEl.appendChild(ta); bodyEl.appendChild(actions);
-    // Auto-grow so the whole body is visible without an inner scrollbar (nicer on mobile).
-    function autoGrow() { ta.style.height = "auto"; ta.style.height = Math.max(200, ta.scrollHeight + 2) + "px"; }
-    ta.addEventListener("input", autoGrow);
+    // Auto-grow so the whole body is visible without an inner scrollbar (nicer on
+    // mobile) — a box the browser grows on its own needs none of it, which is the one
+    // piece of machinery this change removes rather than adds.
+    if (!rich) {
+      var autoGrow = function () { ta.style.height = "auto"; ta.style.height = Math.max(200, ta.scrollHeight + 2) + "px"; };
+      ta.addEventListener("input", autoGrow);
+      setTimeout(autoGrow, 0);
+    }
     ta.focus();
-    setTimeout(autoGrow, 0);
     function restore(md) { bodyEl.innerHTML = renderMd(md || "(no details)"); editBtn.style.display = ""; }
     cancel.addEventListener("click", function () { restore(item.body); });
     save.addEventListener("click", function () {
-      var newBody = ta.value, prev = item.body;
+      var newBody = read(), prev = item.body;
       item.body = newBody; item.updated = today();
       restore(newBody);
       toast("Saving…");
