@@ -778,6 +778,27 @@ body {
 .modal-body pre { background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r-md); padding: 10px 12px; margin: 0 0 10px; overflow-x: auto; }
 .modal-body pre code { background: none; padding: 0; font-size: var(--fs-md); line-height: var(--lh-snug); }
 .modal-body a { color: var(--accent); }
+/* Tables and blockquotes — the two block types a puck body gained. Written once for
+   both markdown surfaces: Overview renders into `.modal-body`, Discussion into
+   `.disc-body`, and both come out of the same `renderMd`.
+   `.md-table` is a scroll container for the same reason `pre` is one: a wide table
+   must scroll in its own box and never make the page wider than the phone. The
+   permission that makes that work is `min-width: 0` on `.detail-pane` — already there,
+   and the whole finding of `en-bred-kodrad-drog-ut-hela-puckvyn`. */
+.modal-body .md-table, .disc-body .md-table { overflow-x: auto; margin: 0 0 10px; }
+.modal-body table, .disc-body table { border-collapse: collapse; font-size: var(--fs-md); }
+.modal-body :is(th, td), .disc-body :is(th, td) {
+  border: 1px solid var(--line); padding: 5px 9px; text-align: left; vertical-align: top;
+  /* `.modal-body` breaks anywhere, which is right for prose and wrong here: a cell
+     that shatters mid-word turns a table into a column of syllables rather than
+     letting the table be too wide and scroll. Same call as the code block's. */
+  overflow-wrap: normal;
+}
+.modal-body th, .disc-body th { background: var(--panel-2); color: var(--ink); font-weight: var(--fw-semibold); }
+.modal-body blockquote, .disc-body blockquote {
+  margin: 0 0 10px; padding: 2px 0 2px 12px;
+  border-left: 2px solid var(--line); color: var(--ink-3);
+}
 .modal .card-links { padding-top: 4px; }
 body.modal-open { overflow: hidden; }
 /* Pinned rather than merely `overflow: hidden`, which iOS ignores: the body keeps

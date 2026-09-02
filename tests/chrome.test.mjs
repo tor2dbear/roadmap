@@ -194,6 +194,38 @@ export async function run({ open }) {
     eq(m.pre.ov, "auto", "vilket är vad overflow-x lovar");
   }
 
+  group("en bred tabell ger inte heller sidan en sidled");
+  {
+    // Same class as the code row above, and the reason it gets its own check: the
+    // tables are new, and the answer for them is not obviously the same one. It is —
+    // `.md-table` scrolls, `.detail-pane`'s `min-width: 0` is the permission — but a
+    // table has a second way to fit that a `<pre>` does not: it can wrap its cells to
+    // nothing. `overflow-wrap: normal` on the cells is what refuses that, so this
+    // check needs both halves too, for the same reason.
+    const withTable = (d) => {
+      const a = d.items.find((i) => i.slug === "a-now");
+      const cells = ["harvester", "aggregator", "konvention", "beroenden", "signaler", "etapper"];
+      a.body = "Innan\n\n| " + cells.join(" | ") + " |\n|" + cells.map(() => "---").join("|") +
+        "|\n| " + cells.map(() => "mätvärde").join(" | ") + " |\n\nEfter\n";
+      return d;
+    };
+    const p = await open("#alpha/a-now", { viewport: { width: 390, height: 844 }, data: withTable });
+    const m = await p.evaluate(() => {
+      const box = document.querySelector(".modal-body .md-table");
+      return {
+        page: document.documentElement.scrollWidth,
+        view: window.innerWidth,
+        head: document.querySelectorAll(".modal-body th").length,
+        box: box && { client: box.clientWidth, scroll: box.scrollWidth, ov: getComputedStyle(box).overflowX },
+      };
+    });
+    eq(m.head, 6, "tabellen ritas med sina sex rubrikceller");
+    eq(m.page, m.view, `sidan är inte bredare än skärmen (${m.page} mot ${m.view})`);
+    ok(m.box.scroll > m.box.client,
+      `och tabellen är fortfarande bred, i sin egen scroll (${m.box.scroll} > ${m.box.client})`);
+    eq(m.box.ov, "auto", "vilket är vad overflow-x lovar");
+  }
+
   group("räknaren har en storlek");
   {
     // "How many cards are behind this label" is one sentence, and it was drawn in four
