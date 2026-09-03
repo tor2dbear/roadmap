@@ -781,7 +781,16 @@
   // ignores the setting, having arrived from a link that set it and never touched the
   // control. A preference that does nothing where you are looking is the right thing to
   // drop there.
+  // `etapps` is what the row was called, and it is in links already sent *and* in
+  // saved views already committed. The rewrite therefore belongs where every reader
+  // passes: `effectiveParams` is the one normaliser both a saved view's parameters and
+  // the live board's go through. Doing it only at the URL read — which is where it was
+  // first written — left a stored `etapps` comparing itself against the live `parents`,
+  // so the view read as edited the moment it opened, and dropped its archive flag on
+  // the way, because `ARCHIVABLE` has no `etapps` any more.
+  function canonicalView(v) { return v === "etapps" ? "parents" : v; }
   function effectiveParams(o) {
+    if (o.view) o.view = canonicalView(o.view);
     var focus = o.view || "all";
     var layout = o.layout || DISPLAY_DEFAULTS.view;
     var cols = columnsForFocus(focus, o.done === "1");
@@ -898,9 +907,7 @@
     if (GROUPS[got.group]) state.group = got.group;
     if (got.layout === "list" || got.layout === "board") state.view = got.layout;
     if (SORTS.indexOf(got.sort) !== -1) state.sort = got.sort;
-    // `?view=parents` is in links already sent and in saved views already committed;
-    // it resolves to the row that replaced it rather than to nothing.
-    if (got.view === "etapps") got.view = "parents";
+    if (got.view) got.view = canonicalView(got.view);
     if (VIEWS[got.view]) state.focus = got.view;
     if (!got.q) return;
     // Nothing to hand back to anyone: `?q=` is the store. The sidebar rows read it for
@@ -7566,7 +7573,7 @@
     afterEdit(item, prevRef, parentId);
     toast("Saving…");
     commitParent(item, raw)
-      .then(function () { toast(raw ? "✓ Part of " + target.title + " — live in ~1 min" : "✓ Out of its etapp — live in ~1 min"); })
+      .then(function () { toast(raw ? "✓ Part of " + target.title + " — live in ~1 min" : "✓ Out of its parent — live in ~1 min"); })
       .catch(function (err) {
         relink(item, prevRef, prevRaw);
         item.signals = prevSignals;

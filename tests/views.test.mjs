@@ -279,6 +279,30 @@ export async function run({ open }) {
       ok(ut.kort > 0, `${gammal} matchar fortfarande kort (${ut.kort})`);
     }
 
+    // En sparad vy är den svårare halvan av samma löfte, och den var trasig när det
+    // här skrevs första gången: `paramsOf()` normaliserar en sparad vys parametrar
+    // genom `effectiveParams()`, som körde *före* omskrivningen. Ett lagrat `etapps`
+    // jämfördes alltså mot det levande `parents` och läste som ändrat i samma stund
+    // vyn öppnades — och tappade sin arkivflagga på vägen, för `ARCHIVABLE` har inget
+    // `etapps` längre. Omskrivningen ligger i normaliseraren nu, som bägge går genom.
+    const gammalVy = (d) => {
+      d.config = d.config || {};
+      d.config.views = [{ name: "Gamla etapper", view: "etapps", done: "1" }];
+      return d;
+    };
+    const sv = await open("", { token: true, data: gammalVy });
+    await sv.getByRole("button", { name: /Gamla etapper/ }).first().click();
+    await sv.waitForTimeout(300);
+    const sedd = await sv.evaluate(() => ({
+      url: location.search,
+      acts: [...document.querySelectorAll("#chipRow .fchip-acts button")].map((e) => e.textContent.trim()),
+      titel: (document.querySelector("#viewTitleBtn, #topTitleBtn") || {}).textContent.replace(/\s+/g, " ").trim(),
+    }));
+    eq(sedd.acts, [], "en sparad vy med det gamla namnet läser inte som ändrad");
+    ok(!/edited/.test(sedd.titel), `och titeln säger inte att den är ändrad: ${JSON.stringify(sedd.titel)}`);
+    ok(/done=1/.test(sedd.url), `arkivflaggan överlever omskrivningen: ${JSON.stringify(sedd.url)}`);
+    ok(/view=parents/.test(sedd.url), `och vyn är den nya: ${JSON.stringify(sedd.url)}`);
+
     // Och etiketterna, som är hela poängen: kolumnen som höll alla föräldrar hette
     // "No etapp", vilket läste bakvänt — en förälder *har* ingen förälder.
     const g = await open("?group=parent");

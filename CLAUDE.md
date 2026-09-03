@@ -52,7 +52,7 @@ mirror run deletes.
   fictional data. Deploys to `etapp.tor2dbear.com`.
 
 `.github/workflows/sync-product.yml` drives both code arrows on a push to `main`
-that touches the tool: an rsync to `parent` (personal config swapped for generic
+that touches the tool: an rsync to `etapp` (personal config swapped for generic
 examples), then `app.js` / `styles.css` / `index.html` / `fonts/` copied into
 `etapp-site/demo/`. It commits and pushes on its own.
 
