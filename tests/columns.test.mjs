@@ -193,6 +193,27 @@ export async function run({ open }) {
     eq(m.klippt, true, "namnet klipps i stället för att radbryta");
   }
 
+  group("en arkivtömd förälder går fortfarande att öppna");
+  {
+    // Hittat av Codex på PR #44, och samma gren som på #42: en grupp arkivet tömt helt
+    // ritas som en *stump* och den grenen returnerar. Stumpen är med flit ingen
+    // kontroll — det finns inget att fälla ut förrän arkivväxeln lyfts — men namnet är
+    // fortfarande en puck, och under ett medlemsfilter kan rubriken vara den puckens
+    // enda representation på sidan.
+    const arkiverat = (d) => {
+      d.items.find((i) => i.slug === "a-parent").title = "Brand it + split product / instance";
+      d.items = d.items.map((i) => (i.slug === "b-member" ? Object.assign({}, i, { status: "done" }) : i));
+      return d;
+    };
+    const p = await open("?group=parent&layout=list", { data: arkiverat });
+    eq(await p.evaluate(() => !!document.querySelector(".lh-stub .head-open")), true,
+      "stumpens namn är en knapp");
+    await p.locator(".lh-stub .head-open").click();
+    await p.waitForTimeout(300);
+    eq(await p.evaluate(() => (location.hash || "").slice(1)), "alpha/a-parent",
+      "och den öppnar den puck rubriken namnger");
+  }
+
   group("i listan fäller chevronen och namnet öppnar");
   {
     // Två saker att göra, så två kontroller — men bara där det *finns* två. En rubrik

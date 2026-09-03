@@ -3876,16 +3876,22 @@
   // letter-spacing is right for `NOW` and `ETAPP SITE` and wrong for a title, where it
   // costs 15–20% of the width *and* legibility — measured, `BRAND IT + SPLIT PRODUCT /
   // INSTANCE` against `Brand it + split product / instance`.
+  // One button, three heads: the board's, the list's, and the list's archive-only stub.
+  // Written once because they promise the same thing — a puck's name opens it — and
+  // three copies of that promise is three places for one of them to stop keeping it.
+  function openButton(item, label, cls) {
+    var b = el("button", "head-open" + (cls ? " " + cls : ""), label);
+    b.type = "button";
+    b.title = "Open " + item.title;
+    b.addEventListener("click", function (e) { e.stopPropagation(); openModal(item); });
+    return b;
+  }
   function headTitle(g, grp) {
     var h = el("h2");
     var opens = g.opens && g.opens(grp.key);
     if (!opens) { h.textContent = grp.label; return h; }
     h.classList.add("named");
-    var b = el("button", "head-open", grp.label);
-    b.type = "button";
-    b.title = "Open " + opens.title;
-    b.addEventListener("click", function () { openModal(opens); });
-    h.appendChild(b);
+    h.appendChild(openButton(opens, grp.label));
     return h;
   }
 
@@ -4057,7 +4063,8 @@
       // What the list does not yet carry is the *opening*: its whole heading is already
       // the fold control, and splitting that in two is a change to a target used on a
       // phone rather than a rename.
-      if (g.opens && g.opens(grp.key)) h.classList.add("named");
+      var opens = g.opens && g.opens(grp.key);
+      if (opens) h.classList.add("named");
       // A group the archive emptied has nothing to collapse and no visible count worth
       // printing — "Done 0 · 3 archived" says zero twice. So it is a plain heading, not
       // a control: swatch and label, and the mark carries both the number and the way
@@ -4069,7 +4076,11 @@
         // lost three declarations in a row.
         var stub = el("span", "lh-stub");
         stub.appendChild(el("span", "swatch"));
-        stub.appendChild(el("span", "lh-label", grp.label));
+        // The stub is deliberately not a control — there is nothing to expand until the
+        // archive toggle lifts. The *name* is still a puck, though, and under a member
+        // filter this heading can be that puck's only representation on the page, so it
+        // keeps the one thing a name always does.
+        stub.appendChild(opens ? openButton(opens, grp.label, "lh-label") : el("span", "lh-label", grp.label));
         h.appendChild(stub);
         head.appendChild(h);
         head.appendChild(archivedMark(archived.count[grp.key], grp.key));
@@ -4085,7 +4096,6 @@
       // A <button> inside a <button> is invalid, which is why the label moves out
       // rather than gaining a nested one — the same constraint the archive mark and the
       // rollup badge already answer to, two lines below.
-      var opens = g.opens && g.opens(grp.key);
       var toggle = el("button", "lh-toggle" + (opens ? " lh-toggle--split" : ""));
       toggle.type = "button";
       toggle.setAttribute("aria-expanded", shut ? "false" : "true");
@@ -4099,11 +4109,7 @@
       toggle.addEventListener("click", function () { toggleGroup(grp.key); });
       h.appendChild(toggle);
       if (opens) {
-        var openBtn = el("button", "head-open lh-label", grp.label);
-        openBtn.type = "button";
-        openBtn.title = "Open " + opens.title;
-        openBtn.addEventListener("click", function () { openModal(opens); });
-        h.appendChild(openBtn);
+        h.appendChild(openButton(opens, grp.label, "lh-label"));
         h.appendChild(el("span", "count", String(grp.items.length)));
       }
       head.appendChild(h);
