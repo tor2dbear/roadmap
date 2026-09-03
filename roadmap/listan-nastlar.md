@@ -1,8 +1,8 @@
 ---
 title: "Listan nästlar noder, inte grupper"
-status: next
+status: now
 tags: [ui]
-updated: 2026-09-02
+updated: 2026-09-03
 created: 2026-09-02
 priority: high
 target: 2026-09-21

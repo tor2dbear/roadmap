@@ -656,4 +656,50 @@ export async function run({ open }) {
     near(plats.topp, plats.barH + 8, 12,
       `editorns topp står strax under topbaren, inte nedanför tangentbordet (${plats.topp})`);
   }
+
+  group("en ändring på ett barnbarn räknas om hela vägen upp");
+  {
+    // Hittat av Codex på PR #43, och det är den klassiska formen: `progress` räknas på
+    // två ställen — i skördaren och optimistiskt i tavlan — och bara det ena ändrades.
+    // Den optimistiska kopian räknade direkta barn och rörde *en* nod, så efter en
+    // redigering av ett barnbarn föll den närmaste förälderns tal tillbaka till
+    // direktbarnsmåttet medan varje förfader ovanför stod kvar inaktuell, med fel
+    // rollup-signal till, tills nästa skörd en timme senare rättade tavlan utan att
+    // någon fick veta varför den varit fel.
+    const träd = (d) => {
+      const rot = d.items.find((i) => i.slug === "a-parent");
+      const mitten = d.items.find((i) => i.slug === "b-member");
+      const barnbarn = Object.assign({}, mitten, {
+        id: "alpha/a-gc", slug: "a-gc", repo: "acme/alpha", repoName: "Alpha", title: "Barnbarnet",
+        status: "next", parent: "acme/beta#b-member", parentRef: "beta/b-member",
+        children: [], progress: null, order: 10,
+      });
+      mitten.children = ["alpha/a-gc"];
+      mitten.progress = { done: 0, total: 1 };
+      rot.children = ["beta/b-member"];
+      rot.progress = { done: 0, total: 2 }; // underträdet: mitten + barnbarnet
+      d.items.push(barnbarn);
+      return d;
+    };
+    const gh = githubStub();
+    const p = await open("#alpha/a-gc", { token: true, github: gh.handler, data: träd });
+    await p.waitForSelector('.prop[data-field="status"]');
+    await p.locator('.prop[data-field="status"] button').first().click();
+    await p.waitForSelector(".pop, .sheet");
+    await p.locator(".pop, .sheet").getByText(/^Done$/).first().click();
+    await p.waitForTimeout(700);
+
+    const tal = await p.evaluate(() => {
+      const ut = {};
+      document.querySelectorAll(".card").forEach((c) => {
+        const t = (c.querySelector("h3") || {}).textContent.trim();
+        const r = c.querySelector(".rollup");
+        if (r) ut[t] = r.textContent.trim();
+      });
+      return ut;
+    });
+    eq(tal["A parent"], "1/2",
+      `roten räknar om hela vägen upp när ett barnbarn ändras: ${JSON.stringify(tal)}`);
+    eq(tal["b-member"], "1/1", "och mellannoden räknar sitt eget underträd");
+  }
 }
