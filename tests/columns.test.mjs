@@ -94,4 +94,102 @@ export async function run({ open }) {
     const after = await snapshot(p);
     eq(after.columns.includes("Mar 2026"), true, "ögat tänder växeln och månaden kommer fram");
   }
+
+  group("ett kolumnhuvud som namnger en puck är den pucken");
+  {
+    // Under `group=parent` är rubriken namnet på ett riktigt kort, men den var ren text.
+    // Överallt annars på tavlan öppnar en pucks namn den — korttiteln, föräldrachippet,
+    // brödsmulan — och det här var det enda stället regeln bröts. Det är dessutom
+    // stället där pucken annars *inte finns på skärmen*: den ligger i `No parent`, eller
+    // inne i sin egen förälders kolumn.
+    const långt = (d) => {
+      d.items.find((i) => i.slug === "a-parent").title = "Brand it + split product / instance";
+      return d;
+    };
+    const p = await open("?group=parent", { data: långt });
+    const huvuden = await p.evaluate(() =>
+      [...document.querySelectorAll(".col-head h2")].map((e) => ({
+        text: e.textContent.trim(),
+        named: e.classList.contains("named"),
+        knapp: !!e.querySelector(".head-open"),
+        versaler: getComputedStyle(e).textTransform,
+        höjd: Math.round(e.getBoundingClientRect().height),
+      })));
+    // Läses ur en tom platshållare om filtret inte hittar något: en kontroll som
+    // *kastar* när den fäller tar resten av filen med sig, och då rapporteras nio
+    // andra grupper som körda när de inte var det.
+    const namngivet = huvuden.filter((h) => h.named)[0] || {};
+    const kategori = huvuden.filter((h) => !h.named)[0] || {};
+    eq(huvuden.filter((h) => h.named).length, 1, `en kolumn namnger en puck: ${JSON.stringify(huvuden.map((h) => h.text))}`);
+    eq(namngivet.knapp, true, "och dess namn är en knapp som öppnar den");
+    eq(kategori.knapp, false, "medan `No parent` inte namnger någon puck och inte är en knapp");
+
+    // Versalerna är rätt för en kategorietikett och fel för en titel: de kostar
+    // 15–20 % av bredden *och* läsbarheten.
+    eq(namngivet.versaler, "none", "en titel bär sin egen skiftläge");
+    eq(kategori.versaler, "uppercase", "en kategorietikett bär fortfarande ögonbrynet");
+
+    // Och det som faktiskt gick sönder i bilden: `.col-head` är en flex-rad utan
+    // `min-width: 0`, så en lång titel radbröt till tre rader och centrerade räknaren
+    // och rollup-brickan mot ett treradigt block.
+    eq(namngivet.höjd, kategori.höjd,
+      `ett långt namn är lika högt som ett kort: ${namngivet.höjd} mot ${kategori.höjd}`);
+
+    await p.locator(".head-open").click();
+    await p.waitForTimeout(300);
+    eq(await p.evaluate(() => (location.hash || "").slice(1)), "alpha/a-parent",
+      "och ett klick öppnar den puck rubriken namnger");
+  }
+
+  group("en förälder vars barn alla är arkiverade är fortfarande en titel");
+  {
+    // Hittat av Codex på PR #42. Listan ritar en grupp som arkivet tömt helt som en
+    // *stump* — rubrik utan hopfällning, med märket som säger hur många som hålls
+    // tillbaka — och den grenen returnerar. Klassificeringen låg efter den, så just den
+    // rubriken behöll kategorins versaler fast den bär ett godtyckligt lång puck-namn:
+    // precis fallet regeln finns för.
+    const arkiverat = (d) => {
+      d.items.find((i) => i.slug === "a-parent").title = "Brand it + split product / instance";
+      d.items = d.items.map((i) => (i.slug === "b-member" ? Object.assign({}, i, { status: "done" }) : i));
+      return d;
+    };
+    const p = await open("?group=parent&layout=list", { data: arkiverat });
+    const m = await p.evaluate(() => {
+      const stub = [...document.querySelectorAll(".list-head")]
+        .find((e) => e.querySelector(".lh-stub"));
+      return stub && {
+        text: stub.querySelector(".lh-label").textContent.trim(),
+        named: stub.querySelector("h2").classList.contains("named"),
+        versaler: getComputedStyle(stub.querySelector("h2")).textTransform,
+      };
+    });
+    eq(!!m, true, "gruppen ritas som en stump när arkivet tömt den");
+    eq(m && m.named, true, `stumpens rubrik är en titel: ${JSON.stringify(m)}`);
+    eq(m && m.versaler, "none", "och bär därför inte kategorins versaler");
+  }
+
+  group("ett långt kolumnnamn gör inte sidan bredare än telefonen");
+  {
+    // Samma klass som kodraden och tabellen: brett innehåll scrollar i sin egen låda,
+    // sidan står stilla. Bara `parent` producerar godtyckligt långa etiketter — status,
+    // repo, agent, priority och target är korta av konstruktion — så defekten kom med
+    // den grupperingen och blir värre med nästling.
+    const långt = (d) => {
+      d.items.find((i) => i.slug === "a-parent").title =
+        "Ett orimligt långt föräldranamn som ingen skulle skriva men som formatet tillåter";
+      return d;
+    };
+    const p = await open("?group=parent", { data: långt, viewport: { width: 390, height: 844 } });
+    const m = await p.evaluate(() => {
+      const b = document.querySelector(".head-open");
+      return {
+        page: document.documentElement.scrollWidth,
+        view: window.innerWidth,
+        höjd: Math.round(b.getBoundingClientRect().height),
+        klippt: b.scrollWidth > b.clientWidth,
+      };
+    });
+    eq(m.page, m.view, `sidan är inte bredare än skärmen (${m.page} mot ${m.view})`);
+    eq(m.klippt, true, "namnet klipps i stället för att radbryta");
+  }
 }

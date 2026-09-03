@@ -1,8 +1,8 @@
 ---
 title: "Kolumnhuvudet är en puck, inte en etikett"
-status: now
+status: done
 tags: [ui]
-updated: 2026-09-02
+updated: 2026-09-03
 created: 2026-09-02
 priority: high
 target: 2026-09-08
@@ -43,11 +43,45 @@ slutar vara vardag; trunkeringen blir ett skyddsnät i stället för ett tillst�
 **Och de två fixarna hänger ihop:** trunkering är bara försvarbar för att namnet går att
 öppna. På telefon finns ingen hover, så `title=` är inget svar i sig.
 
+## Delivered
+
+**Rubriken är pucken, på tavlan.** `GROUPS` fick en valfri `opens(key)` som svarar på
+"vilken puck heter den här kolumnen efter?". Bara `parent` har ett svar — status, repo,
+agent, priority och target etiketterar sina kolumner med *kategorier*, och en kategori
+har ingenting att öppna. Rubriken blir en knapp när svaret finns, och ren text annars.
+
+**Versalerna var den billigare halvan av bredd-problemet.** `text-transform: uppercase`
+plus spärrning är rätt för `NOW` och `ETAPP SITE` och fel för en titel: mätt kostar det
+15–20 % av bredden *och* läsbarheten. En rubrik som namnger en puck bär pucken skiftläge
+nu (`.named`), en som namnger en kategori bär kvar ögonbrynet.
+
+**Och trunkeringen behövde `min-width: 0` för att alls kunna hända.** Ett flex-item är
+som standard aldrig smalare än sitt innehåll, så `text-overflow: ellipsis` hade inte
+avgjort något: titeln radbröt till tre rader och centrerade räknaren och rollup-brickan
+mot ett treradigt block. Bägge lagren behövdes.
+
+De två fixarna hänger ihop åt bara ett håll: trunkering är försvarbar *för att* namnet
+går att öppna. På telefon finns ingen hover, så `title=` är inget svar i sig.
+
+**Listan fick skiftläget och trunkeringen men inte öppnandet.** Där är hela rubriken
+redan hopfällningskontrollen (`.lh-toggle`), och en knapp inuti en knapp är ogiltig —
+filen säger det redan, på raden där arkivmärket och rollup-brickan läggs *utanför*
+toggeln. Att flytta ut etiketten gör en rad till två träffytor, och den mindre av dem
+blir hopfällningen. Det är en ändring av en kontroll som används på telefon, inte ett
+namnbyte, så den frågan ligger nedan i stället för i den här commiten.
+
+**Verifiering.** Sju kontroller i `tests/columns.test.mjs`: en kolumn namnger en puck och
+dess namn är en knapp som öppnar den, `No parent` gör ingetdera, skiftlägena skiljer sig
+åt rätt väg, ett långt namn är lika högt som ett kort, och vid 390px klipps namnet i
+stället för att göra sidan bredare än skärmen. Tre sabotage fäller var sin del.
+
 ## Open questions
 
-- **Listan har en krock.** Där är rubriken redan hopfällningskontrollen (`.lh-toggle`),
-  hela raden. Förslag: chevronen blir hopfällningen och namnet blir länken — två olika
-  handlingar, inte det överflödiga andra målet som sidofältsregeln varnar för. Men det
-  gör en rad till två träffytor och behöver ses på telefon.
+- **Listans öppnande, som är kvar och är en fråga till dig.** Två vägar: (a) chevronen
+  blir hopfällningen och namnet blir länken — två olika handlingar, inte det överflödiga
+  andra målet som sidofältsregeln varnar för, men hopfällningsytan krymper till
+  chevron + färgprick; (b) listan behåller sin rad som en enda kontroll och öppnandet
+  bor kvar på tavlan. (b) betyder att de två layouterna skiljer sig åt i vad rubriken
+  gör, vilket är precis den sortens inkonsekvens `en-sak-en-plats` städade bort.
 - Ska kolumnen breddas för långa namn i stället? Nej enligt mig — fast bredd är vad som
   gör en kanban skannbar. Skrivet här för att någon annars föreslår det.
