@@ -7,7 +7,7 @@
 // is the thing worth pinning.
 import { githubStub } from "./fixture.mjs";
 import { readFile } from "node:fs/promises";
-import { group, eq, ok } from "./assert.mjs";
+import { group, eq, ok, near } from "./assert.mjs";
 
 const trigger = (page, text) => page.locator(".prop-trigger", { hasText: text });
 
@@ -540,5 +540,116 @@ export async function run({ open }) {
     const kvitto = await p2.evaluate(() => ((document.querySelector(".toast") || {}).textContent || "").trim());
     ok(/in this browser only/.test(kvitto), `raderingens kvitto lovar inget mer: ${JSON.stringify(kvitto)}`);
     eq(gh2.writes, [], `och ingenting nådde GitHub (${gh2.writes.length})`);
+  }
+
+  group("kroppseditorn lämnar ifrån sig exakt det som öppnades");
+  {
+    // Den här gruppen bytte innehåll efter ett fynd på enhet, och bytet är poängen.
+    //
+    // Editorn var en `contenteditable="plaintext-only"` ett tag, för att komma undan
+    // iOS 16px-golv. Mätt på telefonen zoomade en 14px editable div sidan med 1,147 —
+    // 16/14 är 1,143 — så golvet gäller det fokuserade *redigerbara elementet*, inte
+    // taggen. Den ändringen är återställd.
+    //
+    // Vad den kostade under tiden är den egentliga lärdomen: i Safari stod kroppen som
+    // en enda hopklistrad klump, eftersom `white-space: pre-wrap` togs bort efter att
+    // ha mätts som verkningslös i Chromium — där sätter motorns egen stilmall den, i
+    // Safari inte. Ett Save hade skrivit den klumpen till .md-filen.
+    //
+    // Den gamla gruppen kunde inte fånga det. Den skrev *ny* text med tangentbordet
+    // och kollade en beräknad `white-space`. Det som gick sönder var att öppna en
+    // *befintlig* flerradig kropp och spara den orörd — så det är vad som mäts nu,
+    // genom commiten. Ett påstående om utfallet överlever ett byte av mekanism; ett
+    // påstående om mekanismen gör det inte.
+    const gh = githubStub();
+    const kropp = "## Goal\nFörsta stycket.\n\n- Punkt\n  - Under, med två inledande blanksteg\n\n## Research\nSista stycket.";
+    const data = (d) => { d.items.find((i) => i.slug === "a-now").body = kropp; return d; };
+    const p = await open("#alpha/a-now", { token: true, github: gh.handler, data });
+    await p.locator(".body-edit").click();
+    await p.waitForSelector(".body-editor");
+
+    // Kontraktet är inte ett tal utan en likhet: editorn ska bära texten den ersätter.
+    // Mätt mot en riktig `.modal-body` i samma pane, inte mot en hårdkodad siffra —
+    // annars mäter kontrollen att någon skrev 16 på två ställen, inte att de hör ihop.
+    const mät = (page) => page.evaluate(() => {
+      const e = document.querySelector(".body-editor");
+      const läst = document.createElement("div");
+      läst.className = "modal-body";
+      läst.style.position = "absolute";
+      document.querySelector(".detail-content").appendChild(läst);
+      const r = getComputedStyle(läst);
+      const ut = {
+        tagg: e.tagName.toLowerCase(),
+        storlek: getComputedStyle(e).fontSize,
+        familj: getComputedStyle(e).fontFamily,
+        radhöjd: getComputedStyle(e).lineHeight,
+        rStorlek: r.fontSize, rFamilj: r.fontFamily, rRadhöjd: r.lineHeight,
+      };
+      läst.remove();
+      return ut;
+    });
+
+    const box = await mät(p);
+    eq(box.tagg, "textarea", "en textarea, som bevarar radbrytningar utan hjälp av CSS");
+    eq(box.storlek, box.rStorlek, `samma storlek som texten den ersätter (${box.storlek})`);
+    eq(box.familj, box.rFamilj, "och samma typsnitt — mono var andra halvan av hoppet");
+    eq(box.radhöjd, box.rRadhöjd, "och samma radhöjd, så texten inte ens flyttar sig");
+
+    // Rör ingenting. Att öppna och spara ska vara en nulloperation.
+    await p.locator(".body-edit-actions .primary").click();
+    await p.waitForTimeout(600);
+    eq(gh.writes.length, 1, "en commit");
+    const skrivet = gh.writes[0].content;
+    ok(skrivet.includes(kropp),
+      `en orörd kropp kommer ut tecken för tecken som den gick in:\n${JSON.stringify(skrivet)}`);
+    ok(!/Goal Första/.test(skrivet),
+      `raderna klistras inte ihop — det var precis vad Safari gjorde med contenteditable-varianten:\n${JSON.stringify(skrivet)}`);
+
+    // Och på telefon, där hela frågan uppstod. Kroppen är lång här med flit: det är en
+    // lång kropp som avslöjar bägge felen nedan, och en kort som döljer dem.
+    const lång = Array.from({ length: 40 }, (_, i) => `Stycke ${i + 1} i en puck som är för lång för en skärm.`).join("\n\n");
+    const långData = (d) => { d.items.find((i) => i.slug === "a-now").body = lång; return d; };
+    const mobil = await open("#alpha/a-now", { token: true, github: gh.handler, data: långData, viewport: { width: 390, height: 844 } });
+    await mobil.locator(".body-edit").click();
+    await mobil.waitForSelector(".body-editor");
+    await mobil.waitForTimeout(200);
+
+    // Likheten ska hålla här också, men *vilket* tal den landar på är inte fritt: iOS
+    // zoomar in allt redigerbart under 16px, så det är läsningen som lyfts dit och
+    // inte skrivandet som sänks.
+    const m = await mät(mobil);
+    eq(m.storlek, "16px", "på telefon är editorn 16px — golvet iOS kräver av allt redigerbart");
+    eq(m.rStorlek, "16px", "och läsningen är lyft dit, så det inte finns något hopp kvar");
+    eq(m.familj, m.rFamilj, "fortfarande samma typsnitt");
+
+    // Och på en bred pekskärm — en iPad, eller en telefon i landskap. Golvet gäller
+    // *fokuserad redigering*, inte en viewportbredd, så en regel som bara frågar efter
+    // bredd svarar för en telefon i porträtt och för ingenting annat: editorn hade
+    // fallit till 14px och zoomat igen, på precis den enhetsklass där läsning och
+    // skrivande just blivit samma text. Hittat av Codex på PR #40.
+    const platta = await open("#alpha/a-now", {
+      token: true, github: gh.handler, data: långData,
+      viewport: { width: 1024, height: 768 }, hasTouch: true,
+    });
+    await platta.locator(".body-edit").click();
+    await platta.waitForSelector(".body-editor");
+    const t = await mät(platta);
+    eq(t.storlek, "16px", "en bred pekskärm får golvet, inte 14px");
+    eq(t.rStorlek, t.storlek, "och läsningen följer med, så hoppet inte kommer tillbaka där");
+
+    // Och var den hamnar. Att fokusera ett fält scrollar det i sikte mot *layout*-vyn,
+    // som inte vet att ett tangentbord täcker nedre halvan — och autoGrow gör lådan
+    // tusentals pixlar hög efter den scrollen. Mätt före fixen: toppen landade 498px
+    // ner på en 844px-vy, alltså helt under tangentbordet. Ingen webbläsare här har ett
+    // tangentbord, så kontrollen mäter det som *går* att mäta: att toppen står i det
+    // översta bandet i stället för långt ner på sidan.
+    const plats = await mobil.evaluate(() => ({
+      topp: Math.round(document.querySelector(".body-editor").getBoundingClientRect().top),
+      barH: Math.round(document.querySelector(".topbar").getBoundingClientRect().height),
+      höjd: Math.round(document.querySelector(".body-editor").getBoundingClientRect().height),
+    }));
+    ok(plats.höjd > 844, `lådan är längre än skärmen, annars mäter kontrollen ingenting (${plats.höjd})`);
+    near(plats.topp, plats.barH + 8, 12,
+      `editorns topp står strax under topbaren, inte nedanför tangentbordet (${plats.topp})`);
   }
 }
