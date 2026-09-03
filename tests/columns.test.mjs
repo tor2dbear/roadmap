@@ -141,6 +141,33 @@ export async function run({ open }) {
       "och ett klick öppnar den puck rubriken namnger");
   }
 
+  group("en förälder vars barn alla är arkiverade är fortfarande en titel");
+  {
+    // Hittat av Codex på PR #42. Listan ritar en grupp som arkivet tömt helt som en
+    // *stump* — rubrik utan hopfällning, med märket som säger hur många som hålls
+    // tillbaka — och den grenen returnerar. Klassificeringen låg efter den, så just den
+    // rubriken behöll kategorins versaler fast den bär ett godtyckligt lång puck-namn:
+    // precis fallet regeln finns för.
+    const arkiverat = (d) => {
+      d.items.find((i) => i.slug === "a-parent").title = "Brand it + split product / instance";
+      d.items = d.items.map((i) => (i.slug === "b-member" ? Object.assign({}, i, { status: "done" }) : i));
+      return d;
+    };
+    const p = await open("?group=parent&layout=list", { data: arkiverat });
+    const m = await p.evaluate(() => {
+      const stub = [...document.querySelectorAll(".list-head")]
+        .find((e) => e.querySelector(".lh-stub"));
+      return stub && {
+        text: stub.querySelector(".lh-label").textContent.trim(),
+        named: stub.querySelector("h2").classList.contains("named"),
+        versaler: getComputedStyle(stub.querySelector("h2")).textTransform,
+      };
+    });
+    eq(!!m, true, "gruppen ritas som en stump när arkivet tömt den");
+    eq(m && m.named, true, `stumpens rubrik är en titel: ${JSON.stringify(m)}`);
+    eq(m && m.versaler, "none", "och bär därför inte kategorins versaler");
+  }
+
   group("ett långt kolumnnamn gör inte sidan bredare än telefonen");
   {
     // Samma klass som kodraden och tabellen: brett innehåll scrollar i sin egen låda,

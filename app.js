@@ -4049,6 +4049,15 @@
       // headings would have dropped out of the heading map. The rollup badge stays
       // outside the button — it is the parent's number, not part of the control.
       var h = el("h2");
+      // The casing follows the same rule as the board's: a head named after a puck
+      // carries a title, not an eyebrow. Set *before* the `archivedOnly` branch, which
+      // returns — a parent whose every child is archived is still a puck title, and it
+      // is exactly the arbitrary-length case this rule exists for.
+      //
+      // What the list does not yet carry is the *opening*: its whole heading is already
+      // the fold control, and splitting that in two is a change to a target used on a
+      // phone rather than a rename.
+      if (g.opens && g.opens(grp.key)) h.classList.add("named");
       // A group the archive emptied has nothing to collapse and no visible count worth
       // printing — "Done 0 · 3 archived" says zero twice. So it is a plain heading, not
       // a control: swatch and label, and the mark carries both the number and the way
@@ -4068,11 +4077,6 @@
         board.appendChild(section);
         return;
       }
-      // The casing follows the same rule as the board's: a head named after a puck
-      // carries a title, not an eyebrow. What the list does *not* yet carry is the
-      // opening — its whole heading is already the fold control, and splitting that in
-      // two is a change to a target used on a phone rather than a rename.
-      if (g.opens && g.opens(grp.key)) h.classList.add("named");
       var toggle = el("button", "lh-toggle");
       toggle.type = "button";
       toggle.setAttribute("aria-expanded", shut ? "false" : "true");
