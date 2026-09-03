@@ -1,8 +1,8 @@
 ---
 title: "Rollupen räknar hela trädet"
-status: later
+status: done
 tags: [dx]
-updated: 2026-09-02
+updated: 2026-09-03
 created: 2026-09-02
 priority: medium
 target: 2026-09-21
@@ -29,10 +29,40 @@ signaler, och det är därför det är en egen puck och inte en rad i en annan.
 Skörden vandrar redan skogen för att upptäcka cykler, så vandringen finns; det är
 räkningen som ska byta nivå.
 
+## Delivered
+
+`progress` räknar hela **underträdet**. `resolveHierarchy()` vandrar ner genom
+`children` — säkert, eftersom cyklerna redan är kapade två steg tidigare, så det som
+återstår är en skog.
+
+**Öppna frågan i den här pucken besvarades tvärtemot vad jag lutade åt.** Jag skrev att
+bara löv borde räknas. Fel: en puck med barn är fortfarande en puck, med egen status och
+egen kropp, och att utesluta den ur räkningen vore att göra den till en **behållare** —
+vilket är den andra posttyp modellen uttryckligen inte har. Alla ättlingar räknas.
+
+`children` är oförändrat de **direkta** barnen. Det är relationen filen skriver; bara
+måttet bytte nivå.
+
+## Skördaren hade ingen testtäckning alls
+
+Det är det egentliga fyndet. `resolveHierarchy()` avgör `parentRef`, `children`,
+`progress` och halva signalerna — och varje tavel-test läser en *fixtur*-payload, så
+koden som producerar den riktiga mättes bara genom att titta på tavlan efteråt.
+
+`tests/harvest.test.mjs` skriver en liten repo av riktig markdown i en temp-katalog,
+kör skriptet, och läser det som skrevs. `ROADMAP_ROOT` håller varje skriven fil inne i
+temp-katalogen, så en körning kan inte röra det här checkoutets `data/`. Tio kontroller
+på 0,3 sekunder — ingen webbläsare.
+
+**Vad sabotaget avslöjar är mer än en siffra.** Med rollupen tillbaka på direkta barn
+blir roten `1/2` i stället för `2/4` — men framför allt blir `rollup-open` **tom**. En
+rot som påstår sig klar medan ett barnbarn står öppet flaggades alltså inte alls. Det
+var inte bara ett tal som pekade fel; det var en signal som var tyst.
+
 ## Open questions
 
-- Ska en mellannods egen rollup också räkna sitt underträd (ja, av samma skäl), eller
-  bara rotens?
-- Räknas mellannoden *själv* i sin förälders total? En rot med ett barn som har tre barn
-  är "0 av 3" eller "0 av 4" beroende på svaret. Jag lutar åt att bara **löv** räknas —
-  en nod som bara håller andra puckar är ingen egen del av arbetet.
+- Bägge frågorna nedan är besvarade i *Delivered*: en mellannods rollup räknar sitt eget
+  underträd, och mellannoden räknas själv i sin förälders total.
+- Kvar: `ROADMAP.md`-digesten skriver `done/total` i sin metarad. Den ärver det nya
+  måttet gratis, men ingen kontroll läser digesten — den nya testfilen är en plats att
+  lägga en om det någonsin skaver.
