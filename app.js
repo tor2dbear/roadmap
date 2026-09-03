@@ -4077,16 +4077,35 @@
         board.appendChild(section);
         return;
       }
-      var toggle = el("button", "lh-toggle");
+      // Two things to do, so two controls — but only where there *are* two. A heading
+      // named after a puck folds its group and opens that puck; one named after a
+      // category (`NOW`, a repo, a month) has nothing to open, and keeps the whole row
+      // as one fold target rather than losing it to a split it has no use for.
+      //
+      // A <button> inside a <button> is invalid, which is why the label moves out
+      // rather than gaining a nested one — the same constraint the archive mark and the
+      // rollup badge already answer to, two lines below.
+      var opens = g.opens && g.opens(grp.key);
+      var toggle = el("button", "lh-toggle" + (opens ? " lh-toggle--split" : ""));
       toggle.type = "button";
       toggle.setAttribute("aria-expanded", shut ? "false" : "true");
       toggle.title = (shut ? "Expand " : "Collapse ") + grp.label;
       toggle.appendChild(icon(shut ? "chev-right" : "chev-down", "lh-caret"));
       toggle.appendChild(el("span", "swatch"));
-      toggle.appendChild(el("span", "lh-label", grp.label));
-      toggle.appendChild(el("span", "count", String(grp.items.length)));
+      if (!opens) {
+        toggle.appendChild(el("span", "lh-label", grp.label));
+        toggle.appendChild(el("span", "count", String(grp.items.length)));
+      }
       toggle.addEventListener("click", function () { toggleGroup(grp.key); });
       h.appendChild(toggle);
+      if (opens) {
+        var openBtn = el("button", "head-open lh-label", grp.label);
+        openBtn.type = "button";
+        openBtn.title = "Open " + opens.title;
+        openBtn.addEventListener("click", function () { openModal(opens); });
+        h.appendChild(openBtn);
+        h.appendChild(el("span", "count", String(grp.items.length)));
+      }
       head.appendChild(h);
       // Outside the toggle, for the reason stated above it: a <button> inside a <button>
       // is invalid, and this one has its own click.
