@@ -33,6 +33,12 @@ export async function run() {
   // Utan mellanslag är det enklare att skriva förväntningar som inte handlar om
   // var radbrytningarna råkar hamna.
   const flat = html.replace(/\n/g, "");
+  // Mätt per stycke, för flera av kontrollerna handlar om att ett stycke inte svalde
+  // något som skulle stått för sig självt.
+  const avkoda = (t) => t.replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&amp;/g, "&");
+  const paras = (flat.match(/<p>[\s\S]*?<\/p>/g) || [])
+    .map((p) => avkoda(p.replace(/<[^>]+>/g, "")).trim());
 
   group("emfas");
   {
@@ -115,8 +121,6 @@ export async function run() {
     // paragrafbufferten, som fogar ihop mjukbrutna rader med mellanslag — så en hel
     // tabell blev en mening. Mätt per stycke, för det är stycket som var för långt;
     // att platta ut taggarna till text först hade tagit bort just den gränsen.
-    const paras = (flat.match(/<p>[\s\S]*?<\/p>/g) || [])
-      .map((p) => p.replace(/<[^>]+>/g, "").trim());
     ok(paras.includes("| a | b |") && paras.includes("| c | d |"),
       "en tabell utan avgränsarrad står kvar en rad per stycke");
     ok(!paras.some((p) => p.includes("| a | b |") && p.includes("| c | d |")),
@@ -127,6 +131,50 @@ export async function run() {
       "en tematisk brytning står kvar som text, men på egen rad");
     ok(!paras.some((p) => p !== "---" && p.includes("---")),
       "och sugs inte in i ett stycke med annan text");
+  }
+
+  group("en URL får aldrig bli markup");
+  {
+    // Hittat av Codex på PR #40, och det var ingen teoretisk träff: `esc()` escapade
+    // `&`, `<` och `>` men inte `"`. En bar URL går in i `href="…"` och resultatet går
+    // genom `innerHTML`, så ett citattecken i adressen stänger attributet och resten
+    // blir markup — på vår origin, där GitHub-token ligger. renderMd ritar dessutom
+    // issue-kroppar och kommentarer, så den som skriver URL:en behöver inte vara den
+    // som äger tavlan.
+    // Mätt på *taggarna*, inte på texten: adressen syns förstås som text i länkens
+    // etikett, och en kontroll som bara letar efter strängen fäller på fel sak.
+    // Blanksteg räcker inte som avgränsare: angreppet stänger href:en med ett
+    // citattecken och skriver `"onpointerenter=` utan mellanrum, så en regex som kräver
+    // blanksteg före `on` missar precis det den finns för.
+    ok(!/["'\s]on[a-z]+\s*=/i.test(html),
+      `ingen tagg bär en händelsehanterare:\n${(html.match(/<a[^>]*>/) || [""])[0]}`);
+    ok(html.includes('href="https://safe.example&quot;onpointerenter=&quot;alert"'),
+      "citattecknet står escapat inne i href:en i stället för att stänga den");
+
+    ok(flat.includes('>https://example.com/a*b*c</a>'),
+      "asterisker i en sökväg äts inte av emfasen — hela adressen är länken");
+    ok(!/<em>b<\/em>/.test(flat), "och blir inte kursiv text mitt i URL:en");
+
+    ok(/<a[^>]*><strong>viktigt<\/strong><\/a>/.test(flat),
+      "en formaterad etikett i en skriven länk renderas, inte som asterisker");
+    ok(/<a[^>]*><code>kod<\/code><\/a>/.test(flat),
+      "och ett kodspann i en etikett likaså");
+  }
+
+  group("det dokumentationen lovar om det vi inte tolkar");
+  {
+    // CONVENTION säger att rå HTML och bilder står kvar *på egen rad*. BLOCKISH täckte
+    // tabellrader, blockcitat och brytningar och stannade precis där texten fortsatte.
+    ok(paras.some((p) => p === '<div class="inte-en-tagg">'),
+      `en rå tagg står ensam i sitt stycke: ${JSON.stringify(paras.filter((p) => p.includes("inte-en-tagg")))}`);
+    ok(paras.some((p) => p === "Ett stycke direkt efter."),
+      "och raden efter dem börjar ett eget stycke");
+    // Bildsyntaxen åt sig själv innan den här: länkregeln matchade `[alt](url)` inuti
+    // `![alt](url)` och lämnade ett ensamt `!` framför en länk till bildfilen.
+    ok(paras.some((p) => p === "![en bild](https://example.com/b.png)"),
+      `en bild står kvar precis som den skrevs: ${JSON.stringify(paras.filter((p) => p.includes("bild")))}`);
+    ok(!paras.some((p) => p.includes("inte-en-tagg") && p.includes("bild")),
+      "och de två klistras inte ihop med varandra eller med stycket efter");
   }
 
   group("escaping");

@@ -56,6 +56,10 @@ export async function makeOpener(getBrowser, origin) {
       viewport: opts.viewport || { width: 1400, height: 900 },
       colorScheme: opts.colorScheme || "light",
       deviceScaleFactor: opts.deviceScaleFactor || 1,
+      // Touch emulation, which is what makes `(pointer: coarse)` match. A viewport
+      // width cannot answer for an iPad or a phone in landscape — both are wide *and*
+      // touch — and that is the case the editor's 16px floor turns on.
+      hasTouch: !!opts.hasTouch,
     });
     pages.push(page);
     // A write path only exists when a token does — every editable control in the rail

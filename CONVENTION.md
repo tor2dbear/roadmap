@@ -116,7 +116,8 @@ board:
 `##`–`####` headings · `**bold**` · `*italic*` (nested in each other too) ·
 `` `code` `` · fenced ``` blocks · bullet and numbered lists, **nested by
 indentation** · `[text](url)` and bare URLs · `>` blockquotes · GFM tables
-(`|---|` separator required, `:` alignment honoured).
+(a `|---|` delimiter row is required — one hyphen per cell is enough, as in GFM —
+and `:` alignment is honoured).
 
 Outside that subset — raw HTML, images, `---` rules, footnotes — nothing is
 interpreted: **the line is shown as you typed it, on its own line.** It is never

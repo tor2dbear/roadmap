@@ -622,6 +622,21 @@ export async function run({ open }) {
     eq(m.rStorlek, "16px", "och läsningen är lyft dit, så det inte finns något hopp kvar");
     eq(m.familj, m.rFamilj, "fortfarande samma typsnitt");
 
+    // Och på en bred pekskärm — en iPad, eller en telefon i landskap. Golvet gäller
+    // *fokuserad redigering*, inte en viewportbredd, så en regel som bara frågar efter
+    // bredd svarar för en telefon i porträtt och för ingenting annat: editorn hade
+    // fallit till 14px och zoomat igen, på precis den enhetsklass där läsning och
+    // skrivande just blivit samma text. Hittat av Codex på PR #40.
+    const platta = await open("#alpha/a-now", {
+      token: true, github: gh.handler, data: långData,
+      viewport: { width: 1024, height: 768 }, hasTouch: true,
+    });
+    await platta.locator(".body-edit").click();
+    await platta.waitForSelector(".body-editor");
+    const t = await mät(platta);
+    eq(t.storlek, "16px", "en bred pekskärm får golvet, inte 14px");
+    eq(t.rStorlek, t.storlek, "och läsningen följer med, så hoppet inte kommer tillbaka där");
+
     // Och var den hamnar. Att fokusera ett fält scrollar det i sikte mot *layout*-vyn,
     // som inte vet att ett tangentbord täcker nedre halvan — och autoGrow gör lådan
     // tusentals pixlar hög efter den scrollen. Mätt före fixen: toppen landade 498px

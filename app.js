@@ -249,29 +249,51 @@
       .replace(/\u0000/g, "") // the inline pass parks finished HTML on NUL — keep it ours
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
+      .replace(/>/g, "&gt;")
+      // The quote is not decoration. A URL reaches `href="…"` and the result goes
+      // through `innerHTML`, so a `"` inside one closes the attribute and the rest of
+      // the URL becomes markup — `https://x"onpointerenter="…` is a real event handler
+      // on our origin, where the GitHub token lives. renderMd also draws issue bodies
+      // and comments, so the author of that URL need not be the board's owner.
+      // Escape-first is the whole safety property; it was one character short of it.
+      .replace(/"/g, "&quot;");
   }
   function mdLink(href, text) {
     return '<a href="' + href + '" target="_blank" rel="noopener">' + text + "</a>";
   }
-  // Inline code and explicit links are lifted out of the string before emphasis and
-  // autolinking run, then put back. Without that every rule reaches inside every
-  // other one — `**` inside a code span turned bold, and a bare URL inside an
-  // explicit link's href would be linked a second time.
+  // Emphasis, split out because it has to run in two places: over a link's *label*
+  // before that link is parked, and over the line once every link is out of the way.
+  function mdEmphasis(s) {
+    return String(s)
+      // `[^*]+` could not span the inner `*`, so `**fet med *kursiv* inuti**` left its
+      // `**` on screen. A single `*` is allowed inside; a double still closes.
+      .replace(/\*\*((?:[^*]|\*(?!\*))+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/(^|[^*])\*([^*]+)\*/g, "$1<em>$2</em>");
+  }
+  // Everything link-shaped is lifted out of the string first and put back last, so no
+  // rule can reach inside another. The order is what the bugs were made of:
+  //
+  //   - Emphasis used to run *before* the autolinker, so `…/a*b*c` had its path eaten
+  //     (`<em>b</em>`) and only the head of the URL was linked.
+  //   - A whole explicit link used to be parked before emphasis ran, so a formatted
+  //     label — `[**viktigt**](…)` — kept its asterisks. The label is emphasised on the
+  //     way into the hold instead; the href never is.
   function mdInline(s) {
     var held = [];
     function hold(html) { return "\u0000" + (held.push(html) - 1) + "\u0000"; }
     var out = String(s)
       .replace(/`([^`]+)`/g, function (_, c) { return hold("<code>" + c + "</code>"); })
-      .replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, function (_, t, u) { return hold(mdLink(u, t)); })
-      // `[^*]+` could not span the inner `*`, so `**fet med *kursiv* inuti**` left its
-      // `**` on screen. A single `*` is allowed inside; a double still closes.
-      .replace(/\*\*((?:[^*]|\*(?!\*))+?)\*\*/g, "<strong>$1</strong>")
-      .replace(/(^|[^*])\*([^*]+)\*/g, "$1<em>$2</em>")
+      // `(^|[^!])` and not a lookbehind: `![alt](url)` is image syntax, which the board
+      // does not interpret — without the guard the link rule ate the brackets and left
+      // a stray `!` in front of a link to the image file. Re-emitting the preceding
+      // character is the same shape the emphasis rule already uses, and it works on the
+      // iOS versions a lookbehind does not.
+      .replace(/(^|[^!])\[([^\]]+)\]\((https?:[^)]+)\)/g, function (_, pre, t, u) { return pre + hold(mdLink(u, mdEmphasis(t))); })
       // A bare URL is a link everywhere else a reader meets one. Trailing sentence
       // punctuation is left outside the link; parens are not part of a URL here.
-      .replace(/(^|[\s(>])(https?:\/\/[^\s<>()]*[^\s<>().,;:!?])/g, function (_, pre, u) { return pre + mdLink(u, u); });
-    // A held link's text can itself hold a code span, so one pass is not enough.
+      .replace(/(^|[\s(>])(https?:\/\/[^\s<>()]*[^\s<>().,;:!?])/g, function (_, pre, u) { return pre + hold(mdLink(u, u)); });
+    out = mdEmphasis(out);
+    // A held link's label can itself hold a code span, so one pass is not enough.
     // Indices only ever point backwards, so this terminates.
     while (out.indexOf("\u0000") >= 0) {
       out = out.replace(/\u0000(\d+)\u0000/g, function (_, i) { return held[+i]; });
@@ -287,7 +309,11 @@
   // Blocks we do not render must still *break* the paragraph. Folding them in with a
   // space is what turned a table into one long sentence — every row and the `|---|`
   // separator glued into a single `<p>`. (`&gt;`: see the note on esc() above.)
-  var BLOCKISH = /^\s*(?:\||&gt;|-{3,}\s*$|\*{3,}\s*$|_{3,}\s*$)/;
+  // `&lt;` and `![` are here because CONVENTION promises it: raw HTML and images are
+  // not interpreted, and "not interpreted" has to mean *shown on its own line* rather
+  // than folded into the neighbouring sentence. Without them the guarantee held for
+  // tables and stopped exactly where the documentation kept going.
+  var BLOCKISH = /^\s*(?:\||&gt;|&lt;|!\[|-{3,}\s*$|\*{3,}\s*$|_{3,}\s*$)/;
   function mdCells(line) {
     return TABLE_ROW.exec(line)[1].split("|").map(function (c) { return c.trim(); });
   }
@@ -7846,6 +7872,11 @@
     var vv = window.visualViewport;
     var vvHeight = vv ? vv.height : 0;
     function onKeyboard() {
+      // Leaving the puck by the breadcrumb, Back or the sidebar never runs `restore()`,
+      // so this can still be registered against an editor that is no longer in the
+      // document. `reveal()` already refuses to act on one; this is what stops the
+      // listener itself from outliving every abandoned edit.
+      if (!ta.isConnected) { vv.removeEventListener("resize", onKeyboard); return; }
       if (vv.height >= vvHeight) { vvHeight = vv.height; return; }
       vv.removeEventListener("resize", onKeyboard);
       reveal();

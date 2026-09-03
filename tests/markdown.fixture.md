@@ -97,3 +97,21 @@ Och ett stycke efter den.
 
 En tagg: <script>alert(1)</script> och en ampersand: A & B. Båda ska synas som
 text, inte verka.
+
+## Det som inte får bli markup
+
+En bar URL med ett citattecken i:
+https://safe.example"onpointerenter="alert(1) — den ska förbli text i en href, inte
+stänga attributet.
+
+En bar URL med asterisker i sökvägen: https://example.com/a*b*c — hela adressen är
+länken, och `*b*` är inte kursivt.
+
+En skriven länk med formaterad etikett: [**viktigt**](https://example.com/x) och
+[`kod`](https://example.com/y).
+
+En rå tagg och en bild, bägge **utan tomrad före** — det är där de klistras ihop, och
+en tomrad hade dolt felet genom att avsluta stycket åt oss:
+<div class="inte-en-tagg">
+![en bild](https://example.com/b.png)
+Ett stycke direkt efter.

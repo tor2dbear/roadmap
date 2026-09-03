@@ -778,7 +778,12 @@ body {
    which sits *inside* `.modal-body` and therefore cannot drift from the text it
    replaces. `--prose-sm` is the step below, for code blocks and table cells. */
 .modal-body, .disc-body { --prose: var(--fs-lg); --prose-sm: var(--fs-md); }
-@media (max-width: 640px) {
+/* Touch *or* narrow, and the touch half is the one that matters: an iPad, or a phone
+   in landscape, is wider than 640px and still zooms a focused field under 16px — which
+   would put the editor back in the zoom this whole rule exists to avoid, and reopen the
+   jump on the one device class where reading and editing were finally the same text.
+   Width alone answered for a phone in portrait and nothing else. */
+@media (max-width: 640px), (pointer: coarse) {
   .modal-body, .disc-body { --prose: var(--fs-2xl); --prose-sm: var(--fs-lg); }
 }
 .modal-body { margin-top: 14px; font-size: var(--prose); line-height: var(--lh-prose); color: var(--ink-2); overflow-wrap: anywhere; }
