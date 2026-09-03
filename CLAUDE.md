@@ -52,7 +52,7 @@ mirror run deletes.
   fictional data. Deploys to `etapp.tor2dbear.com`.
 
 `.github/workflows/sync-product.yml` drives both code arrows on a push to `main`
-that touches the tool: an rsync to `etapp` (personal config swapped for generic
+that touches the tool: an rsync to `parent` (personal config swapped for generic
 examples), then `app.js` / `styles.css` / `index.html` / `fonts/` copied into
 `etapp-site/demo/`. It commits and pushes on its own.
 
@@ -127,11 +127,11 @@ tagged `product` track this direction.
   — `blocks[]` the exact mirror (what this puck holds up) and `missingDepends[]` the references that
   resolved to nothing. Only `depends:` is authored. Read `blockedBy` to find what's
   actually startable. `parent` is
-  the etapp as written in the puck (a same-repo slug or `owner/repo#slug`, or `null`);
+  the parent as written in the puck (a same-repo slug or `owner/repo#slug`, or `null`);
   `parentRef` is it resolved to an id, `children[]` the ids pointing back, and
   `progress` `{ done, total }` over those children. Only `parent:` is authored — the
   other three are derived at harvest, because a stored `children:` could disagree with
-  the `parent:` lines. A puck with children *is* the etapp; there is no second record
+  the `parent:` lines. A puck with children *is* the parent; there is no second record
   type. `issueState` is
   `"open"`/`"closed"` (or `null`) — the real state of the linked `issue`,
   reconciled at harvest. `created` is `YYYY-MM-DD` (or `null`) — the puck's
@@ -200,7 +200,7 @@ Runs inside a source repo, operates on that repo's `roadmap/`, and edits
 frontmatter in place (bumping `updated` on every mutation) so status/date upkeep
 is automatic. `roadmap new "Title"`, `roadmap start|next|later|done <slug>`,
 `roadmap tag`, `roadmap issue`, `roadmap target`, `roadmap parent <slug>
-<parent-slug>` (etapp membership; `--clear` takes it out), `roadmap depends <slug>
+<parent-slug>` (parent membership; `--clear` takes it out), `roadmap depends <slug>
 +<ref> -<ref>` (blockers, same `+/-` shape as `tag`), `roadmap move <slug>
 --before|--after <slug>` (manual rank), `roadmap renumber` (tidy a column's
 `order` back to 10, 20, 30 …), `roadmap list`, `roadmap install-hook` (a
@@ -235,7 +235,7 @@ Two rules the pucks paid for:
   like it worked and vanishes an hour later.
   Creating a *puck* from a picker costs one commit or two, and which one is not a
   choice: membership is authored on the child, so the relation fits in the new file
-  only when the new puck is the child (`＋ Add puck` on an etapp). From the `Etapp`
+  only when the new puck is the child (`＋ Add puck` on a parent). From the `Parent`
   or `Blocked by` field the new puck is the other end, and the link is a second write
   to the puck you are standing in — create first, link only if the create committed,
   or a puck would point at a file that had just been rolled back.
@@ -296,7 +296,7 @@ all*. One rule settles it:
 - A chip stands down only for the **exact duplicate** — a term that is nothing but "hide
   these columns", in the polarity that hides (`columnTerm`'s `hideNeg`), whose columns
   are in the tray. Since `is:` terms gained alternatives, "nothing but" is a *length*
-  test as well: `is:stale,member` hides the No etapp column and also filters by
+  test as well: `is:stale,member` hides the No parent column and also filters by
   staleness, and suppressing its chip left that half invisible on the board and
   unreachable from the one row that exists to remove it. A positive term (`Status: Now, Next, Later`) is the scope you chose,
   not a column you hid; it keeps its chip, and the tray saying what fell outside it is a
@@ -332,17 +332,17 @@ it off showed PIA's 6 open pucks and dropped 39 landed ones in silence.
 
 Ticking two values in one facet is a **union**; ticking values in two facets is an
 **intersection**. Every field followed that rule except `is:`, which wrote one term per
-value — and since `runQuery` ANDs terms, `is:etapp` + `is:standalone` asked for "is an
-etapp *and* stands outside every etapp" and emptied the board. (The two are not the whole
+value — and since `runQuery` ANDs terms, `is:parent` + `is:standalone` asked for "is an
+parent *and* stands outside every parent" and emptied the board. (The two are not the whole
 board — a puck with a parent is in neither — but they are 29 of the 33 it was showing.)
 `is:` terms now carry alternatives (`is:a,b`, matched with `.some()`), which is what the
 rule needs to be expressible at all.
 
 That alone would have been the wrong fix. **`State` was never one facet** — it held three
 independent questions in one list, and across them the intersection is the useful reading:
-`is:ready is:member` means "ready, *and* inside an etapp", a question a flat OR would have
+`is:ready is:member` means "ready, *and* inside a parent", a question a flat OR would have
 thrown away to rescue the first one. So the list is three: **Readiness**
-(`ready`/`blocked`/`blocking`), **Membership** (`etapp`/`member`/`standalone`), **Flags**
+(`ready`/`blocked`/`blocking`), **Membership** (`parent`/`member`/`standalone`), **Flags**
 (`flagged`/`stale`/`adapted`). Split, the ordinary rule is exactly right with no special
 case for `is:` anywhere — and the grouping stops being invisible, since two ticks behave
 differently depending on which rows they are.
@@ -358,14 +358,14 @@ Two consequences worth knowing before touching this:
   section's filters — one sentence, and the same one whether the row is ticked or not.
   It used to model the click instead ("how many you would get if you pressed this"),
   which on a ticked row meant "if you unticked it": two sentences on rows that look
-  identical, and ticking `Is an etapp` sent its own number from 1 to the whole board,
-  where it read as a claim about how many etapps there are. The cost of the change is
+  identical, and ticking `Is a parent` sent its own number from 1 to the whole board,
+  where it read as a claim about how many parents there are. The cost of the change is
   that the numbers no longer predict a click exactly when values overlap (a puck can be
   `blocked` and `blocking`, so 2 + 2 ticks to 3) — true of facet counts everywhere, and
   not what they are for.
 - **Union is the convention, not a claim about the values.** A section's values are not
-  mutually exclusive — a puck can be `blocked` and `blocking`, and a nested etapp is
-  `etapp` and `member` both. `tags` has always OR'd values that co-occur, and two ticked
+  mutually exclusive — a puck can be `blocked` and `blocking`, and a nested parent is
+  `parent` and `member` both. `tags` has always OR'd values that co-occur, and two ticked
   labels have never meant "carries both"; the sections follow that. The reading it costs
   is "blocked *and* blocking at once", which the panel could not express before either.
 - **Nothing may read `values[0]` for an `is:` term.** That assumption sat in five places,
@@ -410,17 +410,17 @@ same `signals`, so there's one source of truth for the flag decision.
 - **Staleness** — a `now` puck untouched > 21 days, or `next` > 60, gets a `stale`
   flag. Thresholds: `STALE_DAYS` in `harvest.mjs`. The board turns the flag into a
   live "N days" string for display.
-- **Broken etapp links** — a `parent:` naming a puck that doesn't exist flags
+- **Broken parent links** — a `parent:` naming a puck that doesn't exist flags
   `parent-missing`; one that closes a loop flags `parent-cycle` and the link is cut
   (the rest of the tree still resolves). Two flags, because they're two different
   fixes — a typo vs a loop.
-- **Rollup drift** — an etapp's own status against its parts, the same pair as the
+- **Rollup drift** — a parent's own status against its parts, the same pair as the
   issue drift: terminal with unfinished children flags `rollup-open` ("2 of 3 parts
   still open"), non-terminal with every child settled flags `rollup-done` ("mark it
   done?"). A puck with no children is never flagged by this rule.
 - **Broken dependencies** — a `depends:` entry that resolves to nothing flags
   `depends-missing` (the puck would otherwise read as ready); a dependency loop
-  flags `dependency-cycle` on every puck in it. Unlike an etapp parent, no single
+  flags `dependency-cycle` on every puck in it. Unlike a parent parent, no single
   edge can be cut to fix a loop, so all of them stand and a human picks.
 
 Flagged cards get a ⚠ badge + note; a "⚠ Needs attention" filter shows only them

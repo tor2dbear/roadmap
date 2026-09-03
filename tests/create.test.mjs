@@ -23,7 +23,7 @@ export async function run({ open }) {
   {
     // The child is the thing being made, so the relation fits in the template.
     const gh = githubStub();
-    const p = await open("#alpha/a-etapp", { token: true, github: gh.handler });
+    const p = await open("#alpha/a-parent", { token: true, github: gh.handler });
     await trigger(p, "Add puck").click();
     await p.waitForTimeout(250);
     await typeIn(p, "Login flow");
@@ -34,10 +34,10 @@ export async function run({ open }) {
     eq(gh.writes.length, 1, "en commit, inte två");
     const w = gh.writes[0];
     eq(w.path, "acme/alpha:roadmap/login-flow.md", "slugen blir filnamnet");
-    ok(w.content.includes("parent: a-etapp"), `relationen står i filen den föds med:\n${w.content}`);
+    ok(w.content.includes("parent: a-parent"), `relationen står i filen den föds med:\n${w.content}`);
     ok(w.content.includes("status: later"),
       "later, inte inbox — att lägga en puck i en etapp *är* att sortera den");
-    eq(await p.evaluate(() => (location.hash || "").slice(1)), "alpha/a-etapp",
+    eq(await p.evaluate(() => (location.hash || "").slice(1)), "alpha/a-parent",
       "och man står kvar där man var");
   }
 
@@ -47,7 +47,7 @@ export async function run({ open }) {
     // are standing in — a second file, and therefore a second write.
     const gh = githubStub();
     const p = await open("#alpha/a-now", { token: true, github: gh.handler });
-    await trigger(p, "Set etapp").click();
+    await trigger(p, "Set parent").click();
     await p.waitForTimeout(250);
     await typeIn(p, "Auth");
     await p.locator(".pick-create").click();
@@ -56,22 +56,22 @@ export async function run({ open }) {
     eq(gh.writes.length, 2, "två commits");
     eq(gh.writes[0].path, "acme/alpha:roadmap/auth.md", "etappen skapas först");
     eq(gh.writes[1].path, "acme/alpha:roadmap/a-now.md", "och länken skrivs på pucken vi stod i");
-    ok(gh.writes[1].content.includes("parent: auth"), `länken pekar på den nya etappen:\n${gh.writes[1].content}`);
+    ok(gh.writes[1].content.includes("parent: auth"), `länken pekar på den nya föräldern:\n${gh.writes[1].content}`);
     ok(!gh.writes[0].content.includes("parent:"),
-      "den nya etappen får ingen förälder — den *är* föräldern");
+      "den nya föräldern får ingen förälder — den *är* föräldern");
     eq(await p.evaluate(() => (location.hash || "").slice(1)), "alpha/a-now", "man står kvar");
   }
 
   group("en titel som redan finns erbjuds inte som ny");
   {
-    // A row that would make a second "An etapp" beside the "An etapp" listed above it
+    // A row that would make a second "A parent" beside the "A parent" listed above it
     // is an invitation to a duplicate, not a shortcut.
     const gh = githubStub();
     const p = await open("#alpha/a-now", { token: true, github: gh.handler });
-    await trigger(p, "Set etapp").click();
+    await trigger(p, "Set parent").click();
     await p.waitForTimeout(250);
-    await typeIn(p, "An etapp");
-    eq(await rows(p), ["An etapp"], "bara den befintliga");
+    await typeIn(p, "A parent");
+    eq(await rows(p), ["A parent"], "bara den befintliga");
     eq(await p.locator(".pick-create").count(), 0, "ingen skaparad");
 
     // And the guard is about an exact title, not about having found something.
@@ -84,7 +84,7 @@ export async function run({ open }) {
     // Every write path re-asks for the token, so nothing breaks without one — but a
     // control that only fails when you press it is decoration, not a gate.
     const p = await open("#alpha/a-now");
-    eq(await trigger(p, "Set etapp").count(), 0, "skenan är inte ens redigerbar");
+    eq(await trigger(p, "Set parent").count(), 0, "skenan är inte ens redigerbar");
   }
 
   group("dubbletten mäts där filen ska ligga");
@@ -94,7 +94,7 @@ export async function run({ open }) {
     // the whole cross-repo pool and hid the row for exactly that case.
     const gh = githubStub();
     const p = await open("#alpha/a-now", { token: true, github: gh.handler });
-    await trigger(p, "Set etapp").click();
+    await trigger(p, "Set parent").click();
     await p.waitForTimeout(250);
     await typeIn(p, "b-later");
     ok((await rows(p)).some((r) => r.startsWith("b-later")), "den finns i listan, från beta");
@@ -107,7 +107,7 @@ export async function run({ open }) {
     // to an etapp in a repo one cannot write. Creating always writes to the etapp's own
     // repo, so the row would promise a commit that is rejected on arrival.
     const gh = githubStub({ readOnly: ["acme/alpha"] });
-    const p = await open("#alpha/a-etapp", { token: true, github: gh.handler });
+    const p = await open("#alpha/a-parent", { token: true, github: gh.handler });
     await p.waitForTimeout(700); // the permissions probe is a fetch; before it lands, unknown means writable
     eq(await trigger(p, "Add puck").count(), 1, "väljaren står kvar — ett barn i beta går att lägga till");
     await trigger(p, "Add puck").click();
@@ -121,9 +121,9 @@ export async function run({ open }) {
   {
     // The old condition needed an existing candidate, so an etapp with none had no
     // picker — and therefore no way to make the very first one.
-    const only = (d) => { d.items = d.items.filter((i) => i.slug === "a-etapp"); d.items[0].children = []; d.total = 1; return d; };
+    const only = (d) => { d.items = d.items.filter((i) => i.slug === "a-parent"); d.items[0].children = []; d.total = 1; return d; };
     const gh = githubStub();
-    const p = await open("#alpha/a-etapp", { token: true, github: gh.handler, data: only });
+    const p = await open("#alpha/a-parent", { token: true, github: gh.handler, data: only });
     eq(await trigger(p, "Add puck").count(), 1, "väljaren finns fast ingen kandidat gör det");
     await trigger(p, "Add puck").click();
     await p.waitForTimeout(250);
@@ -132,7 +132,7 @@ export async function run({ open }) {
     await p.locator(".pick-create").click();
     await p.waitForTimeout(600);
     eq(gh.writes.length, 1, "en commit");
-    ok(gh.writes[0].content.includes("parent: a-etapp"), "med relationen i filen");
+    ok(gh.writes[0].content.includes("parent: a-parent"), "med relationen i filen");
   }
 
   group("etappen man står kvar på ritas om");
@@ -142,7 +142,7 @@ export async function run({ open }) {
     // the board left its Contains list and its rollup describing the state from before
     // the click. The card behind it updated; the page in front of it did not.
     const gh = githubStub();
-    const p = await open("#alpha/a-etapp", { token: true, github: gh.handler });
+    const p = await open("#alpha/a-parent", { token: true, github: gh.handler });
     const page = () => p.evaluate(() => ({
       contains: [...document.querySelectorAll(".members .row, .members a, .member-row")]
         .map((e) => e.textContent.replace(/\s+/g, " ").trim()),
@@ -167,7 +167,7 @@ export async function run({ open }) {
   {
     // The rollback is as visible as the addition was, and only a rejected write shows it.
     const gh = githubStub({ failWrites: true });
-    const p = await open("#alpha/a-etapp", { token: true, github: gh.handler });
+    const p = await open("#alpha/a-parent", { token: true, github: gh.handler });
     // A failed write must not also be a thrown one. `＋ Add puck` fires and forgets, so
     // a rejecting promise would land in the console as an uncaught error on top of the
     // toast — this group ran green through exactly that, because it never looked.
@@ -187,7 +187,7 @@ export async function run({ open }) {
     }));
     eq(after.contains.length, 1, `Contains är tillbaka: ${JSON.stringify(after.contains)}`);
     ok(after.rollup.every((r) => r === "0/1"), `och siffran med: ${JSON.stringify(after.rollup)}`);
-    eq(after.still, "alpha/a-etapp", "och etappen är fortfarande öppen — inte stängd av felvägen");
+    eq(after.still, "alpha/a-parent", "och etappen är fortfarande öppen — inte stängd av felvägen");
     eq(loud, [], "och ingenting kastades obehandlat");
   }
 
@@ -204,7 +204,7 @@ export async function run({ open }) {
       return d;
     };
     const gh = githubStub();
-    const p = await open("#alpha/a-etapp", { token: true, github: gh.handler, data: adapted });
+    const p = await open("#alpha/a-parent", { token: true, github: gh.handler, data: adapted });
     eq(await trigger(p, "Add puck").count(), 1, "väljaren står kvar — ett barn i beta går att lägga till");
     await trigger(p, "Add puck").click();
     await p.waitForTimeout(250);
@@ -320,7 +320,7 @@ export async function run({ open }) {
       document.body.innerText.split("\n").filter((l) => l.includes("doesn’t exist")).map((l) => l.trim()));
     eq((await said()).length, 1, "klagan står där först");
 
-    await trigger(p, /^⋯$|^Set etapp$/).click();
+    await trigger(p, /^⋯$|^Set parent$/).click();
     await p.waitForTimeout(250);
     await typeIn(p, "Foo");
     await p.locator(".pick-create").click();
@@ -336,13 +336,13 @@ export async function run({ open }) {
     // controls that had just proved they do not work.
     const gh = githubStub({ failWrites: true });
     const p = await open("#alpha/a-now", { token: true, github: gh.handler });
-    eq(await trigger(p, /^Set etapp$/).count(), 1, "skenan är redigerbar till att börja med");
-    await trigger(p, /^Set etapp$/).click();
+    eq(await trigger(p, /^Set parent$/).count(), 1, "skenan är redigerbar till att börja med");
+    await trigger(p, /^Set parent$/).click();
     await p.waitForTimeout(250);
     await typeIn(p, "Doomed");
     await p.locator(".pick-create").click();
     await p.waitForTimeout(1200);
-    eq(await trigger(p, /^Set etapp$/).count(), 0,
+    eq(await trigger(p, /^Set parent$/).count(), 0,
       "och kontrollerna är borta när repot visat sig skrivskyddat");
   }
 
@@ -368,9 +368,9 @@ export async function run({ open }) {
 
     // Pick the existing etapp rather than creating one: the create would fail on its own
     // first write, and the flag we are chasing is restored by the *link's* rollback.
-    await trigger(p, /^⋯$|^Set etapp$/).click();
+    await trigger(p, /^⋯$|^Set parent$/).click();
     await p.waitForTimeout(250);
-    await typeIn(p, "An etapp");
+    await typeIn(p, "A parent");
     await p.locator(".pick-mi").first().click();
     await p.waitForTimeout(1000);
     eq(await flagged(), ["parent-missing"], "och står kvar när skrivningen nekats");
@@ -449,8 +449,10 @@ export async function run({ open }) {
       return d;
     };
     const gh = githubStub();
-    const p = await open("", { data: demoIssue, github: gh.handler });
-    await p.locator(".card").first().click();
+    // Named rather than "the first card": which puck lands first depends on the
+    // fixture's titles sorting against each other, so renaming an unrelated one used
+    // to open a different puck here and the failure read as a missing Discussion tab.
+    const p = await open("#alpha/a-now", { data: demoIssue, github: gh.handler });
     await p.waitForSelector(".tab-btn");
 
     const tabs = await p.$$eval(".tab-btn", (n) => n.map((b) => b.textContent.trim()));
@@ -481,7 +483,9 @@ export async function run({ open }) {
     await p.keyboard.press("Escape");
     await p.waitForTimeout(300);
     p.on("dialog", (d) => d.accept());
-    await p.locator(".card").nth(1).click();
+    // Named, for the same reason as above: this half needs a puck *without* an issue,
+    // and "the second card" only happened to be one.
+    await p.locator(".card").filter({ hasText: "a-now-2" }).first().click();
     await p.waitForSelector('.prop[data-field="issue"]');
     await p.locator('.prop[data-field="issue"] button').first().click();
     await p.waitForSelector(".pop, .sheet");

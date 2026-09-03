@@ -41,18 +41,18 @@ export async function run({ open }) {
     await openFacet(p, "Membership");
     // Each row must be reachable on its own first, or the union below could read as
     // right while one half of it silently matched nothing.
-    await tick(p, "Is an etapp");
+    await tick(p, "Is a parent");
     eq(await cards(p), 1, "en etapp");
-    await tick(p, "In no etapp");
+    await tick(p, "Standalone");
     eq(await cards(p), 6, "etappen *och* de fem fristående — inte noll");
-    eq(queryOf(p), "is:etapp,standalone", "skrivet som ett term med två värden");
+    eq(queryOf(p), "is:parent,standalone", "skrivet som ett term med två värden");
   }
 
   group("unionen överlever en länk");
   {
-    // The serialization half: before the fix `is:etapp,standalone` was not a known
+    // The serialization half: before the fix `is:parent,standalone` was not a known
     // state, so the whole token fell through to free text and matched nothing.
-    const p = await open("?q=is:etapp,standalone");
+    const p = await open("?q=is:parent,standalone");
     eq(await cards(p), 6, "samma sex kort ur URL:en");
   }
 
@@ -71,7 +71,7 @@ export async function run({ open }) {
   group("olika facetter skär i stället");
   {
     // The reason the fix is three sections and not a flat OR over `is:`. Ready is four
-    // pucks and In an etapp is one; a union would be four, and this question — "redo,
+    // pucks and Has a parent is one; a union would be four, and this question — "redo,
     // och inne i en etapp" — would have been lost to fix the one above.
     const p = await open("?q=is:ready");
     eq(await cards(p), 4, "redo på egen hand");
@@ -86,23 +86,23 @@ export async function run({ open }) {
     // One sentence per row, the same whether it is ticked or not. The sharpest form of
     // that is stability: the number beside a row must not move when you tick the row.
     // It used to model the *click* — for a ticked row, "how many if you unticked" — so
-    // ticking Is an etapp on this seven-card board sent its own number from 1 to 7,
+    // ticking Is a parent on this seven-card board sent its own number from 1 to 7,
     // which read as a claim about how many etapps there are.
     const p = await open();
     await openFacet(p, "Membership");
-    eq(await countOf(p, "Is an etapp"), "1", "en etapp finns");
-    eq(await countOf(p, "In no etapp"), "5", "och fem står utanför");
+    eq(await countOf(p, "Is a parent"), "1", "en etapp finns");
+    eq(await countOf(p, "Standalone"), "5", "och fem står utanför");
 
-    await tick(p, "Is an etapp");
-    eq(await countOf(p, "Is an etapp"), "1", "siffran rör sig inte när raden kryssas i");
-    eq(await countOf(p, "In no etapp"), "5", "och syskonets siffra är sig lik");
+    await tick(p, "Is a parent");
+    eq(await countOf(p, "Is a parent"), "1", "siffran rör sig inte när raden kryssas i");
+    eq(await countOf(p, "Standalone"), "5", "och syskonets siffra är sig lik");
     eq(await cards(p), 1, "brädan är det som ändras");
 
-    await tick(p, "In no etapp");
+    await tick(p, "Standalone");
     eq(await cards(p), 6, "två kryss ger unionen");
     // The values overlap in general, so the numbers are not a sum — 1 + 5 landing on 6
     // here is these values being disjoint, not a promise the panel makes.
-    eq(await countOf(p, "Is an etapp"), "1", "och siffrorna står stilla genom hela turen");
+    eq(await countOf(p, "Is a parent"), "1", "och siffrorna står stilla genom hela turen");
   }
 
   group("räkningen ser de andra facetterna");
@@ -111,25 +111,25 @@ export async function run({ open }) {
     // numbers would describe a board nobody is looking at.
     const p = await open("?q=is:ready");
     await openFacet(p, "Membership");
-    eq(await countOf(p, "Is an etapp"), "0", "etappen är inte redo, så ingen redo etapp finns");
-    eq(await countOf(p, "In an etapp"), "1", "medlemmen är redo, så där finns ett kort");
+    eq(await countOf(p, "Is a parent"), "0", "etappen är inte redo, så ingen redo etapp finns");
+    eq(await countOf(p, "Has a parent"), "1", "medlemmen är redo, så där finns ett kort");
   }
 
   group("kolumnmenyn skriver samma form");
   {
-    // "Hide column" on the No etapp column writes `is:member` from outside the panel.
+    // "Hide column" on the No parent column writes `is:member` from outside the panel.
     // It has to land in the same term the Membership checkboxes keep, or the tick the
     // panel shows stops matching the term the board runs.
     const p = await open("?group=parent");
     const col = p.locator(".board > .column:not(.hidden-cols)")
-      .filter({ has: p.locator(".col-head h2", { hasText: /^No etapp$/ }) });
+      .filter({ has: p.locator(".col-head h2", { hasText: /^No parent$/ }) });
     await col.locator(".col-more button").click({ force: true });
     await p.getByRole("button", { name: "Hide column" }).click();
     await p.waitForTimeout(200);
     eq(queryOf(p), "is:member", "kolumnmenyn skriver ett is:-term");
 
     await openFacet(p, "Membership");
-    const on = await valRow(p, "In an etapp").locator("input").isChecked();
+    const on = await valRow(p, "Has a parent").locator("input").isChecked();
     ok(on, "och panelen visar det som ikryssat — en fråga, ett term");
   }
 
@@ -170,36 +170,36 @@ export async function run({ open }) {
     const p = await open("?q=is:stale,member");
     eq(await cards(p), 1, "det blandade termet visar medlemmen");
     await openFacet(p, "Membership");
-    eq(await countOf(p, "In an etapp"), "0", "inget är stale, så ingen stale medlem finns");
-    await tick(p, "In an etapp");
+    eq(await countOf(p, "Has a parent"), "0", "inget är stale, så ingen stale medlem finns");
+    await tick(p, "Has a parent");
     eq(queryOf(p), "is:stale", "och klicket rör bara sektionens värde");
   }
 
   group("dölj kolumn är en begränsning, inte ett kryss");
   {
     // The collision Codex found: a facet tick widens, a column constraint narrows, and
-    // the No etapp column is hidden by a *positive* `is:member` — the one place the two
+    // the No parent column is hidden by a *positive* `is:member` — the one place the two
     // meet. Routed through the tick it published `is:standalone,member`, so every
     // standalone puck still matched: the menu left the column it promised to hide and
     // added the etapp columns beside it. The board grew.
     const p = await open("?group=parent&q=is:standalone");
     const cols = () => p.evaluate(() =>
       [...document.querySelectorAll(".board > .column:not(.hidden-cols) .col-head h2")].map((h) => h.textContent.trim()));
-    eq(await cols(), ["No etapp"], "bara den kolumnen syns till att börja med");
+    eq(await cols(), ["No parent"], "bara den kolumnen syns till att börja med");
 
     const col = p.locator(".board > .column:not(.hidden-cols)")
-      .filter({ has: p.locator(".col-head h2", { hasText: /^No etapp$/ }) });
+      .filter({ has: p.locator(".col-head h2", { hasText: /^No parent$/ }) });
     await col.locator(".col-more button").click({ force: true });
     await p.getByRole("button", { name: "Hide column" }).click();
     await p.waitForTimeout(250);
 
     eq(queryOf(p), "is:member", "kryssen som höll kolumnen kvar ersätts, inte utökas");
     const after = await cols();
-    ok(!after.includes("No etapp"), `kolumnen är borta (kvar: ${JSON.stringify(after)})`);
+    ok(!after.includes("No parent"), `kolumnen är borta (kvar: ${JSON.stringify(after)})`);
 
     // And the mirror still works: the eye drops the term and the column returns.
-    await trayEye(p, "No etapp");
-    ok((await cols()).includes("No etapp"), "ögat tar tillbaka den");
+    await trayEye(p, "No parent");
+    ok((await cols()).includes("No parent"), "ögat tar tillbaka den");
   }
 
   group("chippet står ned bara för den exakta dubbletten");
@@ -217,12 +217,12 @@ export async function run({ open }) {
     }));
     const a = await seen(mixed);
     eq(a.chips, ["stale, member"], "det blandade termet behåller sitt chip");
-    ok(a.tray.some((t) => t.startsWith("No etapp")), `och ligger ändå i facket (${JSON.stringify(a.tray)})`);
+    ok(a.tray.some((t) => t.startsWith("No parent")), `och ligger ändå i facket (${JSON.stringify(a.tray)})`);
 
     const pure = await open("?group=parent&q=is:member");
     const b = await seen(pure);
     eq(b.chips, [], "det rena kolumntermet står fortfarande ned");
-    ok(b.tray.some((t) => t.startsWith("No etapp")), "facket säger det i stället");
+    ok(b.tray.some((t) => t.startsWith("No parent")), "facket säger det i stället");
   }
 
   group("facket läser hela termet, inte första värdet");
@@ -235,16 +235,16 @@ export async function run({ open }) {
     // nothing, because the term that hid the column was never touched.
     //
     // Nothing in the fixture is stale, so this query is exactly the member puck — and
-    // no visible puck stands outside an etapp, which empties the No etapp column.
+    // no visible puck stands outside an etapp, which empties the No parent column.
     const p = await open("?group=parent&q=is:stale,member");
     eq(await cards(p), 1, "bara medlemmen syns");
     const tray = await p.evaluate(() =>
       [...document.querySelectorAll(".hidden-col")].map((r) => r.textContent.replace(/\s+/g, " ").trim()));
-    ok(tray.some((t) => t.startsWith("No etapp")), `No etapp ligger i facket (facket: ${JSON.stringify(tray)})`);
+    ok(tray.some((t) => t.startsWith("No parent")), `No parent ligger i facket (facket: ${JSON.stringify(tray)})`);
 
-    await trayEye(p, "No etapp");
+    await trayEye(p, "No parent");
     const cols = await p.evaluate(() =>
       [...document.querySelectorAll(".board > .column:not(.hidden-cols) .col-head h2")].map((h) => h.textContent.trim()));
-    ok(cols.includes("No etapp"), `ögat tar tillbaka kolumnen (kolumner: ${JSON.stringify(cols)})`);
+    ok(cols.includes("No parent"), `ögat tar tillbaka kolumnen (kolumner: ${JSON.stringify(cols)})`);
   }
 }

@@ -43,7 +43,7 @@ export async function run({ open }) {
     const cases = [
       ["", { hidden: true, acts: [] }, "standardbrädan"],
       ["?view=ready", { hidden: true, acts: [] }, "Ready, orörd"],
-      ["?view=etapps", { hidden: true, acts: [] }, "Etapps, orörd"],
+      ["?view=parents", { hidden: true, acts: [] }, "Etapps, orörd"],
       // A refinement on top of a built-in view *is* yours, and every kind counts —
       // a view can be nothing but a grouping or a sort.
       ["?view=ready&group=repo", { hidden: false, acts: ["Save view"] }, "Ready + gruppering"],
@@ -247,5 +247,44 @@ export async function run({ open }) {
     eq(seen.acts, [], "en orörd sparad vy erbjuder varken Reset eller Update");
     ok(!/edited/.test(seen.title), `och titeln säger inte att den är ändrad: ${JSON.stringify(seen.title)}`);
     eq(seen.url, "?view=inbox", "den redundanta nyckeln normaliseras bort ur URL:en också");
+  }
+
+  group("namnbytet bryter inte det som redan är skrivet");
+  {
+    // "Etapp" var samma ord som produkten heter, och namnet dolde funktionen: det gick
+    // att gruppera på parent hela tiden, men ingen hittade grupperingen. Bytet är
+    // ytligt — filformatet sa redan `parent:` — men två stavningar ligger i länkar
+    // folk redan skickat och i sparade vyer som redan är committade, och det är dem
+    // det här håller vid liv.
+    const p = await open("?view=etapps");
+    const vy = await p.evaluate(() => ({
+      titel: (document.getElementById("viewTitle") || {}).textContent.trim(),
+      rader: [...document.querySelectorAll(".side-views .focus-label")].map((e) => e.textContent.trim()),
+    }));
+    eq(vy.titel, "Parents", `?view=etapps landar i den rad som ersatte den: ${JSON.stringify(vy.titel)}`);
+    ok(vy.rader.indexOf("Parents") !== -1 && vy.rader.indexOf("Etapps") === -1,
+      `sidofältet säger Parents och inte Etapps: ${JSON.stringify(vy.rader)}`);
+
+    // `is:etapp` kanoniseras vid parsning i stället för att registreras som ett andra
+    // predikat — annars fungerar termen men facetten kan inte kryssa raden den valde,
+    // för panelen slår upp sina värden på namn. Det var precis vad `is:orphan` gjorde,
+    // och den ligger i samma tabell nu.
+    for (const [gammal, ny] of [["is:etapp", "is:parent"], ["is:orphan", "is:standalone"]]) {
+      const q = await open("?q=" + encodeURIComponent(gammal));
+      const ut = await q.evaluate(() => ({
+        url: new URLSearchParams(location.search).get("q"),
+        kort: document.querySelectorAll(".card").length,
+      }));
+      eq(ut.url, ny, `${gammal} skrivs om till ${ny} i URL:en`);
+      ok(ut.kort > 0, `${gammal} matchar fortfarande kort (${ut.kort})`);
+    }
+
+    // Och etiketterna, som är hela poängen: kolumnen som höll alla föräldrar hette
+    // "No etapp", vilket läste bakvänt — en förälder *har* ingen förälder.
+    const g = await open("?group=parent");
+    const rubriker = await g.evaluate(() =>
+      [...document.querySelectorAll(".col-head h2")].map((e) => e.textContent.trim()));
+    ok(rubriker.indexOf("No parent") !== -1,
+      `kolumnen för de föräldralösa heter No parent: ${JSON.stringify(rubriker)}`);
   }
 }

@@ -23,7 +23,7 @@ Kanban-problemet löser sig med ett byte: `GROUPS.parent.keyOf` grupperar i dag 
 - En kolumn = ett träd. Barnbarnet hamnar hos sin far och sin farfar.
 - Mellanpucken slutar vara två saker: i dag är den både kort i farfars kolumn och egen
   kolumnrubrik.
-- Roten står överst i sin egen kolumn i stället för i "No etapp", och `No parent`
+- Roten står överst i sin egen kolumn i stället för i `No parent`, och den kolumnen
   betyder äntligen det den säger: puckar som inte är i något träd alls.
 
 Djupet inuti kolumnen bärs av korten. Föräldrachippet finns redan och är i dag *gömt*
