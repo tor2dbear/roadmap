@@ -58,13 +58,13 @@ export const ITEMS = [
   puck({ repo: "acme/alpha", slug: "a-done", status: "done", target: "2026-03-31" }),
   puck({ repo: "acme/alpha", slug: "a-cancelled", status: "cancelled", target: "2026-03-31" }),
   puck({
-    repo: "acme/alpha", slug: "a-etapp", status: "now", title: "An etapp",
+    repo: "acme/alpha", slug: "a-parent", status: "now", title: "A parent",
     children: ["beta/b-member"],
   }),
   // Beta: a member of Alpha's etapp, and two archived pucks.
   puck({
     repo: "acme/beta", slug: "b-member", status: "next",
-    parent: "acme/alpha#a-etapp", parentRef: "alpha/a-etapp",
+    parent: "acme/alpha#a-parent", parentRef: "alpha/a-parent",
   }),
   puck({ repo: "acme/beta", slug: "b-later", status: "later", tags: ["ui", "dx"] }),
   puck({ repo: "acme/beta", slug: "b-done", status: "done" }),

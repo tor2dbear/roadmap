@@ -13,7 +13,7 @@ owner: tor2dbear
 
 Nivån ovanför en puck finns i formatet men bara halvvägs i tavlan. `parent:` har
 **ingen djupgräns** — ett barnbarn går att skapa i dag, med CLI:t eller för hand — och
-tavlan renderar det redan, bara fel. Den här etappen stänger gapet mellan vad formatet
+tavlan renderar det redan, bara fel. Den här etappen (ordet i den svenska meningen, inte i tavlan) stänger gapet mellan vad formatet
 tillåter och vad tavlan visar, och rättar namnet på vägen.
 
 ## Research
@@ -29,7 +29,9 @@ Mätt genom att bygga fallet farfar → far → barnbarn och rendera bägge layo
 Tre nivåer plattas till syskonkolumner. Ingenting kraschar, men formen försvinner: ett
 barnbarn läser exakt som ett barn, mellanpucken syns två gånger (som kort inne i sin
 förälders kolumn *och* som egen kolumnrubrik), och **farfar hamnar i "No etapp"** —
-vilket gäller redan vid två nivåer, för varje etapp som saknar egen förälder.
+vilket gäller redan vid två nivåer, för varje förälder som saknar egen förälder.
+**Kolumnen heter `No parent` sedan `parent-inte-etapp`**, så den halvan läser rätt nu;
+utdraget ovan är mätt före bytet.
 
 Rollupen räknar bara direkta barn (`resolveHierarchy()` i `harvest.mjs`), så en rot
 skulle visa "2 av 3" och tyst ignorera allt under.

@@ -98,7 +98,7 @@ roadmap start nano-multi-buffer                    # → status: now
 roadmap next|later|done <slug>                     # move it
 roadmap tag <slug> +text -ui                       # edit tags
 roadmap issue <slug> 42                            # link a working issue
-roadmap parent <slug> <etapp-slug>                 # put it in an etapp (--clear to take it out)
+roadmap parent <slug> <parent-slug>                 # put it in a parent (--clear to take it out)
 roadmap depends <slug> +blocker -old               # edit blockers (--clear to remove all)
 roadmap list [--status now]                        # quick overview
 roadmap install-hook                               # auto-bump `updated` on commit

@@ -20,9 +20,9 @@ Under `group=parent` är kolumnrubriken namnet på en riktig puck — men den g�
 
 **Rubriken är inert.** I `renderColumns` är den `el("h2", null, grp.label)` — ren text,
 ingen kontroll. Överallt annars på tavlan öppnar en pucks namn den: korttiteln,
-föräldrachippet på ett kort (`.etapp-link` är en knapp), brödsmulan. `group=parent` är
+föräldrachippet på ett kort (`.parent-link` är en knapp), brödsmulan. `group=parent` är
 det enda stället regeln bryts — och det är stället där föräldern annars **inte finns på
-skärmen** alls: den ligger i "No etapp" eller i sin egen förälders kolumn.
+skärmen** alls: den ligger i `No parent` eller i sin egen förälders kolumn.
 
 **Långa titlar bryter layouten.** `.col-head` är `display: flex; align-items: center`
 utan `min-width: 0` och utan trunkering på `h2`, så en lång titel radbryts och räknaren

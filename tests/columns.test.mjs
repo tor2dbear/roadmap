@@ -62,10 +62,10 @@ export async function run({ open }) {
   }
 
   group("etappens slug och dess id namnger samma kolumn");
-  for (const [spelling, label] of [["a-etapp", "bar slug"], ["alpha%2Fa-etapp", "fullt id"]]) {
+  for (const [spelling, label] of [["a-parent", "bar slug"], ["alpha%2Fa-parent", "fullt id"]]) {
     const p = await open(`?group=parent&done=1&q=-parent%3A${spelling}`);
     eq((await snapshot(p)).tray.length, 1, `${label}: etappen listas i facket`);
-    await trayEye(p, "An etapp");
+    await trayEye(p, "A parent");
     eq((await snapshot(p)).query, null, `${label}: ögat tömmer termen`);
   }
 
