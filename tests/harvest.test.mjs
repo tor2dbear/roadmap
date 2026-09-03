@@ -1,4 +1,4 @@
-// The harvester, which had no test at all until the rollup learned to count a tree.
+// The harvester, which had no test at all until a change to the rollup went in wrong.
 //
 // That gap is worth naming: `resolveHierarchy` decides `parentRef`, `children`,
 // `progress` and half the signals, and every board test reads a *fixture* payload —
@@ -53,10 +53,9 @@ async function harvest(pucks) {
 }
 
 export async function run() {
-  group("rollupen räknar hela trädet");
+  group("rollupen räknar direkta barn, och komponerar");
   {
-    // farfar → far → två barnbarn, plus ett direkt barn till farfar. Fyra puckar under
-    // roten; två av dem klara.
+    // farfar → far → två barnbarn, plus ett direkt barn till farfar.
     const by = await harvest([
       { slug: "rot", status: "now" },
       { slug: "direkt", status: "done", parent: "rot" },
@@ -64,42 +63,42 @@ export async function run() {
       { slug: "barnbarn-a", status: "done", parent: "mitten" },
       { slug: "barnbarn-b", status: "next", parent: "mitten" },
     ]);
-    // Före den här ändringen: 1/2 — de två som namnger roten direkt, och tyst inget
-    // alls om de två under `mitten`.
-    eq(by.rot.progress, { done: 2, total: 4 },
-      `roten räknar hela underträdet, inte sina direkta barn: ${JSON.stringify(by.rot.progress)}`);
-    eq(by.mitten.progress, { done: 1, total: 2 }, "och en mellannod räknar sitt eget underträd");
+    // Talet ska gå att härleda ur raderna under det. Roten har två delar och en av dem
+    // är klar. Att räkna hela underträdet gav `2/4` — en nämnare som inte finns någonstans
+    // på sidan, eftersom `Contains` listar direkta medlemmar: brickan stod över en lista
+    // den var oense med.
+    eq(by.rot.progress, { done: 1, total: 2 },
+      `roten räknar sina två direkta delar: ${JSON.stringify(by.rot.progress)}`);
+    eq(by.mitten.progress, { done: 1, total: 2 },
+      "och mellannoden svarar för sina egna två — samma fråga, en nivå ner");
     eq(by["barnbarn-a"].progress, null, "ett löv har ingen rollup alls");
 
-    // Mellannoden räknas *själv* i rotens total. Den är en puck med egen status och egen
-    // kropp; att utesluta den vore att göra den till en behållare, vilket är den andra
-    // posttyp modellen inte har.
-    eq(by.rot.progress.total, 4, "mellannoden är en av de fyra, inte en behållare runt två");
-
-    // Och `children` är fortfarande *direkta* barn — det är relationen filen skriver.
-    eq(by.rot.children.length, 2, "children är kvar som de direkta barnen");
+    eq(by.rot.children.length, 2, "children är de direkta barnen — relationen filen skriver");
     eq(by.mitten.parentRef, "demo/rot", "och kedjan upp är löst");
   }
 
-  group("rollup-signalerna följer det nya måttet");
+  group("rollup-driften landar på den puck vars eget påstående är falskt");
   {
-    // En rot som säger sig klar medan ett *barnbarn* står öppet. Med direkta barn såg
-    // den stängd ut; med underträdet är den öppen, vilket är vad signalen finns för.
+    // `rot done → mitten done → barnbarn next`. Mitten ljuger: den säger sig klar med ett
+    // öppet barn. Roten gör det inte — den sa att dess enda del var klar, och den delen
+    // säger det själv. Ett underträdsmått flaggar bägge, alltså roten för en lögn den
+    // aldrig yttrade, och det var den mätningen som fällde försöket.
     const by = await harvest([
       { slug: "rot", status: "done" },
       { slug: "mitten", status: "done", parent: "rot" },
       { slug: "barnbarn", status: "next", parent: "mitten" },
     ]);
     const typer = (s) => (by[s].signals || []).map((x) => x.type);
-    ok(typer("rot").indexOf("rollup-open") !== -1,
-      `en rot med ett öppet barnbarn flaggas som rollup-open: ${JSON.stringify(typer("rot"))}`);
-    eq(by.rot.progress, { done: 1, total: 2 }, "och siffran säger varför");
+    ok(typer("mitten").indexOf("rollup-open") !== -1,
+      `mitten flaggas: den säger done med ett öppet barn: ${JSON.stringify(typer("mitten"))}`);
+    ok(typer("rot").indexOf("rollup-open") === -1,
+      `roten flaggas inte — dess enda del säger sig klar: ${JSON.stringify(typer("rot"))}`);
+    eq(by.rot.progress, { done: 1, total: 1 }, "och siffran säger varför");
   }
 
   group("en cykel kapas och räknas inte");
   {
-    // `a → b → a`. Länken som sluter loopen kapas, så resten av trädet löser sig — och
-    // en trädvandring som räknar underträd får aldrig loopa.
+    // `a → b → a`. Länken som sluter loopen kapas, så resten av trädet löser sig.
     const by = await harvest([
       { slug: "a", parent: "b" },
       { slug: "b", parent: "a" },
