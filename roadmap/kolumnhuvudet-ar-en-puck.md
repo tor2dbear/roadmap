@@ -77,11 +77,13 @@ stället för att göra sidan bredare än skärmen. Tre sabotage fäller var sin
 
 ## Open questions
 
-- **Listans öppnande, som är kvar och är en fråga till dig.** Två vägar: (a) chevronen
-  blir hopfällningen och namnet blir länken — två olika handlingar, inte det överflödiga
-  andra målet som sidofältsregeln varnar för, men hopfällningsytan krymper till
-  chevron + färgprick; (b) listan behåller sin rad som en enda kontroll och öppnandet
-  bor kvar på tavlan. (b) betyder att de två layouterna skiljer sig åt i vad rubriken
-  gör, vilket är precis den sortens inkonsekvens `en-sak-en-plats` städade bort.
+- **Listans öppnande — avgjort till (a), och byggt.** Chevronen fäller, namnet öppnar.
+  Med en avgränsning som inte stod i frågan: delningen sker **bara där det finns två
+  saker att göra**. En rubrik som namnger en kategori (`NOW`, ett repo, en månad) har
+  ingenting att öppna och behåller hela raden som ett fällmål — den skulle annars
+  förlora ett mål den använder till en delning den inte har nytta av.
+  Priset är att fällmålet nu skiljer sig åt mellan *grupperingar* i stället för mellan
+  layouter. Det är den mindre inkonsekvensen: den följer av vad rubriken faktiskt är,
+  och en läsare som ser en delad rubrik ser också *varför* den är delad.
 - Ska kolumnen breddas för långa namn i stället? Nej enligt mig — fast bredd är vad som
   gör en kanban skannbar. Skrivet här för att någon annars föreslår det.

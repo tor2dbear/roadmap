@@ -192,4 +192,65 @@ export async function run({ open }) {
     eq(m.page, m.view, `sidan är inte bredare än skärmen (${m.page} mot ${m.view})`);
     eq(m.klippt, true, "namnet klipps i stället för att radbryta");
   }
+
+  group("en arkivtömd förälder går fortfarande att öppna");
+  {
+    // Hittat av Codex på PR #44, och samma gren som på #42: en grupp arkivet tömt helt
+    // ritas som en *stump* och den grenen returnerar. Stumpen är med flit ingen
+    // kontroll — det finns inget att fälla ut förrän arkivväxeln lyfts — men namnet är
+    // fortfarande en puck, och under ett medlemsfilter kan rubriken vara den puckens
+    // enda representation på sidan.
+    const arkiverat = (d) => {
+      d.items.find((i) => i.slug === "a-parent").title = "Brand it + split product / instance";
+      d.items = d.items.map((i) => (i.slug === "b-member" ? Object.assign({}, i, { status: "done" }) : i));
+      return d;
+    };
+    const p = await open("?group=parent&layout=list", { data: arkiverat });
+    eq(await p.evaluate(() => !!document.querySelector(".lh-stub .head-open")), true,
+      "stumpens namn är en knapp");
+    await p.locator(".lh-stub .head-open").click();
+    await p.waitForTimeout(300);
+    eq(await p.evaluate(() => (location.hash || "").slice(1)), "alpha/a-parent",
+      "och den öppnar den puck rubriken namnger");
+  }
+
+  group("i listan fäller chevronen och namnet öppnar");
+  {
+    // Två saker att göra, så två kontroller — men bara där det *finns* två. En rubrik
+    // som namnger en puck fäller sin grupp och öppnar pucken; en som namnger en
+    // kategori har ingenting att öppna och behåller hela raden som ett fällmål i
+    // stället för att förlora det till en delning den inte har någon nytta av.
+    const långt = (d) => {
+      d.items.find((i) => i.slug === "a-parent").title = "Brand it + split product / instance";
+      return d;
+    };
+    const p = await open("?group=parent&layout=list", { data: långt });
+    const delat = await p.evaluate(() => [...document.querySelectorAll(".list-head")].map((e) => ({
+      text: (e.querySelector(".lh-label") || {}).textContent.trim(),
+      delad: !!e.querySelector(".lh-toggle--split"),
+      öppna: !!e.querySelector(".head-open"),
+    })));
+    const namngivet = delat.filter((x) => x.öppna)[0] || {};
+    eq(delat.filter((x) => x.öppna).length, 1,
+      `en rubrik namnger en puck: ${JSON.stringify(delat)}`);
+    eq(namngivet.delad, true, "och dess toggel är delad, så chevronen bara fäller");
+    eq(delat.filter((x) => !x.öppna)[0].delad, false,
+      "medan `No parent` behåller hela raden som ett fällmål");
+
+    // Fällningen ska fortfarande fungera från chevronen.
+    await p.locator(".lh-toggle--split").click();
+    await p.waitForTimeout(200);
+    eq(await p.evaluate(() => !!document.querySelector(".list-group.shut")), true,
+      "chevronen fäller gruppen");
+    await p.locator(".lh-toggle--split").click();
+    await p.waitForTimeout(200);
+
+    // …och namnet ska öppna pucken, inte fälla.
+    await p.locator(".head-open").click();
+    await p.waitForTimeout(300);
+    eq(await p.evaluate(() => (location.hash || "").slice(1)), "alpha/a-parent",
+      "och namnet öppnar den puck rubriken namnger");
+    eq(await p.evaluate(() => !!document.querySelector(".list-group.shut")), false,
+      "utan att fälla gruppen på vägen");
+  }
 }
