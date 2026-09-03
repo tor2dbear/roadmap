@@ -3351,6 +3351,15 @@
         return p && p.repoColor;
       },
       write: function (item, k) { changeParent(item, k === NO_VALUE ? null : k); },
+      // Which puck a column is named after, when it is named after one at all. Only
+      // this grouping has an answer: status, repo, agent, priority and target label
+      // their columns with categories, and a category has nothing to open.
+      //
+      // It matters because a puck's name opens it *everywhere else* on the board — the
+      // card title, the parent chip, the breadcrumb — and grouping by parent was the
+      // one place the rule broke. It is also the place where the puck is otherwise not
+      // on screen: it sits in `No parent`, or inside its own parent's column.
+      opens: function (k) { return k === NO_VALUE ? null : itemById(k); },
       // The parent's own rollup in the column header — counted over all its pucks,
       // not just the ones the current filter left on screen.
       headExtra: function (k) {
@@ -3861,6 +3870,25 @@
     });
     return { count: count, order: order };
   }
+  // The head's title, for both layouts. A column named after a puck gets a button that
+  // opens it and wears the puck's own casing; a column named after a category stays the
+  // eyebrow it has always been. `--named` is what carries that to CSS: uppercase plus
+  // letter-spacing is right for `NOW` and `ETAPP SITE` and wrong for a title, where it
+  // costs 15–20% of the width *and* legibility — measured, `BRAND IT + SPLIT PRODUCT /
+  // INSTANCE` against `Brand it + split product / instance`.
+  function headTitle(g, grp) {
+    var h = el("h2");
+    var opens = g.opens && g.opens(grp.key);
+    if (!opens) { h.textContent = grp.label; return h; }
+    h.classList.add("named");
+    var b = el("button", "head-open", grp.label);
+    b.type = "button";
+    b.title = "Open " + opens.title;
+    b.addEventListener("click", function () { openModal(opens); });
+    h.appendChild(b);
+    return h;
+  }
+
   function renderColumns(groups) {
     var g = activeGroup();
     // No guard for status grouping, and none is needed — which is worth writing down,
@@ -3877,7 +3905,7 @@
       if (g.tint && g.tint(grp.key)) col.style.setProperty("--tint", g.tint(grp.key));
       var head = el("div", "col-head");
       head.appendChild(el("span", "swatch"));
-      head.appendChild(el("h2", null, grp.label));
+      head.appendChild(headTitle(g, grp));
       head.appendChild(el("span", "count", String(grp.items.length)));
       var held = archived ? (archived.count[grp.key] || 0) - grp.items.length : 0;
       if (held > 0) head.appendChild(archivedMark(held));
@@ -4040,6 +4068,11 @@
         board.appendChild(section);
         return;
       }
+      // The casing follows the same rule as the board's: a head named after a puck
+      // carries a title, not an eyebrow. What the list does *not* yet carry is the
+      // opening — its whole heading is already the fold control, and splitting that in
+      // two is a change to a target used on a phone rather than a rename.
+      if (g.opens && g.opens(grp.key)) h.classList.add("named");
       var toggle = el("button", "lh-toggle");
       toggle.type = "button";
       toggle.setAttribute("aria-expanded", shut ? "false" : "true");
