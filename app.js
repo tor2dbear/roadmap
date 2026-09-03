@@ -3219,12 +3219,32 @@
   // A table row — full-width, aligned columns (Name · Priority · Agent · Repo ·
   // Updated), Linear-style. Grid tracks are shared across rows so the columns
   // line up; on mobile the extra columns fold away (see styles.css). Tap → modal.
-  function listRow(item) {
+  // `opts` is the tree's half of the row: `{ depth, fold }`. A row inside the nested
+  // list carries its own indent and, when it has parts below it, the caret that folds
+  // them — the row *is* the heading of its subtree, so the control belongs on it rather
+  // than on a second heading drawn above the same puck.
+  //
+  // The caret sits in the row's left gutter, not in a grid track of its own: a track
+  // would have to exist on every row to keep the columns in register, and then a leaf
+  // would reserve space for a control it never gets. The gutter is reserved once, by
+  // `.is-tree`, and both rows land in the same place.
+  function listRow(item, opts) {
+    opts = opts || {};
     var sig = signalMessages(item);
     var r = el("div", "list-row" + (sig.length ? " flagged" : "") + (item.id === selectedId ? " sel" : ""));
     r.setAttribute("data-id", item.id);
     r.style.setProperty("--repo", item.repoColor);
+    if (opts.depth) r.style.setProperty("--depth", String(opts.depth));
     r.title = item.repoName;
+    if (opts.fold) {
+      var caret = el("button", "list-fold");
+      caret.type = "button";
+      caret.setAttribute("aria-expanded", opts.fold === "shut" ? "false" : "true");
+      caret.title = (opts.fold === "shut" ? "Expand " : "Collapse ") + item.title;
+      caret.appendChild(icon(opts.fold === "shut" ? "chev-right" : "chev-down", "lh-caret"));
+      caret.addEventListener("click", function (e) { e.stopPropagation(); toggleGroup(item.id); });
+      r.appendChild(caret);
+    }
     r.appendChild(puckGlyph(item));
 
     // Name: title (truncates) + inline drift/blocked badges.
@@ -4009,6 +4029,55 @@
     refreshDisplayDot();
     renderBoard();
   }
+  // Under `group=parent` the list is a tree, and the flat groups `groupsOf` hands both
+  // renderers are already its edges: one group per parent, holding that parent's
+  // *direct* children. Three moves turn the one into the other, and none of them re-key
+  // anything — the board keeps the flat buckets it was designed around.
+  //
+  //   1. **A group whose puck is drawn as a row somewhere nests under that row.** That
+  //      is the whole of "a child's children go one level further down": the mid puck
+  //      used to be two things at once — a row inside its parent's group and, elsewhere
+  //      on the page, a heading of its own — and now it is one thing with its parts
+  //      beneath it.
+  //   2. **A root parent stops being a row in `No parent`** and becomes its own heading.
+  //      `No parent` then means what it says: pucks in no tree at all.
+  //   3. **A parent whose parts the filter took keeps its place**, as a heading or row
+  //      with an empty line under it, rather than silently reading as a leaf.
+  //
+  // What it deliberately does not do: nest a group whose own puck the filter removed.
+  // There is no row to hang it from, so it keeps a top-level heading — the same context
+  // heading the list has always drawn for a parent that is not itself on screen.
+  function listTree(groups) {
+    var byKey = {}, visible = {};
+    groups.forEach(function (grp) {
+      byKey[grp.key] = grp;
+      grp.items.forEach(function (it) { visible[it.id] = it; });
+    });
+    var sections = [], roots = {};
+    groups.forEach(function (grp) {
+      var p = grp.key === NO_VALUE ? null : itemById(grp.key);
+      if (!(p && p.parentRef && visible[p.id])) sections.push(grp); // (1)
+    });
+    Object.keys(visible).forEach(function (id) {
+      var it = visible[id];
+      if (!it.parentRef && (it.children || []).length) roots[id] = it; // (2)
+    });
+    var none = byKey[NO_VALUE];
+    if (none) none.items = none.items.filter(function (it) { return !roots[it.id]; });
+    Object.keys(roots).forEach(function (id) {
+      // (3) at the top level: a visible root whose every part the filter took has no
+      // group of its own, so its heading has to be built rather than found.
+      if (!byKey[id]) sections.push({ key: id, label: roots[id].title, items: [], emptyParent: true });
+    });
+    // Board order, `No parent` last — the order `presentKeys` would have given. The
+    // synthesised headings have to land *in* it, not after everything that was found.
+    var rank = {};
+    DATA.items.forEach(function (it, i) { rank[it.id] = i; });
+    var at = function (k) { return k === NO_VALUE ? 2e9 : rank[k] == null ? 1e9 : rank[k]; };
+    sections.sort(function (a, b) { return at(a.key) - at(b.key); });
+    return { sections: sections, byKey: byKey };
+  }
+
   function renderList(groups) {
     var g = activeGroup();
     // No exemption for status grouping here, unlike the board. The list has no tray, so
@@ -4041,11 +4110,16 @@
           });
       }
     }
+    // Nesting *is* what grouping by parent means, so it is not a switch anywhere: any
+    // other grouping cuts across the trees (a tree spans statuses) and stays flat.
+    var tree = effectiveGroup() === "parent" ? listTree(groups) : null;
+    if (tree) groups = tree.sections;
     groups.forEach(function (grp) {
       // A flat list has no drop targets, so no empty headers — except one the archive
-      // emptied, which is exactly the thing that has to be said out loud.
-      if (!grp.items.length && !grp.archivedOnly) return;
-      var section = el("section", "list-group" + (g.cls ? " " + g.cls(grp.key) : " col-plain"));
+      // emptied, and, in the tree, a parent the filter emptied. Both are exactly the
+      // thing that has to be said out loud.
+      if (!grp.items.length && !grp.archivedOnly && !grp.emptyParent) return;
+      var section = el("section", "list-group" + (tree ? " is-tree" : "") + (g.cls ? " " + g.cls(grp.key) : " col-plain"));
       if (g.tint && g.tint(grp.key)) section.style.setProperty("--tint", g.tint(grp.key));
       var shut = state.collapsed.has(grp.key);
       if (shut) section.classList.add("shut");
@@ -4119,9 +4193,67 @@
       if (held > 0) head.appendChild(archivedMark(held, grp.key));
       if (g.headExtra) { var hx = g.headExtra(grp.key); if (hx) head.appendChild(hx); }
       section.appendChild(head);
-      if (!shut) grp.items.forEach(function (it) { section.appendChild(listRow(it)); });
+      if (!shut) {
+        if (tree) renderNodes(section, grp.items, 0, tree, archived);
+        else grp.items.forEach(function (it) { section.appendChild(listRow(it)); });
+        // (3) at the top level. Only when the archive is not already answering for it:
+        // the mark beside the heading says both what is missing and how to get it back,
+        // and "no parts match" would be a second, false explanation for the same hole.
+        if (tree && !grp.items.length && held <= 0) section.appendChild(emptyNode(0));
+      }
       board.appendChild(section);
     });
+  }
+
+  // A puck's parts, directly beneath it, one indent further in. Recursive, and safe to
+  // be: `parent-cycle` is cut at harvest, so `children` describes a forest — the same
+  // guarantee the rollup walk leans on.
+  //
+  // The row carries no count of its own. `progress` is already on it and answers a
+  // steadier question — how many parts the puck *has* — while a count of the rows below
+  // would change with the filter and read as though the puck had lost parts.
+  function renderNodes(section, items, depth, tree, archived) {
+    items.forEach(function (it) {
+      var kids = tree.byKey[it.id];
+      var open = !!(kids && kids.items.length);
+      var shut = state.collapsed.has(it.id);
+      section.appendChild(listRow(it, { depth: depth, fold: open ? (shut ? "shut" : "open") : null }));
+      if (open && !shut) renderNodes(section, kids.items, depth + 1, tree, archived);
+      if (shut) return; // a folded puck says nothing about parts it is deliberately hiding
+      // What is missing from under this puck, and why — on a line of its own rather than
+      // as a badge on the row. Measured on a phone: the row already carries a rollup, a
+      // priority, a flag and a date, and an `N archived 👁` badge beside them took the
+      // title down to two characters. A line reads as a sentence and costs the row
+      // nothing.
+      var held = archived ? (archived.count[it.id] || 0) - (kids ? kids.items.length : 0) : 0;
+      if (held > 0) section.appendChild(archivedNode(depth + 1, held, it.id));
+      else if (!open && (it.children || []).length) section.appendChild(emptyNode(depth + 1));
+    });
+  }
+  // A parent with parts and nothing under it is the one place the tree can lie by
+  // omission: it draws exactly like a leaf. So it says so, on a line of its own, at the
+  // depth its parts would have had.
+  function emptyNode(depth) {
+    var e = el("div", "list-empty", "No matching parts");
+    if (depth) e.style.setProperty("--depth", String(depth));
+    return e;
+  }
+  // The archive's version of that line. Same shape, and the same repair the heading's
+  // mark and the board's tray offer — `liftArchive()` is still the one writer.
+  function archivedNode(depth, n, key) {
+    var b = el("button", "list-empty list-archived");
+    b.type = "button";
+    b.title = "Show " + n + " archived " + (n === 1 ? "part" : "parts");
+    b.appendChild(el("span", null, n + " archived " + (n === 1 ? "part" : "parts")));
+    b.appendChild(icon("eye"));
+    if (depth) b.style.setProperty("--depth", String(depth));
+    b.addEventListener("click", function (e) {
+      e.stopPropagation();
+      state.collapsed.delete(key);
+      liftArchive();
+      renderBoard();
+    });
+    return b;
   }
 
   // Client-side sort. "default" is the *manual* order — it mirrors the harvester
