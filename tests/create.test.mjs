@@ -657,15 +657,17 @@ export async function run({ open }) {
       `editorns topp står strax under topbaren, inte nedanför tangentbordet (${plats.topp})`);
   }
 
-  group("en ändring på ett barnbarn räknas om hela vägen upp");
+  group("en ändring på ett barnbarn stannar hos dess egen förälder");
   {
-    // Hittat av Codex på PR #43, och det är den klassiska formen: `progress` räknas på
-    // två ställen — i skördaren och optimistiskt i tavlan — och bara det ena ändrades.
-    // Den optimistiska kopian räknade direkta barn och rörde *en* nod, så efter en
-    // redigering av ett barnbarn föll den närmaste förälderns tal tillbaka till
-    // direktbarnsmåttet medan varje förfader ovanför stod kvar inaktuell, med fel
-    // rollup-signal till, tills nästa skörd en timme senare rättade tavlan utan att
-    // någon fick veta varför den varit fel.
+    // `progress` räknas på två ställen — i skördaren och optimistiskt här i tavlan — och
+    // det som gör kopian farlig är att den kan råka mäta något *annat* utan att någon
+    // märker det förrän nästa skörd rättar tavlan en timme senare. Så måttet mäts här:
+    // direkta barn, en nod. Ett barnbarn som blir klart flyttar mellannodens tal, för
+    // det är mellannodens barn; roten står stilla, för det roten räknar är mellannodens
+    // status, och den rörde sig inte.
+    //
+    // Sabotaget som fäller den här: låt kopian räkna underträdet i stället, så blir
+    // roten 1/2 — ett tal som inte går att härleda ur raden under den.
     const träd = (d) => {
       const rot = d.items.find((i) => i.slug === "a-parent");
       const mitten = d.items.find((i) => i.slug === "b-member");
@@ -677,7 +679,7 @@ export async function run({ open }) {
       mitten.children = ["alpha/a-gc"];
       mitten.progress = { done: 0, total: 1 };
       rot.children = ["beta/b-member"];
-      rot.progress = { done: 0, total: 2 }; // underträdet: mitten + barnbarnet
+      rot.progress = { done: 0, total: 1 }; // ett direkt barn: mitten
       d.items.push(barnbarn);
       return d;
     };
@@ -698,8 +700,9 @@ export async function run({ open }) {
       });
       return ut;
     });
-    eq(tal["A parent"], "1/2",
-      `roten räknar om hela vägen upp när ett barnbarn ändras: ${JSON.stringify(tal)}`);
-    eq(tal["b-member"], "1/1", "och mellannoden räknar sitt eget underträd");
+    eq(tal["b-member"], "1/1",
+      `mellannoden räknar om när dess eget barn blir klart: ${JSON.stringify(tal)}`);
+    eq(tal["A parent"], "0/1",
+      "och roten står stilla — dess enda del är fortfarande öppen, och säger det själv");
   }
 }
