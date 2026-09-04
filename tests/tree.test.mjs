@@ -293,6 +293,54 @@ export async function run({ open }) {
     eq(via.chips, [true], "föräldrachippet står kvar när ingen rubrik säger det");
   }
 
+  group("nivåerna räknar med indraget");
+  {
+    // Codex, #47. Container-frågan känner *tavlans* bredd, men en nästlad rad betalar
+    // upp till 92px av sin egen: 28px karett-ränna plus de 64px indraget är kapat vid.
+    // Nivån avgjordes alltså för en rad som inte finns. Mätt vid 900px (tavlan 660,
+    // innehåll 612) före fixen: den platta raden fick sina 220px titel och den djupaste
+    // 156px — precis den klämning nivåerna infördes för att ta bort.
+    //
+    // Trädet når därför varje nivå 92px senare, och talet är vad som gör de två
+    // jämförbara: vid 652 har den djupaste raden exakt den titel en platt rad har vid
+    // 560. Det går inte att fråga per rad — en container-fråga läser sin container, och
+    // en rad kan inte måtta sina egna spår efter sin egen bredd — så gruppens värsta
+    // fall avgör för gruppen.
+    const kedja = (d) => {
+      const t = träd(d);
+      const mitten = t.items.find((i) => i.slug === "b-member");
+      mitten.children = ["alpha/d2"];
+      let förälder = "beta/b-member";
+      ["d2", "d3", "d4"].forEach((slug, i) => {
+        t.items.push(Object.assign({}, mitten, {
+          id: "alpha/" + slug, slug, repo: "acme/alpha", repoName: "Alpha", repoColor: "#e07a5f",
+          title: "Nivå " + (i + 2) + " med en titel som behöver plats", status: "next",
+          parentRef: förälder, parent: null, children: i < 2 ? ["alpha/d" + (i + 3)] : [],
+          progress: i < 2 ? { done: 0, total: 1 } : null,
+        }));
+        förälder = "alpha/" + slug;
+      });
+      return t;
+    };
+    const p = await open("?layout=list&group=parent", { data: kedja, viewport: { width: 900, height: 900 } });
+    const m = await p.evaluate(() => {
+      const rader = [...document.querySelectorAll(".is-tree .list-row")].map((r) => ({
+        djup: +(getComputedStyle(r).getPropertyValue("--depth") || 0),
+        namn: Math.round(r.querySelector(".list-name").getBoundingClientRect().width),
+      }));
+      const repo = document.querySelector(".is-tree .list-repo");
+      return {
+        djupast: rader.sort((a, b) => b.djup - a.djup)[0],
+        repoSynligt: !!repo && getComputedStyle(repo).display !== "none",
+      };
+    });
+    ok(m.djupast.djup >= 3, `kedjan når djupet den ska: ${JSON.stringify(m.djupast)}`);
+    ok(m.djupast.namn >= 300,
+      `den djupaste raden har fortfarande en titel att läsa: ${m.djupast.namn}px`);
+    eq(m.repoSynligt, false,
+      "repot väntar tills det ryms *med* indraget, inte bara i tavlan");
+  }
+
   group("listan spränger inte sidbredden på en telefon");
   {
     // Det här är felet som syntes som "sidbredden breakar": tavlan är ett rutnätsobjekt,

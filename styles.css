@@ -700,12 +700,31 @@ body {
    as wide as the board, not as the window. */
 .list-agent, .list-repo { display: none; }
 @container list (min-width: 560px) {
-  .list-row { grid-template-columns: 18px minmax(0, 1fr) 44px 148px 92px; gap: 14px; }
-  .list-repo { display: flex; }
+  .list-group:not(.is-tree) .list-row { grid-template-columns: 18px minmax(0, 1fr) 44px 148px 92px; gap: 14px; }
+  .list-group:not(.is-tree) .list-repo { display: flex; }
 }
 @container list (min-width: 720px) {
-  .list-row { grid-template-columns: 18px minmax(0, 1fr) 44px 108px 148px 92px; }
-  .list-agent { display: flex; }
+  .list-group:not(.is-tree) .list-row { grid-template-columns: 18px minmax(0, 1fr) 44px 108px 148px 92px; }
+  .list-group:not(.is-tree) .list-agent { display: flex; }
+}
+/* The tree pays for its own indent, so it reaches each tier 92px later: 28px of caret
+   gutter on every nested row plus the 64px the indent is capped at. Without the offset
+   the tier was decided for a row that does not exist — the container knows the board's
+   width, and a depth-4 row is 92px narrower than that. Measured at the 900px viewport
+   this file already guards: the flat row got its 220px title and the deep one 156px, the
+   very squeeze the tiers were added to remove.
+   The number is what makes the two comparable: at 652 a deepest row has exactly the
+   title a flat row has at 560, so no row is ever worse off than the tier promises. It
+   cannot be asked per row — a container query reads its container, and a row cannot size
+   its own tracks by its own width — so the worst case in the group decides for the
+   group, which is why these are separate rules rather than a bigger number for both. */
+@container list (min-width: 652px) {
+  .is-tree .list-row { grid-template-columns: 18px minmax(0, 1fr) 44px 148px 92px; gap: 14px; }
+  .is-tree .list-repo { display: flex; }
+}
+@container list (min-width: 812px) {
+  .is-tree .list-row { grid-template-columns: 18px minmax(0, 1fr) 44px 108px 148px 92px; }
+  .is-tree .list-agent { display: flex; }
 }
 .card {
   background: var(--panel);
