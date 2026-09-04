@@ -278,10 +278,15 @@ The rollup counts **direct** parts, at every level, so the number over a list is
 number of rows in it: a reader who sees `3/5` can open the part that says `1/3` and
 the arithmetic stays visible all the way down.
 
-On the board it's a grouping like any other: **Display → Grouping → Parent** turns the
-columns into parents, and dragging a card between them writes that one `parent:` line.
-The **Parent** row picks from a searchable list rather than asking you to spell a slug;
-a puck that would close a loop is left out of it.
+**Display → Grouping → Parent** draws the tree, in the **list** layout — picking it
+switches the layout, because a tree spans statuses and a kanban column has no level
+inside it. Flat facets (status, repo, agent, priority, target) group the board; the one
+hierarchy groups the list.
+
+Membership is written from the **Parent** row in the puck's rail, which picks from a
+searchable list rather than asking you to spell a slug; a puck that would close a loop
+is left out of it. `＋ Add puck` on a parent writes the relation straight into the new
+file.
 
 ---
 

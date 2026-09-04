@@ -201,6 +201,45 @@ export async function run({ open }) {
     eq(somRad, false, "roten står inte som rad — därför måste rubriken bära den");
   }
 
+  group("tavlan grupperar inte på parent");
+  {
+    // Platta facetter grupperar tavlan, den enda hierarkin grupperar listan. Ett träd
+    // spänner över statusar, så det finns ingen nivå att rita inuti en kanban-kolumn —
+    // och mätt mot den riktiga tavlan var det inte nära: 19 av 173 puckar står i ett
+    // träd, så kolumnerna blev 2 och 3 kort bredvid ett `No parent` med 28, i ett
+    // rutnät som ger alla kolumner samma bredd.
+    const p = await open("?group=parent&layout=board", { data: träd });
+    const kolumner = await p.evaluate(() =>
+      [...document.querySelectorAll(".board > .column:not(.hidden-cols) .col-head h2")]
+        .map((h) => h.textContent.trim()));
+    eq(kolumner.some((k) => k === LONG || k === "No parent"), false,
+      `tavlan ritar statuskolumner, inte föräldrar: ${JSON.stringify(kolumner)}`);
+    // Och parametrarna säger det som ritas: en omöjlig kombination normaliseras bort
+    // i stället för att ligga kvar och få en orörd vy att läsa som ändrad.
+    eq(await p.evaluate(() => new URLSearchParams(location.search).get("group")), null,
+      "gruppen faller bort ur URL:en, den ritas ju inte");
+  }
+
+  group("att välja hierarkin väljer den layout som kan rita den");
+  {
+    // Alternativet — att falla tillbaka tyst — är misstaget filen redan namnger på ett
+    // annat ställe: en kontroll som påstår ett val som aldrig trädde i kraft. Så
+    // segmentet flyttar sig, synligt, och grupperingen gäller.
+    const p = await open("?layout=board", { data: träd });
+    await p.locator("#displayBtn").click();
+    await p.waitForSelector(".pop, .sheet");
+    await p.locator(".pop, .sheet").getByText("Grouping").click();
+    await p.locator(".pop, .sheet").getByText(/^Parent$/).first().click();
+    await p.waitForTimeout(300);
+    const efter = await p.evaluate(() => ({
+      layout: new URLSearchParams(location.search).get("layout"),
+      grupp: new URLSearchParams(location.search).get("group"),
+      lista: !!document.querySelector(".board.as-list"),
+    }));
+    eq(efter.lista, true, `layouten byter till list: ${JSON.stringify(efter)}`);
+    eq(efter.grupp, "parent", "och grupperingen är den man valde");
+  }
+
   group("listan spränger inte sidbredden på en telefon");
   {
     // Det här är felet som syntes som "sidbredden breakar": tavlan är ett rutnätsobjekt,

@@ -795,6 +795,12 @@
     var layout = o.layout || DISPLAY_DEFAULTS.view;
     var cols = columnsForFocus(focus, o.done === "1");
     var eff = function (k) { return k !== "status" || cols.length > 1 ? k : "repo"; };
+    // A hierarchy grouping cannot be drawn as columns, so `group=parent&layout=board` is
+    // not a view: the layout wins and the grouping is dropped, which is the same shape
+    // as `empty` and `collapsed` below. Dropped rather than kept, so the parameters say
+    // what is actually drawn — a stored view that keeps a setting the board ignores is
+    // how an untouched view came to read as *(edited)*.
+    if (o.group === "parent" && layout !== "list") delete o.group;
     if (o.group && eff(o.group) === eff(DISPLAY_DEFAULTS.group)) delete o.group;
     if (o.done && !ARCHIVABLE[focus]) delete o.done;
     if (o.empty && layout !== "board") delete o.empty;
@@ -3370,7 +3376,13 @@
         var p = k === NO_VALUE ? null : itemById(k);
         return p && p.repoColor;
       },
-      write: function (item, k) { changeParent(item, k === NO_VALUE ? null : k); },
+      // No `write`, and that is the one thing this grouping loses by being list-only:
+      // `write` is the *drop* writer, and dropping happens between columns. With no
+      // parent columns it could never fire, and a writer that cannot be reached is a
+      // capability the registry claims and the board does not have. Re-parenting keeps
+      // its two real paths — the `Parent` field in the rail (a searchable picker, which
+      // is the one a phone can use at all) and `＋ Add puck` on a parent, which writes
+      // the relation into the new file.
       // Which puck a column is named after, when it is named after one at all. Only
       // this grouping has an answer: status, repo, agent, priority and target label
       // their columns with categories, and a category has nothing to open.
@@ -3406,8 +3418,33 @@
   // The *effective* group falls back; `state.group` keeps what you chose. Visiting
   // the inbox therefore doesn't overwrite the grouping you set elsewhere, and the
   // URL still carries the choice you made.
-  function groupUsable(k) { return k !== "status" || columnsForFocus().length > 1; }
-  function effectiveGroup() { return groupUsable(state.group) ? state.group : "repo"; }
+  // Two questions, and they are not the same one. `groupOffered` is what the menus ask —
+  // may this grouping be chosen at all here — and `groupUsable` is what the renderer
+  // asks: can it be *drawn* in the layout we are standing in.
+  //
+  // `parent` is the one grouping that answers them differently, because it is the one
+  // grouping that is a hierarchy rather than a facet. A tree spans statuses, so there is
+  // no level to draw inside a kanban column — and measured against the real board it is
+  // not a close call: 173 pucks, 19 of them in a tree, so `group=parent` drew columns of
+  // 2 and 3 cards beside a `No parent` holding 28 (144 with the archive on) in a grid
+  // that gives every column the same width. Hierarchy is sparse by nature; that
+  // distribution is the normal case, not a phase.
+  //
+  // So the rule is: **flat facets group the board, the one hierarchy groups the list**.
+  // The menus keep offering Parent — `setDisplay` switches the layout with it, visibly —
+  // because a row that vanishes depending on the layout teaches nothing.
+  function groupOffered(k) { return k !== "status" || columnsForFocus().length > 1; }
+  function groupUsable(k, layout) {
+    if (k === "parent") return (layout || state.view) === "list";
+    return groupOffered(k);
+  }
+  function effectiveGroup() {
+    if (groupUsable(state.group)) return state.group;
+    // `status` is the board's own axis; where the view has already fixed it, `repo` is
+    // the fallback the inbox has always used. `state.group` keeps your choice either
+    // way, so stepping back into the list restores it.
+    return groupUsable("status") ? "status" : "repo";
+  }
   function activeGroup() { return GROUPS[effectiveGroup()] || GROUPS.status; }
   // "Manual" is the only ordering where a hand-placed position means anything —
   // every other mode derives it from a field (see sortComparator).
@@ -4968,6 +5005,15 @@
     // and Priority, so collapsing "Unrouted" would silently collapse "No priority".
     if (key === "group" && value !== state.group) state.collapsed.clear();
     state[key] = value;
+    // Picking the hierarchy picks the layout that can draw it, and the segment moves so
+    // you can see it happen. The alternative — falling back silently — is the mistake
+    // this file already names one screen down: a control that claims a choice which
+    // never took effect. (A stored layout is written too, so the switch is as durable
+    // as if you had pressed List yourself.)
+    if (key === "group" && !groupUsable(value)) {
+      state.view = "list";
+      saveDisplay("view", "list");
+    }
     saveDisplay(storeAs || key, typeof value === "boolean" ? (value ? "1" : "0") : value);
     refreshDisplayDot();
     // The sidebar's numbers read `state.showDone` now, so a display change can move
@@ -4997,7 +5043,7 @@
     { key: "group", label: "Grouping",
       current: function () { return effectiveGroup(); },
       options: function () {
-        return Object.keys(GROUPS).filter(groupUsable).map(function (k) {
+        return Object.keys(GROUPS).filter(function (k) { return groupOffered(k); }).map(function (k) {
           return { value: k, label: GROUPS[k].label };
         });
       } },
@@ -5186,7 +5232,7 @@
     }
     // Display options belong in the palette too — the palette is the extensibility
     // surface, so a new display choice never has to become another button.
-    Object.keys(GROUPS).filter(groupUsable).forEach(function (k) {
+    Object.keys(GROUPS).filter(function (k) { return groupOffered(k); }).forEach(function (k) {
       if (k === effectiveGroup()) return;
       cmds.push({ __cmd: true, label: "Group by " + GROUPS[k].label.toLowerCase(), hint: "Display", icon: "sliders", run: function () { setDisplay("group", k); } });
     });

@@ -61,13 +61,10 @@ export async function run({ open }) {
     eq(s.tray, ["Beta3"], "den andra står kvar gömd");
   }
 
-  group("etappens slug och dess id namnger samma kolumn");
-  for (const [spelling, label] of [["a-parent", "bar slug"], ["alpha%2Fa-parent", "fullt id"]]) {
-    const p = await open(`?group=parent&done=1&q=-parent%3A${spelling}`);
-    eq((await snapshot(p)).tray.length, 1, `${label}: etappen listas i facket`);
-    await trayEye(p, "A parent");
-    eq((await snapshot(p)).query, null, `${label}: ögat tömmer termen`);
-  }
+  // Här stod samma stavningskontroll för `parent:` — fack, öga, tömt term. Den gick
+  // bort med `group=parent` på tavlan: facket är en plats på tavlan, och en hierarki
+  // grupperar inte längre kolumner. Regeln den vaktade ("fråga datan samma sak som
+  // matcharen frågar") är fortfarande vaktad av repo-fallet ovan, i sina tre stavningar.
 
   group("en tom kolumn erbjuds bara när ögat kan ge något");
   {
@@ -98,18 +95,22 @@ export async function run({ open }) {
   group("ett kolumnhuvud som namnger en puck är den pucken");
   {
     // Under `group=parent` är rubriken namnet på ett riktigt kort, men den var ren text.
-    // Överallt annars på tavlan öppnar en pucks namn den — korttiteln, föräldrachippet,
+    // Överallt annars öppnar en pucks namn den — korttiteln, föräldrachippet,
     // brödsmulan — och det här var det enda stället regeln bröts. Det är dessutom
-    // stället där pucken annars *inte finns på skärmen*: den ligger i `No parent`, eller
-    // inne i sin egen förälders kolumn.
+    // stället där pucken annars *inte finns på skärmen*: efter befordran är rubriken
+    // rotens enda representation.
+    //
+    // Mätt i listan sedan hierarkin blev listspecifik. Rubrikformen är densamma —
+    // `.col-head h2` och `.list-head h2` delar både `.named` och ögonbrynet — så det
+    // är samma regel, läst där grupperingen numera finns.
     const långt = (d) => {
       d.items.find((i) => i.slug === "a-parent").title = "Brand it + split product / instance";
       return d;
     };
-    const p = await open("?group=parent", { data: långt });
+    const p = await open("?group=parent&layout=list", { data: långt });
     const huvuden = await p.evaluate(() =>
-      [...document.querySelectorAll(".col-head h2")].map((e) => ({
-        text: e.textContent.trim(),
+      [...document.querySelectorAll(".list-head h2")].map((e) => ({
+        text: (e.querySelector(".lh-label") || {}).textContent.trim(),
         named: e.classList.contains("named"),
         knapp: !!e.querySelector(".head-open"),
         versaler: getComputedStyle(e).textTransform,
@@ -179,7 +180,7 @@ export async function run({ open }) {
         "Ett orimligt långt föräldranamn som ingen skulle skriva men som formatet tillåter";
       return d;
     };
-    const p = await open("?group=parent", { data: långt, viewport: { width: 390, height: 844 } });
+    const p = await open("?group=parent&layout=list", { data: långt, viewport: { width: 390, height: 844 } });
     const m = await p.evaluate(() => {
       const b = document.querySelector(".head-open");
       return {
