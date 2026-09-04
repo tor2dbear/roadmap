@@ -13,8 +13,9 @@ agent: design
 ## Goal
 
 Välja **vilka egenskaper som visas** — status, prioritet, agent, repo, ägare, skapad,
-uppdaterad, target, etiketter, rollup — och att valet är en del av vyn: det ligger i
-URL:en, följer med en delad länk och sparas med en sparad vy.
+uppdaterad, target, etiketter, rollup — på korten och raderna *och i gruppernas
+rubriker*, och att valet är en del av vyn: det ligger i URL:en, följer med en delad
+länk och sparas med en sparad vy.
 
 ## Research
 
@@ -29,6 +30,9 @@ påslaget i vyn?*
   en tom kolumn kvar och håller sin bredd.
 - **Kortet** lägger sina märken i en rad (`card-meta`) och behöver bara sluta lägga dit
   dem.
+- **Gruppens rubrik hör hit lika mycket som raden.** Den bär två tal — `count`
+  (antalet rader gruppen visar) och rollup-brickan (`progress`, delarna pucken *har*) —
+  plus arkivmärket och swatchen. Rubriken är samma fråga en nivå upp.
 - **Datumet är redan ett val, fast automatiskt.** `cardDateField()` väljer fält efter
   hur man sorterat: sorterar man på `created` visas `created`, på `target` visas
   `target`, annars `updated`. Regeln finns för att en lista som sorterats på ett datum
@@ -57,6 +61,18 @@ ett tak — det du valt bort syns aldrig, det du valt syns när det ryms — men
 inte längre är en *tyst* regel, för nu står den bredvid en kryssruta som säger något
 annat.
 
+## De två talen i rubriken säger olika saker, utom när de inte gör det
+
+`count` är **hur många rader gruppen visar just nu**; rollup-brickan är **hur många
+delar pucken har**, ofiltrerat. Utan filter är de samma tal, och det är exakt då de ser
+ut som en dubblering: `Brand it + split product / instance 2 ⚬2/2`. Med ett filter går
+de isär, och då är bägge värdefulla.
+
+Det gör dem till ett bra första par att kunna välja mellan — och det är samma
+resonemang som redan avgjorde att *raden* inte bär någon räknare: `progress` svarar på
+den stadigare frågan, medan ett antal rör sig med filtret. Skillnaden är att rubriken
+har plats för bägge, så där är det ett val och inte ett avgörande.
+
 ## Vad som gör den värd hög prio
 
 Tavlan har fått fler egenskaper än en rad rymmer: prioritet, agent, ägare, target,
@@ -73,6 +89,10 @@ prioriteringsgenomgång.
 - **Ett val eller ett per layout?** Listan har spår, kortet har märken; samma
   uppsättning i bägge är enklare att förklara och sämre för bägge. `effectiveParams`
   kan bära det, men två uppsättningar är två saker att spara.
+- **Delar rubriken radens uppsättning?** De har bara `rollup` gemensamt, och rubrikens
+  `count` finns inte på raden alls — så en gemensam lista blir en lista med rader som
+  inte gäller överallt. Två små uppsättningar är förmodligen ärligare än en stor med
+  undantag.
 - **Vad kan aldrig stängas av?** Titeln, uppenbart. Puck-glyfen bär repofärgen, och
   varningsmärket är driftsignalen — att kunna dölja den är att kunna dölja att något är
   fel.
