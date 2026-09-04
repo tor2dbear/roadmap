@@ -53,13 +53,8 @@ påslaget i vyn?*
    undermeny av kryssrutor, är den formen menyn redan har (`DISPLAY_FIELDS` →
    `renderDisplayValues`).
 
-**Det finns redan ett automatiskt val att inte bryta.** På smal skärm döljer
-stilmallen agent och repo i listan (`@media (max-width: 640px)`). Ett handval och en
-breakpoint som bägge stänger av samma fält får inte hamna i konflikt: den ena säger vad
-du vill se, den andra vad som får plats. Rimligast är att breakpointen fortsätter vara
-ett tak — det du valt bort syns aldrig, det du valt syns när det ryms — men att den då
-inte längre är en *tyst* regel, för nu står den bredvid en kryssruta som säger något
-annat.
+**Det finns redan ett automatiskt val att inte bryta** — och det är avgjort tvärtemot
+hur den här texten först löd. Se *Beslut* nedan.
 
 ## De två talen i rubriken säger olika saker, utom när de inte gör det
 
@@ -82,10 +77,44 @@ lösningen där var att flytta *en* sak till en egen rad. Det är en lokal rädd
 generellt problem: uppsättningen är inte densamma för en fleet-vy som för en
 prioriteringsgenomgång.
 
+## Beslut
+
+**Automatik gäller i frånvaro av ett val, aldrig över ett.** Det är den ena regeln
+bägge besluten nedan följer, och den finns för att en tyst överkörning är samma fel
+filen redan namnger två gånger: en kontroll som påstår ett val som aldrig trädde i kraft.
+
+**Datumet: valet ersätter `cardDateField()`.** `Created`, `Updated` och `Target` blir
+tre separata val, och dagens regel — visa det datum sorteringen handlar om — blir
+*defaultuppsättningen* när inget datum är valt. Kollisionen som tvingade fram frågan:
+sorterar du på "Newest created" och har kryssat `Updated` visar raderna
+uppdateringsdatum medan ordningen följer skapandedatum, vilket läser som en oordnad
+lista — precis felet regeln skrevs för att förhindra. Med valet som överordnat kan du
+kryssa i bägge och se varför ordningen är som den är.
+
+**Bredden: raden får scrolla i sidled i stället för att tappa kolumner.** Mätt på 390px
+med hela uppsättningen påslagen: sidbredden står stilla (390), lådan scrollar internt
+(926), och med `position: sticky; left: 0` på glyf + namn står titeln kvar efter 260px
+sidled, oklippt. Rubriken måste frysas i sidled på samma sätt, annars scrollar den ut
+åt vänster.
+
+Priset är **en** sak, och bara en: `overflow-x: auto` gör lådan till scrollcontainer i
+båda axlarna, så gruppubrikens `top: sticky` upphör att gälla. Den kostnaden var i
+första bedömningen felprissatt som ett skalbygge — slutsatsen "alltså måste sidans
+scroll flytta in i en ruta" förutsätter att den klibbiga rubriken är värd priset, och
+Notion har den inte på telefon. Skalbygget står kvar som en möjlighet om rubriken visar
+sig saknas, och hör då ihop med `headern-malas-inte-vid-omladdning`, som rör samma
+geometri.
+
+Vinsten utöver löftet: **hela brytpunktsräkningen kan gå.** 560/720, sedan 652/812 när
+indraget skulle in — två buggar på två dagar kom ur de talen. En rad som får scrolla
+behöver ingen veta vad som får plats.
+
 ## Open questions
 
-- **Ersätter valet `cardDateField()` eller ligger det ovanpå?** "Visa skapad" när man
-  sorterat på target är ett rimligt val och en olycka, i samma klick.
+- **Får gruppens rubrik sluta följa med nedåt?** Det är hela priset för sidledsscrollen,
+  och det är ett smakbeslut som inte går att mäta fram: Notion lever utan den på telefon.
+  Ja → en handfull CSS-rader. Nej → listan måste bli sin egen scrollruta, vilket rör
+  iOS-scroll, footern och samma geometri som `headern-malas-inte-vid-omladdning`.
 - **Ett val eller ett per layout?** Listan har spår, kortet har märken; samma
   uppsättning i bägge är enklare att förklara och sämre för bägge. `effectiveParams`
   kan bära det, men två uppsättningar är två saker att spara.
