@@ -41,6 +41,7 @@ const form = (page) => page.evaluate(() =>
   [...document.querySelectorAll(".list-group")].map((s) => ({
     head: (s.querySelector(".lh-label") || {}).textContent,
     mark: (s.querySelector(".col-archived") || {}).textContent,
+    warn: !!s.querySelector(".list-head .warn-badge"),
     rows: [...s.querySelectorAll(".list-row, .list-empty")].map((r) => {
       const d = +(getComputedStyle(r).getPropertyValue("--depth") || 0);
       if (r.classList.contains("list-empty")) return d + ":[" + r.textContent.trim() + "]";
@@ -176,6 +177,28 @@ export async function run({ open }) {
     const f = await form(p);
     eq(f[0].rows, ["0:·b-member", "1:[No matching parts]"],
       `den fällda föräldern säger fortfarande att den har delar: ${JSON.stringify(f[0].rows)}`);
+  }
+
+  group("en befordrad rot behåller sin varning");
+  {
+    // Codex, #46. En rot som befordras till rubrik ritas *bara* som rubrik — raden under
+    // `No parent` är precis vad befordran tar bort — och rubriken kallade aldrig
+    // `signalMessages`. En `stale` eller `rollup-open` på en toppförälder försvann alltså
+    // ur listan medan pucken stod kvar på skärmen. ⚠ är det märke ingenting får dölja:
+    // det säger att puckens eget påstående är falskt.
+    const flaggadRot = (d) => {
+      const t = träd(d);
+      t.items.find((i) => i.slug === "a-parent").signals = [{ type: "stale" }];
+      return t;
+    };
+    const p = await open("?layout=list&group=parent", { data: flaggadRot });
+    const f = await form(p);
+    const rot = f.find((s) => s.head === LONG);
+    ok(rot.warn, "rubriken bär puckens flagga");
+    // Och det är den enda platsen den kan stå på: roten är ingen rad någonstans.
+    const somRad = await p.evaluate((t) => [...document.querySelectorAll(".list-row")]
+      .some((r) => (r.querySelector(".list-title") || {}).textContent === t), LONG);
+    eq(somRad, false, "roten står inte som rad — därför måste rubriken bära den");
   }
 
   group("listan spränger inte sidbredden på en telefon");

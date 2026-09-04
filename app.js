@@ -4169,6 +4169,12 @@
       // phone rather than a rename.
       var opens = g.opens && g.opens(grp.key);
       if (opens) h.classList.add("named");
+      // The heading names a puck, so it carries that puck's flag. In the tree a root
+      // parent is drawn *only* as a heading — its row under `No parent` is exactly what
+      // the promotion removes — so without this a `stale` or `rollup-open` on a
+      // top-level parent vanished from the list while the puck was still on screen. The
+      // ⚠ is the one badge nothing may hide: it says the puck's own claim is false.
+      var warn = opens ? signalMessages(opens) : [];
       // A group the archive emptied has nothing to collapse and no visible count worth
       // printing — "Done 0 · 3 archived" says zero twice. So it is a plain heading, not
       // a control: swatch and label, and the mark carries both the number and the way
@@ -4187,6 +4193,7 @@
         stub.appendChild(opens ? openButton(opens, grp.label, "lh-label") : el("span", "lh-label", grp.label));
         h.appendChild(stub);
         head.appendChild(h);
+        if (warn.length) head.appendChild(warnBadge(warn));
         head.appendChild(archivedMark(archived.count[grp.key], grp.key));
         section.appendChild(head);
         board.appendChild(section);
@@ -4217,6 +4224,7 @@
         h.appendChild(el("span", "count", String(grp.items.length)));
       }
       head.appendChild(h);
+      if (warn.length) head.appendChild(warnBadge(warn));
       // Outside the toggle, for the reason stated above it: a <button> inside a <button>
       // is invalid, and this one has its own click.
       var held = archived ? (archived.count[grp.key] || 0) - grp.items.length : 0;
