@@ -1481,7 +1481,10 @@
     b.appendChild(dot);
     b.appendChild(document.createTextNode(item.repoName));
     b.title = "Show " + item.repoName + " pucks";
-    b.addEventListener("click", function () { goToPlace("repo", item.repo); });
+    // `keep`: never toggle. The sidebar's row is a place you can step out of; this is a
+    // destination, and from a board already scoped to this repo the toggle would have
+    // answered "show me this repo" by showing every repo.
+    b.addEventListener("click", function () { goToPlace("repo", item.repo, true); });
     return b;
   }
 
@@ -4644,11 +4647,18 @@
   // orthogonal, so "Backend, within Parent" still composes — they are two fields, and
   // the query ANDs them for free. The same three behaviours the Set version had, said
   // as a term operation: the radio, the toggle-off, and the replace.
-  function pickScope(field, key) {
+  // `keep` is the difference between a *place you are standing in* and a *destination*.
+  // A sidebar row is the first: pressing the one you are already in clears it, which is
+  // how you get back to All pucks. A value in a puck's rail is the second — it says
+  // "show me this repo's pucks", and from a board already scoped to that repo the toggle
+  // answered by showing every repo instead, which is the opposite of what the row reads
+  // as. Same writer, one flag, so the question "am I already here?" is still asked in
+  // exactly one place.
+  function pickScope(field, key, keep) {
     var vals = placeValues(field);
     var wasSole = vals.length === 1 && vals[0] === lower(key);
     var rest = parseQuery(state.query).filter(function (t) { return !sameField(t, field, false); });
-    if (!wasSole) rest.push({ field: field, op: "in", values: [key], neg: false });
+    if (!wasSole || keep) rest.push({ field: field, op: "in", values: [key], neg: false });
     setQueryTerms(rest);
   }
   // A place is active → the sidebar is "in" that place, not in a view.
@@ -4684,7 +4694,9 @@
   }
   // Go to a place: single-select it and reset to its whole board (focus "all"), so a
   // place always shows the same thing regardless of the view you came from.
-  function goToPlace(field, key) {
+  // `keep` — see `pickScope`: a sidebar row toggles off when you press the place you
+  // are already in, a rail value never does, because it names a destination.
+  function goToPlace(field, key, keep) {
     closeSurfaces(); // same as goToView — the board changes under whatever is open
     exitPuckView();
     state.focus = "all";
@@ -4707,7 +4719,7 @@
     var rest = parseQuery(state.query).filter(function (t) {
       return !t.neg && t.field !== field && PLACE_FIELDS_ORDER.indexOf(t.field) !== -1;
     });
-    if (!wasSole) rest.push({ field: field, op: "in", values: [key], neg: false });
+    if (!wasSole || keep) rest.push({ field: field, op: "in", values: [key], neg: false });
     setQueryTerms(rest);
     refreshNav();
     renderBoard();

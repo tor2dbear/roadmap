@@ -397,6 +397,17 @@ export async function run({ open }) {
     }));
     eq(efter.q, "repo:acme/alpha", `trycket skopar tavlan till repot: ${JSON.stringify(efter)}`);
     eq(efter.puckÖppen, false, "och lämnar puck-vyn, som all annan navigering i sidomenyn");
+
+    // Codex, #47: från en tavla som *redan* står i repot slog samma tryck av skopet,
+    // eftersom sidomenyns rad är byggd som en växel — "tryck på den du står i och du
+    // kommer ut". En rad i skenan är inte en plats man står i, den är ett mål: den
+    // säger "visa det här repots puckar", och svarade med att visa alla.
+    const iRepot = await open("?q=repo%3Aacme%2Falpha#alpha/a-parent");
+    await iRepot.waitForSelector(".repo-cell");
+    await iRepot.locator(".repo-cell").click();
+    await iRepot.waitForTimeout(300);
+    eq(await iRepot.evaluate(() => new URLSearchParams(location.search).get("q")),
+      "repo:acme/alpha", "skopet står kvar när man redan är i det — värdet växlar inte");
     })();
   }
 
