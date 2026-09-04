@@ -3886,7 +3886,12 @@
     withShowDone(true, function () {
       var q = activeTerms();
       var all = DATA.items.filter(function (it) { return runQuery(it, q); });
-      groupsOf(all).forEach(function (grp) { count[grp.key] = grp.items.length; order.push(grp.key); });
+      var gs = groupsOf(all);
+      // Counted in the shape the layout actually draws: in the tree a root is a heading
+      // and never a row under `No parent`, so it is not one of the rows that column can
+      // be short of. See `liftRoots`.
+      if (treeMode()) liftRoots(gs);
+      gs.forEach(function (grp) { count[grp.key] = grp.items.length; order.push(grp.key); });
     });
     return { count: count, order: order };
   }
@@ -4047,23 +4052,33 @@
   // What it deliberately does not do: nest a group whose own puck the filter removed.
   // There is no row to hang it from, so it keeps a top-level heading — the same context
   // heading the list has always drawn for a parent that is not itself on screen.
-  function listTree(groups) {
+  function treeMode() { return state.view === "list" && effectiveGroup() === "parent"; }
+  // (2), on its own because the archive has to be counted the same way. `No parent`
+  // holds rows, and a root is not one of them — so counting a lifted root among the
+  // pucks the archive is holding back made the heading advertise one more hidden puck
+  // than it had, and could conjure an archive-only `No parent` out of a column whose
+  // only remaining rows were roots. Returns them, since the tree needs to know which
+  // headings to build.
+  function liftRoots(groups) {
+    var none = null;
+    groups.forEach(function (grp) { if (grp.key === NO_VALUE) none = grp; });
+    if (!none) return {};
+    var roots = {};
+    none.items.forEach(function (it) { if ((it.children || []).length) roots[it.id] = it; });
+    none.items = none.items.filter(function (it) { return !roots[it.id]; });
+    return roots;
+  }
+  function listTree(groups, roots) {
     var byKey = {}, visible = {};
     groups.forEach(function (grp) {
       byKey[grp.key] = grp;
       grp.items.forEach(function (it) { visible[it.id] = it; });
     });
-    var sections = [], roots = {};
+    var sections = [];
     groups.forEach(function (grp) {
       var p = grp.key === NO_VALUE ? null : itemById(grp.key);
       if (!(p && p.parentRef && visible[p.id])) sections.push(grp); // (1)
     });
-    Object.keys(visible).forEach(function (id) {
-      var it = visible[id];
-      if (!it.parentRef && (it.children || []).length) roots[id] = it; // (2)
-    });
-    var none = byKey[NO_VALUE];
-    if (none) none.items = none.items.filter(function (it) { return !roots[it.id]; });
     Object.keys(roots).forEach(function (id) {
       // (3) at the top level: a visible root whose every part the filter took has no
       // group of its own, so its heading has to be built rather than found.
@@ -4086,6 +4101,10 @@
     // chip row cannot cover it either (`viewTerms()` holds the switch outside
     // `state.query`), which is what left this layout silent in every grouping.
     var archived = archivedPerColumn();
+    // Before `shownKeys`, deliberately: a `No parent` the lift empties has to be able to
+    // become an archive stub like any other emptied column, and a lifted root must not
+    // keep it standing as a column with no rows.
+    var roots = treeMode() ? liftRoots(groups) : null;
     var shownKeys = {};
     groups.forEach(function (grp) { if (grp.items.length) shownKeys[grp.key] = 1; });
     // A group the archive emptied *entirely* never reaches `groups`, so it has to be put
@@ -4112,7 +4131,7 @@
     }
     // Nesting *is* what grouping by parent means, so it is not a switch anywhere: any
     // other grouping cuts across the trees (a tree spans statuses) and stays flat.
-    var tree = effectiveGroup() === "parent" ? listTree(groups) : null;
+    var tree = roots ? listTree(groups, roots) : null;
     if (tree) groups = tree.sections;
     groups.forEach(function (grp) {
       // A flat list has no drop targets, so no empty headers — except one the archive
@@ -4219,7 +4238,11 @@
       var shut = state.collapsed.has(it.id);
       section.appendChild(listRow(it, { depth: depth, fold: open ? (shut ? "shut" : "open") : null }));
       if (open && !shut) renderNodes(section, kids.items, depth + 1, tree, archived);
-      if (shut) return; // a folded puck says nothing about parts it is deliberately hiding
+      // A folded puck says nothing about parts it is deliberately hiding — but only when
+      // there was something to fold. A stale fold (collapsed, then a filter took every
+      // part) leaves a row with no caret to clear it, so `shut` alone suppressed both
+      // lines and left the puck reading as a leaf with no way back.
+      if (open && shut) return;
       // What is missing from under this puck, and why — on a line of its own rather than
       // as a badge on the row. Measured on a phone: the row already carries a rollup, a
       // priority, a flag and a date, and an `N archived 👁` badge beside them took the

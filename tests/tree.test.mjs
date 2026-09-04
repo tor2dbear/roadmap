@@ -40,6 +40,7 @@ const arkiveratBarnbarn = (d) => {
 const form = (page) => page.evaluate(() =>
   [...document.querySelectorAll(".list-group")].map((s) => ({
     head: (s.querySelector(".lh-label") || {}).textContent,
+    mark: (s.querySelector(".col-archived") || {}).textContent,
     rows: [...s.querySelectorAll(".list-row, .list-empty")].map((r) => {
       const d = +(getComputedStyle(r).getPropertyValue("--depth") || 0);
       if (r.classList.contains("list-empty")) return d + ":[" + r.textContent.trim() + "]";
@@ -111,6 +112,36 @@ export async function run({ open }) {
     // En fälld nod säger heller inget om delar den *avsiktligt* döljer — annars hade
     // "No matching parts" dykt upp i samma stund som man fällde ihop den.
     eq(f.filter((s) => s.head === "No parent").length, 1, "resten av listan rörs inte");
+  }
+
+  group("arkivet räknar rader, och en lyft rot är ingen rad");
+  {
+    // Codex, #46. `archivedPerColumn` grupperar med samma `groupsOf` som tavlan — men
+    // trädet lyfter roten ur `No parent`, och märket räknar `count − synliga rader`. Den
+    // lyfta roten blev alltså en "arkiverad" puck som inte var arkiverad, och rubriken
+    // lovade ett gömt kort mer än den hade.
+    const p = await open("?layout=list&group=parent", { data: träd });
+    const none = (await form(p)).find((s) => s.head === "No parent");
+    eq(none.mark, "4 archived",
+      `bara de fyra som verkligen ligger i arkivet: ${JSON.stringify(none.mark)}`);
+    // Och siffran är kontrollerbar: ögat lyfter arkivet, och exakt fyra rader kommer till.
+    const före = none.rows.length;
+    await p.locator(".list-group").filter({ hasText: "No parent" }).locator(".col-archived").click();
+    await p.waitForTimeout(200);
+    const efter = (await form(p)).find((s) => s.head === "No parent").rows.length;
+    eq(efter - före, 4, `ögat ger tillbaka precis så många som märket lovade (${före} → ${efter})`);
+  }
+
+  group("en fällning som filtret sprang ifrån låser inte raden");
+  {
+    // Codex, #46. Fäll en förälder, filtrera sedan bort alla dess delar: `shut` står kvar
+    // i `state.collapsed` medan raden inte längre får något karet — så den enda kontroll
+    // som kunde lösa fällningen är borta, och raden ritade som ett löv för alltid i den
+    // vyn. En puck med delar är en förälder oavsett vilka delar filtret visar.
+    const p = await open("?layout=list&group=parent&q=member&collapsed=" + encodeURIComponent("beta/b-member"), { data: träd });
+    const f = await form(p);
+    eq(f[0].rows, ["0:·b-member", "1:[No matching parts]"],
+      `den fällda föräldern säger fortfarande att den har delar: ${JSON.stringify(f[0].rows)}`);
   }
 
   group("listan spränger inte sidbredden på en telefon");
