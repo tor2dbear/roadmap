@@ -269,6 +269,30 @@ export async function run({ open }) {
     eq(efter.grupp, "parent", "och grupperingen är den man valde");
   }
 
+  group("samma länk ritar samma kort");
+  {
+    // Codex, #46. Föräldrachippet göms under parent-gruppering, för rubriken säger redan
+    // samma sak — men villkoret läste `state.group`, den *sparade* preferensen. Den och
+    // den ritade grupperingen kom isär i samma stund som tavlan slutade rita
+    // föräldrakolumner: `state.group` behåller med flit ditt val medan `effectiveGroup()`
+    // faller tillbaka, så kortet gömde sin enda föräldraetikett utan att någon rubrik sa
+    // det i stället.
+    //
+    // Och eftersom fallbacken normaliseras bort ur URL:en är det samma länk: två läsare
+    // med olika sparad gruppering fick olika metadata på korten.
+    const chip = (p) => p.evaluate(() => ({
+      url: new URLSearchParams(location.search).get("group"),
+      chips: [...document.querySelectorAll(".card")]
+        .filter((c) => (c.querySelector(".card-title") || {}).textContent === "b-member")
+        .map((c) => !!c.querySelector(".parent-chip")),
+    }));
+    const rak = await chip(await open("?layout=board", { data: träd }));
+    const via = await chip(await open("?group=parent&layout=board", { data: träd }));
+    eq(via.url, rak.url, "bägge normaliseras till samma länk");
+    eq(via.chips, rak.chips, `och samma länk ritar samma kort: ${JSON.stringify([rak.chips, via.chips])}`);
+    eq(via.chips, [true], "föräldrachippet står kvar när ingen rubrik säger det");
+  }
+
   group("listan spränger inte sidbredden på en telefon");
   {
     // Det här är felet som syntes som "sidbredden breakar": tavlan är ett rutnätsobjekt,

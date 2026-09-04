@@ -1317,9 +1317,16 @@
     if (item.priority) meta.appendChild(priorityBadge(item.priority));
     if (item.agent) meta.appendChild(agentBadge(item.agent));
     if (item.progress) meta.appendChild(progressBadge(item));
-    // Membership is worth showing everywhere except in the parent columns, where the
-    // column header already says it.
-    if (item.parentRef && state.group !== "parent") meta.appendChild(parentChip(item));
+    // Membership is worth showing everywhere except under the parent grouping, where the
+    // heading above the card already says it.
+    //
+    // The *effective* grouping, not the stored preference. They came apart the moment
+    // the board stopped drawing parent columns: `state.group` deliberately keeps your
+    // choice while `effectiveGroup()` falls back, so a member card on the board hid its
+    // only parent label with no heading anywhere saying the same thing — and since the
+    // fallback is normalised out of the URL, the same link drew different metadata
+    // depending on which grouping the reader happened to have stored.
+    if (item.parentRef && effectiveGroup() !== "parent") meta.appendChild(parentChip(item));
     if ((item.blockedBy || []).length) meta.appendChild(blockBadge(item));
     if (item.owner) meta.appendChild(ownerEl(item.owner));
     var dc = dateCell(item);
@@ -3258,7 +3265,7 @@
     name.appendChild(el("span", "list-title", item.title));
     if (sig.length) name.appendChild(warnBadge(sig));
     if (item.progress) name.appendChild(progressBadge(item));
-    if (item.parentRef && state.group !== "parent") name.appendChild(parentChip(item));
+    if (item.parentRef && effectiveGroup() !== "parent") name.appendChild(parentChip(item)); // effective: see card()
     if ((item.blockedBy || []).length) name.appendChild(blockBadge(item));
     r.appendChild(name);
 
