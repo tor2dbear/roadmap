@@ -357,6 +357,49 @@ export async function run({ open }) {
     eq(brådska ? brådska.bakgrund : null, "rgba(0, 0, 0, 0)", "och står utan fylld bricka bakom sig");
   }
 
+  group("puck-sidan säger vilket repo pucken bor i");
+  {
+    // Uppgiften pucken finns för. Den stod i den inbyggda brödsmulan
+    // (`Alpha · a-parent`) tills `body.viewing-puck` gömde den till förmån för
+    // topbarens, som bär vyn och titeln och tappade repot — informationen flyttade
+    // inte, den försvann i bytet. Kvar var glyfens färg, alltså en kod.
+    const p = await open("#alpha/a-parent");
+    // Bundet och fångat: utan raden finns inget att vänta på, och en kontroll som
+    // *kastar* efter trettio sekunder tar resten av filen med sig och säger "timeout"
+    // där den skulle ha sagt vad som saknades.
+    const finns = await p.waitForSelector('.prop[data-field="repo"]', { timeout: 4000 })
+      .then(() => true).catch(() => false);
+    // …och grenat, inte returnerat: ett `return` här hade tagit varje grupp *efter*
+    // den här ur körningen och rapporterat dem som gröna.
+    if (!finns) ok(false, "puck-sidan har ingen rad som säger vilket repo pucken bor i");
+    else await (async () => {
+    const rad = await p.evaluate(() => {
+      const r = document.querySelector('.prop[data-field="repo"]');
+      const rader = [...document.querySelectorAll(".prop")].map((x) => x.dataset.field);
+      return {
+        värde: r.querySelector(".prop-v").textContent.trim(),
+        prick: !!r.querySelector(".repo-dot"),
+        först: rader[0],
+      };
+    });
+    eq(rad.värde, "Alpha", `raden säger repots namn: ${JSON.stringify(rad)}`);
+    ok(rad.prick, "med samma märke som listraden bär, så färgen får sitt namn bredvid sig");
+    eq(rad.först, "repo", "och den står först — puckens hem före dess läge");
+
+    // Inte en väljare (att flytta en puck mellan repon är en git-flytt), men inte död
+    // heller: namnet går till det repots puckar, genom samma `goToPlace` som
+    // sidomenyns chip — ett svar på "visa mig det här repot", inte två.
+    await p.locator(".repo-cell").click();
+    await p.waitForTimeout(300);
+    const efter = await p.evaluate(() => ({
+      q: new URLSearchParams(location.search).get("q"),
+      puckÖppen: document.body.classList.contains("viewing-puck"),
+    }));
+    eq(efter.q, "repo:acme/alpha", `trycket skopar tavlan till repot: ${JSON.stringify(efter)}`);
+    eq(efter.puckÖppen, false, "och lämnar puck-vyn, som all annan navigering i sidomenyn");
+    })();
+  }
+
   group("radens kolumner följer tavlans bredd, inte fönstrets");
   {
     // Två olika tal, och det är hela poängen. Sidomenyn tar 240px när den är öppen, så

@@ -1415,6 +1415,12 @@ body.preload * { transition: none !important; }
 .issue-cell { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .issue-link { color: var(--accent); text-decoration: none; font-family: var(--mono); font-size: var(--fs-md); }
 .issue-link:hover { text-decoration: underline; }
+/* The repo row's value: the mark first, then the name it belongs to. `--ink` rather
+   than the accent — it is a fact about the puck like the ones under it, not a link out
+   of the page; the press scopes the board, which is navigation *within* the app. */
+.repo-cell { display: inline-flex; align-items: center; gap: 7px; color: var(--ink); }
+.repo-cell .repo-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+@media (hover: hover) { .repo-cell:hover { color: var(--accent); } }
 .issue-cell .linklike { background: none; border: 0; padding: 0; font: inherit; font-size: var(--fs-md); color: var(--accent); cursor: pointer; }
 .issue-cell .linklike:hover { text-decoration: underline; }
 .issue-editbtn { font-size: var(--fs-base); color: var(--ink-3); }

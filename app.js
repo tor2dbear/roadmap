@@ -1470,6 +1470,21 @@
     }
   }
 
+  // The repo, as a rail value: its dot and its name, and a press that scopes the board
+  // to it. `.repo-dot` is the same 8px mark the list row wears, so the colour on the
+  // puck page finally has its name written next to it instead of being a code.
+  function repoValue(item) {
+    var b = el("button", "linklike repo-cell");
+    b.type = "button";
+    var dot = el("span", "repo-dot");
+    dot.style.background = item.repoColor;
+    b.appendChild(dot);
+    b.appendChild(document.createTextNode(item.repoName));
+    b.title = "Show " + item.repoName + " pucks";
+    b.addEventListener("click", function () { goToPlace("repo", item.repo); });
+    return b;
+  }
+
   // A property row: mono key + value node. Add a field = add a row (growable).
   //   field: the model's name for the row, when it differs from the reader's word.
   //   The label is free to change; `data-field` is what the shortcuts and the tests
@@ -2801,6 +2816,19 @@
     if (ghToken() && item.native && !editable && writableRepos !== null) {
       overview.appendChild(el("div", "detail-note", "Read-only — your token has no write access to " + item.repoName + "."));
     }
+
+    // Repo: where the file lives, and the first thing the rail should answer — a puck
+    // page that says everything about a puck except which repo it comes from is missing
+    // the fact the whole product is built on. It stood in the in-content breadcrumb
+    // (`Etapp · gui-hantverk`) until `body.viewing-puck` hid that in favour of the
+    // topbar's, which carries the view and the title and dropped the repo. The
+    // information did not move; it was lost in the swap.
+    //
+    // Not a picker, and it never will be: moving a puck between repos is a git move, not
+    // a field. Not dead either — the name goes to that repo's pucks through `goToPlace`,
+    // the same one writer the sidebar's chip uses, so there is one answer to "show me
+    // this repo" and not two.
+    gAxes.rows.push(propRow("Repo", repoValue(item)));
 
     // Status: current value as a chip; click to pick (editable) — Linear-style.
     gAxes.rows.push(propRow("Status", propPicker({
