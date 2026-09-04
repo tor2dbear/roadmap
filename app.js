@@ -4152,7 +4152,20 @@
     // `No parent` the lift empties can become an archive stub like any other emptied
     // column rather than standing as a column with no rows.
     var roots = treeMode() ? liftRoots(groups) : null;
-    var archived = archivedPerColumn(roots);
+    // …and "became a heading" is the wider question. A root gets one two ways: the lift
+    // takes it out of `No parent`, or a *child's* group supplies it. The second is how
+    // an archived root with an open part is drawn — the archive took the puck itself, so
+    // the lift cannot see it, but the list draws its heading from the child all the same.
+    // Counting it among the rows `No parent` is short of promised a card the eye could
+    // not deliver: the mark said 5, the eye gave back 4 and promoted the fifth to the
+    // heading it already had.
+    var headed = null;
+    if (roots) {
+      headed = {};
+      Object.keys(roots).forEach(function (id) { headed[id] = 1; });
+      groups.forEach(function (grp) { if (grp.key !== NO_VALUE && grp.items.length) headed[grp.key] = 1; });
+    }
+    var archived = archivedPerColumn(headed);
     var shownKeys = {};
     groups.forEach(function (grp) { if (grp.items.length) shownKeys[grp.key] = 1; });
     // A group the archive emptied *entirely* never reaches `groups`, so it has to be put

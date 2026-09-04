@@ -167,6 +167,35 @@ export async function run({ open }) {
     }
   }
 
+  group("en arkiverad rot som redan har en rubrik räknas inte som en gömd rad");
+  {
+    // Codex, #46, och andra halvan av fallet ovan. En rot får sin rubrik på två sätt:
+    // lyftet tar den ur `No parent`, eller ett *barns* grupp levererar den. Det andra är
+    // hur en arkiverad rot med en öppen del ritas — arkivet tog själva pucken, så lyftet
+    // kan inte se den, men listan ritar rubriken från barnet ändå.
+    //
+    // Mätt före fixen: märket sa "5 archived", ögat gav tillbaka fyra rader och
+    // befordrade den femte till den rubrik den redan hade. Ett märke som lovar ett kort
+    // det inte kan leverera.
+    const arkiveradRotÖppetBarn = (d) => {
+      const rot = d.items.find((i) => i.slug === "a-parent");
+      rot.title = LONG; rot.status = "done";
+      rot.children = ["beta/b-member"]; rot.progress = { done: 0, total: 1 };
+      return d;
+    };
+    const p = await open("?layout=list&group=parent", { data: arkiveradRotÖppetBarn });
+    const f = await form(p);
+    ok(f.some((s) => s.head === LONG), `barnets grupp ritar rotens rubrik: ${JSON.stringify(f.map((s) => s.head))}`);
+    const none = f.find((s) => s.head === "No parent");
+    eq(none.mark, "4 archived", `roten räknas inte som en gömd rad: ${JSON.stringify(none.mark)}`);
+    // Och löftet hålls: ögat ger tillbaka precis så många rader som märket sa.
+    const före = none.rows.length;
+    await p.locator(".list-group").filter({ hasText: "No parent" }).locator(".col-archived").click();
+    await p.waitForTimeout(250);
+    const efter = (await form(p)).find((s) => s.head === "No parent").rows.length;
+    eq(efter - före, 4, `ögat levererar det märket lovade (${före} → ${efter})`);
+  }
+
   group("en fällning som filtret sprang ifrån låser inte raden");
   {
     // Codex, #46. Fäll en förälder, filtrera sedan bort alla dess delar: `shut` står kvar
