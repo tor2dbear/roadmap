@@ -109,12 +109,38 @@ Vinsten utöver löftet: **hela brytpunktsräkningen kan gå.** 560/720, sedan 6
 indraget skulle in — två buggar på två dagar kom ur de talen. En rad som får scrolla
 behöver ingen veta vad som får plats.
 
+## Byggt: bredden först, väljaren står kvar
+
+Sidledsscrollen ligger i koden före själva väljaren, för den är förutsättningen: en
+uppsättning man valt går inte att lova om raden fortfarande droppar kolumner. Nu behåller
+raden varje kolumn och lådan scrollar, med glyf, karet och namn frysta vid vänsterkanten
+och gruppens rubrik fryst i sidled.
+
+Fyra saker som inte var uppenbara, och som var och en tog en mätning:
+
+- **En sticky-box kan inte förskjutas inuti ett containing block den fyller helt.** En
+  rubrik i full bredd gled därför bara ut åt vänster (−376px vid scrollLeft 400).
+  Rubriken är nu två lådor: en yttre som spänner gruppen och en inre, `width: max-content`,
+  som har rum att fästa i.
+- **Grupperna måste dela bredd.** Som egna block var en arkivstump bara så bred som sin
+  rubrik och åkte ur bild helt när listan scrollades. Tavlan lägger dem i *ett* rutnät
+  med en kolumn — `minmax(max-content, 1fr)` — som alla sträcks till.
+- **Karetet hörde till namnet, inte till raden.** Som barn till raden hängde det kvar hos
+  ett förfaderselement medan titeln frös; mätt som ett avstånd som ändrades, 88px → 62px.
+- **Tavlans 24px marginal läckte.** En fryst cell täcker bara sin egen låda, så den
+  scrollade metadatan syntes till vänster om glyfen. Bakgrunden blöder över rännan med
+  `background: inherit`, så den följer hover och markering utan en andra plats att
+  uppdatera.
+
+Och det som gick: `@container`-nivåerna, alltså 560/720 och 652/812. En rad som får
+scrolla behöver ingen veta vad som får plats.
+
 ## Open questions
 
-- **Får gruppens rubrik sluta följa med nedåt?** Det är hela priset för sidledsscrollen,
-  och det är ett smakbeslut som inte går att mäta fram: Notion lever utan den på telefon.
-  Ja → en handfull CSS-rader. Nej → listan måste bli sin egen scrollruta, vilket rör
-  iOS-scroll, footern och samma geometri som `headern-malas-inte-vid-omladdning`.
+- **Gruppens rubrik följer inte längre med nedåt.** Det är priset, och det är betalt i
+  koden — men det är ett smakbeslut och går att ångra: listan kan bli sin egen scrollruta,
+  vilket rör iOS-scroll, footern och samma geometri som
+  `headern-malas-inte-vid-omladdning`.
 - **Ett val eller ett per layout?** Listan har spår, kortet har märken; samma
   uppsättning i bägge är enklare att förklara och sämre för bägge. `effectiveParams`
   kan bära det, men två uppsättningar är två saker att spara.
