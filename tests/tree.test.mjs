@@ -132,6 +132,40 @@ export async function run({ open }) {
     eq(efter - före, 4, `ögat ger tillbaka precis så många som märket lovade (${före} → ${efter})`);
   }
 
+  group("en rot som bara finns i arkivet har fortfarande en dörr");
+  {
+    // Codex, #46, och en regression i fixen ovan: lyftet togs bort ur arkivräkningen
+    // *ovillkorligt*, men en rot lyfts ur `No parent` för att den redan står som rubrik.
+    // En arkiverad rot står ingenstans — arkivet gömmer själva pucken, inte dess delar —
+    // så att lyfta den ur räkningen tog bort det enda som kunde hämta tillbaka den.
+    // Mätt: tavlan blev *helt tom*. Inga rader, ingen stump, inget öga.
+    const arkiveradRot = (d) => {
+      const rot = d.items.find((i) => i.slug === "a-parent");
+      const mitten = d.items.find((i) => i.slug === "b-member");
+      rot.title = LONG; rot.status = "done"; rot.children = ["beta/b-member"];
+      rot.progress = { done: 0, total: 1 };
+      mitten.children = []; mitten.progress = null;
+      return d;
+    };
+    // Fångat, för det är just den tomma tavlan som är felet: `open()` väntar på att
+    // något ska ritas, och utan fixen väntar den ut sin timeout. Ett sabotage ska säga
+    // vad som saknades, inte lämna en stack trace efter tio sekunder.
+    const p = await open("?layout=list&group=parent&q=" + encodeURIComponent("ordning"), { data: arkiveradRot })
+      .catch(() => null);
+    if (!p) {
+      ok(false, "tavlan ritade ingenting alls — arkivet lämnade varken rad, stump eller öga");
+    } else {
+      const f = await form(p);
+      eq(f.map((s) => s.head + "|" + s.mark), ["No parent|1 archived"],
+        `arkivet svarar för den rot som ingen rubrik täcker: ${JSON.stringify(f)}`);
+      await p.locator(".col-archived").first().click();
+      await p.waitForTimeout(200);
+      const efter = await form(p);
+      eq(efter.map((s) => s.head), [LONG], "och ögat öppnar den som rubrik");
+      eq(efter[0].rows, ["0:[No matching parts]"], "med sina delar utanför frågan");
+    }
+  }
+
   group("en fällning som filtret sprang ifrån låser inte raden");
   {
     // Codex, #46. Fäll en förälder, filtrera sedan bort alla dess delar: `shut` står kvar

@@ -3880,17 +3880,18 @@
   // The exemption lives in the *callers*, not here: the data is the data, and only the
   // board can say "the tray already covers this". `order` comes back too, because the
   // list has to slot a fully-archived group into its own place rather than at the end.
-  function archivedPerColumn() {
+  function archivedPerColumn(shownRoots) {
     if (state.showDone || !ARCHIVABLE[state.focus]) return null;
     var count = {}, order = [];
     withShowDone(true, function () {
       var q = activeTerms();
       var all = DATA.items.filter(function (it) { return runQuery(it, q); });
       var gs = groupsOf(all);
-      // Counted in the shape the layout actually draws: in the tree a root is a heading
-      // and never a row under `No parent`, so it is not one of the rows that column can
-      // be short of. See `liftRoots`.
-      if (treeMode()) liftRoots(gs);
+      // Counted in the shape the layout actually draws: in the tree a root that *is* a
+      // heading is never a row under `No parent`, so it is not one of the rows that
+      // column can be short of. `shownRoots` is exactly the set the live board lifted —
+      // see `liftRoots` for why "exactly" matters.
+      if (shownRoots) liftRoots(gs, shownRoots);
       gs.forEach(function (grp) { count[grp.key] = grp.items.length; order.push(grp.key); });
     });
     return { count: count, order: order };
@@ -4059,12 +4060,21 @@
   // than it had, and could conjure an archive-only `No parent` out of a column whose
   // only remaining rows were roots. Returns them, since the tree needs to know which
   // headings to build.
-  function liftRoots(groups) {
+  // `only` is what makes the archive's copy of this honest. A root is lifted from the
+  // count because it is *already on screen as a heading* — so only the roots the live
+  // board actually lifted may be lifted here. An archived root has no heading (the
+  // archive is hiding the puck itself, not its parts), and lifting it unconditionally
+  // deleted the one thing that could bring it back: with a query matching an archived
+  // root and none of its parts, the board went completely blank — no rows, no stub, no
+  // eye. It stays counted, so `No parent` keeps its mark and the eye still opens it.
+  function liftRoots(groups, only) {
     var none = null;
     groups.forEach(function (grp) { if (grp.key === NO_VALUE) none = grp; });
     if (!none) return {};
     var roots = {};
-    none.items.forEach(function (it) { if ((it.children || []).length) roots[it.id] = it; });
+    none.items.forEach(function (it) {
+      if ((it.children || []).length && (!only || only[it.id])) roots[it.id] = it;
+    });
     none.items = none.items.filter(function (it) { return !roots[it.id]; });
     return roots;
   }
@@ -4100,11 +4110,12 @@
     // simply had no Done section, in the *default* grouping, with nothing saying so. The
     // chip row cannot cover it either (`viewTerms()` holds the switch outside
     // `state.query`), which is what left this layout silent in every grouping.
-    var archived = archivedPerColumn();
-    // Before `shownKeys`, deliberately: a `No parent` the lift empties has to be able to
-    // become an archive stub like any other emptied column, and a lifted root must not
-    // keep it standing as a column with no rows.
+    // The lift comes first, and its result is handed to the archive count: the two have
+    // to agree about which roots became headings. Before `shownKeys`, deliberately, so a
+    // `No parent` the lift empties can become an archive stub like any other emptied
+    // column rather than standing as a column with no rows.
     var roots = treeMode() ? liftRoots(groups) : null;
+    var archived = archivedPerColumn(roots);
     var shownKeys = {};
     groups.forEach(function (grp) { if (grp.items.length) shownKeys[grp.key] = 1; });
     // A group the archive emptied *entirely* never reaches `groups`, so it has to be put
