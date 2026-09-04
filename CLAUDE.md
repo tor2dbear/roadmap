@@ -321,6 +321,18 @@ phone, with the topbar and chip row (sized to the viewport) sitting in 60% of th
 `min-width: 0` on `.board.as-list` is the fix — `min-width: 0` on the *label* lets it
 shrink but does not lower what it contributes.
 
+**And the row's columns are a `@container` query, not a media query**, because the row is
+as wide as the *board* and the board is not the window: the sidebar takes 240px whenever
+it is open, so a 900px viewport hands the list a 660px box that a `min-width: 640px`
+media query still calls wide. Measured there: the four fixed tracks kept 410px between
+them and the title was squeezed to 154px. Stopping the page from growing did not fix that
+shortage, it changed which way it showed. The tiers state what a row is worth, in the
+order the columns leave: **agent, then repo, never the title** (`.list-agent, .list-repo`
+hidden by default, restored at container widths 560 and 720). They must stay *after*
+`.list-cell { display: flex }` in the file — equal specificity, so source order is the
+whole mechanism, and putting them beside `.list-row` cost a round of two-line rows with
+the date wrapped under the title.
+
 ## UI: one thing, one place
 
 Cards leave the board three ways — the `Filter` panel, a column's `⋯`, and Display's

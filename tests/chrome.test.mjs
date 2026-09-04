@@ -357,6 +357,44 @@ export async function run({ open }) {
     eq(brådska ? brådska.bakgrund : null, "rgba(0, 0, 0, 0)", "och står utan fylld bricka bakom sig");
   }
 
+  group("radens kolumner följer tavlans bredd, inte fönstrets");
+  {
+    // Två olika tal, och det är hela poängen. Sidomenyn tar 240px när den är öppen, så
+    // ett 900px-fönster ger listan en 660px-låda medan en vyport-mediefråga fortfarande
+    // kallar den "bred" och beställer sex kolumner. Mätt då: de fasta spåren behöll
+    // 410px mellan sig och titeln — det enda en rad finns för — pressades till 154px.
+    //
+    // Före `min-width: 0` sköt samma brist ut sidan bredare än skärmen i stället;
+    // bristen fanns hela tiden, felläget bara flyttade. Så ordningen kolumnerna lämnar i
+    // är ett påstående om vad en rad är värd: agenten först, sedan repot, aldrig titeln.
+    const mät = (p) => p.evaluate(() => {
+      const row = document.querySelector(".list-row");
+      const sedd = (sel) => { const e = row.querySelector(sel); return !!e && getComputedStyle(e).display !== "none"; };
+      return {
+        vw: document.documentElement.clientWidth,
+        doc: document.documentElement.scrollWidth,
+        bräda: Math.round(document.querySelector(".board").getBoundingClientRect().width),
+        namn: Math.round(row.querySelector(".list-name").getBoundingClientRect().width),
+        agent: sedd(".list-agent"), repo: sedd(".list-repo"),
+        höjd: Math.round(row.getBoundingClientRect().height),
+      };
+    });
+
+    const smal = await mät(await open("?layout=list", { viewport: { width: 900, height: 800 } }));
+    ok(smal.bräda < smal.vw - 200, `sidomenyn har tagit sin del: ${JSON.stringify(smal)}`);
+    eq(smal.doc, smal.vw, "sidan står stilla");
+    eq(smal.agent, false, "agenten faller bort fast fönstret är 900px brett");
+    ok(smal.namn >= 200, `och titeln får plats i stället: ${smal.namn}px`);
+    // En rad, inte två. Det andra felläget när spåren och barnen inte går ihop är att
+    // överskottet hamnar på en implicit rad — raden blir dubbelt så hög och datumet
+    // ramlar ner under titeln.
+    ok(smal.höjd < 60, `raden är fortfarande en rad: ${smal.höjd}px`);
+
+    const bred = await mät(await open("?layout=list", { viewport: { width: 1400, height: 800 } }));
+    eq(bred.agent, true, "med plats finns agenten kvar");
+    ok(bred.höjd < 60, `och raden är en rad även där: ${bred.höjd}px`);
+  }
+
   group("toasten lägger ut sig på sitt innehåll, inte på halva vyporten");
   {
     // A fixed box with `left` and no `right` shrink-to-fits inside the space from `left`
