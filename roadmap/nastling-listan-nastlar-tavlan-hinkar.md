@@ -1,8 +1,8 @@
 ---
 title: "Nästling: listan nästlar, tavlan hinkar"
-status: now
+status: done
 tags: [ui]
-updated: 2026-09-03
+updated: 2026-09-04
 created: 2026-09-02
 priority: high
 target: 2026-09-21
@@ -38,12 +38,25 @@ barnbarn bara ett kort med ett föräldrachip, precis som i dag.
 **Cyklerna är redan betalda:** `parent-cycle` kapar länken vid skörden, så payloaden är
 en skog och inte en graf. En trädvandring kan inte loopa.
 
-## Open questions
+## Utfall: en ärlig projektion, inte två
 
-- `groupsOf` returnerar en platt lista som *båda* renderarna delar. Ett träd är den enda
-  saken som rör vid den delningen — det är därför det här är den strukturella biten.
-- Ska roten vara ett kort i sin egen kolumn, eller *är* rubriken roten? Rubriken som
-  puck ger ingen dubblering men gör två föräldrar olika behandlade: roten blir rubrik,
-  mellanpucken förblir kort. Avgörs i `kolumnen-ar-ett-trad`.
-- CONVENTION säger "Depth isn't limited, but two levels is the point". Efter det här är
-  två nivåer inte längre poängen, bara det vanliga fallet — texten måste skrivas om.
+Titeln lovade två — och den andra höll inte. Listan nästlar (`listan-nastlar`), och
+tavlan slutade gruppera på parent över huvud taget i stället för att hinka
+(`kolumnen-ar-ett-trad`, avbruten med mätningen nedskriven: 19 av 173 puckar står i ett
+träd, så kolumnerna blev 2 och 3 kort bredvid ett `No parent` med 28).
+
+Regeln som blev kvar är enklare än planen: **platta facetter grupperar tavlan, den enda
+hierarkin grupperar listan.**
+
+De tre öppna frågorna, besvarade:
+
+- `groupsOf` rördes aldrig. Den platta listan bägge renderarna delar *är* trädets
+  kanter, så `listTree()` möblerar om och nycklar om ingenting.
+- Roten blev rubrik — i listan. Frågan om kort-eller-rubrik i en kolumn föll bort med
+  kolumnen.
+- CONVENTION är omskriven: djupet är inte begränsat, och två nivåer är det vanliga
+  fallet snarare än taket.
+
+Rollupen fick också ett svar den här vägen, och även det tvärtemot förslaget:
+`rollupen-raknar-hela-tradet` är avbruten, för direkta barn komponerar och
+underträdsmåttet gjorde driftsignalerna sämre.

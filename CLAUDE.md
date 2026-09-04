@@ -275,6 +275,52 @@ shape for one line, and at four it draws a lozenge whose curve cuts into the fir
 last rows — and `text-wrap: balance` evens a two-line message rather than leaving an
 orphan.
 
+## UI: the list is a tree, and `groupsOf` already held it
+
+Under `group=parent` the list nests. The flat `[{key,label,items}]` both renderers share
+*is* the tree's edge list — one group per parent, holding that parent's **direct**
+children — so `listTree()` re-arranges it and re-keys nothing; the board keeps the
+buckets it was designed around, which is why the list could go first.
+
+- **A group whose puck is drawn as a row nests under that row.** The mid puck used to be
+  two things on one page: a row in its parent's group *and* a heading of its own further
+  down. Now it is one row with its parts beneath it, and depth is unlimited.
+- **A root parent is a heading, not a row in `No parent`** — which makes that group mean
+  what it says: pucks in no tree at all.
+- **A parent whose parts are missing says which hole it is.** The filter's is
+  `No matching parts`; the archive's is `1 archived part 👁`, carrying the same
+  `liftArchive()` repair as the tray and the heading's mark. Two causes, two sentences,
+  two repairs — the rule the archive mark already follows.
+- **The caret sits in the row's left gutter, not a grid track.** A track would have to
+  exist on the leaves too, to keep the five columns in register, and a leaf reserving a
+  control it never gets is a target that answers nothing.
+- **The row carries no count.** `progress` is already there and answers the steadier
+  question — how many parts the puck *has* — where a count of the rows below would move
+  with the filter and read as though parts had been lost.
+- **Nesting is what `group=parent` means**, not a switch: a tree spans statuses, so
+  there is no level to draw inside a status column.
+- **The board does not group by parent at all.** `groupUsable` (what the renderer asks)
+  and `groupOffered` (what the menus ask) differ on exactly this one grouping: the menus
+  keep offering Parent and `setDisplay` switches the layout with it, visibly, because a
+  row that vanishes with the layout teaches nothing. `effectiveParams` drops
+  `group=parent` when the layout is board, so a link says what is drawn. Measured, on
+  the real board: 19 of 173 pucks sit in a tree, so parent columns were 2 and 3 cards
+  beside a `No parent` holding 28 — in a grid that gives every column equal width.
+  Hierarchy is sparse by nature; that distribution is the normal case. What went with
+  it: drag-to-reparent (`GROUPS.parent.write`, a *drop* writer with no columns to drop
+  between — the rail's picker and `＋ Add puck` are the real paths), and the tray/column
+  menu for parent columns. `is:` as a **column term** is therefore no longer observable
+  anywhere: the branch in `termAboutGroup` stays because `columnExcluded` still asks it
+  in the list, not because a test can still see it.
+
+The width bug found with it is worth keeping: `.board` is a grid item, and a grid item's
+automatic minimum is its *min-content* — 0 in the column layout only because
+`overflow-x: auto` makes it a scroll container. The list turns that off, so the widest
+unbreakable thing on the page started deciding the document's width: 652px on a 390px
+phone, with the topbar and chip row (sized to the viewport) sitting in 60% of the page.
+`min-width: 0` on `.board.as-list` is the fix — `min-width: 0` on the *label* lets it
+shrink but does not lower what it contributes.
+
 ## UI: one thing, one place
 
 Cards leave the board three ways — the `Filter` panel, a column's `⋯`, and Display's

@@ -305,9 +305,9 @@ export async function run({ open }) {
 
     // Och etiketterna, som är hela poängen: kolumnen som höll alla föräldrar hette
     // "No etapp", vilket läste bakvänt — en förälder *har* ingen förälder.
-    const g = await open("?group=parent");
+    const g = await open("?group=parent&layout=list");
     const rubriker = await g.evaluate(() =>
-      [...document.querySelectorAll(".col-head h2")].map((e) => e.textContent.trim()));
+      [...document.querySelectorAll(".list-head .lh-label")].map((e) => e.textContent.trim()));
     ok(rubriker.indexOf("No parent") !== -1,
       `kolumnen för de föräldralösa heter No parent: ${JSON.stringify(rubriker)}`);
   }
