@@ -357,6 +357,98 @@ export async function run({ open }) {
     eq(brådska ? brådska.bakgrund : null, "rgba(0, 0, 0, 0)", "och står utan fylld bricka bakom sig");
   }
 
+  group("puck-sidan säger vilket repo pucken bor i");
+  {
+    // Uppgiften pucken finns för. Den stod i den inbyggda brödsmulan
+    // (`Alpha · a-parent`) tills `body.viewing-puck` gömde den till förmån för
+    // topbarens, som bär vyn och titeln och tappade repot — informationen flyttade
+    // inte, den försvann i bytet. Kvar var glyfens färg, alltså en kod.
+    const p = await open("#alpha/a-parent");
+    // Bundet och fångat: utan raden finns inget att vänta på, och en kontroll som
+    // *kastar* efter trettio sekunder tar resten av filen med sig och säger "timeout"
+    // där den skulle ha sagt vad som saknades.
+    const finns = await p.waitForSelector('.prop[data-field="repo"]', { timeout: 4000 })
+      .then(() => true).catch(() => false);
+    // …och grenat, inte returnerat: ett `return` här hade tagit varje grupp *efter*
+    // den här ur körningen och rapporterat dem som gröna.
+    if (!finns) ok(false, "puck-sidan har ingen rad som säger vilket repo pucken bor i");
+    else await (async () => {
+    const rad = await p.evaluate(() => {
+      const r = document.querySelector('.prop[data-field="repo"]');
+      const rader = [...document.querySelectorAll(".prop")].map((x) => x.dataset.field);
+      return {
+        värde: r.querySelector(".prop-v").textContent.trim(),
+        prick: !!r.querySelector(".repo-dot"),
+        först: rader[0],
+      };
+    });
+    eq(rad.värde, "Alpha", `raden säger repots namn: ${JSON.stringify(rad)}`);
+    ok(rad.prick, "med samma märke som listraden bär, så färgen får sitt namn bredvid sig");
+    eq(rad.först, "repo", "och den står först — puckens hem före dess läge");
+
+    // Inte en väljare (att flytta en puck mellan repon är en git-flytt), men inte död
+    // heller: namnet går till det repots puckar, genom samma `goToPlace` som
+    // sidomenyns chip — ett svar på "visa mig det här repot", inte två.
+    await p.locator(".repo-cell").click();
+    await p.waitForTimeout(300);
+    const efter = await p.evaluate(() => ({
+      q: new URLSearchParams(location.search).get("q"),
+      puckÖppen: document.body.classList.contains("viewing-puck"),
+    }));
+    eq(efter.q, "repo:acme/alpha", `trycket skopar tavlan till repot: ${JSON.stringify(efter)}`);
+    eq(efter.puckÖppen, false, "och lämnar puck-vyn, som all annan navigering i sidomenyn");
+
+    // Codex, #47: från en tavla som *redan* står i repot slog samma tryck av skopet,
+    // eftersom sidomenyns rad är byggd som en växel — "tryck på den du står i och du
+    // kommer ut". En rad i skenan är inte en plats man står i, den är ett mål: den
+    // säger "visa det här repots puckar", och svarade med att visa alla.
+    const iRepot = await open("?q=repo%3Aacme%2Falpha#alpha/a-parent");
+    await iRepot.waitForSelector(".repo-cell");
+    await iRepot.locator(".repo-cell").click();
+    await iRepot.waitForTimeout(300);
+    eq(await iRepot.evaluate(() => new URLSearchParams(location.search).get("q")),
+      "repo:acme/alpha", "skopet står kvar när man redan är i det — värdet växlar inte");
+    })();
+  }
+
+  group("radens kolumner följer tavlans bredd, inte fönstrets");
+  {
+    // Två olika tal, och det är hela poängen. Sidomenyn tar 240px när den är öppen, så
+    // ett 900px-fönster ger listan en 660px-låda medan en vyport-mediefråga fortfarande
+    // kallar den "bred" och beställer sex kolumner. Mätt då: de fasta spåren behöll
+    // 410px mellan sig och titeln — det enda en rad finns för — pressades till 154px.
+    //
+    // Före `min-width: 0` sköt samma brist ut sidan bredare än skärmen i stället;
+    // bristen fanns hela tiden, felläget bara flyttade. Så ordningen kolumnerna lämnar i
+    // är ett påstående om vad en rad är värd: agenten först, sedan repot, aldrig titeln.
+    const mät = (p) => p.evaluate(() => {
+      const row = document.querySelector(".list-row");
+      const sedd = (sel) => { const e = row.querySelector(sel); return !!e && getComputedStyle(e).display !== "none"; };
+      return {
+        vw: document.documentElement.clientWidth,
+        doc: document.documentElement.scrollWidth,
+        bräda: Math.round(document.querySelector(".board").getBoundingClientRect().width),
+        namn: Math.round(row.querySelector(".list-name").getBoundingClientRect().width),
+        agent: sedd(".list-agent"), repo: sedd(".list-repo"),
+        höjd: Math.round(row.getBoundingClientRect().height),
+      };
+    });
+
+    const smal = await mät(await open("?layout=list", { viewport: { width: 900, height: 800 } }));
+    ok(smal.bräda < smal.vw - 200, `sidomenyn har tagit sin del: ${JSON.stringify(smal)}`);
+    eq(smal.doc, smal.vw, "sidan står stilla");
+    eq(smal.agent, false, "agenten faller bort fast fönstret är 900px brett");
+    ok(smal.namn >= 200, `och titeln får plats i stället: ${smal.namn}px`);
+    // En rad, inte två. Det andra felläget när spåren och barnen inte går ihop är att
+    // överskottet hamnar på en implicit rad — raden blir dubbelt så hög och datumet
+    // ramlar ner under titeln.
+    ok(smal.höjd < 60, `raden är fortfarande en rad: ${smal.höjd}px`);
+
+    const bred = await mät(await open("?layout=list", { viewport: { width: 1400, height: 800 } }));
+    eq(bred.agent, true, "med plats finns agenten kvar");
+    ok(bred.höjd < 60, `och raden är en rad även där: ${bred.höjd}px`);
+  }
+
   group("toasten lägger ut sig på sitt innehåll, inte på halva vyporten");
   {
     // A fixed box with `left` and no `right` shrink-to-fits inside the space from `left`

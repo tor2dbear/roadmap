@@ -2,7 +2,7 @@
 title: "Listan nästlar noder, inte grupper"
 status: done
 tags: [ui]
-updated: 2026-09-03
+updated: 2026-09-04
 created: 2026-09-02
 priority: high
 target: 2026-09-21
@@ -64,6 +64,25 @@ men sänker inte vad det *bidrar med* till behållarens inneboende bredd.
 
 En deklaration på `.board.as-list`, och ellipsen som alltid varit specificerad har
 äntligen en bredd att arbeta mot.
+
+## Efterspel: bristen fanns kvar, felläget hade bara flyttat
+
+`min-width: 0` stoppade sidan från att växa — men **spårbristen var densamma**, och den
+visade sig i stället som ihoptryckta rader. Mätt vid 700px: de fyra fasta spåren
+(prioritet 44, agent 108, repo 148, datum 92) behöll sina 410px medan titeln — det enda
+en rad finns för — pressades till 154px och ellipsiserades till "Nästling: li…".
+
+Mediefrågan frågade fel låda. **Raden är så bred som tavlan, och tavlan är inte
+fönstret**: sidomenyn tar 240px när den är öppen, så ett 900px-fönster ger listan 660px
+medan `min-width: 640px` fortfarande kallar den bred. Därför är nivåerna en
+`@container`-fråga mot `.board.as-list`, som numera är container.
+
+Ordningen kolumnerna lämnar i är ett påstående om vad en rad är värd: **agenten först**
+(sätts sällan), **sedan repot** (glyfen bär redan dess färg och raden dess namn i sin
+tooltip), **aldrig titeln**. Två sabotage vaktar det: vyport-varianten ger 114px titel
+vid 900px, och nivåerna flyttade *före* `.list-cell { display: flex }` ger 69px höga
+rader — samma specificitet, så källordningen är hela mekanismen, och datumet ramlar ner
+under titeln.
 
 ## Avgränsning
 
