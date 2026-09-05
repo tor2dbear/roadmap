@@ -172,13 +172,10 @@ const BOARD_CONFIG = {
   title: "Etapp",
   description: "Roadmap-as-code — one board across your repos, truth in git.",
   repoUrl: "https://github.com/your-org/etapp",
-  // The board's `sync now` dispatches this workflow, and the product's is `pages.yml`
-  // — the workshop's is `sync.yml`, which is what `syncWorkflow()` defaults to. Without
-  // this line every fork drew the button, dispatched a workflow that does not exist
-  // there, and GitHub's 404 was reported as "your token needs Actions: write" — a
-  // misdiagnosis sent to everyone who forked. The config hook exists for exactly this;
-  // it was written in the same change that shipped the button and then not used.
-  syncWorkflow: "pages.yml",
+  // No `syncWorkflow` here on purpose. `sync now` dispatches `pages.yml` in a fork,
+  // and that is now `syncWorkflow()`'s default rather than a value written here — the
+  // mirror excludes `board.config.json` so a live instance keeps its own, which means
+  // anything generated into this object is deleted on arrival and reaches nobody.
 };
 
 const EXAMPLE_PUCK = `---

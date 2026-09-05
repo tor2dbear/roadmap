@@ -535,8 +535,18 @@ truth, which is the "close thin, via GitHub" rule the write path already follows
   cancel-in-progress`, so a push landing mid-run kills ours and the replacement
   harvests the same sources. It says a newer sync took over, and does not reload.
 - **`syncWorkflow` / `syncBranch` in `board.config.json`** override the defaults
-  (`sync.yml`, `main`); `syncWorkflow: false` removes the button for an instance that
+  (`pages.yml`, `main`); `syncWorkflow: false` removes the button for an instance that
   harvests some other way. Config, not truth — same as `views[]`.
+- **The default is the *product's* workflow, and this instance is the exception.** It
+  was `sync.yml` at first — this repo's name — so every fork dispatched a workflow that
+  does not exist there and GitHub's 404 was reported as a missing token permission. The
+  correction was written into `export-product.mjs`'s `BOARD_CONFIG`, where it could
+  never land: `sync-product.yml` excludes `board.config.json` from the rsync on purpose,
+  so a live instance keeps its own — which means anything generated into that object is
+  deleted on arrival. A fix that only exists in a file the mirror throws away reaches
+  nobody, and looked shipped for a whole PR. So the default carries the common case and
+  this board declares `syncWorkflow: "sync.yml"` in its own config, which is a file the
+  mirror never touches.
 
 **Deployment is `wrangler deploy` from CI** (Pattern B in
 `tor2dbear.com/CONVENTIONS.md`; config in `wrangler.jsonc`, served at
