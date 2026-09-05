@@ -121,13 +121,16 @@
         <!-- active filters, one chip per predicate; hidden when nothing is filtered -->
         <div class="chiprow" id="chipRow" hidden></div>
 
+        <!-- `.work` is the app's scrollport: the shell is a fixed-height column, so the
+             topbar, the view header and the chip row stay put without sticky positioning
+             and this box scrolls under them. The footer lives *inside* it so it still
+             scrolls away with the board it dates, rather than becoming a permanent bar. -->
         <div class="work" id="work">
           <main id="board" class="board" aria-live="polite"></main>
           <aside class="detail-pane" id="detailPane" hidden aria-label="Puck detail">
             <button class="detail-close" id="detailClose" type="button" aria-label="Close"></button>
             <div class="detail-content" id="detailContent"></div>
           </aside>
-        </div>
 
         <footer class="foot">
           <span id="footmeta"></span>
@@ -139,6 +142,7 @@
           <a href="data/roadmap.json">roadmap.json</a> ·
           <a id="sourceLink" href="#">source</a>
         </footer>
+        </div>
       </div>
     </div>
     <div class="scrim" id="scrim" hidden></div>

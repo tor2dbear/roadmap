@@ -333,7 +333,7 @@ export async function run({ open }) {
     // Scrollat i sidled: både karetet och titeln ska vara kvar i bild, eftersom bägge bor
     // i den frysta namncellen. Som barn till *raden* — där karetet satt förut — åkte det
     // ut med metadatan, mätt till −4px.
-    await p.evaluate(() => { document.querySelector(".board.as-list").scrollLeft = 400; });
+    await p.evaluate(() => { document.getElementById("work").scrollLeft = 400; });
     await p.waitForTimeout(150);
     const efter = await läs();
     ok(efter.titel > 0, `den djupaste radens titel är kvar i bild: ${JSON.stringify(efter)}`);

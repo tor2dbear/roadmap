@@ -321,6 +321,27 @@ phone, with the topbar and chip row (sized to the viewport) sitting in 60% of th
 `min-width: 0` on `.board.as-list` is the fix — `min-width: 0` on the *label* lets it
 shrink but does not lower what it contributes.
 
+**The shell is a fixed-height column with one scrollport (`.work`), not a page that
+scrolls.** That is what makes the list's two axes possible at once: a box that scrolls
+sideways is a scroll container in *both* axes, so before the change a group heading's
+`top: sticky` resolved against a port with no vertical travel and stopped sticking (−575,
+−521, −468 while scrolling down). Three consequences worth knowing before touching it:
+
+- **Two sticky boxes, one axis each, nested.** A sticky box can only travel *inside* its
+  containing block, so vertical needs an element shorter than its container (`.list-head`
+  in the tall group) and horizontal one narrower (`.lh-inner` in the full-width heading).
+  Either alone gets you half the behaviour and looks like a bug.
+- **The heading outranks the frozen cells** (`z-index` 4 against 2): same level and later
+  in the document meant a scrolled row's title painted over the pinned heading.
+- **The scroll lock moved with the scroll.** `body { position: fixed }` held the page's
+  offset; the page has none now, so `lockScroll` hides `.work`'s overflow and restores its
+  offset. Anything else that reaches for `window.scrollTo` is reaching for the wrong box —
+  the puck page and the editor's `reveal()` both scroll the port.
+
+`100dvh` rather than `100vh` on the shell, which also retires the ghost scroll: on iOS
+`100vh` is the *large* viewport, so every page was taller than its own window by the
+toolbar's height — a scrollable board with one card on it.
+
 **And the row's columns are a `@container` query, not a media query**, because the row is
 as wide as the *board* and the board is not the window: the sidebar takes 240px whenever
 it is open, so a 900px viewport hands the list a 660px box that a `min-width: 640px`

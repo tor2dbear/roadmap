@@ -113,6 +113,39 @@ export async function run({ open }) {
       `botten lämnar plats för tummen (lägst: ${bottom.tag} på ${Math.round(bottom.gap)}px)`);
   }
 
+  group("arket låser rutan bakom sig, inte kroppen");
+  {
+    // Låset bytte låda när skalet blev en fast höjd: `body { position: fixed }` höll
+    // sidans scroll, och sidan scrollar inte längre — `.work` gör det. Ett lås på
+    // kroppen hade alltså inte hållit någonting, och tavlan bakom arket hade rört sig
+    // fritt medan man valde i det.
+    const p = await open("?layout=list", { viewport: { width: 390, height: 500 } });
+    await p.waitForSelector(".list-row");
+    await p.evaluate(() => { document.getElementById("work").scrollTop = 200; });
+    await p.locator("#displayBtn").click();
+    await p.waitForSelector(".sheet");
+    const under = await p.evaluate(async () => {
+      const w = document.getElementById("work");
+      const före = w.scrollTop;
+      w.dispatchEvent(new WheelEvent("wheel", { deltaY: 400, bubbles: true, cancelable: true }));
+      await new Promise((r) => setTimeout(r, 100));
+      return { överflöd: getComputedStyle(w).overflow, före, efter: w.scrollTop };
+    });
+    eq(under.överflöd, "hidden", "rutan är låst medan arket är uppe");
+    eq(under.efter, under.före, `och ett hjul flyttar den inte: ${JSON.stringify(under)}`);
+
+    await p.keyboard.press("Escape");
+    await p.waitForTimeout(300);
+    const efter = await p.evaluate(() => ({
+      överflöd: getComputedStyle(document.getElementById("work")).overflow,
+      top: document.getElementById("work").scrollTop,
+    }));
+    eq(efter.överflöd, "auto", "låset släpper när arket stängs");
+    // Att gömma överflödet nollar offseten, så den sätts tillbaka: arket stängs mot raden
+    // du öppnade det från, inte mot toppen av listan.
+    eq(efter.top, under.före, `och rutan står kvar där den stod: ${JSON.stringify(efter)}`);
+  }
+
   group("allt i ett ark är tumstort");
   // Across every variant, for the same reason the bleed is: the sheet that uses
   // `.sheet .row` is the puck's ⋯, and a check that only opened Display would never
