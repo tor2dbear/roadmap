@@ -537,10 +537,14 @@ body {
      group was only as wide as its own content, so the short ones slid off the left edge
      entirely: a sticky box cannot be held outside its own containing block. */
   display: grid;
-  /* At least the widest group, and all of the box when there is more: `max-content`
-     alone left 214px of nothing to the right of the date on a 1400px screen, because the
-     column stopped at the content and the rows had nothing to stretch into. */
-  grid-template-columns: minmax(max-content, 1fr);
+  /* At least what the rows need, and all of the box when there is more. `min-content`,
+     not `max-content`: the latter reads the longest *title*, which is how a single long
+     puck name came to set the scroll width for every row in the list — and, worse, to
+     widen the frozen name cell past the screen. Each row's own `min-width` is the number
+     that belongs here, and that is exactly its min-content.
+     `1fr` and not bare `min-content`: without it the column stopped at the content and
+     left 214px of nothing to the right of the date on a 1400px screen. */
+  grid-template-columns: minmax(min-content, 1fr);
   /* `.board` sets `grid-auto-flow: column` for the kanban columns; without this the
      groups laid themselves out side by side. */
   grid-auto-flow: row;
@@ -658,11 +662,17 @@ body {
      than the box, the row scrolls; narrower, `min-width` keeps it filling the box so the
      borders still reach the edge. */
   grid-template-columns: 18px minmax(220px, 1fr) 44px 108px 148px 92px;
-  /* `min-width`, not `width`: with `width: max-content` the tracks were sized by content
-     and the `1fr` stopped absorbing slack, so on a wide screen the row ended at 946px
-     with 214px of nothing after the date. As a minimum it does the one thing it is for —
-     never letting the columns squeeze — and leaves the name growing when there is room. */
-  min-width: max-content;
+  /* The minimum comes from the *columns*, never from the content. `min-width: max-content`
+     read the longest title instead, and on a phone that is a disaster rather than a
+     nicety: measured with one 120-character title, the name cell came out 851px wide on a
+     390px screen — and since that cell is frozen and opaque, it covered the whole viewport
+     and put priority, agent, repo and date out of reach behind it, for every row in the
+     list. A frozen column only works while it is narrower than the screen.
+     The sum is the tracks it must not squeeze: five gaps and the row's own padding, plus
+     the name's floor. The title ellipsises inside that floor, which is what it has always
+     been specified to do. */
+  --list-fixed: calc(18px + 44px + 108px + 148px + 92px + 5 * 14px + 18px);
+  min-width: calc(var(--list-fixed) + 220px);
   align-items: center;
   gap: 14px;
   padding: 8px 6px 8px 12px;
@@ -676,6 +686,10 @@ body {
    On the *name*, not on the row: the name is the frozen cell, so the structure stays on
    screen while the metadata scrolls — and it puts every row's metadata on the same x
    whatever its depth, which padding on the row could not. */
+/* The indent lives inside the name cell, so a nested row needs that much more before its
+   title reaches the same floor a flat row has. The cap is what makes it a number: 16px of
+   gutter plus the 64px the indent stops at. */
+.is-tree .list-row { min-width: calc(var(--list-fixed) + 220px + 80px); }
 .is-tree .list-name {
   position: relative; /* the caret sits in this cell's own indent, see .list-fold */
   padding-left: calc(16px + min(var(--depth, 0) * 16px, 64px));

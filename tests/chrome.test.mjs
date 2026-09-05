@@ -460,6 +460,38 @@ export async function run({ open }) {
     eq(vid400.doc, vid400.vy, "och sidan står fortfarande stilla");
   }
 
+  group("en lång titel breddar inte den frysta kolumnen");
+  {
+    // Codex, #48. Radens minimum måste komma från *kolumnerna*, aldrig från innehållet.
+    // Med `min-width: max-content` läste den den längsta titeln i stället, och på en
+    // telefon är det inte en skönhetsfläck: mätt med en 120 tecken lång titel blev
+    // namncellen 851px bred på en 390px-skärm — och eftersom den cellen är fryst och
+    // ogenomskinlig täckte den hela vyn och la prioritet, agent, repo och datum utom
+    // räckhåll bakom sig, för varje rad i listan. En fryst kolumn fungerar bara så länge
+    // den är smalare än skärmen.
+    const långTitel = (d) => {
+      d.items.find((i) => i.slug === "a-now").title =
+        "En puck med ett orimligt långt namn som ingen skulle skriva men som formatet tillåter och som därför bestämmer radens bredd";
+      return d;
+    };
+    const p = await open("?layout=list", { data: långTitel, viewport: { width: 390, height: 800 }, hasTouch: true });
+    await p.evaluate(() => { document.querySelector(".board.as-list").scrollLeft = 500; });
+    await p.waitForTimeout(150);
+    const m = await p.evaluate(() => {
+      const vy = document.documentElement.clientWidth;
+      const rad = [...document.querySelectorAll(".list-row")].find((r) => r.querySelector(".list-title").textContent.length > 60);
+      const namn = rad.querySelector(".list-name").getBoundingClientRect();
+      // Vad ligger överst vid högerkanten, i den radens höjd? Är det namncellen har den
+      // lagt sig över metadatan i stället för bredvid den.
+      const överst = document.elementFromPoint(vy - 40, Math.round(namn.top + namn.height / 2));
+      return { vy, namnBredd: Math.round(namn.width), täcker: !!överst && !!överst.closest(".list-name"),
+        datum: Math.round(rad.querySelector(".list-dt").getBoundingClientRect().left) };
+    });
+    ok(m.namnBredd < m.vy, `namncellen är smalare än skärmen: ${m.namnBredd} mot ${m.vy}`);
+    eq(m.täcker, false, `och ligger inte över metadatan: ${JSON.stringify(m)}`);
+    ok(m.datum < m.vy, `datumet går att scrolla fram: ${m.datum}`);
+  }
+
   group("gruppens rubrik står kvar när raden scrollar");
   {
     // Rubriken är två lådor, och den inre är skälet: en sticky-box kan inte förskjutas

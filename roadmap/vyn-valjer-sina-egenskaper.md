@@ -2,7 +2,7 @@
 title: Vyn väljer sina egenskaper
 status: next
 tags: [ui, product]
-updated: 2026-09-04
+updated: 2026-09-05
 created: 2026-09-04
 priority: high
 target: 2026-09-30
@@ -82,6 +82,19 @@ prioriteringsgenomgång.
 **Automatik gäller i frånvaro av ett val, aldrig över ett.** Det är den ena regeln
 bägge besluten nedan följer, och den finns för att en tyst överkörning är samma fel
 filen redan namnger två gånger: en kontroll som påstår ett val som aldrig trädde i kraft.
+
+**Ett tomt val är ett val.** Automatiken gäller när `fields` *saknas*, inte när det finns
+och råkar sakna datum: kryssar man medvetet bort alla tre ska raden visa inget datum alls,
+annars går det inte att stänga av dem — och en sparad vy vars tomma val serialiseras som
+ett utelämnat `fields` skulle dessutom ändra sig vid omladdning. Alltså: skilj *frånvaro
+av inställning* från *inställning med tom delmängd*.
+
+**Två datum samtidigt kräver etiketter.** `dateCell()` skickar bägge genom `dateEl()`,
+som skriver ut den råa datumsträngen och hårdkodar både sin tooltip och sitt
+tillgänglighetsnamn till "Last updated". Kryssar man i `Created` och `Updated` blir det
+alltså två omärkta datum, varav det ena dessutom *läses upp fel* — och då är hela
+poängen (att kunna se varför ordningen är som den är) borta. Fältnamn per datum är en
+del av leveransen, inte en efterrätt.
 
 **Datumet: valet ersätter `cardDateField()`.** `Created`, `Updated` och `Target` blir
 tre separata val, och dagens regel — visa det datum sorteringen handlar om — blir
