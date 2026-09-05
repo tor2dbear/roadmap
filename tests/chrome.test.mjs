@@ -424,7 +424,7 @@ export async function run({ open }) {
     // namnet är frysta vid vänsterkanten. Utan den frysningen är sidledsscroll bara ett
     // sätt att tappa bort vilken rad man läser.
     const mät = (p) => p.evaluate(() => {
-      const board = document.querySelector(".board.as-list");
+      const board = document.getElementById("work"); // the scrollport is the shell's, not the board's
       const rad = document.querySelector(".list-row");
       const v = (sel) => { const e = rad.querySelector(sel); return e ? Math.round(e.getBoundingClientRect().left) : null; };
       const sedd = (sel) => { const e = rad.querySelector(sel); return !!e && getComputedStyle(e).display !== "none"; };
@@ -448,10 +448,10 @@ export async function run({ open }) {
     // Och det som gör det läsbart: namnet står kvar medan datumet kommer in från höger.
     // "Fryst" är inte "orörligt" — cellen glider med tills den når kanten och fastnar
     // där, så det som mäts är att den *stannar*: 400px till scroll flyttar den inte.
-    await p.evaluate(() => { document.querySelector(".board.as-list").scrollLeft = 400; });
+    await p.evaluate(() => { document.getElementById("work").scrollLeft = 400; });
     await p.waitForTimeout(150);
     const vid400 = await mät(p);
-    await p.evaluate(() => { document.querySelector(".board.as-list").scrollLeft = 800; });
+    await p.evaluate(() => { document.getElementById("work").scrollLeft = 800; });
     await p.waitForTimeout(150);
     const vid800 = await mät(p);
     ok(vid400.namn > 0, `namnet är kvar i bild efter 400px (${vid400.namn}) — ofryst hade det legat på ${före.namn - 400}`);
@@ -475,7 +475,7 @@ export async function run({ open }) {
       return d;
     };
     const p = await open("?layout=list", { data: långTitel, viewport: { width: 390, height: 800 }, hasTouch: true });
-    await p.evaluate(() => { document.querySelector(".board.as-list").scrollLeft = 500; });
+    await p.evaluate(() => { document.getElementById("work").scrollLeft = 500; });
     await p.waitForTimeout(150);
     const m = await p.evaluate(() => {
       const vy = document.documentElement.clientWidth;
@@ -503,11 +503,51 @@ export async function run({ open }) {
     const p = await open("?layout=list&group=parent&done=1", { viewport: { width: 390, height: 800 }, hasTouch: true });
     const rubriker = (q) => q.evaluate(() => [...document.querySelectorAll(".lh-inner")].map((e) => Math.round(e.getBoundingClientRect().left)));
     const före = await rubriker(p);
-    await p.evaluate(() => { document.querySelector(".board.as-list").scrollLeft = 400; });
+    await p.evaluate(() => { document.getElementById("work").scrollLeft = 400; });
     await p.waitForTimeout(150);
     const efter = await rubriker(p);
     ok(före.length > 1, `flera rubriker att mäta: ${JSON.stringify(före)}`);
     ok(efter.every((x) => x >= 0), `ingen rubrik har åkt ut åt vänster: ${JSON.stringify(efter)}`);
+  }
+
+  group("skalet har en scrollruta, och rubriken klibbar i båda axlarna");
+  {
+    // Det sidledsscrollen kostade, tillbaka. En låda som scrollar i sidled är
+    // scrollcontainer i *båda* axlarna, så gruppens rubrik klibbade mot en port som
+    // aldrig rörde sig vertikalt — mätt −575, −521, −468 medan man skrollade nedåt.
+    // Nu är skalet en fast höjd med `.work` som enda scrollruta: sidan scrollar inte
+    // alls, och rubriken har en riktig port att fästa i.
+    //
+    // Två sticky-lådor, en per axel, för att axlarna vill ha motsatta former: en
+    // sticky-box kan bara röra sig *inuti* sitt containing block, så vertikalt behövs ett
+    // element kortare än sin behållare (rubriken i den höga gruppen) och horisontellt ett
+    // smalare (den inre lådan i den fullbreda rubriken).
+    // Låg vyport med flit: fixturen är liten, och en ruta som inte scrollar mäter
+    // ingenting om det som ska mätas är vad som händer när man scrollar.
+    const p = await open("?layout=list&group=parent&done=1", { viewport: { width: 390, height: 420 }, hasTouch: true });
+    const läs = () => p.evaluate(() => {
+      const work = document.getElementById("work");
+      const port = work.getBoundingClientRect();
+      const rad = document.querySelector(".list-row");
+      return {
+        sidanScrollar: document.documentElement.scrollHeight > document.documentElement.clientHeight + 1,
+        portScrollar: work.scrollHeight > work.clientHeight,
+        fastnad: [...document.querySelectorAll(".list-head")]
+          .some((e) => Math.abs(e.getBoundingClientRect().top - port.top) < 2),
+        namn: Math.round(rad.querySelector(".list-name").getBoundingClientRect().left),
+      };
+    });
+    const före = await läs();
+    eq(före.sidanScrollar, false, `sidan scrollar inte — skalet har en fast höjd: ${JSON.stringify(före)}`);
+    ok(före.portScrollar, "rutan gör det i stället");
+
+    // Bägge axlarna på en gång: ner *och* i sidled.
+    await p.evaluate(() => { const w = document.getElementById("work"); w.scrollTop = 200; w.scrollLeft = 400; });
+    await p.waitForTimeout(200);
+    const efter = await läs();
+    eq(efter.fastnad, true, `en rubrik står fast vid rutans överkant: ${JSON.stringify(efter)}`);
+    ok(efter.namn < före.namn, `och namnkolumnen är fryst vid dess vänsterkant: ${före.namn} → ${efter.namn}`);
+    eq(efter.sidanScrollar, false, "sidan står fortfarande stilla");
   }
 
   group("toasten lägger ut sig på sitt innehåll, inte på halva vyporten");

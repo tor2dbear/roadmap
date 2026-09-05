@@ -557,7 +557,10 @@ body {
      60% of it. `min-width: 0` is kept as belt and braces: a scroll container's
      automatic minimum is already 0, but the declaration is what makes that independent
      of whichever overflow value this rule ends up carrying. */
-  overflow-x: auto;
+  /* No scroller of its own: `.work` is the one scrollport, and that is what buys the
+     heading its vertical stickiness back — a box that scrolls sideways is a scroll
+     container in both axes, and the heading was sticking to a port that never moved. */
+  overflow-x: visible;
   min-width: 0;
   /* Not for queries any more — the tiers are gone — but `cqw` in `.lh-inner` needs a
      container to measure against, and "the board's width" is exactly the number it
@@ -573,20 +576,35 @@ body {
    `100cqw` caps the inner box at the *board's* width, so a long parent name still
    ellipsises instead of widening every row's scroll range. That is the one thing
    `container-type` is still here for; the tiers it used to serve are gone. */
+/* One sticky box per axis, nested, because the two axes want opposite shapes: a sticky
+   box can only travel *inside* its containing block, so vertical stickiness needs an
+   element shorter than its container (the heading inside the tall group) and horizontal
+   stickiness one narrower than its container (the inner box inside the full-width
+   heading). Measured with only the inner one sticky: it pinned sideways and slid straight
+   off the top, −469px after scrolling 600. */
 .list-head {
+  position: sticky;
+  top: 0;
   padding: 6px 2px 8px;
   background: var(--bg);
-  z-index: 1;
+  /* Above the rows' own frozen cells (z-index 2). Same level and later in the document
+     meant the scrolled row's title painted over the pinned heading — two things claiming
+     the same 30 pixels at the top of the port. */
+  z-index: 4;
 }
 .lh-inner {
   display: flex;
   align-items: center;
   gap: 8px;
   position: sticky;
+  /* Sideways only — the outer `.list-head` carries the vertical axis. The old
+     `top: var(--topbar-h)` arithmetic went with the page scroll: the topbar sits above
+     the scrollport now rather than over it, so the offset is simply 0. */
   left: 0;
   width: max-content;
   max-width: 100cqw;
   background: var(--bg);
+  z-index: 3;
 }
 .list-head .swatch { width: 10px; height: 10px; border-radius: var(--r-xs); }
 .list-head h2 { margin: 0; font-size: var(--fs-md); text-transform: uppercase; letter-spacing: var(--tr-eyebrow); }
@@ -1006,7 +1024,12 @@ body {
 body.modal-open { overflow: hidden; }
 /* Pinned rather than merely `overflow: hidden`, which iOS ignores: the body keeps
    its place at a negative offset and is put back when the last layer closes. */
-body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: hidden; }
+/* The body-pinning lock is gone with the page scroll it was written for: the shell is a
+   fixed-height column, so the body never scrolls and `.work` is locked directly (see
+   `lockScroll`). The rule is kept as a no-op guard for anything that still adds the
+   class — a fixed body with nothing to scroll is harmless, and its absence would be a
+   silent behaviour change rather than a loud one. */
+body.scroll-locked { overflow: hidden; }
 @media (max-width: 600px) {
   .modal-backdrop { padding: 0; }
   .modal { max-width: none; max-height: 100vh; height: 100%; border-radius: 0; border: none; border-left: none; }
@@ -1299,7 +1322,12 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 .focusbtn:focus:not(:focus-visible) { outline: none; }
 
 /* ── Pass 3: work area = board + optional detail pane (desktop) ──────────── */
-.work { display: grid; grid-template-columns: 1fr; align-items: start; flex: 1; }
+/* The scrollport. `min-height: 0` is what lets a flex item be *shorter* than its content
+   — without it the box grows and the shell's height means nothing. */
+.work {
+  display: grid; grid-template-columns: 1fr; align-items: start;
+  flex: 1; min-height: 0; overflow: auto;
+}
 /* A puck opens as a full-width page (same on desktop + mobile): the board and the
    view-header hide, and the detail fills the content area as a centered,
    document-width column. The breadcrumb "← All pucks" is the back action. */
@@ -1340,8 +1368,24 @@ body.viewing-puck .vhead { display: none; }
 .card.sel, .list-row.sel { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
 
 /* ── Pass 4: app shell — left sidebar + thin topbar ───────────────────────── */
-.app { display: grid; grid-template-columns: var(--sidebar-w, 240px) minmax(0, 1fr); min-height: 100vh; }
-.maincol { min-width: 0; display: flex; flex-direction: column; min-height: 100vh; position: relative; }
+/* A fixed-height shell with one scrollport inside it (`.work`), rather than a page that
+   grows and scrolls as a whole. Two things needed it:
+   the list scrolls sideways, and a box that scrolls horizontally is a scroll container in
+   *both* axes — so a group heading's `top: sticky` resolved against a box with no vertical
+   travel and stopped sticking entirely. Inside a real scrollport it sticks again, in both
+   axes at once.
+   And `100vh` was already wrong here: on iOS it is the *large* viewport (toolbar
+   retracted) while the visible one at load is the small one, so every page was taller
+   than its own window by exactly the toolbar's height — a ghost scroll on a board with
+   one card. `100dvh` is the same number the sheets already use, with `100vh` left in
+   front of it for anything that does not know the unit. */
+.app {
+  display: grid; grid-template-columns: var(--sidebar-w, 240px) minmax(0, 1fr);
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+.maincol { min-width: 0; display: flex; flex-direction: column; min-height: 0; position: relative; }
 
 /* drag handle straddling the sidebar/main seam — desktop only (mobile is a drawer) */
 .col-resizer { position: absolute; left: -3px; top: 0; width: 6px; height: 100%; cursor: col-resize; z-index: 30; }
@@ -1355,7 +1399,7 @@ body.col-resizing { cursor: col-resize; user-select: none; }
   padding: 0 12px 16px; display: flex; flex-direction: column; gap: 18px;
   /* minimal, self-effacing scrollbar */
   scrollbar-width: thin; scrollbar-color: var(--line) transparent;
-  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  position: sticky; top: 0; height: 100%; overflow-y: auto;
 }
 .sidebar::-webkit-scrollbar { width: 8px; }
 .sidebar::-webkit-scrollbar-track { background: transparent; }

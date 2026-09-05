@@ -148,12 +148,24 @@ Fyra saker som inte var uppenbara, och som var och en tog en mätning:
 Och det som gick: `@container`-nivåerna, alltså 560/720 och 652/812. En rad som får
 scrolla behöver ingen veta vad som får plats.
 
-## Open questions
+## Priset återköpt: skalet är en fast höjd
 
-- **Gruppens rubrik följer inte längre med nedåt.** Det är priset, och det är betalt i
-  koden — men det är ett smakbeslut och går att ångra: listan kan bli sin egen scrollruta,
-  vilket rör iOS-scroll, footern och samma geometri som
-  `headern-malas-inte-vid-omladdning`.
+Rubriken följer med nedåt igen. Skalet är en fast höjd med `.work` som enda scrollruta,
+alltså det bygget som stod som "går att ångra" här — och det visade sig vara mindre än
+befarat, för sidan hade redan lämnat sin scroll till `.app`s `min-height`.
+
+- **Två sticky-lådor, en per axel.** En sticky-box kan bara röra sig inuti sitt containing
+  block: vertikalt behövs ett element kortare än sin behållare (`.list-head` i den höga
+  gruppen), horisontellt ett smalare (`.lh-inner` i den fullbreda rubriken). Bara den inre
+  gav sidled och −469px nedåt.
+- **Rubriken över de frysta cellerna** (z-index 4 mot 2): på samma nivå målade den
+  scrollade radens titel över den fastnaglade rubriken.
+- **Låset flyttade med scrollen.** `body { position: fixed }` höll sidans offset; sidan
+  har ingen nu, så `lockScroll` gömmer rutans överflöd och lägger tillbaka dess offset.
+- **`100dvh` tar spökskrollen på köpet** — kandidat 1 i `headern-malas-inte-vid-omladdning`
+  är därmed prövad utan att den pucken rörts.
+
+## Open questions
 - **Ett val eller ett per layout?** Listan har spår, kortet har märken; samma
   uppsättning i bägge är enklare att förklara och sämre för bägge. `effectiveParams`
   kan bära det, men två uppsättningar är två saker att spara.

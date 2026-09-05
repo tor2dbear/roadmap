@@ -1522,20 +1522,31 @@
   // the thing you are about to come back to. `overflow: hidden` alone doesn't hold
   // on iOS, so the body is pinned at its current offset and put back afterwards.
   // Counted, because a sheet can open over the puck modal, which locks too.
-  var scrollLocks = 0, lockedY = 0;
+  // The scrollport is `.work`, not the page — the shell is a fixed-height column — so
+  // this locks that box. Pinning the *body* was the old shape and would now hold
+  // nothing: the body no longer scrolls, and the board behind the sheet would move
+  // freely. `overflow: hidden` on the port is enough here precisely because it is not
+  // the document scroller, which is the case iOS mishandles.
+  var scrollLocks = 0, lockedY = 0, lockedX = 0;
+  function scrollPort() { paneRefs(); return workEl; }
   function lockScroll() {
     if (scrollLocks++) return;
-    lockedY = window.scrollY || document.documentElement.scrollTop || 0;
-    document.body.style.top = -lockedY + "px";
-    document.body.classList.add("scroll-locked");
+    var port = scrollPort();
+    if (!port) return;
+    lockedY = port.scrollTop;
+    lockedX = port.scrollLeft;
+    port.style.overflow = "hidden";
   }
   function unlockScroll() {
     scrollLocks = Math.max(0, scrollLocks - 1);
     if (scrollLocks) return;
-    document.body.classList.remove("scroll-locked");
-    document.body.style.top = "";
-    void document.body.offsetHeight; // settle the layout before restoring, or the
-    window.scrollTo(0, lockedY);     // scroll lands on a body that is still fixed
+    var port = scrollPort();
+    if (!port) return;
+    port.style.overflow = "";
+    // Hiding the overflow drops the scroll offset, so it is put back — the sheet closes
+    // onto the row you opened it from, not onto the top of the list.
+    port.scrollTop = lockedY;
+    port.scrollLeft = lockedX;
   }
 
   // The scrim stops the pointer, not the keyboard. A sheet is modal, so the app
@@ -3211,7 +3222,7 @@
       tc.appendChild(el("span", "crumb-title", item.title));
     }
     detailContent.scrollTop = 0;
-    window.scrollTo(0, 0);
+    if (workEl) workEl.scrollTop = 0; // the port, not the page: see lockScroll
     selectedId = item.id;
   }
   function highlightSelected() {
@@ -8236,9 +8247,13 @@
     // follows: the field at the top, the first lines in the band above the keyboard.
     function reveal() {
       if (!ta.isConnected) return;
-      var bar = document.querySelector(".topbar");
-      var barH = bar && getComputedStyle(bar).position === "sticky" ? bar.getBoundingClientRect().height : 0;
-      window.scrollTo(0, Math.max(0, ta.getBoundingClientRect().top + window.scrollY - barH - 8));
+      // Scrolls the port, and measures against the port's own top rather than the
+      // viewport's: the chrome above it (topbar, view header, chip row) is outside the
+      // scrollport now, so subtracting the topbar's height would aim 52px too high.
+      paneRefs();
+      if (!workEl) return;
+      var box = workEl.getBoundingClientRect();
+      workEl.scrollTop = Math.max(0, workEl.scrollTop + ta.getBoundingClientRect().top - box.top - 8);
     }
     // iOS can scroll again *after* focus, once the keyboard is up, which would undo the
     // line above. A shrinking visual viewport is the only event that says the keyboard
