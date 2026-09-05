@@ -293,19 +293,14 @@ export async function run({ open }) {
     eq(via.chips, [true], "föräldrachippet står kvar när ingen rubrik säger det");
   }
 
-  group("nivåerna räknar med indraget");
+  group("indraget tar inte titelns plats");
   {
-    // Codex, #47. Container-frågan känner *tavlans* bredd, men en nästlad rad betalar
-    // upp till 92px av sin egen: 28px karett-ränna plus de 64px indraget är kapat vid.
-    // Nivån avgjordes alltså för en rad som inte finns. Mätt vid 900px (tavlan 660,
-    // innehåll 612) före fixen: den platta raden fick sina 220px titel och den djupaste
-    // 156px — precis den klämning nivåerna infördes för att ta bort.
-    //
-    // Trädet når därför varje nivå 92px senare, och talet är vad som gör de två
-    // jämförbara: vid 652 har den djupaste raden exakt den titel en platt rad har vid
-    // 560. Det går inte att fråga per rad — en container-fråga läser sin container, och
-    // en rad kan inte måtta sina egna spår efter sin egen bredd — så gruppens värsta
-    // fall avgör för gruppen.
+    // Här stod nivåernas indragskorrigering: trädet nådde varje kolumnnivå 92px senare,
+    // eftersom en nästlad rad betalade 28px ränna plus upp till 64px indrag av sin egen
+    // bredd. Den räkningen behövs inte längre — raden scrollar i stället för att droppa
+    // kolumner — men *indraget* måste fortfarande sluta äta titeln, och det gör det
+    // genom att bo i namncellen: cellen är den frysta, så strukturen står kvar när
+    // metadatan scrollar, och varje rads metadata hamnar på samma x oavsett djup.
     const kedja = (d) => {
       const t = träd(d);
       const mitten = t.items.find((i) => i.slug === "b-member");
@@ -322,23 +317,31 @@ export async function run({ open }) {
       });
       return t;
     };
-    const p = await open("?layout=list&group=parent", { data: kedja, viewport: { width: 900, height: 900 } });
-    const m = await p.evaluate(() => {
+    const p = await open("?layout=list&group=parent", { data: kedja, viewport: { width: 390, height: 900 }, hasTouch: true });
+    const läs = () => p.evaluate(() => {
       const rader = [...document.querySelectorAll(".is-tree .list-row")].map((r) => ({
         djup: +(getComputedStyle(r).getPropertyValue("--depth") || 0),
-        namn: Math.round(r.querySelector(".list-name").getBoundingClientRect().width),
+        karet: (() => { const k = r.querySelector(".list-fold"); return k ? Math.round(k.getBoundingClientRect().left) : null; })(),
+        titel: Math.round(r.querySelector(".list-title").getBoundingClientRect().left),
       }));
-      const repo = document.querySelector(".is-tree .list-repo");
-      return {
-        djupast: rader.sort((a, b) => b.djup - a.djup)[0],
-        repoSynligt: !!repo && getComputedStyle(repo).display !== "none",
-      };
+      // Den djupaste raden *med karet*: den allra djupaste är ett löv och har inget, och
+      // en kontroll som hoppar över sig själv när måttet saknas mäter ingenting.
+      return rader.filter((r) => r.karet != null).sort((a, b) => b.djup - a.djup)[0];
     });
-    ok(m.djupast.djup >= 3, `kedjan når djupet den ska: ${JSON.stringify(m.djupast)}`);
-    ok(m.djupast.namn >= 300,
-      `den djupaste raden har fortfarande en titel att läsa: ${m.djupast.namn}px`);
-    eq(m.repoSynligt, false,
-      "repot väntar tills det ryms *med* indraget, inte bara i tavlan");
+    const före = await läs();
+    ok(före.djup >= 2, `kedjan når djupet den ska: ${JSON.stringify(före)}`);
+    // Scrollat i sidled: både karetet och titeln ska vara kvar i bild, eftersom bägge bor
+    // i den frysta namncellen. Som barn till *raden* — där karetet satt förut — åkte det
+    // ut med metadatan, mätt till −4px.
+    await p.evaluate(() => { document.querySelector(".board.as-list").scrollLeft = 400; });
+    await p.waitForTimeout(150);
+    const efter = await läs();
+    ok(efter.titel > 0, `den djupaste radens titel är kvar i bild: ${JSON.stringify(efter)}`);
+    // Avståndet mellan karet och titel, inte karetets plats: bägge bor i den frysta
+    // cellen, så de rör sig tillsammans. Som barn till *raden* hängde karetet i stället
+    // kvar hos ett förfaderselement medan titeln frös — samma bild, olika avstånd.
+    eq(efter.titel - efter.karet, före.titel - före.karet,
+      `karetet följer sin titel: ${JSON.stringify({ före, efter })}`);
   }
 
   group("listan spränger inte sidbredden på en telefon");

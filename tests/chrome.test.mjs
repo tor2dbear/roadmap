@@ -411,42 +411,103 @@ export async function run({ open }) {
     })();
   }
 
-  group("radens kolumner följer tavlans bredd, inte fönstrets");
+  group("listan scrollar i sidled och titeln följer inte med");
   {
-    // Två olika tal, och det är hela poängen. Sidomenyn tar 240px när den är öppen, så
-    // ett 900px-fönster ger listan en 660px-låda medan en vyport-mediefråga fortfarande
-    // kallar den "bred" och beställer sex kolumner. Mätt då: de fasta spåren behöll
-    // 410px mellan sig och titeln — det enda en rad finns för — pressades till 154px.
+    // Modellen är Notions: raden behåller varje kolumn och lådan scrollar, i stället för
+    // att kolumner faller bort när det blir trångt. Det som stod här förut vaktade den
+    // motsatta regeln — nivåer som droppade agent, sedan repo — och det var talen som
+    // var problemet: 560/720 för en platt rad, sedan 652/812 när trädets indrag visade
+    // sig krympa en rad container-frågan inte kunde se. Två omgångar aritmetik, en av dem
+    // fel, för en regel vars hela syfte var att bestämma vad som skulle kastas bort.
     //
-    // Före `min-width: 0` sköt samma brist ut sidan bredare än skärmen i stället;
-    // bristen fanns hela tiden, felläget bara flyttade. Så ordningen kolumnerna lämnar i
-    // är ett påstående om vad en rad är värd: agenten först, sedan repot, aldrig titeln.
+    // Det som gör det överkomligt är att titeln aldrig scrollar bort under en: glyfen och
+    // namnet är frysta vid vänsterkanten. Utan den frysningen är sidledsscroll bara ett
+    // sätt att tappa bort vilken rad man läser.
     const mät = (p) => p.evaluate(() => {
-      const row = document.querySelector(".list-row");
-      const sedd = (sel) => { const e = row.querySelector(sel); return !!e && getComputedStyle(e).display !== "none"; };
+      const board = document.querySelector(".board.as-list");
+      const rad = document.querySelector(".list-row");
+      const v = (sel) => { const e = rad.querySelector(sel); return e ? Math.round(e.getBoundingClientRect().left) : null; };
+      const sedd = (sel) => { const e = rad.querySelector(sel); return !!e && getComputedStyle(e).display !== "none"; };
       return {
-        vw: document.documentElement.clientWidth,
+        vy: document.documentElement.clientWidth,
         doc: document.documentElement.scrollWidth,
-        bräda: Math.round(document.querySelector(".board").getBoundingClientRect().width),
-        namn: Math.round(row.querySelector(".list-name").getBoundingClientRect().width),
+        lådaScroll: board.scrollWidth, lådaSynlig: Math.round(board.getBoundingClientRect().width),
+        namn: v(".list-name"), datum: v(".list-dt"),
         agent: sedd(".list-agent"), repo: sedd(".list-repo"),
-        höjd: Math.round(row.getBoundingClientRect().height),
+        höjd: Math.round(rad.getBoundingClientRect().height),
       };
     });
+    const p = await open("?layout=list", { viewport: { width: 390, height: 800 }, hasTouch: true });
+    const före = await mät(p);
+    eq(före.doc, före.vy, `sidan står stilla: ${JSON.stringify(före)}`);
+    ok(före.lådaScroll > före.lådaSynlig, `lådan är bredare än sin ruta, alltså finns kolumnerna kvar (${före.lådaScroll} mot ${före.lådaSynlig})`);
+    eq(före.agent, true, "agenten faller inte bort på en telefon");
+    eq(före.repo, true, "och inte repot heller");
+    ok(före.höjd < 60, `raden är fortfarande en rad: ${före.höjd}px`);
 
-    const smal = await mät(await open("?layout=list", { viewport: { width: 900, height: 800 } }));
-    ok(smal.bräda < smal.vw - 200, `sidomenyn har tagit sin del: ${JSON.stringify(smal)}`);
-    eq(smal.doc, smal.vw, "sidan står stilla");
-    eq(smal.agent, false, "agenten faller bort fast fönstret är 900px brett");
-    ok(smal.namn >= 200, `och titeln får plats i stället: ${smal.namn}px`);
-    // En rad, inte två. Det andra felläget när spåren och barnen inte går ihop är att
-    // överskottet hamnar på en implicit rad — raden blir dubbelt så hög och datumet
-    // ramlar ner under titeln.
-    ok(smal.höjd < 60, `raden är fortfarande en rad: ${smal.höjd}px`);
+    // Och det som gör det läsbart: namnet står kvar medan datumet kommer in från höger.
+    // "Fryst" är inte "orörligt" — cellen glider med tills den når kanten och fastnar
+    // där, så det som mäts är att den *stannar*: 400px till scroll flyttar den inte.
+    await p.evaluate(() => { document.querySelector(".board.as-list").scrollLeft = 400; });
+    await p.waitForTimeout(150);
+    const vid400 = await mät(p);
+    await p.evaluate(() => { document.querySelector(".board.as-list").scrollLeft = 800; });
+    await p.waitForTimeout(150);
+    const vid800 = await mät(p);
+    ok(vid400.namn > 0, `namnet är kvar i bild efter 400px (${vid400.namn}) — ofryst hade det legat på ${före.namn - 400}`);
+    eq(vid800.namn, vid400.namn, `och står stilla när man scrollar vidare: ${vid400.namn} → ${vid800.namn}`);
+    ok(vid400.datum < före.datum - 300, `medan metadatan scrollar in (${före.datum} → ${vid400.datum})`);
+    eq(vid400.doc, vid400.vy, "och sidan står fortfarande stilla");
+  }
 
-    const bred = await mät(await open("?layout=list", { viewport: { width: 1400, height: 800 } }));
-    eq(bred.agent, true, "med plats finns agenten kvar");
-    ok(bred.höjd < 60, `och raden är en rad även där: ${bred.höjd}px`);
+  group("en lång titel breddar inte den frysta kolumnen");
+  {
+    // Codex, #48. Radens minimum måste komma från *kolumnerna*, aldrig från innehållet.
+    // Med `min-width: max-content` läste den den längsta titeln i stället, och på en
+    // telefon är det inte en skönhetsfläck: mätt med en 120 tecken lång titel blev
+    // namncellen 851px bred på en 390px-skärm — och eftersom den cellen är fryst och
+    // ogenomskinlig täckte den hela vyn och la prioritet, agent, repo och datum utom
+    // räckhåll bakom sig, för varje rad i listan. En fryst kolumn fungerar bara så länge
+    // den är smalare än skärmen.
+    const långTitel = (d) => {
+      d.items.find((i) => i.slug === "a-now").title =
+        "En puck med ett orimligt långt namn som ingen skulle skriva men som formatet tillåter och som därför bestämmer radens bredd";
+      return d;
+    };
+    const p = await open("?layout=list", { data: långTitel, viewport: { width: 390, height: 800 }, hasTouch: true });
+    await p.evaluate(() => { document.querySelector(".board.as-list").scrollLeft = 500; });
+    await p.waitForTimeout(150);
+    const m = await p.evaluate(() => {
+      const vy = document.documentElement.clientWidth;
+      const rad = [...document.querySelectorAll(".list-row")].find((r) => r.querySelector(".list-title").textContent.length > 60);
+      const namn = rad.querySelector(".list-name").getBoundingClientRect();
+      // Vad ligger överst vid högerkanten, i den radens höjd? Är det namncellen har den
+      // lagt sig över metadatan i stället för bredvid den.
+      const överst = document.elementFromPoint(vy - 40, Math.round(namn.top + namn.height / 2));
+      return { vy, namnBredd: Math.round(namn.width), täcker: !!överst && !!överst.closest(".list-name"),
+        datum: Math.round(rad.querySelector(".list-dt").getBoundingClientRect().left) };
+    });
+    ok(m.namnBredd < m.vy, `namncellen är smalare än skärmen: ${m.namnBredd} mot ${m.vy}`);
+    eq(m.täcker, false, `och ligger inte över metadatan: ${JSON.stringify(m)}`);
+    ok(m.datum < m.vy, `datumet går att scrolla fram: ${m.datum}`);
+  }
+
+  group("gruppens rubrik står kvar när raden scrollar");
+  {
+    // Rubriken är två lådor, och den inre är skälet: en sticky-box kan inte förskjutas
+    // inuti ett containing block den fyller helt, så en rubrik i full bredd gled bara ut
+    // åt vänster (mätt: −376px vid scrollLeft 400). Arkivstumpen — en rubrik utan rader —
+    // är samma fråga en gång till: som egen låda var den bara så bred som sitt innehåll
+    // och åkte ut ur bild helt, vilket är varför tavlan lägger grupperna i *ett* rutnät
+    // med en kolumn som alla sträcks till.
+    const p = await open("?layout=list&group=parent&done=1", { viewport: { width: 390, height: 800 }, hasTouch: true });
+    const rubriker = (q) => q.evaluate(() => [...document.querySelectorAll(".lh-inner")].map((e) => Math.round(e.getBoundingClientRect().left)));
+    const före = await rubriker(p);
+    await p.evaluate(() => { document.querySelector(".board.as-list").scrollLeft = 400; });
+    await p.waitForTimeout(150);
+    const efter = await rubriker(p);
+    ok(före.length > 1, `flera rubriker att mäta: ${JSON.stringify(före)}`);
+    ok(efter.every((x) => x >= 0), `ingen rubrik har åkt ut åt vänster: ${JSON.stringify(efter)}`);
   }
 
   group("toasten lägger ut sig på sitt innehåll, inte på halva vyporten");

@@ -2,7 +2,7 @@
 title: Vyn väljer sina egenskaper
 status: next
 tags: [ui, product]
-updated: 2026-09-04
+updated: 2026-09-05
 created: 2026-09-04
 priority: high
 target: 2026-09-30
@@ -53,13 +53,8 @@ påslaget i vyn?*
    undermeny av kryssrutor, är den formen menyn redan har (`DISPLAY_FIELDS` →
    `renderDisplayValues`).
 
-**Det finns redan ett automatiskt val att inte bryta.** På smal skärm döljer
-stilmallen agent och repo i listan (`@media (max-width: 640px)`). Ett handval och en
-breakpoint som bägge stänger av samma fält får inte hamna i konflikt: den ena säger vad
-du vill se, den andra vad som får plats. Rimligast är att breakpointen fortsätter vara
-ett tak — det du valt bort syns aldrig, det du valt syns när det ryms — men att den då
-inte längre är en *tyst* regel, för nu står den bredvid en kryssruta som säger något
-annat.
+**Det finns redan ett automatiskt val att inte bryta** — och det är avgjort tvärtemot
+hur den här texten först löd. Se *Beslut* nedan.
 
 ## De två talen i rubriken säger olika saker, utom när de inte gör det
 
@@ -82,10 +77,83 @@ lösningen där var att flytta *en* sak till en egen rad. Det är en lokal rädd
 generellt problem: uppsättningen är inte densamma för en fleet-vy som för en
 prioriteringsgenomgång.
 
+## Beslut
+
+**Automatik gäller i frånvaro av ett val, aldrig över ett.** Det är den ena regeln
+bägge besluten nedan följer, och den finns för att en tyst överkörning är samma fel
+filen redan namnger två gånger: en kontroll som påstår ett val som aldrig trädde i kraft.
+
+**Ett tomt val är ett val.** Automatiken gäller när `fields` *saknas*, inte när det finns
+och råkar sakna datum: kryssar man medvetet bort alla tre ska raden visa inget datum alls,
+annars går det inte att stänga av dem — och en sparad vy vars tomma val serialiseras som
+ett utelämnat `fields` skulle dessutom ändra sig vid omladdning. Alltså: skilj *frånvaro
+av inställning* från *inställning med tom delmängd*.
+
+**Två datum samtidigt kräver etiketter.** `dateCell()` skickar bägge genom `dateEl()`,
+som skriver ut den råa datumsträngen och hårdkodar både sin tooltip och sitt
+tillgänglighetsnamn till "Last updated". Kryssar man i `Created` och `Updated` blir det
+alltså två omärkta datum, varav det ena dessutom *läses upp fel* — och då är hela
+poängen (att kunna se varför ordningen är som den är) borta. Fältnamn per datum är en
+del av leveransen, inte en efterrätt.
+
+**Datumet: valet ersätter `cardDateField()`.** `Created`, `Updated` och `Target` blir
+tre separata val, och dagens regel — visa det datum sorteringen handlar om — blir
+*defaultuppsättningen* när inget datum är valt. Kollisionen som tvingade fram frågan:
+sorterar du på "Newest created" och har kryssat `Updated` visar raderna
+uppdateringsdatum medan ordningen följer skapandedatum, vilket läser som en oordnad
+lista — precis felet regeln skrevs för att förhindra. Med valet som överordnat kan du
+kryssa i bägge och se varför ordningen är som den är.
+
+**Bredden: raden får scrolla i sidled i stället för att tappa kolumner.** Mätt på 390px
+med hela uppsättningen påslagen: sidbredden står stilla (390), lådan scrollar internt
+(926), och med `position: sticky; left: 0` på glyf + namn står titeln kvar efter 260px
+sidled, oklippt. Rubriken måste frysas i sidled på samma sätt, annars scrollar den ut
+åt vänster.
+
+Priset är **en** sak, och bara en: `overflow-x: auto` gör lådan till scrollcontainer i
+båda axlarna, så gruppubrikens `top: sticky` upphör att gälla. Den kostnaden var i
+första bedömningen felprissatt som ett skalbygge — slutsatsen "alltså måste sidans
+scroll flytta in i en ruta" förutsätter att den klibbiga rubriken är värd priset, och
+Notion har den inte på telefon. Skalbygget står kvar som en möjlighet om rubriken visar
+sig saknas, och hör då ihop med `headern-malas-inte-vid-omladdning`, som rör samma
+geometri.
+
+Vinsten utöver löftet: **hela brytpunktsräkningen kan gå.** 560/720, sedan 652/812 när
+indraget skulle in — två buggar på två dagar kom ur de talen. En rad som får scrolla
+behöver ingen veta vad som får plats.
+
+## Byggt: bredden först, väljaren står kvar
+
+Sidledsscrollen ligger i koden före själva väljaren, för den är förutsättningen: en
+uppsättning man valt går inte att lova om raden fortfarande droppar kolumner. Nu behåller
+raden varje kolumn och lådan scrollar, med glyf, karet och namn frysta vid vänsterkanten
+och gruppens rubrik fryst i sidled.
+
+Fyra saker som inte var uppenbara, och som var och en tog en mätning:
+
+- **En sticky-box kan inte förskjutas inuti ett containing block den fyller helt.** En
+  rubrik i full bredd gled därför bara ut åt vänster (−376px vid scrollLeft 400).
+  Rubriken är nu två lådor: en yttre som spänner gruppen och en inre, `width: max-content`,
+  som har rum att fästa i.
+- **Grupperna måste dela bredd.** Som egna block var en arkivstump bara så bred som sin
+  rubrik och åkte ur bild helt när listan scrollades. Tavlan lägger dem i *ett* rutnät
+  med en kolumn — `minmax(max-content, 1fr)` — som alla sträcks till.
+- **Karetet hörde till namnet, inte till raden.** Som barn till raden hängde det kvar hos
+  ett förfaderselement medan titeln frös; mätt som ett avstånd som ändrades, 88px → 62px.
+- **Tavlans 24px marginal läckte.** En fryst cell täcker bara sin egen låda, så den
+  scrollade metadatan syntes till vänster om glyfen. Bakgrunden blöder över rännan med
+  `background: inherit`, så den följer hover och markering utan en andra plats att
+  uppdatera.
+
+Och det som gick: `@container`-nivåerna, alltså 560/720 och 652/812. En rad som får
+scrolla behöver ingen veta vad som får plats.
+
 ## Open questions
 
-- **Ersätter valet `cardDateField()` eller ligger det ovanpå?** "Visa skapad" när man
-  sorterat på target är ett rimligt val och en olycka, i samma klick.
+- **Gruppens rubrik följer inte längre med nedåt.** Det är priset, och det är betalt i
+  koden — men det är ett smakbeslut och går att ångra: listan kan bli sin egen scrollruta,
+  vilket rör iOS-scroll, footern och samma geometri som
+  `headern-malas-inte-vid-omladdning`.
 - **Ett val eller ett per layout?** Listan har spår, kortet har märken; samma
   uppsättning i bägge är enklare att förklara och sämre för bägge. `effectiveParams`
   kan bära det, men två uppsättningar är två saker att spara.
