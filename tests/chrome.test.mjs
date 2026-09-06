@@ -667,51 +667,85 @@ export async function run({ open }) {
 
   group("en dragning håller sig till en axel");
   {
-    // Rutan scrollar i båda axlarna — det är priset för en klibbig gruppubrik — och en
-    // dragning på en telefon är aldrig helt rak. En flick nedför listan med några graders
-    // drift flyttade alltså kolumnerna i sidled också.
+    // Rutan scrollar i båda axlarna i listan — priset för en klibbig gruppubrik — och en
+    // dragning på en telefon är aldrig rak, så en flick nedför listan med några graders
+    // drift flyttade kolumnerna i sidled också.
     //
-    // Låset avgörs ur den scroll webbläsaren redan gjort: de första 8 pixlarna av en
-    // touch-gest väljer axel, den andra läggs tillbaka resten av gesten. Ingen
-    // preventDefault och ingen egen panorering, alltså rör vi inte momentum eller
-    // gummibandet — och det är också varför kontrollen kan mäta logiken här: den härmar
-    // webbläsarens diagonala panorering genom att sätta bägge offseten inuti en gest.
-    const p = await open("?layout=list", { viewport: { width: 390, height: 700 }, hasTouch: true });
-    const gest = (dx, dy) => p.evaluate(({ dx, dy }) => {
+    // Första svaret läste den scroll webbläsaren redan gjort och la tillbaka off-axeln.
+    // Det klarade ett syntetiskt test och gjorde ingenting på en riktig telefon: **en
+    // iOS-touchscroll körs på kompositorn, och att skriva `scrollTop` medan fingret är
+    // nere når inte dit.** Ett test som flyttar offseten själv rör aldrig den mekanismen.
+    // Därför riktiga gester här, genom webbläsarens egen inmatningskedja (CDP), som är
+    // det enda som låter `touch-action` och `preventDefault` betyda något.
+    const p = await open("?layout=list&done=1", { viewport: { width: 390, height: 600 }, hasTouch: true });
+    await p.waitForSelector(".list-row");
+    const cdp = await p.context().newCDPSession(p);
+    const dra = async (x, y, dx, dy) => {
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
+      for (let i = 1; i <= 12; i++) {
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchMove",
+          touchPoints: [{ x: Math.round(x + dx * i / 12), y: Math.round(y + dy * i / 12) }] });
+      }
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+      await p.waitForTimeout(400);
+      return p.evaluate(() => {
+        const w = document.getElementById("work");
+        return { x: Math.round(w.scrollLeft), y: Math.round(w.scrollTop) };
+      });
+    };
+    const nolla = () => p.evaluate(() => {
       const w = document.getElementById("work");
-      w.scrollTop = 0; w.scrollLeft = 0;
-      const t = new Touch({ identifier: 1, target: w, clientX: 100, clientY: 300 });
-      w.dispatchEvent(new TouchEvent("touchstart", { touches: [t], targetTouches: [t], changedTouches: [t], bubbles: true }));
-      w.scrollLeft = dx; w.scrollTop = dy;
-      return new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(() =>
-        ok({ x: Math.round(w.scrollLeft), y: Math.round(w.scrollTop) }))));
-    }, { dx, dy });
+      w.scrollLeft = 0; w.scrollTop = 0; window.__nekade = 0;
+    });
+    // Registrerad *efter* låsets egen lyssnare på samma element och fas, alltså kör den
+    // sist och ser vad låset gjorde. Det här är enda sättet att mäta refuseringen här:
+    // Chromium har ett eget axellås som redan dämpar vertikalen i en sidledsgest, så
+    // offseten skulle se likadan ut med och utan `preventDefault`. På iOS finns inget
+    // sådant lås, och då är refuseringen det enda som håller.
+    await p.evaluate(() => {
+      window.__nekade = 0;
+      document.getElementById("work").addEventListener("touchmove", (e) => { if (e.defaultPrevented) window.__nekade++; });
+    });
 
-    const sidled = await gest(120, 40);
-    eq(sidled.y, 0, `en sidledsdragning med drift nedåt rör inte vertikalen: ${JSON.stringify(sidled)}`);
+    // Vinkeln är vald, inte gissad: Chromium har ett eget axellås som håller upp till
+    // ungefär 36 grader, så en svag drift mäter ingenting här — den skulle passera även
+    // utan regeln. Vid 42 grader släpper det egna låset och tar hela sidledsvidden med
+    // sig (mätt: x = 352 av 352), vilket är det tal sabotaget lämnar efter sig. iOS låser
+    // inte alls, vilket är varför regeln behövs för mildare vinklar också.
+    await nolla();
+    const nedåt = await dra(200, 400, -200, -220);
+    eq(nedåt.x, 0, `en brant diagonal nedåt rör inte sidleds: ${JSON.stringify(nedåt)} — utan regeln 352`);
+    ok(nedåt.y > 100, `men går nedåt, med momentum: ${nedåt.y}`);
+    eq(await p.evaluate(() => window.__nekade), 0, "och en dragning nedåt tas aldrig ifrån webbläsaren");
+
+    await nolla();
+    const sidled = await dra(200, 400, -220, -60);
+    eq(sidled.y, 0, `och en dragning i sidled med 60px drift nedåt rör inte vertikalen: ${JSON.stringify(sidled)}`);
     ok(sidled.x > 100, `men går i sidled: ${sidled.x}`);
+    ok(await p.evaluate(() => window.__nekade) > 0, "och den vertikala panoreringen nekas webbläsaren under tiden");
+  }
 
-    const nedåt = await gest(40, 120);
-    eq(nedåt.x, 0, `och en dragning nedåt med drift i sidled rör inte horisontalen: ${JSON.stringify(nedåt)}`);
-    ok(nedåt.y > 100, `men går nedåt: ${nedåt.y}`);
-
-    // Under tröskeln väljs ingen axel: en liten justering ska inte låsa något.
-    const litet = await gest(4, 4);
-    eq(JSON.stringify(litet), JSON.stringify({ x: 4, y: 4 }), `under 8px låses ingenting: ${JSON.stringify(litet)}`);
-
-    // Och utanför en gest gäller inget lås alls — annars skulle `reveal()`, puck-sidan
-    // och sheet-låset, som alla flyttar rutan med flit, slås tillbaka.
-    const utan = await p.evaluate(() => new Promise((ok) => {
-      const w = document.getElementById("work");
-      w.dispatchEvent(new TouchEvent("touchend", { touches: [], bubbles: true }));
-      setTimeout(() => {
-        w.scrollTop = 0; w.scrollLeft = 0;
-        w.scrollLeft = 120; w.scrollTop = 90;
-        requestAnimationFrame(() => requestAnimationFrame(() =>
-          ok({ x: Math.round(w.scrollLeft), y: Math.round(w.scrollTop) })));
-      }, 400);
+  group("tavlans egen sidled tas inte av låset");
+  {
+    // `pan-y` på en förfader förbjuder sidled för allt under den, och kanban-tavlan är sin
+    // egen sidledsscroller. Regeln är därför hängd på klassen renderaren redan sätter, och
+    // det här är kontrollen som säger att avgränsningen finns.
+    const p = await open("?layout=board", { viewport: { width: 390, height: 600 }, hasTouch: true });
+    await p.waitForSelector(".column");
+    const cdp = await p.context().newCDPSession(p);
+    const före = await p.evaluate(() => ({
+      ta: getComputedStyle(document.getElementById("work")).touchAction,
+      x: Math.round(document.getElementById("board").scrollLeft),
     }));
-    eq(JSON.stringify(utan), JSON.stringify({ x: 120, y: 90 }), `programmatisk scroll rörs inte: ${JSON.stringify(utan)}`);
+    eq(före.ta, "auto", `rutan är inte låst i tavellayouten: ${JSON.stringify(före)}`);
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: 300, y: 400 }] });
+    for (let i = 1; i <= 12; i++) {
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: 300 - Math.round(200 * i / 12), y: 400 - Math.round(30 * i / 12) }] });
+    }
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await p.waitForTimeout(400);
+    const efter = await p.evaluate(() => Math.round(document.getElementById("board").scrollLeft));
+    ok(efter > 100, `och kolumnerna går fortfarande att dra i sidled: ${före.x} → ${efter}`);
   }
 
   group("banderollen ryms i skalet i stället för att förlänga sidan");

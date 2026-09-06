@@ -360,20 +360,23 @@ sideways is a scroll container in *both* axes, so before the change a group head
   control again by its `data-fold` key (the old node is detached and measures nothing) and
   puts that distance back. It clamps honestly: fold the last group and there may be no
   content left to hold the offset, and then the port does move.
-- **A drag keeps to one axis, and that is JavaScript because there is no CSS for it.**
-  The port scrolls both ways and a phone drag is never straight, so a flick down the list
-  with a few degrees of drift moved the columns sideways too. `touch-action: pan-x|pan-y`
-  fixes an element to one axis for good rather than per gesture; `overscroll-behavior`
-  speaks about chaining, not direction; and nesting two single-axis scrollers does not do
-  it either, because a box that cannot scroll vertically chains the vertical part straight
-  to its parent. `armAxisLock` therefore decides from the scroll the browser has already
-  done: the first 8px of a touch gesture pick the axis and the other is put back for the
-  rest of it — through the fling as well, which is where the drift actually lands, so the
-  gesture ends when the *scrolling* stops and not when the finger lifts. No
-  `preventDefault` and no hand-rolled panning, so momentum and the rubber band are the
-  browser's; the cost is that the off-axis can be one frame out before it is pulled back.
-  It only runs inside a gesture — `reveal()`, the puck page and the sheet lock all move
-  this box deliberately, and a lock that outlived the finger would fight them.
+- **A drag keeps to one axis, and the browser is told so before the gesture, not after.**
+  The port scrolls both ways in the list and a phone drag is never straight, so a flick
+  down it with a few degrees of drift moved the columns sideways too. The first fix read
+  the scroll that had already happened and put the off-axis back; it passed a synthetic
+  test and did nothing on a real phone, which is the lesson worth keeping: **an iOS touch
+  scroll runs on the compositor, and writing `scrollTop` while the finger is down does not
+  reach it** — a test that moves the offsets itself measures the arithmetic, not the
+  mechanism. So the port carries `touch-action: pan-y pinch-zoom` (scoped by
+  `.work:has(> .board.as-list)`, since the kanban board is its own sideways scroller and
+  `pan-y` on an ancestor would forbid it), and sideways is `armAxisLock`'s to drive: the
+  first 8px pick the axis, and a sideways one refuses the browser's vertical pan and moves
+  `scrollLeft` by the finger's delta. Vertical keeps momentum and the rubber band; a
+  sideways flick has none, because it is not the browser scrolling. Test it with real
+  gestures through CDP — and pick the angle deliberately: Chromium locks the axis itself
+  up to ~36°, so only a steeper diagonal (measured: 352px of drift at 42°) can tell the
+  rule from its absence, and `preventDefault` is observable only as `defaultPrevented`,
+  never as an offset, for the same reason.
 - **A pinned box pins where it already sits, not at the port's edge.** `left: 0` is the
   obvious offset and the wrong one: the box slides to the edge *first* and freezes there,
   so the first stretch of every sideways drag moves everything on screen — measured, 26px

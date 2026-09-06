@@ -1355,6 +1355,12 @@ body.scroll-locked { overflow: hidden; }
    focuses it. The ring belongs to the keyboard route only — the same rule the focus
    buttons follow. */
 .work:focus:not(:focus-visible) { outline: none; }
+/* One axis per drag, decided before the gesture rather than corrected after it: the
+   browser is told it may not pan this box sideways, and `armAxisLock` drives `scrollLeft`
+   itself when a drag turns out to be a sideways one. `pinch-zoom` stays, or the board
+   could not be zoomed. Scoped to the list by the class the renderer already sets — the
+   kanban board is its own sideways scroller, and `pan-y` on an ancestor forbids it. */
+.work:has(> .board.as-list) { touch-action: pan-y pinch-zoom; }
 /* A puck opens as a full-width page (same on desktop + mobile): the board and the
    view-header hide, and the detail fills the content area as a centered,
    document-width column. The breadcrumb "← All pucks" is the back action. */

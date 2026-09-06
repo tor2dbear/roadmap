@@ -1472,59 +1472,61 @@
   }
 
   // ── one axis per drag ───────────────────────────────────────────────────────
-  // The port scrolls both ways — that is the price of a sticky group heading, since a
-  // box that scrolls sideways is a scroll container in both axes — and a phone drag is
-  // never perfectly straight. A flick down the list with a few degrees of drift moved
-  // the columns sideways as well, which is what "det skrollar i alla led" was.
+  // The port scrolls both ways in the list — that is the price of a sticky group heading,
+  // since a box that scrolls sideways is a scroll container in both axes — and a phone
+  // drag is never perfectly straight. A flick down the list with a few degrees of drift
+  // moved the columns sideways too, which is what "det skrollar i alla led" was.
   //
-  // There is no CSS for this. `touch-action: pan-x|pan-y` fixes an element to one axis
-  // for good rather than per gesture, and `overscroll-behavior` speaks about chaining,
-  // not direction. Nesting two single-axis scrollers does not do it either: a box that
-  // cannot scroll vertically chains the vertical part straight to its parent, so a
-  // diagonal drag still moves both.
+  // The first answer read the scroll the browser had already done and put the off-axis
+  // back. It passed a synthetic test and did nothing on a real phone, for a reason worth
+  // keeping: **an iOS touch scroll runs on the compositor, and writing `scrollTop` while
+  // the finger is down does not reach it.** A test that moves the offsets itself never
+  // touches that mechanism, so it measured the arithmetic and not the thing.
   //
-  // So it is decided from the scroll the browser has already done: the first 8px of a
-  // touch gesture pick the axis, and the other one is put back for the rest of it —
-  // including through the fling, whose direction is set by the finger and not by us.
-  // Native scrolling is untouched (no preventDefault, no manual panning), which is what
-  // keeps momentum and the rubber band; the cost is that the off-axis can be one frame
-  // out before it is pulled back.
+  // So the browser is told up front instead. `touch-action: pan-y pinch-zoom` on the port
+  // (list layout only — the kanban board is its own sideways scroller and `pan-y` on an
+  // ancestor would forbid it) means a drag *cannot* pan it sideways however crooked it is:
+  // the drift is gone at the source rather than corrected after the fact. Sideways is then
+  // ours to drive: the first 8px pick the axis, and a sideways one refuses the browser's
+  // vertical pan (`preventDefault`) and moves `scrollLeft` by the finger's own delta.
+  //
+  // What it costs, and it is the honest half: a sideways flick has no momentum, because it
+  // is not the browser scrolling. Vertical keeps everything — momentum, the rubber band —
+  // which is the axis a long list is actually read in.
   var axisArmed = false;
   function armAxisLock(port) {
     if (axisArmed) return;
     axisArmed = true;
-    var axis = null, startX = 0, startY = 0, live = false, down = false, settle = null;
-    // The gesture ends when the *scrolling* stops, not when the finger lifts: the fling
-    // outlives the touch, and the fling is what drifts. So the timer is only armed once
-    // the finger is up, and every scroll frame of the fling pushes it out again.
-    function settleAfterFling() {
-      if (down) return;
-      clearTimeout(settle);
-      settle = setTimeout(function () { axis = null; live = false; }, 250);
-    }
+    var sx = 0, sy = 0, lastX = 0, axis = null, live = false;
     port.addEventListener("touchstart", function (e) {
-      clearTimeout(settle);
-      // Two fingers is a pinch or a zoom, not a pan — nothing to lock.
-      if (e.touches.length !== 1) { axis = null; live = false; down = false; return; }
-      axis = null; live = true; down = true;
-      startX = port.scrollLeft; startY = port.scrollTop;
+      // Two fingers is a pinch, not a pan — and `pinch-zoom` is in the touch-action for
+      // exactly that reason, so nothing here may take it over.
+      live = e.touches.length === 1;
+      axis = null;
+      if (!live) return;
+      sx = lastX = e.touches[0].clientX;
+      sy = e.touches[0].clientY;
     }, { passive: true });
-    function up() { down = false; settleAfterFling(); }
+    port.addEventListener("touchmove", function (e) {
+      if (!live || e.touches.length !== 1) return;
+      var t = e.touches[0], dx = t.clientX - sx, dy = t.clientY - sy;
+      if (!axis) {
+        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+        // Sideways only counts where there is somewhere sideways to go. In the board
+        // layout this box has no horizontal travel — the kanban scrolls itself — so the
+        // gesture stays the browser's and nothing here refuses it.
+        axis = Math.abs(dx) > Math.abs(dy) && port.scrollWidth > port.clientWidth + 1 ? "x" : "y";
+      }
+      if (axis !== "x") return;
+      // Not cancelable once the browser has committed to a scroll; the 8px threshold is
+      // what usually gets us in before that, and asking first keeps the console clean.
+      if (e.cancelable) e.preventDefault();
+      port.scrollLeft -= t.clientX - lastX;
+      lastX = t.clientX;
+    }, { passive: false });
+    function up() { live = false; axis = null; }
     port.addEventListener("touchend", up, { passive: true });
     port.addEventListener("touchcancel", up, { passive: true });
-    port.addEventListener("scroll", function () {
-      // Only inside a gesture: `reveal()`, the puck page and the sheet lock all move
-      // this box on purpose, and a lock that outlived the finger would fight them.
-      if (!live) return;
-      if (!axis) {
-        var dx = Math.abs(port.scrollLeft - startX), dy = Math.abs(port.scrollTop - startY);
-        if (dx < 8 && dy < 8) return;
-        axis = dx > dy ? "x" : "y";
-      }
-      // Assigning the value it already has fires no event, so this settles in one pass.
-      if (axis === "x") port.scrollTop = startY; else port.scrollLeft = startX;
-      settleAfterFling();
-    }, { passive: true });
   }
 
   // The repo, as a rail value: its dot and its name, and a press that scopes the board

@@ -229,15 +229,27 @@ saker som ser ut att vara svaret och inte är det:
 - Två nästlade enaxliga rutor gör det inte heller: en låda som inte kan scrolla vertikalt
   kedjar den vertikala delen rakt till sin förälder, så en diagonal dragning rör bägge ändå.
 
-`armAxisLock` avgör därför ur den scroll webbläsaren *redan gjort*: de första 8 pixlarna av
-en touch-gest väljer axel, den andra läggs tillbaka resten av gesten — och gesten slutar när
-scrollandet slutar, inte när fingret lyfts, för det är flingen som driver. Ingen
-`preventDefault`, ingen egen panorering: momentum och gummibandet är fortfarande
-webbläsarens. Priset är att off-axeln kan ligga en bildruta fel innan den dras tillbaka.
+**Första svaret var fel, och felet är det som är värt att spara.** Det läste den scroll
+webbläsaren redan gjort och la tillbaka off-axeln. Det passerade ett syntetiskt test och
+gjorde ingenting på en riktig telefon: *en iOS-touchscroll körs på kompositorn, och att
+skriva `scrollTop` medan fingret är nere når inte dit.* Ett test som flyttar offseten själv
+rör aldrig den mekanismen — det mätte aritmetiken, inte saken.
 
-Låset gäller bara inuti en gest. `reveal()`, puck-sidan och sheet-låset flyttar rutan med
-flit, och ett lås som överlevde fingret hade slagit tillbaka dem — det är den ena av två
-sabotagepunkter (den andra är själva återställningen).
+Så webbläsaren får veta i förväg i stället. `touch-action: pan-y pinch-zoom` på rutan
+(bara i listan — kanban-tavlan är sin egen sidledsscroller, och `pan-y` på en förfader
+förbjuder den) gör att en dragning *inte kan* panorera den i sidled hur sne den än är.
+Sidled är sedan vår att driva: de första 8 pixlarna väljer axel, och en sidledsgest nekar
+webbläsarens vertikala panorering och flyttar `scrollLeft` med fingrets eget delta.
+
+Priset, och det är den ärliga halvan: en sidledsflick har inget momentum, för det är inte
+webbläsaren som scrollar. Vertikalt behåller allt — momentum, gummibandet — vilket är den
+axel en lång lista faktiskt läses i.
+
+**Vinkeln i kontrollen är vald, inte gissad.** Chromium har ett eget axellås som håller upp
+till ungefär 36 grader, så en svag drift skulle passera även utan regeln. Vid 42 grader
+släpper det och tar hela sidledsvidden med sig — 352 av 352 — och det är talet sabotaget
+lämnar efter sig. iOS låser inte alls. Refuseringen av den vertikala panoreringen går av
+samma skäl bara att se som `defaultPrevented`, aldrig som en offset.
 
 ## Open questions
 - **Ett val eller ett per layout?** Listan har spår, kortet har märken; samma
