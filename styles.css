@@ -1849,9 +1849,17 @@ body.preload * { transition: none !important; }
    1px rule — which is not air this row owns. Every layout that hides or shrinks
    the header (mobile puts the title in the topbar) left the chips hard against
    the rule with 10px hanging below them. */
+/* Capped, because the chrome above the scrollport is the one thing that can push the
+   scrollport out of the shell. A long enough query wraps this row over several lines, and
+   with a fixed-height shell there is no page left to scroll: measured at 390×360 with 20
+   predicates the row was 295px tall, `.work` collapsed to *zero*, and the last chips —
+   including the ones that remove the terms — sat 24px below the screen with nothing to
+   scroll them into view. It scrolls itself instead, so the board always keeps its share
+   and no control is ever unreachable. */
 .chiprow {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
   padding: 10px var(--pad); border-bottom: 1px solid var(--line);
+  max-height: 30dvh; overflow-y: auto;
 }
 .fchip {
   display: inline-flex; align-items: center; gap: 6px;

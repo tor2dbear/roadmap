@@ -550,6 +550,35 @@ export async function run({ open }) {
     eq(efter.sidanScrollar, false, "sidan står fortfarande stilla");
   }
 
+  group("chromet ovanför rutan kan inte tränga ut den");
+  {
+    // Codex, #49. Med en fast höjd är chromet ovanför scrollporten det enda som kan
+    // trycka ut den ur skalet: en tillräckligt lång fråga radbryter chipparaden över
+    // flera rader, och då finns ingen sida kvar att scrolla. Mätt på 390×360 med 20
+    // predikat: raden blev 295px, `.work` kollapsade till **noll**, och de sista
+    // chippen — bland dem de som tar bort termerna — låg 24px under skärmkanten utan
+    // något att scrolla dem fram med.
+    // Uteslutande termer för etiketter som inte finns: tjugo chip, och tavlan står kvar
+    // som den var — annars mäter kontrollen en tom tavla i stället för en trång rad.
+    const q = Array.from({ length: 20 }, (_, i) => "-tag:saknas" + i).join(" ");
+    const p = await open("?layout=list&q=" + encodeURIComponent(q), { viewport: { width: 390, height: 360 }, hasTouch: true });
+    await p.waitForSelector("#chipRow .fchip");
+    const m = await p.evaluate(() => {
+      const chip = document.getElementById("chipRow"), work = document.getElementById("work");
+      chip.scrollTop = chip.scrollHeight; // nåbarhet, inte synlighet
+      const box = chip.getBoundingClientRect(), sista = chip.lastElementChild.getBoundingClientRect();
+      return {
+        workHöjd: Math.round(work.getBoundingClientRect().height),
+        chipHöjd: Math.round(box.height),
+        chipScrollar: chip.scrollHeight > chip.clientHeight,
+        sistaNåbar: sista.bottom <= box.bottom + 1 && sista.top >= box.top - 1,
+      };
+    });
+    ok(m.workHöjd > 100, `rutan behåller sin del av skalet: ${JSON.stringify(m)}`);
+    ok(m.chipScrollar, "chipparaden scrollar i stället för att växa");
+    eq(m.sistaNåbar, true, "och det sista chippet går att nå");
+  }
+
   group("toasten lägger ut sig på sitt innehåll, inte på halva vyporten");
   {
     // A fixed box with `left` and no `right` shrink-to-fits inside the space from `left`
