@@ -2,7 +2,7 @@
 title: Vyn väljer sina egenskaper
 status: next
 tags: [ui, product]
-updated: 2026-09-05
+updated: 2026-09-06
 created: 2026-09-04
 priority: high
 target: 2026-09-30
