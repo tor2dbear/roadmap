@@ -345,6 +345,14 @@ sideways is a scroll container in *both* axes, so before the change a group head
   inside, one line per group rather than one per row, and being one box it has no gap of
   its own. Its background still bleeds across the gutter to its left (`background:
   inherit`, so hover and selection have one place to change).
+- **The port is a tab stop, because the page stopped being one.** With the document no
+  longer scrolling, Page Down and Space from the topbar or the chip row had nothing to
+  move, and `.work` was a plain `div`: Chrome puts scrollers in the tab order by itself,
+  Safari does not. It carries `tabindex="0"` and `role="region"`, and its `aria-label`
+  follows what it is holding — `Board`, or `Puck` while a puck page is open, written from
+  the same two places that toggle `body.viewing-puck`. The focus ring is
+  `:focus:not(:focus-visible)`-guarded, since a click on the empty space beside the columns
+  now lands on it.
 - **A fold keeps its own control still.** `renderBoard` replaces the board, and a replaced
   board starts at the top — measured 262 → 0 — so the heading you had just tapped scrolled
   out from under your finger and the thing you folded finished off screen. `toggleGroup`

@@ -593,6 +593,39 @@ export async function run({ open }) {
     eq(efter.sidanScrollar, false, "sidan står fortfarande stilla");
   }
 
+  group("scrollrutan går att nå från tangentbordet");
+  {
+    // Codex, #49. Med skalet på en fast höjd scrollar dokumentet inte längre, så Page Down
+    // och mellanslag från topbaren eller chipparaden hade ingenting att flytta: rutan är en
+    // vanlig div. Chrome lägger scrollcontainrar i tab-ordningen själv, Safari inte — och
+    // det är där skillnaden går mellan en tavla ett tangentbord kan läsa och en det inte kan.
+    const p = await open("?layout=list&done=1", { viewport: { width: 900, height: 500 } });
+    await p.waitForSelector(".list-row");
+    await p.evaluate(() => document.body.focus());
+    let steg = null;
+    for (let i = 1; i <= 30 && steg == null; i++) {
+      await p.keyboard.press("Tab");
+      if (await p.evaluate(() => document.activeElement === document.getElementById("work"))) steg = i;
+    }
+    ok(steg != null, `rutan går att tabba till (steg ${steg})`);
+    const rullade = await p.evaluate(() => document.getElementById("work").scrollTop);
+    await p.keyboard.press("PageDown");
+    await p.waitForTimeout(200);
+    const efter = await p.evaluate(() => document.getElementById("work").scrollTop);
+    ok(efter > rullade, `och Page Down flyttar den när den har fokus: ${rullade} → ${efter}`);
+
+    // Namnet följer det rutan håller: en region utan namn säger ingenting, och ett namn
+    // som säger "Board" på en puck-sida säger fel.
+    const namn = () => p.evaluate(() => {
+      const w = document.getElementById("work");
+      return { roll: w.getAttribute("role"), namn: w.getAttribute("aria-label") };
+    });
+    eq(JSON.stringify(await namn()), JSON.stringify({ roll: "region", namn: "Board" }), "på tavlan heter regionen Board");
+    await p.evaluate(() => document.querySelector(".list-row").click());
+    await p.waitForTimeout(200);
+    eq((await namn()).namn, "Puck", "och på en puck-sida heter den Puck");
+  }
+
   group("en fällning lämnar kontrollen där du tryckte på den");
   {
     // Att fälla bygger om tavlan, och en ombyggd tavla börjar överst: mätt 262 → 0, så

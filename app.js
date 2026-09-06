@@ -3266,6 +3266,9 @@
     fillDetail(detailContent, item);
     detailPane.hidden = false;
     document.body.classList.add("viewing-puck");
+    // The scrollport is a labelled region (it is the only thing that scrolls, so it is
+    // also a tab stop), and what it holds has just changed from the board to one puck.
+    if (workEl) workEl.setAttribute("aria-label", "Puck");
     // The mobile topbar becomes the puck's context (Linear-style): Pucks › Title,
     // where "Pucks" is the back action and the title truncates.
     var tc = document.getElementById("topCrumb");
@@ -3324,6 +3327,7 @@
     // the puck it belonged to and can still commit to it.
     closeSurfaces();
     document.body.classList.remove("viewing-puck");
+    if (workEl) workEl.setAttribute("aria-label", "Board");
     if (detailPane) detailPane.hidden = true;
     highlightSelected();
   }

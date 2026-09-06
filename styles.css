@@ -1351,6 +1351,10 @@ body.scroll-locked { overflow: hidden; }
   display: grid; grid-template-columns: 1fr; align-items: start;
   flex: 1; min-height: 0; overflow: auto;
 }
+/* It is a tab stop (see `index.html`), so a click on the empty space beside the columns
+   focuses it. The ring belongs to the keyboard route only — the same rule the focus
+   buttons follow. */
+.work:focus:not(:focus-visible) { outline: none; }
 /* A puck opens as a full-width page (same on desktop + mobile): the board and the
    view-header hide, and the detail fills the content area as a centered,
    document-width column. The breadcrumb "← All pucks" is the back action. */
