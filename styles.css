@@ -550,7 +550,11 @@ body {
   grid-auto-flow: row;
   overflow-x: visible;
   max-width: none;
-  padding: 12px 24px 40px;
+  /* The board's own gutter, and a token because three other rules have to agree with it:
+     the frozen cells pin *at* it (so they do not travel), and their background bleeds
+     across it (so the scrolled metadata does not appear inside it). */
+  --list-pad: 24px;
+  padding: 12px var(--list-pad) 40px;
   /* Wide content scrolls in its own box; the page stays put. The same rule the code
      blocks and the tables already follow, and the reason the document no longer comes
      out 652px wide on a 390px phone with the topbar sized to the viewport sitting in
@@ -585,7 +589,10 @@ body {
 .list-head {
   position: sticky;
   top: 0;
-  padding: 6px 2px 8px;
+  /* A token for the same reason the row's are: `.lh-inner` pins at the gutter *plus*
+     this, so the heading does not travel either. */
+  --head-pad: 2px;
+  padding: 6px var(--head-pad) 8px;
   background: var(--bg);
   /* Above the rows' own frozen cells (z-index 2). Same level and later in the document
      meant the scrolled row's title painted over the pinned heading — two things claiming
@@ -599,8 +606,10 @@ body {
   position: sticky;
   /* Sideways only — the outer `.list-head` carries the vertical axis. The old
      `top: var(--topbar-h)` arithmetic went with the page scroll: the topbar sits above
-     the scrollport now rather than over it, so the offset is simply 0. */
-  left: 0;
+     the scrollport now rather than over it. Sideways the offset is the heading's own
+     resting position — the board's gutter plus this box's padding — so it freezes
+     without travelling; `left: 0` slid it 26px first. */
+  left: calc(var(--list-pad) + var(--head-pad));
   width: max-content;
   max-width: 100cqw;
   background: var(--bg);
@@ -679,7 +688,13 @@ body {
      the fixed tracks fill the box, and the title is the one thing a row is for. Wider
      than the box, the row scrolls; narrower, `min-width` keeps it filling the box so the
      borders still reach the edge. */
-  grid-template-columns: 18px minmax(220px, 1fr) 44px 108px 148px 92px;
+  /* Three of these numbers are also the frozen cells' pin offsets below, so they are
+     tokens: a gap widened here and not there would let the title drift a few pixels
+     before it froze, which is exactly the fault this section is about. */
+  --glyph-w: 18px;
+  --row-gap: 14px;
+  --row-pad: 12px;
+  grid-template-columns: var(--glyph-w) minmax(220px, 1fr) 44px 108px 148px 92px;
   /* The minimum comes from the *columns*, never from the content. `min-width: max-content`
      read the longest title instead, and on a phone that is a disaster rather than a
      nicety: measured with one 120-character title, the name cell came out 851px wide on a
@@ -689,11 +704,11 @@ body {
      The sum is the tracks it must not squeeze: five gaps and the row's own padding, plus
      the name's floor. The title ellipsises inside that floor, which is what it has always
      been specified to do. */
-  --list-fixed: calc(18px + 44px + 108px + 148px + 92px + 5 * 14px + 18px);
+  --list-fixed: calc(var(--glyph-w) + 44px + 108px + 148px + 92px + 5 * var(--row-gap) + var(--row-pad) + 6px);
   min-width: calc(var(--list-fixed) + 220px);
   align-items: center;
-  gap: 14px;
-  padding: 8px 6px 8px 12px;
+  gap: var(--row-gap);
+  padding: 8px 6px 8px var(--row-pad);
   border-bottom: 1px solid var(--line);
   cursor: pointer;
 }
@@ -779,20 +794,34 @@ body {
   background: var(--bg);
   z-index: 2;
 }
-.list-row > .puck-glyph { left: 0; }
-.list-row > .list-name { left: 18px; }
-/* The board keeps 24px of padding, and a frozen cell only covers its own box — so the
-   scrolled metadata slid *through* that gutter and reappeared to the left of the glyph.
-   The bleed is `background: inherit`, not a colour, so it follows the row through hover
-   and selection without a second place to update. */
-.list-row > .puck-glyph::before, .lh-inner::before {
+/* Pinned *where they already sit*, not at the port's edge. `left: 0` froze them only
+   after they had slid the gutter's width to get there — measured on a 390px phone: the
+   glyph travelled 36px and the title 50px before either stopped, and the group heading
+   26px. Nothing on screen stood still, so a sideways drag read as the whole page
+   sliding, and a vertical drag with any sideways drift did too. The offsets are
+   therefore the resting ones: the board's gutter, the row's padding, and for the name
+   the glyph track and one gap on top. Travel: zero. */
+.list-row > .puck-glyph { left: calc(var(--list-pad) + var(--row-pad)); }
+.list-row > .list-name { left: calc(var(--list-pad) + var(--row-pad) + var(--glyph-w) + var(--row-gap)); }
+/* A frozen cell only covers its own box, so the scrolled metadata passed *through* the
+   gutter to its left and reappeared beside the glyph. The bleed is as wide as whatever
+   the cell is pinned past — the board's gutter plus the row's padding — and is
+   `background: inherit`, not a colour, so it follows the row through hover and
+   selection without a second place to update. */
+.list-row > .puck-glyph::before {
   content: "";
   position: absolute;
-  /* 24px is `.board.as-list`'s own horizontal padding, literal there and literal here;
-     `--pad` is a different (22px) token and would leave a 2px seam. */
-  left: -24px;
+  left: calc(-1 * (var(--list-pad) + var(--row-pad)));
   top: 0; bottom: 0;
-  width: 24px;
+  width: calc(var(--list-pad) + var(--row-pad));
+  background: inherit;
+}
+.lh-inner::before {
+  content: "";
+  position: absolute;
+  left: calc(-1 * (var(--list-pad) + var(--head-pad)));
+  top: 0; bottom: 0;
+  width: calc(var(--list-pad) + var(--head-pad));
   background: inherit;
 }
 @media (hover: hover) { .list-row:hover > .puck-glyph, .list-row:hover > .list-name { background: var(--panel-2); } }

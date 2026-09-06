@@ -333,6 +333,17 @@ sideways is a scroll container in *both* axes, so before the change a group head
   Either alone gets you half the behaviour and looks like a bug.
 - **The heading outranks the frozen cells** (`z-index` 4 against 2): same level and later
   in the document meant a scrolled row's title painted over the pinned heading.
+- **A frozen cell pins where it already sits, not at the port's edge.** `left: 0` is the
+  obvious offset and the wrong one: the cell slides to the edge *first* and freezes there,
+  so the first stretch of every sideways drag moves everything on screen — measured on a
+  390px phone, 36px for the glyph, 50px for the title, 26px for the group heading. With
+  nothing standing still, a drag down with any sideways drift read as the page sliding in
+  all directions at once. The offsets are the resting ones (`--list-pad` + `--row-pad`,
+  plus the glyph track and a gap for the name; `--list-pad` + `--head-pad` for the
+  heading), which makes the travel zero — and makes those five numbers tokens rather than
+  literals, since a gap widened in the grid and not in the offset is exactly the drift
+  this removes. Each frozen box's background then bleeds across *its own* gutter, so the
+  two `::before` rules are two widths, not one shared one.
 - **The scroll lock moved with the scroll.** `body { position: fixed }` held the page's
   offset; the page has none now, so `lockScroll` hides `.work`'s overflow and restores its
   offset. Anything else that reaches for `window.scrollTo` is reaching for the wrong box —

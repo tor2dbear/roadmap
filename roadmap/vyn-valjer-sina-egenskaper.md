@@ -165,6 +165,31 @@ befarat, för sidan hade redan lämnat sin scroll till `.app`s `min-height`.
 - **`100dvh` tar spökskrollen på köpet** — kandidat 1 i `headern-malas-inte-vid-omladdning`
   är därmed prövad utan att den pucken rörts.
 
+## Fryst är orörligt, inte "fastnar till slut"
+
+Rättelse av raden ovan: *"Karetet hörde till namnet"* löste var frysningen satt, men inte
+**när** den inträffade. Med `left: 0` frös cellen först sedan den glidit fram till rutans
+kant. Mätt på 390px: glyfen 36px, titeln 50px, gruppens rubrik 26px — alltså rörde sig
+allt på skärmen under den första biten av varje dragning i sidled, och en dragning nedåt
+med minsta sidodrift gjorde det också, eftersom en ruta som scrollar i båda axlarna
+panorerar diagonalt. Rapporten löd "det skrollar i alla led", vilket var precis vad den
+gjorde.
+
+Offseten är nu viloläget — tavlans ränna plus radens padding, plus glyfspåret och ett
+mellanrum för namnet — så vägen är noll. Två följder:
+
+- **Talen blev tokens.** `--list-pad`, `--row-pad`, `--glyph-w`, `--row-gap`, `--head-pad`.
+  Ett mellanrum som breddas i rutnätet men inte i offseten *är* det glapp som just togs
+  bort, och det är den sortens skillnad ingen ser förrän någon drar i listan på en telefon.
+- **Rännan täcks per låda.** Glyfen och rubriken fäster på olika x, så de kan inte längre
+  dela en `::before` med en bredd: två regler, två bredder.
+
+Vad som står kvar: rutan panorerar fortfarande diagonalt, för en enda scrollruta i båda
+axlarna är priset för den klibbiga rubriken. Skillnaden är att det som glider nu är bara
+metadatan till höger. Den riktiga kuren är den här pucken själv — en telefonvy med färre
+kolumner har ingen sidled att scrolla i (mätt i fixturen: 352px överskott med hela
+uppsättningen påslagen).
+
 ## Open questions
 - **Ett val eller ett per layout?** Listan har spår, kortet har märken; samma
   uppsättning i bägge är enklare att förklara och sämre för bägge. `effectiveParams`

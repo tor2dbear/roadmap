@@ -446,15 +446,17 @@ export async function run({ open }) {
     ok(före.höjd < 60, `raden är fortfarande en rad: ${före.höjd}px`);
 
     // Och det som gör det läsbart: namnet står kvar medan datumet kommer in från höger.
-    // "Fryst" är inte "orörligt" — cellen glider med tills den når kanten och fastnar
-    // där, så det som mäts är att den *stannar*: 400px till scroll flyttar den inte.
+    // "Fryst" är *orörligt*, och det är en rättelse: med `left: 0` frös cellen först
+    // sedan den glidit fram till kanten — 50px för namnet, 36 för glyfen, 26 för
+    // rubriken — så en dragning i sidled flyttade allt på skärmen och en dragning nedåt
+    // med minsta sidodrift gjorde det också. Offseten är därför viloläget: noll väg.
     await p.evaluate(() => { document.getElementById("work").scrollLeft = 400; });
     await p.waitForTimeout(150);
     const vid400 = await mät(p);
     await p.evaluate(() => { document.getElementById("work").scrollLeft = 800; });
     await p.waitForTimeout(150);
     const vid800 = await mät(p);
-    ok(vid400.namn > 0, `namnet är kvar i bild efter 400px (${vid400.namn}) — ofryst hade det legat på ${före.namn - 400}`);
+    eq(vid400.namn, före.namn, `namnet rör sig inte alls (${före.namn} → ${vid400.namn}) — ofryst hade det legat på ${före.namn - 400}`);
     eq(vid800.namn, vid400.namn, `och står stilla när man scrollar vidare: ${vid400.namn} → ${vid800.namn}`);
     ok(vid400.datum < före.datum - 300, `medan metadatan scrollar in (${före.datum} → ${vid400.datum})`);
     eq(vid400.doc, vid400.vy, "och sidan står fortfarande stilla");
@@ -508,6 +510,22 @@ export async function run({ open }) {
     const efter = await rubriker(p);
     ok(före.length > 1, `flera rubriker att mäta: ${JSON.stringify(före)}`);
     ok(efter.every((x) => x >= 0), `ingen rubrik har åkt ut åt vänster: ${JSON.stringify(efter)}`);
+    // Och inte en pixel åt vänster heller: rubriken fäster där den redan står, inte vid
+    // rutans kant. Med `left: 0` gled varje rubrik 26px innan den fastnade, vilket är
+    // varför listan läste som om den scrollade i alla led på en gång.
+    eq(JSON.stringify(efter), JSON.stringify(före), `rubrikerna rör sig inte alls: ${JSON.stringify(före)} → ${JSON.stringify(efter)}`);
+
+    // Glyfens och rubrikens bakgrunder blöder över rännan till vänster om dem, annars
+    // syns den scrollade metadatan i tavlans egen marginal. Mätt som *vad som ligger
+    // överst* i rännan, inte som en färg: en täckning som ritas under raden är ingen.
+    const ränna = await p.evaluate(() => {
+      const rad = document.querySelector(".list-row").getBoundingClientRect();
+      const rubrik = document.querySelector(".lh-inner").getBoundingClientRect();
+      const träff = (x, y) => { const e = document.elementFromPoint(x, y); return e ? String(e.className) : "?"; };
+      return { rad: träff(6, rad.top + rad.height / 2), rubrik: träff(6, rubrik.top + rubrik.height / 2) };
+    });
+    ok(/puck-glyph/.test(ränna.rad), `radens ränna täcks av glyfen: ${ränna.rad}`);
+    ok(/lh-inner/.test(ränna.rubrik), `rubrikens ränna täcks av rubriken: ${ränna.rubrik}`);
   }
 
   group("skalet har en scrollruta, och rubriken klibbar i båda axlarna");
@@ -546,7 +564,7 @@ export async function run({ open }) {
     await p.waitForTimeout(200);
     const efter = await läs();
     eq(efter.fastnad, true, `en rubrik står fast vid rutans överkant: ${JSON.stringify(efter)}`);
-    ok(efter.namn < före.namn, `och namnkolumnen är fryst vid dess vänsterkant: ${före.namn} → ${efter.namn}`);
+    eq(efter.namn, före.namn, `och namnkolumnen står stilla i sidled: ${före.namn} → ${efter.namn}`);
     eq(efter.sidanScrollar, false, "sidan står fortfarande stilla");
   }
 
