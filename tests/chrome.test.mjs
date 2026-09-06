@@ -593,6 +593,45 @@ export async function run({ open }) {
     eq(efter.sidanScrollar, false, "sidan står fortfarande stilla");
   }
 
+  group("en fällning lämnar kontrollen där du tryckte på den");
+  {
+    // Att fälla bygger om tavlan, och en ombyggd tavla börjar överst: mätt 262 → 0, så
+    // raden man just tryckt på scrollade ut ur bild och det man fällde låg utanför
+    // skärmen när det var klart. Kontrollen är därför ankaret — dess avstånd till rutans
+    // överkant läses före renderingen och läggs tillbaka efter.
+    const p = await open("?layout=list&done=1", { viewport: { width: 390, height: 380 }, hasTouch: true });
+    await p.waitForSelector(".list-head");
+    const välj = () => p.evaluate(() => {
+      const w = document.getElementById("work");
+      w.scrollTop = Math.round((w.scrollHeight - w.clientHeight) * 0.4);
+      const top = w.getBoundingClientRect().top;
+      const t = [...document.querySelectorAll("[data-fold]")].filter((e) => e.getBoundingClientRect().top - top >= 0)[0];
+      return t ? { scrollTop: Math.round(w.scrollTop), y: Math.round(t.getBoundingClientRect().top - top), k: t.getAttribute("data-fold") } : null;
+    });
+    const tryck = (k) => p.evaluate((k) => {
+      [...document.querySelectorAll("[data-fold]")].find((e) => e.getAttribute("data-fold") === k).click();
+    }, k);
+    const läs = (k) => p.evaluate((k) => {
+      const w = document.getElementById("work");
+      const top = w.getBoundingClientRect().top;
+      const t = [...document.querySelectorAll("[data-fold]")].find((e) => e.getAttribute("data-fold") === k);
+      return { scrollTop: Math.round(w.scrollTop), y: t ? Math.round(t.getBoundingClientRect().top - top) : null };
+    }, k);
+
+    const före = await välj();
+    ok(före && före.scrollTop > 0, `det finns en kontroll i bild, en bit ner: ${JSON.stringify(före)}`);
+    await tryck(före.k);
+    await p.waitForTimeout(150);
+    const fälld = await läs(före.k);
+    eq(fälld.y, före.y, `kontrollen står kvar på sin plats när gruppen fälls: ${JSON.stringify({ före, fälld })}`);
+    ok(fälld.scrollTop !== före.scrollTop, `och rutan har flyttat sig för att hålla den där: ${före.scrollTop} → ${fälld.scrollTop}`);
+
+    await tryck(före.k);
+    await p.waitForTimeout(150);
+    const utfälld = await läs(före.k);
+    eq(utfälld.y, före.y, `och när den fälls ut igen: ${JSON.stringify({ före, utfälld })}`);
+  }
+
   group("en dragning håller sig till en axel");
   {
     // Rutan scrollar i båda axlarna — det är priset för en klibbig gruppubrik — och en

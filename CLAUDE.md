@@ -345,6 +345,13 @@ sideways is a scroll container in *both* axes, so before the change a group head
   inside, one line per group rather than one per row, and being one box it has no gap of
   its own. Its background still bleeds across the gutter to its left (`background:
   inherit`, so hover and selection have one place to change).
+- **A fold keeps its own control still.** `renderBoard` replaces the board, and a replaced
+  board starts at the top — measured 262 → 0 — so the heading you had just tapped scrolled
+  out from under your finger and the thing you folded finished off screen. `toggleGroup`
+  reads the pressed control's distance from the port's top edge, renders, finds the
+  control again by its `data-fold` key (the old node is detached and measures nothing) and
+  puts that distance back. It clamps honestly: fold the last group and there may be no
+  content left to hold the offset, and then the port does move.
 - **A drag keeps to one axis, and that is JavaScript because there is no CSS for it.**
   The port scrolls both ways and a phone drag is never straight, so a flick down the list
   with a few degrees of drift moved the columns sideways too. `touch-action: pan-x|pan-y`

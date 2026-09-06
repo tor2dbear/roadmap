@@ -3362,7 +3362,8 @@
       caret.setAttribute("aria-expanded", opts.fold === "shut" ? "false" : "true");
       caret.title = (opts.fold === "shut" ? "Expand " : "Collapse ") + item.title;
       caret.appendChild(icon(opts.fold === "shut" ? "chev-right" : "chev-down", "lh-caret"));
-      caret.addEventListener("click", function (e) { e.stopPropagation(); toggleGroup(item.id); });
+      caret.setAttribute("data-fold", item.id);
+      caret.addEventListener("click", function (e) { e.stopPropagation(); toggleGroup(item.id, caret); });
       name.appendChild(caret);
     }
     name.appendChild(el("span", "list-title", item.title));
@@ -4176,11 +4177,28 @@
 
   // Fold a group shut or open it. Display state, so it travels the same road as the
   // rest: into `state`, out through the URL, onto the board.
-  function toggleGroup(key) {
+  // A fold rebuilds the board, and a rebuilt board starts at the top — measured, 262 → 0
+  // — so the row you had just pressed scrolled out from under your finger and the thing
+  // you folded was off screen when it finished. The control is therefore the anchor: its
+  // distance from the port's top edge is read before the render and restored after, so
+  // the caret stays exactly where you tapped it whatever changed height above it.
+  //
+  // Found again by its `data-fold` key rather than kept as a node: the render replaces
+  // the element, so the old one is detached and measures nothing.
+  function toggleGroup(key, control) {
     if (state.collapsed.has(key)) state.collapsed.delete(key);
     else state.collapsed.add(key);
     refreshDisplayDot();
+    var port = scrollPort();
+    var before = port && control ? control.getBoundingClientRect().top - port.getBoundingClientRect().top : null;
     renderBoard();
+    if (before == null) return;
+    var again = null;
+    [].forEach.call(port.querySelectorAll("[data-fold]"), function (e) {
+      if (again == null && e.getAttribute("data-fold") === String(key)) again = e;
+    });
+    if (!again) return;
+    port.scrollTop += (again.getBoundingClientRect().top - port.getBoundingClientRect().top) - before;
   }
   // Under `group=parent` the list is a tree, and the flat groups `groupsOf` hands both
   // renderers are already its edges: one group per parent, holding that parent's
@@ -4383,7 +4401,8 @@
         toggle.appendChild(el("span", "lh-label", grp.label));
         toggle.appendChild(el("span", "count", String(grp.items.length)));
       }
-      toggle.addEventListener("click", function () { toggleGroup(grp.key); });
+      toggle.setAttribute("data-fold", grp.key);
+      toggle.addEventListener("click", function () { toggleGroup(grp.key, toggle); });
       h.appendChild(toggle);
       if (opens) {
         h.appendChild(openButton(opens, grp.label, "lh-label"));
