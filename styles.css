@@ -224,11 +224,22 @@ html, body { margin: 0; }
    says so. This only takes away the disfigurement, so the next such bug reads as one
    symptom instead of two. */
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+/* The fixed height lives here, not on `.app`, because `.app` is not always the only
+   thing on the page: the config-driven ribbon is inserted as its *sibling*. With
+   `height: 100dvh` on `.app` the document came out ribbon-tall plus a full viewport —
+   an outer page scroll back again, the bottom of `.work` below the fold, and a page
+   that could still move while a sheet locked only `.work`. As a column, the ribbon
+   takes what it needs and the shell takes the rest, whatever the ribbon's height is
+   and whether or not there is one. */
 body {
   background: var(--bg);
   color: var(--ink);
   font: var(--fw-normal) var(--fs-xl)/var(--lh-body) var(--sans);
   -webkit-font-smoothing: antialiased;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
 }
 
 .topbar {
@@ -1410,8 +1421,11 @@ body.viewing-puck .vhead { display: none; }
    front of it for anything that does not know the unit. */
 .app {
   display: grid; grid-template-columns: var(--sidebar-w, 240px) minmax(0, 1fr);
-  height: 100vh;
-  height: 100dvh;
+  /* The rest of the column after any ribbon — see `body`. `min-height: 0` is what lets
+     a flex item be shorter than its content; without it the shell grows and its height
+     means nothing. */
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
 .maincol { min-width: 0; display: flex; flex-direction: column; min-height: 0; position: relative; }

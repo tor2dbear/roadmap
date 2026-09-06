@@ -568,6 +568,34 @@ export async function run({ open }) {
     eq(efter.sidanScrollar, false, "sidan står fortfarande stilla");
   }
 
+  group("banderollen ryms i skalet i stället för att förlänga sidan");
+  {
+    // Codex, #49. Skalet är inte alltid det enda på sidan: den config-styrda banderollen
+    // sätts in som *syskon* till `.app`. Med den fasta höjden på `.app` blev dokumentet
+    // banderollhögt plus en hel vyport — alltså sidscroll igen, `.work`s underkant under
+    // vikningen, och en sida som kunde röra sig medan en sheet låste bara `.work`.
+    // Höjden bor därför på `body` som en kolumn: banderollen tar det den behöver, skalet
+    // resten, oavsett hur hög den är och om den ens finns.
+    const ribbon = (p) => { p.config = { ...p.config, ribbon: "**live demo** · ändringar stannar i webbläsaren" }; return p; };
+    const p = await open("?layout=list", { viewport: { width: 390, height: 420 }, hasTouch: true, data: ribbon });
+    const m = await p.evaluate(() => {
+      const band = document.querySelector(".demo-ribbon");
+      const work = document.getElementById("work");
+      const d = document.documentElement;
+      return {
+        band: band ? Math.round(band.getBoundingClientRect().height) : 0,
+        sidanScrollar: d.scrollHeight > d.clientHeight + 1,
+        vy: d.clientHeight,
+        rutansUnderkant: Math.round(work.getBoundingClientRect().bottom),
+        portScrollar: work.scrollHeight > work.clientHeight,
+      };
+    });
+    ok(m.band > 0, `banderollen ritas: ${JSON.stringify(m)}`);
+    eq(m.sidanScrollar, false, `och sidan står stilla ändå: ${JSON.stringify(m)}`);
+    ok(m.rutansUnderkant <= m.vy + 1, `rutans underkant är inne i vyporten: ${m.rutansUnderkant} mot ${m.vy}`);
+    ok(m.portScrollar, "och rutan är den som scrollar");
+  }
+
   group("chromet ovanför rutan kan inte tränga ut den");
   {
     // Codex, #49. Med en fast höjd är chromet ovanför scrollporten det enda som kan

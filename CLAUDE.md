@@ -349,6 +349,14 @@ sideways is a scroll container in *both* axes, so before the change a group head
   offset. Anything else that reaches for `window.scrollTo` is reaching for the wrong box —
   the puck page and the editor's `reveal()` both scroll the port.
 
+- **The fixed height is on `body`, not on `.app`.** The shell is not always the only thing
+  on the page: the config-driven ribbon (`CFG.ribbon`, and demo mode) is inserted as
+  `.app`'s *sibling*. With the height on `.app` the document came out ribbon-tall plus a
+  full viewport — measured 458px of content in a 420px window — which is an outer page
+  scroll back again, `.work`'s bottom below the fold, and a page that can still move while
+  a sheet locks only `.work`. `body` is the column; the ribbon takes what it needs and
+  `flex: 1` gives the shell the rest, with no height to keep in sync.
+
 `100dvh` rather than `100vh` on the shell, which also retires the ghost scroll: on iOS
 `100vh` is the *large* viewport, so every page was taller than its own window by the
 toolbar's height — a scrollable board with one card on it.

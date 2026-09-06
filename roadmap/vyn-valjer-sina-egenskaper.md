@@ -164,6 +164,10 @@ befarat, för sidan hade redan lämnat sin scroll till `.app`s `min-height`.
   har ingen nu, så `lockScroll` gömmer rutans överflöd och lägger tillbaka dess offset.
 - **`100dvh` tar spökskrollen på köpet** — kandidat 1 i `headern-malas-inte-vid-omladdning`
   är därmed prövad utan att den pucken rörts.
+- **Höjden hör hemma på `body`, inte på `.app`.** Skalet är inte alltid ensamt på sidan:
+  den config-styrda banderollen sätts in som syskon. Mätt: 38px banderoll i ett 420px
+  fönster gav 458px dokument — sidscroll igen, och en sida som kan röra sig medan en sheet
+  låser bara rutan. Som kolumn tar banderollen sitt och `flex: 1` ger skalet resten.
 
 ## Fryst är orörligt, inte "fastnar till slut"
 
