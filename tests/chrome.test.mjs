@@ -748,6 +748,51 @@ export async function run({ open }) {
     ok(efter > 100, `och kolumnerna går fortfarande att dra i sidled: ${före.x} → ${efter}`);
   }
 
+  group("chromet ovanför rutan är ingen död zon för hjulet");
+  {
+    // Codex, #49. Topbaren, vyrubriken och chipparaden är *syskon* till rutan, och med
+    // dokumentet utan scroll fanns det ingenting för ett hjul över dem att flytta: mätt,
+    // 300 hack över topbaren lämnade `.work.scrollTop` på 0. Före den fasta höjden
+    // scrollade de sidan, vilket var att scrolla tavlan.
+    {
+      const p = await open("?layout=list&done=1", { viewport: { width: 900, height: 500 } });
+      await p.waitForSelector(".list-row");
+      const pt = await p.evaluate(() => {
+        const r = document.querySelector(".topbar").getBoundingClientRect();
+        return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
+      });
+      await p.mouse.move(pt.x, pt.y);
+      await p.mouse.wheel(0, 200);
+      await p.waitForTimeout(300);
+      const y = await p.evaluate(() => Math.round(document.getElementById("work").scrollTop));
+      ok(y > 100, `ett hjul över topbaren flyttar tavlan: 0 → ${y}`);
+    }
+
+    // Men chipparaden har första tjing: den scrollar sig själv när en lång fråga radbryter
+    // den, och ett hjul som gick förbi den till tavlan hade gjort de nedersta chippen
+    // onåbara igen. Vandringen uppåt frågar varje låda om den är en scrollcontainer *och*
+    // har rum åt hållet som efterfrågas — överflödet först, för knappen i topbaren mäter
+    // 24 mot 21 av ren radhöjd och hade annars svalt varje hjul över den.
+    {
+      const q = Array.from({ length: 20 }, (_, i) => "-tag:saknas" + i).join(" ");
+      const p = await open("?layout=list&q=" + encodeURIComponent(q), { viewport: { width: 390, height: 500 } });
+      await p.waitForSelector("#chipRow .fchip");
+      const pt = await p.evaluate(() => {
+        const r = document.getElementById("chipRow").getBoundingClientRect();
+        return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
+      });
+      await p.mouse.move(pt.x, pt.y);
+      await p.mouse.wheel(0, 200);
+      await p.waitForTimeout(300);
+      const m = await p.evaluate(() => ({
+        chip: Math.round(document.getElementById("chipRow").scrollTop),
+        work: Math.round(document.getElementById("work").scrollTop),
+      }));
+      ok(m.chip > 100, `chipparaden tar hjulet själv: ${JSON.stringify(m)}`);
+      eq(m.work, 0, "och tavlan står stilla under tiden");
+    }
+  }
+
   group("banderollen ryms i skalet i stället för att förlänga sidan");
   {
     // Codex, #49. Skalet är inte alltid det enda på sidan: den config-styrda banderollen

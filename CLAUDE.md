@@ -345,6 +345,15 @@ sideways is a scroll container in *both* axes, so before the change a group head
   inside, one line per group rather than one per row, and being one box it has no gap of
   its own. Its background still bleeds across the gutter to its left (`background:
   inherit`, so hover and selection have one place to change).
+- **The chrome above the port is not a dead zone either.** The topbar, the view header and
+  the chip row are siblings of `.work`, so with the document no longer scrolling a wheel
+  over them moved nothing (measured: 300 notches over the topbar, `scrollTop` still 0);
+  before the fixed height they scrolled the page, which was to scroll the board.
+  `armChromeWheel` forwards from `.maincol` only — the sidebar is a region *beside* the
+  board, and moving it from there would be a new behaviour rather than a restored one —
+  and walks up from the target so a box that scrolls itself gets first refusal. It asks
+  `overflow-y` before `scrollHeight`: the view-switch button measures 24 against 21 from
+  line-height alone, and asking about overflow only let it swallow every wheel.
 - **The port is a tab stop, because the page stopped being one.** With the document no
   longer scrolling, Page Down and Space from the topbar or the chip row had nothing to
   move, and `.work` was a plain `div`: Chrome puts scrollers in the tab order by itself,

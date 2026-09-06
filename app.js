@@ -1467,7 +1467,7 @@
       detailPane = document.getElementById("detailPane");
       detailContent = document.getElementById("detailContent");
       workEl = document.getElementById("work");
-      if (workEl) armAxisLock(workEl);
+      if (workEl) { armAxisLock(workEl); armChromeWheel(workEl); }
     }
   }
 
@@ -1527,6 +1527,44 @@
     function up() { live = false; axis = null; }
     port.addEventListener("touchend", up, { passive: true });
     port.addEventListener("touchcancel", up, { passive: true });
+  }
+
+  // ── the chrome above the port is not a dead zone ────────────────────────────
+  // The topbar, the view header and the chip row are *siblings* of the port, and with the
+  // document no longer scrolling there is nothing for a wheel over them to move: measured,
+  // 300 notches over the topbar left `.work.scrollTop` at 0. Before the fixed height they
+  // scrolled the page, which is to say they scrolled the board.
+  //
+  // Only the main column, not the whole page: the sidebar is a region beside the board
+  // rather than above it, and a wheel there that moved the board would be a new behaviour
+  // rather than a restored one. The chip row gets first refusal — it scrolls itself when
+  // a long query wraps it — so the walk asks each box on the way up whether it has room
+  // in the direction being asked for, and only forwards what nobody wanted.
+  var wheelArmed = false;
+  function armChromeWheel(port) {
+    if (wheelArmed) return;
+    var col = port.parentElement;
+    if (!col) return;
+    wheelArmed = true;
+    col.addEventListener("wheel", function (e) {
+      if (port.contains(e.target) || scrollLocks) return;
+      for (var n = e.target; n && n !== col; n = n.parentElement) {
+        // A scroll *container*, not merely a box whose content rounds a few pixels past
+        // it: the view-switch button measures 24 against 21 from line-height alone, and
+        // asking about overflow only would have let it swallow every wheel over the
+        // topbar. Overflow first, then whether there is anything to scroll.
+        var oy = getComputedStyle(n).overflowY;
+        if (oy !== "auto" && oy !== "scroll") continue;
+        if (n.scrollHeight <= n.clientHeight + 1) continue;
+        var room = e.deltaY < 0 ? n.scrollTop > 0 : n.scrollTop < n.scrollHeight - n.clientHeight - 1;
+        if (room) return;
+      }
+      // Lines and pages are real delta modes — Firefox sends lines for a mouse wheel —
+      // and forwarding them as pixels would move the board by three.
+      var k = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? port.clientHeight : 1;
+      port.scrollTop += e.deltaY * k;
+      port.scrollLeft += e.deltaX * k;
+    }, { passive: true });
   }
 
   // The repo, as a rail value: its dot and its name, and a press that scopes the board
