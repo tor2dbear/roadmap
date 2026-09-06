@@ -699,9 +699,8 @@ body {
      the fixed tracks fill the box, and the title is the one thing a row is for. Wider
      than the box, the row scrolls; narrower, `min-width` keeps it filling the box so the
      borders still reach the edge. */
-  /* Three of these numbers are also the frozen cells' pin offsets below, so they are
-     tokens: a gap widened here and not there would let the title drift a few pixels
-     before it froze, which is exactly the fault this section is about. */
+  /* Tokens because `--list-fixed` below sums them, and a track widened in one place and
+     not the other is a row whose declared minimum is not its actual one. */
   --glyph-w: 18px;
   --row-gap: 14px;
   --row-pad: 12px;
@@ -709,9 +708,10 @@ body {
   /* The minimum comes from the *columns*, never from the content. `min-width: max-content`
      read the longest title instead, and on a phone that is a disaster rather than a
      nicety: measured with one 120-character title, the name cell came out 851px wide on a
-     390px screen — and since that cell is frozen and opaque, it covered the whole viewport
-     and put priority, agent, repo and date out of reach behind it, for every row in the
-     list. A frozen column only works while it is narrower than the screen.
+     390px screen, which set the scroll width of every row in the list from one puck's
+     name. (It was worse while the cell was frozen — opaque and wider than the screen, it
+     covered the metadata rather than pushing it along — and that is gone with the freeze;
+     the floor stays because the row's minimum should come from its columns either way.)
      The sum is the tracks it must not squeeze: five gaps and the row's own padding, plus
      the name's floor. The title ellipsises inside that floor, which is what it has always
      been specified to do. */
@@ -727,9 +727,10 @@ body {
    anyone writes it, and on a 390px screen the fifth level is a staircase out of the
    viewport. Past the cap the rows stop stepping and the caret keeps saying what nests
    inside what.
-   On the *name*, not on the row: the name is the frozen cell, so the structure stays on
-   screen while the metadata scrolls — and it puts every row's metadata on the same x
-   whatever its depth, which padding on the row could not. */
+   On the *name*, not on the row: it puts every row's metadata on the same x whatever its
+   depth, which padding on the row could not. (It was also what kept the structure on
+   screen while the name was frozen — and the indent inside a frozen cell is exactly what
+   took that block to 368 of 390 pixels, which is why the freeze is gone.) */
 /* The indent lives inside the name cell, so a nested row needs that much more before its
    title reaches the same floor a flat row has. The cap is what makes it a number: 16px of
    gutter plus the 64px the indent stops at. */
@@ -794,39 +795,23 @@ body {
    be computed. What went with them: `@container list (min-width: 560px|720px)` for flat
    rows and 652|812 for nested ones, four rules whose numbers were hand-derived twice and
    wrong once. A row that may scroll needs no one to know what fits.
-   The title never scrolls out from under you, which is the whole reason this is
-   affordable: the glyph and the name are frozen at the left edge, so the column you are
-   reading stays while the metadata slides. The tree's indent and caret live *inside* the
-   frozen name cell for the same reason — the structure is part of the name, not part of
-   the data you scroll to — and that also puts every row's metadata on the same x
-   regardless of depth. */
-.list-row > .puck-glyph, .list-row > .list-name {
-  position: sticky;
-  background: var(--bg);
-  z-index: 2;
-}
-/* Pinned *where they already sit*, not at the port's edge. `left: 0` froze them only
-   after they had slid the gutter's width to get there — measured on a 390px phone: the
-   glyph travelled 36px and the title 50px before either stopped, and the group heading
-   26px. Nothing on screen stood still, so a sideways drag read as the whole page
-   sliding, and a vertical drag with any sideways drift did too. The offsets are
-   therefore the resting ones: the board's gutter, the row's padding, and for the name
-   the glyph track and one gap on top. Travel: zero. */
-.list-row > .puck-glyph { left: calc(var(--list-pad) + var(--row-pad)); }
-.list-row > .list-name { left: calc(var(--list-pad) + var(--row-pad) + var(--glyph-w) + var(--row-gap)); }
-/* A frozen cell only covers its own box, so the scrolled metadata passed *through* the
-   gutter to its left and reappeared beside the glyph. The bleed is as wide as whatever
-   the cell is pinned past — the board's gutter plus the row's padding — and is
-   `background: inherit`, not a colour, so it follows the row through hover and
-   selection without a second place to update. */
-.list-row > .puck-glyph::before {
-  content: "";
-  position: absolute;
-  left: calc(-1 * (var(--list-pad) + var(--row-pad)));
-  top: 0; bottom: 0;
-  width: calc(var(--list-pad) + var(--row-pad));
-  background: inherit;
-}
+
+   **The whole row scrolls, the title included.** Freezing the glyph and the name was the
+   first answer, and the measurement retired it: on a 390px phone the frozen block was
+   288px flat and 368px once the tree's indent was in it, leaving 102px and *22px* of
+   window onto the metadata the scroll exists to reach. A frozen column that leaves 6% of
+   the screen to scroll in is not keeping your place, it is taking the screen.
+
+   It leaked as well, and the leak was structural rather than a missing background: two
+   frozen cells with a grid gap between them are two opaque boxes and one 14px slot that
+   belongs to neither, so the priority bars and agent chips slid through it and sat beside
+   the glyph. A single frozen box would have fixed that and not the 22px.
+
+   What the group heading keeps: it stays pinned in both axes. It names the group you are
+   inside, one line per group rather than one per row, and it costs the rows nothing.
+   A pinned box only covers its own bounds, so the heading's background bleeds across the
+   gutter to its left — `background: inherit`, not a colour, so there is one place to
+   change it. It is one box, so it has no gap of its own to leak through. */
 .lh-inner::before {
   content: "";
   position: absolute;
@@ -835,10 +820,8 @@ body {
   width: calc(var(--list-pad) + var(--head-pad));
   background: inherit;
 }
-@media (hover: hover) { .list-row:hover > .puck-glyph, .list-row:hover > .list-name { background: var(--panel-2); } }
-.list-row.sel > .puck-glyph, .list-row.sel > .list-name { background: var(--panel-2); }
-/* The heading is frozen the same way, or it slides out to the left and the group loses
-   its name at exactly the moment you are furthest from it. */
+/* The heading is frozen sideways, or it slides out to the left and the group loses its
+   name at exactly the moment you are furthest from it. */
 
 .card {
   background: var(--panel);

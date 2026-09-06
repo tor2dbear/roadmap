@@ -411,7 +411,7 @@ export async function run({ open }) {
     })();
   }
 
-  group("listan scrollar i sidled och titeln följer inte med");
+  group("listan scrollar i sidled, hela raden med");
   {
     // Modellen är Notions: raden behåller varje kolumn och lådan scrollar, i stället för
     // att kolumner faller bort när det blir trångt. Det som stod här förut vaktade den
@@ -420,9 +420,10 @@ export async function run({ open }) {
     // sig krympa en rad container-frågan inte kunde se. Två omgångar aritmetik, en av dem
     // fel, för en regel vars hela syfte var att bestämma vad som skulle kastas bort.
     //
-    // Det som gör det överkomligt är att titeln aldrig scrollar bort under en: glyfen och
-    // namnet är frysta vid vänsterkanten. Utan den frysningen är sidledsscroll bara ett
-    // sätt att tappa bort vilken rad man läser.
+    // Hela raden scrollar, titeln med. Frysningen av glyf och namn var första svaret och
+    // mätningen tog bort den: på 390px var det frysta blocket 288px platt och 368px med
+    // trädets indrag i sig, alltså 102 respektive *22* pixlar kvar att se metadatan i.
+    // En fryst kolumn som lämnar 6% av skärmen håller inte din plats, den tar skärmen.
     const mät = (p) => p.evaluate(() => {
       const board = document.getElementById("work"); // the scrollport is the shell's, not the board's
       const rad = document.querySelector(".list-row");
@@ -445,32 +446,58 @@ export async function run({ open }) {
     eq(före.repo, true, "och inte repot heller");
     ok(före.höjd < 60, `raden är fortfarande en rad: ${före.höjd}px`);
 
-    // Och det som gör det läsbart: namnet står kvar medan datumet kommer in från höger.
-    // "Fryst" är *orörligt*, och det är en rättelse: med `left: 0` frös cellen först
-    // sedan den glidit fram till kanten — 50px för namnet, 36 för glyfen, 26 för
-    // rubriken — så en dragning i sidled flyttade allt på skärmen och en dragning nedåt
-    // med minsta sidodrift gjorde det också. Offseten är därför viloläget: noll väg.
-    await p.evaluate(() => { document.getElementById("work").scrollLeft = 400; });
-    await p.waitForTimeout(150);
-    const vid400 = await mät(p);
-    await p.evaluate(() => { document.getElementById("work").scrollLeft = 800; });
-    await p.waitForTimeout(150);
-    const vid800 = await mät(p);
-    eq(vid400.namn, före.namn, `namnet rör sig inte alls (${före.namn} → ${vid400.namn}) — ofryst hade det legat på ${före.namn - 400}`);
-    eq(vid800.namn, vid400.namn, `och står stilla när man scrollar vidare: ${vid400.namn} → ${vid800.namn}`);
-    ok(vid400.datum < före.datum - 300, `medan metadatan scrollar in (${före.datum} → ${vid400.datum})`);
+    // Raden följer med, hela vägen: namnet flyttar sig exakt lika långt som scrollen.
+    // Begärt, inte antaget: rullbredden beror på fixturen, så det som jämförs är hur
+    // långt rutan *faktiskt* gick.
+    const rulla = async (x) => {
+      const gick = await p.evaluate((n) => { const w = document.getElementById("work"); w.scrollLeft = n; return w.scrollLeft; }, x);
+      await p.waitForTimeout(150);
+      return { gick, ...(await mät(p)) };
+    };
+    const vid200 = await rulla(200);
+    const vid400 = await rulla(400);
+    eq(före.namn - vid200.namn, vid200.gick, `namnet följer scrollen (${före.namn} → ${vid200.namn}, rullade ${vid200.gick})`);
+    eq(före.namn - vid400.namn, vid400.gick, `och fortsätter följa den: ${vid400.namn} efter ${vid400.gick}`);
+    ok(vid400.datum < före.datum - 300, `medan metadatan kommer in från höger (${före.datum} → ${vid400.datum})`);
     eq(vid400.doc, vid400.vy, "och sidan står fortfarande stilla");
+
+    // Det frysningen kostade, och som var skälet att ta bort den: fönstret mot metadatan.
+    // Med glyf och namn frysta gick 288 av 390 pixlar åt platt, 368 med trädets indrag.
+    const fönster = await p.evaluate(() => {
+      const work = document.getElementById("work");
+      const port = work.getBoundingClientRect();
+      const namn = document.querySelector(".list-row .list-name").getBoundingClientRect();
+      return { vy: Math.round(port.width), kvar: Math.round(port.right - Math.max(namn.right, port.left)) };
+    });
+    ok(fönster.kvar > fönster.vy * 0.5, `mer än halva skärmen är rullbar vid full scroll: ${JSON.stringify(fönster)}`);
+
+    // Och läckan som frysningen bar med sig: två frysta celler med ett rutnätsglapp
+    // mellan sig är två ogenomskinliga lådor och ett 14px-fack som tillhör ingen, så
+    // prioritetsstaplar och agentbrickor gled igenom det och la sig bredvid glyfen.
+    // Mätt som lådor, inte som `elementFromPoint`: punkten träffar raden själv oavsett,
+    // och frågan är om någon *cell* har hamnat i ett fack som inte är dess.
+    const glapp = await p.evaluate(() => {
+      const rad = document.querySelector(".list-row");
+      const g = rad.querySelector(".puck-glyph").getBoundingClientRect();
+      const n = rad.querySelector(".list-name").getBoundingClientRect();
+      const inkräktare = [...rad.querySelectorAll(":scope > .list-cell")]
+        .filter((c) => { const r = c.getBoundingClientRect(); return r.right > g.right + 1 && r.left < n.left - 1; })
+        .map((c) => c.className + ":" + c.textContent.trim().slice(0, 12));
+      return { bredd: Math.round(n.left - g.right), inkräktare };
+    });
+    ok(glapp.bredd > 0, `det finns ett glapp att läcka genom: ${JSON.stringify(glapp)}`);
+    eq(glapp.inkräktare.length, 0, `men ingen cell ligger i det: ${JSON.stringify(glapp)}`);
   }
 
-  group("en lång titel breddar inte den frysta kolumnen");
+  group("en lång titel bestämmer inte radens bredd");
   {
     // Codex, #48. Radens minimum måste komma från *kolumnerna*, aldrig från innehållet.
     // Med `min-width: max-content` läste den den längsta titeln i stället, och på en
     // telefon är det inte en skönhetsfläck: mätt med en 120 tecken lång titel blev
-    // namncellen 851px bred på en 390px-skärm — och eftersom den cellen är fryst och
-    // ogenomskinlig täckte den hela vyn och la prioritet, agent, repo och datum utom
-    // räckhåll bakom sig, för varje rad i listan. En fryst kolumn fungerar bara så länge
-    // den är smalare än skärmen.
+    // namncellen 851px bred på en 390px-skärm — en enda pucks namn satte scrollbredden
+    // för varje rad i listan. Det var värre medan cellen var fryst (ogenomskinlig och
+    // bredare än skärmen la den sig *över* metadatan), och det är borta med frysningen;
+    // golvet står kvar för att en rads minimum ska komma från dess kolumner ändå.
     const långTitel = (d) => {
       d.items.find((i) => i.slug === "a-now").title =
         "En puck med ett orimligt långt namn som ingen skulle skriva men som formatet tillåter och som därför bestämmer radens bredd";
@@ -515,17 +542,15 @@ export async function run({ open }) {
     // varför listan läste som om den scrollade i alla led på en gång.
     eq(JSON.stringify(efter), JSON.stringify(före), `rubrikerna rör sig inte alls: ${JSON.stringify(före)} → ${JSON.stringify(efter)}`);
 
-    // Glyfens och rubrikens bakgrunder blöder över rännan till vänster om dem, annars
-    // syns den scrollade metadatan i tavlans egen marginal. Mätt som *vad som ligger
-    // överst* i rännan, inte som en färg: en täckning som ritas under raden är ingen.
+    // Rubrikens bakgrund blöder över rännan till vänster om den, annars syns den
+    // scrollade raden i tavlans egen marginal. Mätt som *vad som ligger överst* i
+    // rännan, inte som en färg: en täckning som ritas under raden är ingen.
     const ränna = await p.evaluate(() => {
-      const rad = document.querySelector(".list-row").getBoundingClientRect();
       const rubrik = document.querySelector(".lh-inner").getBoundingClientRect();
-      const träff = (x, y) => { const e = document.elementFromPoint(x, y); return e ? String(e.className) : "?"; };
-      return { rad: träff(6, rad.top + rad.height / 2), rubrik: träff(6, rubrik.top + rubrik.height / 2) };
+      const e = document.elementFromPoint(6, rubrik.top + rubrik.height / 2);
+      return e ? String(e.className) : "?";
     });
-    ok(/puck-glyph/.test(ränna.rad), `radens ränna täcks av glyfen: ${ränna.rad}`);
-    ok(/lh-inner/.test(ränna.rubrik), `rubrikens ränna täcks av rubriken: ${ränna.rubrik}`);
+    ok(/lh-inner/.test(ränna), `rubrikens ränna täcks av rubriken: ${ränna}`);
   }
 
   group("skalet har en scrollruta, och rubriken klibbar i båda axlarna");
@@ -564,7 +589,7 @@ export async function run({ open }) {
     await p.waitForTimeout(200);
     const efter = await läs();
     eq(efter.fastnad, true, `en rubrik står fast vid rutans överkant: ${JSON.stringify(efter)}`);
-    eq(efter.namn, före.namn, `och namnkolumnen står stilla i sidled: ${före.namn} → ${efter.namn}`);
+    ok(efter.namn < före.namn, `medan raden följer med i sidled: ${före.namn} → ${efter.namn}`);
     eq(efter.sidanScrollar, false, "sidan står fortfarande stilla");
   }
 

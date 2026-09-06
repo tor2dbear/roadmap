@@ -333,17 +333,25 @@ sideways is a scroll container in *both* axes, so before the change a group head
   Either alone gets you half the behaviour and looks like a bug.
 - **The heading outranks the frozen cells** (`z-index` 4 against 2): same level and later
   in the document meant a scrolled row's title painted over the pinned heading.
-- **A frozen cell pins where it already sits, not at the port's edge.** `left: 0` is the
-  obvious offset and the wrong one: the cell slides to the edge *first* and freezes there,
-  so the first stretch of every sideways drag moves everything on screen — measured on a
-  390px phone, 36px for the glyph, 50px for the title, 26px for the group heading. With
+- **Only the group heading is pinned; the row scrolls whole, title included.** Freezing
+  the glyph and the name was the first answer and the measurement retired it: on a 390px
+  phone the frozen block was 288px flat and **368px** once the tree's indent was inside
+  it, leaving 102 and *22* pixels of window onto the metadata the scroll exists to reach.
+  A frozen column that leaves 6% of the screen to scroll in is not keeping your place, it
+  is taking the screen. It leaked too, and structurally rather than for want of a
+  background: two frozen cells with a grid gap between them are two opaque boxes and one
+  14px slot belonging to neither, so priority bars and agent chips slid through it and sat
+  beside the glyph. The heading stays pinned in both axes — it names the group you are
+  inside, one line per group rather than one per row, and being one box it has no gap of
+  its own. Its background still bleeds across the gutter to its left (`background:
+  inherit`, so hover and selection have one place to change).
+- **A pinned box pins where it already sits, not at the port's edge.** `left: 0` is the
+  obvious offset and the wrong one: the box slides to the edge *first* and freezes there,
+  so the first stretch of every sideways drag moves everything on screen — measured, 26px
+  for the heading (36 and 50 for the glyph and title, while those were pinned). With
   nothing standing still, a drag down with any sideways drift read as the page sliding in
-  all directions at once. The offsets are the resting ones (`--list-pad` + `--row-pad`,
-  plus the glyph track and a gap for the name; `--list-pad` + `--head-pad` for the
-  heading), which makes the travel zero — and makes those five numbers tokens rather than
-  literals, since a gap widened in the grid and not in the offset is exactly the drift
-  this removes. Each frozen box's background then bleeds across *its own* gutter, so the
-  two `::before` rules are two widths, not one shared one.
+  all directions at once. The heading's offset is its resting one, `--list-pad` +
+  `--head-pad`, which makes the travel zero.
 - **The scroll lock moved with the scroll.** `body { position: fixed }` held the page's
   offset; the page has none now, so `lockScroll` hides `.work`'s overflow and restores its
   offset. Anything else that reaches for `window.scrollTo` is reaching for the wrong box —

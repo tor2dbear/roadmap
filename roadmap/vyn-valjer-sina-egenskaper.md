@@ -194,6 +194,29 @@ metadatan till höger. Den riktiga kuren är den här pucken själv — en telef
 kolumner har ingen sidled att scrolla i (mätt i fixturen: 352px överskott med hela
 uppsättningen påslagen).
 
+## Frysningen togs bort: den tog skärmen, och den läckte
+
+Mätt på den riktiga tavlan, 390px, med glyf och namn frysta:
+
+| | fryst block | kvar att scrolla i |
+|---|---|---|
+| `group=status` | 288px | 102px (26%) |
+| `group=parent` (med indrag) | **368px** | **22px (6%)** |
+
+En fryst kolumn som lämnar 6% av skärmen håller inte din plats, den tar skärmen. Och
+läckan som rapporterades i samma andetag var strukturell, inte en glömd bakgrund: **två
+frysta celler med ett rutnätsglapp mellan sig är två ogenomskinliga lådor och ett
+14px-fack som tillhör ingen.** Prioritetsstaplar och agentbrickor gled igenom det och la
+sig bredvid glyfen. En enda fryst låda hade löst läckan — och inte de 22 pixlarna.
+
+Alltså scrollar hela raden, titeln med. Gruppens rubrik står kvar i bägge axlarna: den
+namnger gruppen man är i, en rad per grupp i stället för en per rad, och som *en* låda har
+den inget glapp att läcka genom.
+
+Det bekräftar pucken snarare än att göra den mindre nödvändig: det som gjorde blocket
+368px brett var att alla sex kolumnerna alltid är på. Med ett val per vy finns det
+ingenting att scrolla till på en telefon, och då kan frysningen prövas igen om den saknas.
+
 ## Open questions
 - **Ett val eller ett per layout?** Listan har spår, kortet har märken; samma
   uppsättning i bägge är enklare att förklara och sämre för bägge. `effectiveParams`
