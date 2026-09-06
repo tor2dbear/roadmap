@@ -217,6 +217,28 @@ Det bekräftar pucken snarare än att göra den mindre nödvändig: det som gjor
 368px brett var att alla sex kolumnerna alltid är på. Med ett val per vy finns det
 ingenting att scrolla till på en telefon, och då kan frysningen prövas igen om den saknas.
 
+## En dragning håller sig till en axel
+
+Det som stod kvar efter avfrysningen: rutan panorerar diagonalt, för en enda scrollruta i
+båda axlarna är priset för den klibbiga rubriken. **Det finns ingen CSS för det.** Tre
+saker som ser ut att vara svaret och inte är det:
+
+- `touch-action: pan-x|pan-y` binder ett element till *en* axel för gott, inte per gest —
+  raden hade aldrig gått att scrolla nedåt igen.
+- `overscroll-behavior` talar om kedjning, inte riktning.
+- Två nästlade enaxliga rutor gör det inte heller: en låda som inte kan scrolla vertikalt
+  kedjar den vertikala delen rakt till sin förälder, så en diagonal dragning rör bägge ändå.
+
+`armAxisLock` avgör därför ur den scroll webbläsaren *redan gjort*: de första 8 pixlarna av
+en touch-gest väljer axel, den andra läggs tillbaka resten av gesten — och gesten slutar när
+scrollandet slutar, inte när fingret lyfts, för det är flingen som driver. Ingen
+`preventDefault`, ingen egen panorering: momentum och gummibandet är fortfarande
+webbläsarens. Priset är att off-axeln kan ligga en bildruta fel innan den dras tillbaka.
+
+Låset gäller bara inuti en gest. `reveal()`, puck-sidan och sheet-låset flyttar rutan med
+flit, och ett lås som överlevde fingret hade slagit tillbaka dem — det är den ena av två
+sabotagepunkter (den andra är själva återställningen).
+
 ## Open questions
 - **Ett val eller ett per layout?** Listan har spår, kortet har märken; samma
   uppsättning i bägge är enklare att förklara och sämre för bägge. `effectiveParams`

@@ -345,6 +345,20 @@ sideways is a scroll container in *both* axes, so before the change a group head
   inside, one line per group rather than one per row, and being one box it has no gap of
   its own. Its background still bleeds across the gutter to its left (`background:
   inherit`, so hover and selection have one place to change).
+- **A drag keeps to one axis, and that is JavaScript because there is no CSS for it.**
+  The port scrolls both ways and a phone drag is never straight, so a flick down the list
+  with a few degrees of drift moved the columns sideways too. `touch-action: pan-x|pan-y`
+  fixes an element to one axis for good rather than per gesture; `overscroll-behavior`
+  speaks about chaining, not direction; and nesting two single-axis scrollers does not do
+  it either, because a box that cannot scroll vertically chains the vertical part straight
+  to its parent. `armAxisLock` therefore decides from the scroll the browser has already
+  done: the first 8px of a touch gesture pick the axis and the other is put back for the
+  rest of it — through the fling as well, which is where the drift actually lands, so the
+  gesture ends when the *scrolling* stops and not when the finger lifts. No
+  `preventDefault` and no hand-rolled panning, so momentum and the rubber band are the
+  browser's; the cost is that the off-axis can be one frame out before it is pulled back.
+  It only runs inside a gesture — `reveal()`, the puck page and the sheet lock all move
+  this box deliberately, and a lock that outlived the finger would fight them.
 - **A pinned box pins where it already sits, not at the port's edge.** `left: 0` is the
   obvious offset and the wrong one: the box slides to the edge *first* and freezes there,
   so the first stretch of every sideways drag moves everything on screen — measured, 26px

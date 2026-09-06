@@ -593,6 +593,55 @@ export async function run({ open }) {
     eq(efter.sidanScrollar, false, "sidan står fortfarande stilla");
   }
 
+  group("en dragning håller sig till en axel");
+  {
+    // Rutan scrollar i båda axlarna — det är priset för en klibbig gruppubrik — och en
+    // dragning på en telefon är aldrig helt rak. En flick nedför listan med några graders
+    // drift flyttade alltså kolumnerna i sidled också.
+    //
+    // Låset avgörs ur den scroll webbläsaren redan gjort: de första 8 pixlarna av en
+    // touch-gest väljer axel, den andra läggs tillbaka resten av gesten. Ingen
+    // preventDefault och ingen egen panorering, alltså rör vi inte momentum eller
+    // gummibandet — och det är också varför kontrollen kan mäta logiken här: den härmar
+    // webbläsarens diagonala panorering genom att sätta bägge offseten inuti en gest.
+    const p = await open("?layout=list", { viewport: { width: 390, height: 700 }, hasTouch: true });
+    const gest = (dx, dy) => p.evaluate(({ dx, dy }) => {
+      const w = document.getElementById("work");
+      w.scrollTop = 0; w.scrollLeft = 0;
+      const t = new Touch({ identifier: 1, target: w, clientX: 100, clientY: 300 });
+      w.dispatchEvent(new TouchEvent("touchstart", { touches: [t], targetTouches: [t], changedTouches: [t], bubbles: true }));
+      w.scrollLeft = dx; w.scrollTop = dy;
+      return new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(() =>
+        ok({ x: Math.round(w.scrollLeft), y: Math.round(w.scrollTop) }))));
+    }, { dx, dy });
+
+    const sidled = await gest(120, 40);
+    eq(sidled.y, 0, `en sidledsdragning med drift nedåt rör inte vertikalen: ${JSON.stringify(sidled)}`);
+    ok(sidled.x > 100, `men går i sidled: ${sidled.x}`);
+
+    const nedåt = await gest(40, 120);
+    eq(nedåt.x, 0, `och en dragning nedåt med drift i sidled rör inte horisontalen: ${JSON.stringify(nedåt)}`);
+    ok(nedåt.y > 100, `men går nedåt: ${nedåt.y}`);
+
+    // Under tröskeln väljs ingen axel: en liten justering ska inte låsa något.
+    const litet = await gest(4, 4);
+    eq(JSON.stringify(litet), JSON.stringify({ x: 4, y: 4 }), `under 8px låses ingenting: ${JSON.stringify(litet)}`);
+
+    // Och utanför en gest gäller inget lås alls — annars skulle `reveal()`, puck-sidan
+    // och sheet-låset, som alla flyttar rutan med flit, slås tillbaka.
+    const utan = await p.evaluate(() => new Promise((ok) => {
+      const w = document.getElementById("work");
+      w.dispatchEvent(new TouchEvent("touchend", { touches: [], bubbles: true }));
+      setTimeout(() => {
+        w.scrollTop = 0; w.scrollLeft = 0;
+        w.scrollLeft = 120; w.scrollTop = 90;
+        requestAnimationFrame(() => requestAnimationFrame(() =>
+          ok({ x: Math.round(w.scrollLeft), y: Math.round(w.scrollTop) })));
+      }, 400);
+    }));
+    eq(JSON.stringify(utan), JSON.stringify({ x: 120, y: 90 }), `programmatisk scroll rörs inte: ${JSON.stringify(utan)}`);
+  }
+
   group("banderollen ryms i skalet i stället för att förlänga sidan");
   {
     // Codex, #49. Skalet är inte alltid det enda på sidan: den config-styrda banderollen
