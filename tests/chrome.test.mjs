@@ -735,23 +735,87 @@ export async function run({ open }) {
     const p = await open("?layout=list&done=1", { viewport: { width: 390, height: 600 }, hasTouch: true });
     await p.waitForSelector(".list-row");
     const cdp = await p.context().newCDPSession(p);
-    const dra = async (ms) => {
+    // `paus` är fingret som stannar innan det lyfts — den enda skillnaden mellan de två
+    // fallen, och det som gör det andra deterministiskt: annars avgör den sista
+    // bildrutans hastighet, och 200 → 271 är lika mycket "glid" som "flake".
+    const dra = async (ms, paus) => {
       await p.evaluate(() => { const w = document.getElementById("work"); w.scrollLeft = 0; w.scrollTop = 0; });
       await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: 300, y: 400 }] });
       for (let i = 1; i <= 10; i++) {
         await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: 300 - 20 * i, y: 400 - 3 * i }] });
         await new Promise((r) => setTimeout(r, ms / 10));
       }
+      if (paus) await new Promise((r) => setTimeout(r, paus));
       const släpp = await p.evaluate(() => Math.round(document.getElementById("work").scrollLeft));
       await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
       await p.waitForTimeout(700);
       const efter = await p.evaluate(() => Math.round(document.getElementById("work").scrollLeft));
       return { släpp, efter };
     };
-    const flick = await dra(100);
+    const flick = await dra(100, 0);
     ok(flick.efter > flick.släpp, `en snabb flick fortsätter efter att fingret lyfts: ${flick.släpp} → ${flick.efter}`);
-    const långsam = await dra(900);
-    eq(långsam.efter, långsam.släpp, `men en långsam dragning står stilla: ${JSON.stringify(långsam)}`);
+    const stannat = await dra(300, 250);
+    eq(stannat.efter, stannat.släpp, `men en dragning som stannat innan fingret lyfts står stilla: ${JSON.stringify(stannat)}`);
+  }
+
+  group("att fånga ett glid öppnar ingen puck");
+  {
+    // Codex, #49. Ett finger ner stoppar glidet — men utan rörelse syntetiserar
+    // webbläsaren ett klick efteråt, så att fånga en glidande lista öppnade pucken under
+    // tummen. Mätt: glidande på 246, tappat för att stoppa, puck-sidan öppnades.
+    const p = await open("?layout=list&done=1", { viewport: { width: 390, height: 600 }, hasTouch: true });
+    await p.waitForSelector(".list-row");
+    const cdp = await p.context().newCDPSession(p);
+    const flick = async () => {
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: 300, y: 400 }] });
+      for (let i = 1; i <= 10; i++) {
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: 300 - 20 * i, y: 400 - 3 * i }] });
+        await new Promise((r) => setTimeout(r, 10));
+      }
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    };
+    const tapp = async () => {
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: 200, y: 400 }] });
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+      await p.waitForTimeout(400);
+      return p.evaluate(() => ({
+        puck: document.body.classList.contains("viewing-puck"),
+        x: Math.round(document.getElementById("work").scrollLeft),
+      }));
+    };
+
+    await flick();
+    await p.waitForTimeout(80); // mitt i glidet
+    const under = await p.evaluate(() => Math.round(document.getElementById("work").scrollLeft));
+    ok(under > 100, `listan glider fortfarande: ${under}`);
+    const fångat = await tapp();
+    eq(fångat.puck, false, `tappet stoppar glidet utan att öppna något: ${JSON.stringify(fångat)}`);
+    ok(Math.abs(fångat.x - under) < 40, `och glidet står stilla efteråt: ${under} → ${fångat.x}`);
+
+    // Men ett tapp är fortfarande ett tapp — vakten får inte äta ett riktigt klick.
+    eq((await tapp()).puck, true, "ett vanligt tapp öppnar pucken");
+    await p.goBack();
+    await p.waitForTimeout(300);
+    await flick();
+    await p.waitForTimeout(1200); // glidet tar slut av sig självt
+    eq((await tapp()).puck, true, "och ett tapp efter ett avslutat glid också");
+
+    // Och fångsten får inte överleva sin egen gest: fångar man ett glid och *drar* i
+    // stället för att släppa kommer inget klick att äta, så flaggan måste falla av sig
+    // själv — annars äts nästa riktiga tryck i stället.
+    await p.goBack();
+    await p.waitForTimeout(300);
+    await flick();
+    await p.waitForTimeout(80);
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: 200, y: 400 }] });
+    for (let i = 1; i <= 6; i++) {
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: 200 - 15 * i, y: 400 }] });
+      await new Promise((r) => setTimeout(r, 20));
+    }
+    await new Promise((r) => setTimeout(r, 250));
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await p.waitForTimeout(600);
+    eq((await tapp()).puck, true, "ett tapp efter en fångad-och-dragen gest öppnar pucken");
   }
 
   group("telefonen ritar inga scrollindikatorer i listan");

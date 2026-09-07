@@ -1498,6 +1498,10 @@
     if (axisArmed) return;
     axisArmed = true;
     var sx = 0, sy = 0, lastX = 0, lastT = 0, vx = 0, axis = null, live = false, fling = 0;
+    // The flag needs no timer to expire: every touchstart reassigns it, so a catch that
+    // ends in a drag (no click to eat) cannot leak into the next press. A timer was
+    // written first and removed when no sabotage could fell it.
+    var caught = false;
     // The finger's velocity, smoothed, in pixels per millisecond. A single frame's delta
     // is too noisy to fling on — one stuttered frame at the end of a swipe would decide
     // the whole glide — so each sample is folded into the last.
@@ -1527,6 +1531,11 @@
     }
     port.addEventListener("touchstart", function (e) {
       // A finger down ends the previous glide — catching a moving list is how you stop it.
+      // And *only* stop it: with no movement the browser synthesises a click afterwards,
+      // so catching a gliding list opened the puck under your thumb (measured: gliding at
+      // 246, tapped to stop, the puck page opened). The catch is remembered and the click
+      // it produces is eaten below.
+      caught = !!fling;
       if (fling) { cancelAnimationFrame(fling); fling = 0; }
       // Two fingers is a pinch, not a pan — and `pinch-zoom` is in the touch-action for
       // exactly that reason, so nothing here may take it over.
@@ -1564,6 +1573,13 @@
     }
     port.addEventListener("touchend", up, { passive: true });
     port.addEventListener("touchcancel", up, { passive: true });
+    // Capture, so it runs before the row's own listener rather than after it.
+    port.addEventListener("click", function (e) {
+      if (!caught) return;
+      caught = false;
+      e.stopPropagation();
+      e.preventDefault();
+    }, true);
   }
 
   // ── the chrome above the port is not a dead zone ────────────────────────────
