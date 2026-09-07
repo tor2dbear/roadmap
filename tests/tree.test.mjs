@@ -348,6 +348,34 @@ export async function run({ open }) {
     ok(efter.titel < före.titel, `och hela raden följer scrollen: ${före.titel} → ${efter.titel}`);
   }
 
+  group("bara namnet ger med sig i rubriken");
+  {
+    // Rubrikens övriga delar är fasta märken — swatchen, räknaren, arkivkontrollen,
+    // rollup-brickan — men ett flex-objekt med en bredd är ändå krympbart, så ett långt
+    // parentnamn tryckt mot rubrikens `100cqw`-tak klämde dem i stället för att ellipsisa
+    // sig självt. Mätt på 393px: swatchen gick från 10px till **0** — färgpricken helt
+    // borta — medan namnet behöll sin fulla bredd.
+    const p = await open("?layout=list&group=parent", { data: träd, viewport: { width: 393, height: 840 }, hasTouch: true });
+    await p.waitForSelector(".list-head");
+    const m = await p.evaluate(() => {
+      const inner = [...document.querySelectorAll(".lh-inner")]
+        .map((e) => ({ e, w: e.getBoundingClientRect().width }))
+        .sort((a, b) => b.w - a.w)[0].e;
+      const bredd = (s) => { const q = inner.querySelector(s); return q ? +q.getBoundingClientRect().width.toFixed(1) : null; };
+      const label = inner.querySelector(".lh-label");
+      return {
+        inner: Math.round(inner.getBoundingClientRect().width),
+        tak: Math.round(parseFloat(getComputedStyle(inner).maxWidth)),
+        swatch: bredd(".swatch"),
+        label: bredd(".lh-label"),
+        labelInne: label ? label.scrollWidth : null,
+      };
+    });
+    eq(m.inner, m.tak, `rubriken ligger mot sitt tak, alltså trängs den: ${JSON.stringify(m)}`);
+    eq(m.swatch, 10, `men swatchen behåller sina 10px: ${JSON.stringify(m)}`);
+    ok(m.labelInne > m.label, `det är namnet som ger med sig i stället: ${JSON.stringify(m)}`);
+  }
+
   group("listan spränger inte sidbredden på en telefon");
   {
     // Det här är felet som syntes som "sidbredden breakar": tavlan är ett rutnätsobjekt,

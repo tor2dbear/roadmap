@@ -633,6 +633,17 @@ body {
    keep the split invisible: the toggle drops its right bleed so the gap between caret
    and name is the head's own 8px, not 8 plus the toggle's padding. */
 .list-head h2 { display: flex; align-items: center; gap: 8px; min-width: 0; }
+/* **Only the name gives.** Everything else in a group heading is a fixed mark — the
+   swatch, the count, the archive control, the rollup badge — and a flex item with a width
+   is still shrinkable, so a long parent name pressed against the heading's `100cqw` cap
+   squeezed them instead of ellipsising itself: measured at 393px, the swatch went from
+   10px to **0** (the colour dot simply gone) and the count from 16px to 7, clipping the
+   digit. The two shrinkable boxes are named, in the order they give: the `h2` that holds
+   the name, and the name itself. Both exceptions are written more specifically than the
+   blanket rule, since that is the only thing deciding them. */
+.list-head .lh-inner > *, .list-head h2 > *, .list-head .lh-toggle > * { flex: none; }
+.list-head .lh-inner > h2 { flex: 0 1 auto; min-width: 0; }
+.list-head .lh-label { flex: 0 1 auto; min-width: 0; }
 .lh-toggle--split { margin-right: 0; padding-right: 0; }
 .list-head .head-open { font: inherit; text-transform: inherit; letter-spacing: inherit; }
 .list-head .count { color: var(--ink-3); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }

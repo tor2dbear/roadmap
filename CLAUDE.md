@@ -294,6 +294,14 @@ buckets it was designed around, which is why the list could go first.
 - **The caret sits in the row's left gutter, not a grid track.** A track would have to
   exist on the leaves too, to keep the five columns in register, and a leaf reserving a
   control it never gets is a target that answers nothing.
+- **In a group heading, only the name gives.** The swatch, the count, the archive control
+  and the rollup badge are fixed marks, but a flex item with a width is still shrinkable —
+  so a long parent name pressed against the heading's `100cqw` cap squeezed them instead of
+  ellipsising itself: measured at 393px, the swatch went from 10px to **0**, the colour dot
+  simply gone from that one heading while every shorter one kept it. `flex: none` on the
+  parts, named exceptions for the two boxes that may shrink (the `h2` holding the name, and
+  the name itself), and the exceptions written more specifically than the blanket rule
+  since that is the only thing deciding them.
 - **The row carries no count.** `progress` is already there and answers the steadier
   question — how many parts the puck *has* — where a count of the rows below would move
   with the filter and read as though parts had been lost.
