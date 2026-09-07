@@ -4758,6 +4758,21 @@
     if (archived) {
       var stubs = {};
       archived.order.forEach(function (k) { if (!shownKeys[k] && archived.count[k]) stubs[k] = 1; });
+      // Except where the group's own puck is archived, which under the parent grouping is
+      // a thing a group can be: the heading *is* a puck there, not a label. "Archived" is
+      // not a state of its own — `TERMINAL` is `done` or `cancelled`, which is what the
+      // toggle's label spells out — so a heading whose puck is done is an archived puck
+      // drawn on a board that is hiding archived pucks. Measured on the live board: four
+      // of six headings, none of them counted in the view's own 32.
+      //
+      // It is the same rule status grouping gets for free ("a column that still stands can
+      // never be holding one back"): a group that still stands is one whose parent is live,
+      // and then the mark is right — a live parent, its parts held back, said out loud.
+      // Archive all the way up leaves with the archive, and the toggle brings it back.
+      Object.keys(stubs).forEach(function (k) {
+        var puck = itemById(k);
+        if (puck && TERMINAL[puck.status]) delete stubs[k];
+      });
       if (Object.keys(stubs).length) {
         var byKey = {};
         groups.forEach(function (grp) { byKey[grp.key] = grp; });

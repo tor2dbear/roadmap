@@ -341,3 +341,28 @@ Fyra saker som var mekaniska på papperet och inte i verkligheten:
   repo i listan finns den ingenstans. Egen omgång.
 - **Ordningen egenskaperna visas i** har redan en egen puck (`ordningen-egenskaperna-visas-i`).
   `PROPS` ordning är radens spårordning i dag; den pucken är där ett handval hör hemma.
+
+## Tre fynd till från telefonen
+
+Skärmdumpar under bygget, och alla tre var på riktigt:
+
+- **Namnet gick in under arkivmärket.** "Bara namnet ger med sig" gjorde varje del av
+  rubriken styv och fångade därmed lådorna som *håller* namnet — `.lh-stub` och
+  `.lh-toggle` är barn till `h2`. Mätt på riktig data vid 390px: en stub 359px bred i ett
+  246px `h2`, med namnet 89px in under märket. En låda får ge med sig bara om namnet är
+  inuti den; första försöket missade den baksidan och la swatchen ovanpå titelns första
+  bokstav.
+- **Tavlan målade över foten.** `#board` är scrollcontainer i bägge axlarna och bidrar
+  därför nästan ingenting till sin rads höjd. Med `auto`-rader tog rad ett bara
+  överskottet (573px) medan brädan stod på 3019px, och skillnaden målades över foten.
+  Bara nåbart sedan skalet fick en bestämd höjd — det enda den ändringen kostade.
+- **Arkiverade parents stod kvar med arkivet av.** Och frågan som avgjorde det var
+  Torbjörns: *vad skiljer arkiverad och Done?* Ingenting — `TERMINAL` är `done` eller
+  `cancelled`, vilket växelns egen etikett säger. Fyra av sex rubriker var alltså
+  arkiverade pucker på en tavla som gömmer arkiverade pucker, och ingen av dem räknad i
+  vyns egna 32. En grupp lämnar med arkivet när den är arkiv *hela vägen upp*.
+
+Två av kontrollerna för det här var gröna mot sitt eget sabotage när de skrevs, och två
+till *hängde* i stället för att falla — en tom tavla är ett fel som ska säga en mening,
+inte vänta ut trettio sekunder. Det är samma lärdom som filen redan bär på ett ställe:
+kontrollen ska fällas, och den ska säga vad som saknades.

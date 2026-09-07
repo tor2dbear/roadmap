@@ -196,6 +196,61 @@ export async function run({ open }) {
     eq(efter - före, 4, `ögat levererar det märket lovade (${före} → ${efter})`);
   }
 
+  group("arkiv hela vägen upp lämnar med arkivet");
+  {
+    // Rapporterat från en telefon: `Show done & cancelled` var av, och fyra av sex
+    // rubriker var pucker som själva var `done`. "Arkiverad" är ingen egen status —
+    // `TERMINAL` är `done` eller `cancelled`, vilket är precis vad växelns egen etikett
+    // säger — så en rubrik vars puck är done *är* en arkiverad puck ritad på en tavla som
+    // gömmer arkiverade pucker. Mätt på den riktiga tavlan: fyra av sex, och ingen av dem
+    // räknad i vyns egna 32.
+    //
+    // Samma regel som statusgrupperingen får gratis: en grupp som står kvar är en vars
+    // parent lever. Då är märket rätt — en levande parent, dess delar undanhållna.
+    const arkiveradHelaVägen = (d) => {
+      const rot = d.items.find((i) => i.slug === "a-parent");
+      const mitten = d.items.find((i) => i.slug === "b-member");
+      rot.title = LONG; rot.status = "done";
+      rot.children = ["beta/b-member"]; rot.progress = { done: 1, total: 1 };
+      mitten.status = "done";              // enda delen arkiverad → gruppen är bara arkiv
+      return d;
+    };
+    const av = await open("?layout=list&group=parent", { data: arkiveradHelaVägen });
+    const fAv = await form(av);
+    eq(fAv.filter((x) => x.head === LONG).length, 0,
+      `en arkiverad parent utan levande delar ritas inte alls: ${JSON.stringify(fAv.map((x) => x.head))}`);
+    // Och växeln är vägen tillbaka, precis som Done-kolumnen kommer tillbaka under
+    // statusgruppering. Ingen tyst borttagning: samma kontroll som redan finns.
+    const på = await open("?layout=list&group=parent&done=1", { data: arkiveradHelaVägen });
+    ok((await form(på)).some((x) => x.head === LONG),
+      "och växeln hämtar tillbaka den");
+
+    // Andra sidan av regeln, och den som gör den smal: en *levande* parent vars delar
+    // arkivet håller tillbaka behåller sin stump och sitt märke. Det är hela poängen med
+    // märket, och en regel som tog den med sig hade varit en tystnad i stället för en fix.
+    const levandeParent = (d) => {
+      const rot = d.items.find((i) => i.slug === "a-parent");
+      const mitten = d.items.find((i) => i.slug === "b-member");
+      rot.title = LONG; rot.status = "now";
+      rot.children = ["beta/b-member"]; rot.progress = { done: 1, total: 1 };
+      mitten.status = "done";
+      return d;
+    };
+    // Fångat, av samma skäl som "en rot som bara finns i arkivet" en bit upp: en regel som
+    // tar för mycket lämnar tavlan *tom*, och `open()` väntar då ut sin timeout i stället
+    // för att säga vad som saknades. Ett sabotage ska ge en mening, inte en stack trace.
+    const kvar = await open("?layout=list&group=parent", { data: levandeParent }).catch(() => null);
+    if (!kvar) {
+      ok(false, "tavlan ritade ingenting — regeln tog den levande parentens stump med sig");
+    } else {
+      const fKvar = await form(kvar);
+      const stump = fKvar.find((x) => x.head === LONG);
+      ok(stump, `en levande parent står kvar: ${JSON.stringify(fKvar.map((x) => x.head))}`);
+      eq(stump && stump.mark, "1 archived",
+        `med märket som säger vad den håller tillbaka: ${JSON.stringify(stump)}`);
+    }
+  }
+
   group("en fällning som filtret sprang ifrån låser inte raden");
   {
     // Codex, #46. Fäll en förälder, filtrera sedan bort alla dess delar: `shut` står kvar
@@ -428,7 +483,11 @@ export async function run({ open }) {
       return d;
     };
     const p = await open("?layout=list&group=parent", { data: stub, viewport: { width: 390, height: 780 } });
-    await p.waitForSelector(".lh-stub");
+    // Kort väntan och sedan vidare: gruppen påstår själv att det finns en stubbe att mäta,
+    // och en obegränsad `waitForSelector` gör det påståendet till en trettio sekunders
+    // timeout i stället för en mening. (En regel som tar bort stubben ska falla här med
+    // "det finns en stubbe att mäta", inte hänga filen.)
+    await p.waitForSelector(".lh-stub", { timeout: 5000 }).catch(() => {});
     const m = await p.evaluate(() => [...document.querySelectorAll(".lh-inner")].map((inner) => {
       const lbl = inner.querySelector(".lh-label");
       const mark = inner.querySelector(".col-archived");

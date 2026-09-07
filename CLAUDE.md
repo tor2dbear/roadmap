@@ -623,6 +623,15 @@ it off showed PIA's 6 open pucks and dropped 39 landed ones in silence.
   definition* in Done or Cancelled, and the toggle has already taken those columns off
   the board — so a column that still stands can never be holding one back, and no mark is
   drawn. A guard was written first and removed after sabotage could not break anything.
+- **Under the parent grouping the heading *is* a puck, so the same rule has to be said out
+  loud.** "Archived" is not a state of its own — `TERMINAL` is `done` or `cancelled`, which
+  is exactly what the toggle's label spells out — so a heading whose puck is done was an
+  archived puck drawn on a board that hides archived pucks. Measured on the live board:
+  four of six headings, none of them counted in the view's own 32. A group leaves with the
+  archive when it is archive *all the way up*: its own puck terminal **and** no live part
+  left. A live parent whose parts the archive holds keeps its stub and its mark — that is
+  what the mark is for — and a terminal parent with one open part keeps its heading too,
+  since there is no way to draw the part without it.
 - **The list layout was worse, and this is where it was found.** It has no tray at all, so
   `?layout=list` with the archive off simply had no Done section — in the *default*
   grouping — with nothing anywhere saying so. It therefore makes no exemption: the mark
