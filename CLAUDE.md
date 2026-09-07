@@ -446,7 +446,10 @@ sideways is a scroll container in *both* axes, so before the change a group head
   with the sideways scroll rather than standing at the port's edge, and a flick down
   flashes the horizontal one — an indicator for an axis the browser is not scrolling at
   all. Hidden under `(pointer: coarse)` only: on a desktop that bar is how you learn the
-  list scrolls sideways, and it is not transient there.
+  list scrolls sideways, and it is not transient there. Both rules are also scoped out of
+  `body.viewing-puck`: a hidden `#board` keeps its `as-list` class, so a puck opened *from*
+  the list carried the list's lock and its hidden indicators onto a page that is not a
+  list — while the same puck reached from the board had neither.
 - **A pinned box pins where it already sits, not at the port's edge.** `left: 0` is the
   obvious offset and the wrong one: the box slides to the edge *first* and freezes there,
   so the first stretch of every sideways drag moves everything on screen — measured, 26px

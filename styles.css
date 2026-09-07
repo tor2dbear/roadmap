@@ -1360,7 +1360,11 @@ body.scroll-locked { overflow: hidden; }
    itself when a drag turns out to be a sideways one. `pinch-zoom` stays, or the board
    could not be zoomed. Scoped to the list by the class the renderer already sets — the
    kanban board is its own sideways scroller, and `pan-y` on an ancestor forbids it. */
-.work:has(> .board.as-list) { touch-action: pan-y pinch-zoom; }
+/* `body:not(.viewing-puck)`, because a hidden `#board` keeps its `as-list` class: a puck
+   opened from the list would otherwise carry the list's lock through a page that is not a
+   list at all, and forbid sideways panning inside its own code blocks and tables. The same
+   puck reached from the board layout had none — an asymmetry with no reason behind it. */
+body:not(.viewing-puck) .work:has(> .board.as-list) { touch-action: pan-y pinch-zoom; }
 /* No native scroll indicators on a phone, and the reason is that a two-axis port draws
    two of them badly. Reported from a real device, three symptoms of one cause: the
    vertical bar is painted *under* the sticky group headings, it travels with the sideways
@@ -1369,8 +1373,8 @@ body.scroll-locked { overflow: hidden; }
    since `armAxisLock` drives that one. Touch only: on a desktop the bar is how you learn
    the list scrolls sideways at all, and it is not transient there. */
 @media (pointer: coarse) {
-  .work:has(> .board.as-list) { scrollbar-width: none; }
-  .work:has(> .board.as-list)::-webkit-scrollbar { display: none; }
+  body:not(.viewing-puck) .work:has(> .board.as-list) { scrollbar-width: none; }
+  body:not(.viewing-puck) .work:has(> .board.as-list)::-webkit-scrollbar { display: none; }
 }
 /* A puck opens as a full-width page (same on desktop + mobile): the board and the
    view-header hide, and the detail fills the content area as a centered,

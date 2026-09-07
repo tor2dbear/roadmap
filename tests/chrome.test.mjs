@@ -854,6 +854,35 @@ export async function run({ open }) {
     eq(tavla.work, "auto", `men tavlan rörs inte — den scrollar i sin egen låda: ${JSON.stringify(tavla)}`);
     const desktop = await läs("?layout=list&done=1", { viewport: { width: 1200, height: 700 } });
     eq(desktop.work, "auto", `och en dator behåller sin: ${JSON.stringify(desktop)}`);
+
+    // Codex, #49: en gömd `#board` behåller sin `as-list`, så en puck öppnad *ur* listan
+    // bar med sig listans regler in på en sida som inte är en lista — axellåset förbjuder
+    // sidledspanorering i puckens egna kodblock och tabeller, och indikatorerna göms på en
+    // sida som bara har en axel. Samma puck nådd från tavlan hade ingetdera. Mätt i
+    // Chromium som en asymmetri, inte som en tappad gest: motorn låter den inre scrollern
+    // ta sin egen sidled ändå. Regeln är ändå fel på den sidan, och den skillnaden är vad
+    // som vaktas här.
+    const puck = async (layout) => {
+      const p = await open("?layout=" + layout + "&done=1", { viewport: { width: 390, height: 600 }, hasTouch: true });
+      await p.waitForSelector(".card, .list-row");
+      const id = await p.evaluate(() => window.__ROADMAP__.items[0].id);
+      await p.evaluate((i) => { location.hash = "#" + encodeURIComponent(i); }, id);
+      await p.waitForTimeout(400);
+      return p.evaluate(() => {
+        const w = document.getElementById("work");
+        const cs = getComputedStyle(w);
+        return { puck: document.body.classList.contains("viewing-puck"),
+                 asList: document.getElementById("board").classList.contains("as-list"),
+                 ta: cs.touchAction, bar: cs.scrollbarWidth };
+      });
+    };
+    const urListan = await puck("list");
+    eq(urListan.puck, true, "pucken är öppen");
+    eq(urListan.asList, true, "och den gömda brädan bär fortfarande sin listklass");
+    eq(urListan.ta, "auto", `men puck-sidan har inget axellås: ${JSON.stringify(urListan)}`);
+    const urTavlan = await puck("board");
+    eq(urTavlan.ta, urListan.ta, "samma puck beter sig lika oavsett vilken layout man kom ifrån");
+    eq(urTavlan.bar, urListan.bar, "och ritar sina indikatorer lika");
   }
 
   group("tavlans egen sidled tas inte av låset");
