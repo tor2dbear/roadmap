@@ -1524,8 +1524,14 @@
     function glide() {
       var prev = performance.now();
       fling = requestAnimationFrame(function step(now) {
-        var dt = Math.min(now - prev, 32) || 16;
+        var gap = now - prev;
         prev = now;
+        // An interrupted fling is no fling. Put the page aside and `requestAnimationFrame`
+        // stands still; clamping the gap would let the inertia survive the pause and roll
+        // on when you come back — the same mistake as a stale velocity sample, and the
+        // same rule the sheet's inertia already follows a floor below.
+        if (gap > 100) { fling = 0; return; }
+        var dt = Math.min(gap, 32) || 16;
         var was = port.scrollLeft;
         port.scrollLeft -= vx * dt;
         // Per millisecond, not per frame: a slow frame must not buy the glide extra life.

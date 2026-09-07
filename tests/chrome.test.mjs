@@ -776,6 +776,31 @@ export async function run({ open }) {
     ok(flick.efter > flick.släpp, `en snabb flick fortsätter efter att fingret lyfts: ${flick.släpp} → ${flick.efter}`);
     const stannat = await dra(300, 250);
     eq(stannat.efter, stannat.släpp, `men en dragning som stannat innan fingret lyfts står stilla: ${JSON.stringify(stannat)}`);
+
+    // Codex, #49: ett avbrutet fling är inget fling. Ställs sidan åt sidan står
+    // `requestAnimationFrame` stilla, och att bara klippa gapet hade låtit trögheten
+    // överleva pausen och rulla vidare när man kommer tillbaka. Här härmas pausen med en
+    // blockerad huvudtråd, vilket ger samma sak: ett bildrutegap på hundratals ms.
+    // Mätt utan regeln: 100 → 174. Med: 100 → 103, alltså bara den bildruta som hann före.
+    await p.evaluate(() => { const w = document.getElementById("work"); w.scrollLeft = 0; w.scrollTop = 0; });
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: 300, y: 400 }] });
+    for (let i = 1; i <= 10; i++) {
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: 300 - 10 * i, y: 400 - 2 * i }] });
+      await new Promise((r) => setTimeout(r, 15));
+    }
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    const föreBlock = await p.evaluate(() => {
+      const w = document.getElementById("work");
+      const x = Math.round(w.scrollLeft);
+      const t = Date.now();
+      while (Date.now() - t < 350) {}          // sidan "åt sidan"
+      return x;
+    });
+    await p.waitForTimeout(800);
+    const efterBlock = await p.evaluate(() => Math.round(document.getElementById("work").scrollLeft));
+    ok(föreBlock > 40, `glidet var på väg när sidan pausades: ${föreBlock}`);
+    ok(efterBlock - föreBlock < 15,
+      `och återupptas inte efteråt: ${föreBlock} → ${efterBlock} (utan regeln 100 → 174)`);
   }
 
   group("att fånga ett glid öppnar ingen puck");

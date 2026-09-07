@@ -453,7 +453,11 @@ sideways is a scroll container in *both* axes, so before the change a group head
   scroller next to every other one on the device — so `armAxisLock` keeps a smoothed
   velocity (one stuttered frame at the end of a swipe must not decide the glide) and
   decays it per *millisecond*, so a slow frame buys no extra travel; a finger that paused
-  before lifting flings nothing. **The glide belongs to its gesture, and three things end
+  before lifting flings nothing, and a frame gap over 100ms cancels rather than clamps —
+  put the page aside and `requestAnimationFrame` stands still, so clamping would let the
+  inertia survive the pause and roll on when you came back (measured over a 350ms block:
+  100 → 174 with the clamp, 100 → 103 without). The sheet's inertia already had that rule;
+  this is the same one, a floor up. **The glide belongs to its gesture, and three things end
   it**: a touch anywhere (the finger that opens Filter never reaches `.work`, so the port's
   own handler cannot see it — and that document-level listener, running in capture before
   the port's, is also the only place that can still tell whether there was a glide to
