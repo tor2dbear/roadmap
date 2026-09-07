@@ -353,7 +353,11 @@ sideways is a scroll container in *both* axes, so before the change a group head
   board, and moving it from there would be a new behaviour rather than a restored one —
   and walks up from the target so a box that scrolls itself gets first refusal. It asks
   `overflow-y` before `scrollHeight`: the view-switch button measures 24 against 21 from
-  line-height alone, and asking about overflow only let it swallow every wheel.
+  line-height alone, and asking about overflow only let it swallow every wheel. First
+  refusal is per axis and only where the event carries a delta: the chip row cannot take a
+  `deltaX` at all, and asking `deltaY < 0` about a purely sideways swipe (`deltaY === 0`)
+  read it as "downwards" and swallowed it — measured, 150px of sideways wheel moved nothing
+  with 352px of list to the right.
 - **A popover fits downwards too, and that became a real question here.** `fitPop` used to
   answer only sideways; with the shell clipping and no page scroll left, a menu running
   past the bottom has rows that cannot be reached at all — measured at 1000×420 with the
@@ -373,7 +377,11 @@ sideways is a scroll container in *both* axes, so before the change a group head
   its own top edge — 52px down on a puck page — so a flip measured against the viewport put
   the menu's first rows behind the topbar with no scroll range above to bring them back
   (measured: top 8, port top 52, 44px gone). A test that asks `top >= 0` passes while that
-  happens; ask the port. On a window resize it re-fits, and when the window shrank past the
+  happens; ask the port. The box is every clipping ancestor *intersected, per axis* — the
+  kanban board's `overflow-x: auto` makes its computed `overflow-y` `auto` too, so a
+  first-match walk read a bottom wherever the tallest column ends (measured at 1000×240: a
+  column menu ran to 245 with the port ending at 240, uncapped, because the board's bottom
+  was 473). On a window resize it re-fits, and when the window shrank past the
   trigger itself it closes instead: a menu hanging off a control nobody can see any more is
   not a placement problem.
 - **The port is a tab stop, because the page stopped being one.** With the document no

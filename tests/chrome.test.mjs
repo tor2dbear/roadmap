@@ -1050,6 +1050,27 @@ export async function run({ open }) {
     await q.setViewportSize({ width: 1000, height: 220 });
     await q.waitForTimeout(300);
     eq(await läge(), null, "och stängs när avtryckaren själv hamnar utanför rutan");
+
+    // Codex igen: den närmaste klippande lådan är *olika* på de två axlarna. Kanban-tavlan
+    // sätter `overflow-x: auto`, vilket gör dess beräknade `overflow-y` till `auto` också,
+    // så en vandring som stannar vid första träffen läste en underkant som ligger där den
+    // högsta kolumnen slutar. Mätt på 1000×240: kolumnmenyn gick till 245 medan rutan
+    // slutade på 240, utan tak, eftersom tavlans underkant var 473.
+    const b = await open("?done=1", { viewport: { width: 1000, height: 240 } });
+    await b.waitForSelector(".col-more button");
+    await b.evaluate(() => document.querySelector(".col-more button").click());
+    await b.waitForTimeout(300);
+    const kol = await b.evaluate(() => {
+      const pop = document.querySelector(".column .pop");
+      if (!pop) return null;
+      const r = pop.getBoundingClientRect();
+      return { bottom: Math.round(r.bottom), höjd: Math.round(r.height),
+               boardBottom: Math.round(document.getElementById("board").getBoundingClientRect().bottom),
+               portBottom: Math.round(document.getElementById("work").getBoundingClientRect().bottom) };
+    });
+    ok(kol, "kolumnmenyn öppnas");
+    ok(kol.boardBottom > kol.portBottom, `tavlan sträcker sig utanför rutan, alltså mäter vi rätt sak: ${JSON.stringify(kol)}`);
+    ok(kol.bottom <= kol.portBottom, `och menyn håller sig innanför rutan ändå: ${JSON.stringify(kol)}`);
   }
 
   group("chromet ovanför rutan är ingen död zon för hjulet");
@@ -1094,6 +1115,20 @@ export async function run({ open }) {
       }));
       ok(m.chip > 100, `chipparaden tar hjulet själv: ${JSON.stringify(m)}`);
       eq(m.work, 0, "och tavlan står stilla under tiden");
+
+      // Men första tjing gäller per axel, och bara där gesten faktiskt bär ett delta.
+      // Chipparaden scrollar lodrätt och kan inte ta ett `deltaX` alls — att fråga
+      // `deltaY < 0` om ett rent sidledsswipe (`deltaY === 0`) läste det som "nedåt",
+      // hittade rum och svalde en gest raden inte hade någon användning för. Mätt: 150px
+      // sidledshjul flyttade ingenting, med 352px lista till höger.
+      await p.evaluate(() => { document.getElementById("work").scrollLeft = 0; });
+      await p.mouse.wheel(150, 0);
+      await p.waitForTimeout(300);
+      const våg = await p.evaluate(() => ({
+        work: Math.round(document.getElementById("work").scrollLeft),
+        chip: Math.round(document.getElementById("chipRow").scrollTop),
+      }));
+      ok(våg.work > 100, `ett rent sidledshjul når listan förbi chipparaden: ${JSON.stringify(våg)}`);
     }
   }
 

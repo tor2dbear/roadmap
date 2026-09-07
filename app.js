@@ -1609,11 +1609,20 @@
         // it: the view-switch button measures 24 against 21 from line-height alone, and
         // asking about overflow only would have let it swallow every wheel over the
         // topbar. Overflow first, then whether there is anything to scroll.
-        var oy = getComputedStyle(n).overflowY;
-        if (oy !== "auto" && oy !== "scroll") continue;
-        if (n.scrollHeight <= n.clientHeight + 1) continue;
-        var room = e.deltaY < 0 ? n.scrollTop > 0 : n.scrollTop < n.scrollHeight - n.clientHeight - 1;
-        if (room) return;
+        //
+        // And per axis, only where the event actually carries one. The chip row scrolls
+        // vertically and cannot take a `deltaX` at all, so asking `deltaY < 0` about a
+        // purely sideways trackpad swipe (`deltaY === 0`) read it as "downwards", found
+        // room, and swallowed a gesture the row had no use for — measured: 150px of
+        // sideways wheel over the chip row moved nothing, with 352px of list to the right.
+        var cs = getComputedStyle(n);
+        var roomY = e.deltaY !== 0 && (cs.overflowY === "auto" || cs.overflowY === "scroll") &&
+          n.scrollHeight > n.clientHeight + 1 &&
+          (e.deltaY < 0 ? n.scrollTop > 0 : n.scrollTop < n.scrollHeight - n.clientHeight - 1);
+        var roomX = e.deltaX !== 0 && (cs.overflowX === "auto" || cs.overflowX === "scroll") &&
+          n.scrollWidth > n.clientWidth + 1 &&
+          (e.deltaX < 0 ? n.scrollLeft > 0 : n.scrollLeft < n.scrollWidth - n.clientWidth - 1);
+        if (roomY || roomX) return;
       }
       // Lines and pages are real delta modes — Firefox sends lines for a mouse wheel —
       // and forwarding them as pixels would move the board by three.
@@ -2092,15 +2101,23 @@
   // rather than the right, so it is the *end* of a row that is lost and not the
   // beginning — a truncated label is still readable from its start.
   function wrapOf(root) { return root.parentElement || document.body; }
+  // Every clipping ancestor, intersected, and per axis — not the first one found. The
+  // kanban board sets `overflow-x: auto`, which makes its computed `overflow-y` `auto`
+  // as well, so a first-match walk stopped there and read a bottom edge that is wherever
+  // the tallest column ends: measured at 1000×240, a column menu ran to 245 while `.work`
+  // ended at 240, with no cap applied because the board's bottom was 473. The nearest
+  // clipper is a different box on each axis, so the answer is an intersection.
   function clipBox(node) {
+    var box = { top: 0, bottom: window.innerHeight, left: 0, right: window.innerWidth };
     for (var n = node; n && n !== document.documentElement; n = n.parentElement) {
       var cs = getComputedStyle(n);
-      if (/auto|scroll|hidden/.test(cs.overflowY) || /auto|scroll|hidden/.test(cs.overflowX)) {
-        var b = n.getBoundingClientRect();
-        return { top: b.top, bottom: b.bottom, left: b.left, right: b.right };
-      }
+      var cy = /auto|scroll|hidden/.test(cs.overflowY), cx = /auto|scroll|hidden/.test(cs.overflowX);
+      if (!cy && !cx) continue;
+      var b = n.getBoundingClientRect();
+      if (cy) { box.top = Math.max(box.top, b.top); box.bottom = Math.min(box.bottom, b.bottom); }
+      if (cx) { box.left = Math.max(box.left, b.left); box.right = Math.min(box.right, b.right); }
     }
-    return { top: 0, bottom: window.innerHeight, left: 0, right: window.innerWidth };
+    return box;
   }
   function fitPop(root) {
     var m = 8;
