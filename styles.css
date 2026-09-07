@@ -1906,7 +1906,14 @@ body.preload * { transition: none !important; }
 .chiprow {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
   padding: 10px var(--pad); border-bottom: 1px solid var(--line);
-  max-height: 30dvh; overflow-y: auto;
+  /* Two declarations, and the first is the load-bearing one: a browser without dynamic
+     viewport units throws the `dvh` line away entirely, and an uncapped chip row is the
+     collapse this cap exists to prevent — back in a browser that has no page scroll to
+     rescue it either. The shell's height is written the same way, one line above the
+     other, for the same reason. */
+  max-height: 30vh;
+  max-height: 30dvh;
+  overflow-y: auto;
 }
 .fchip {
   display: inline-flex; align-items: center; gap: 6px;
