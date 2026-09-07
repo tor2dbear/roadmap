@@ -571,6 +571,18 @@ heading from one walk.
   automations disagreeing about `target`, and the older, narrower one wins — under the
   target grouping the row shows the target on purpose, because the column buckets by month
   ("Sep 2026") while the row says "in 5 days". The column is coarser than the row.
+- **Sorting by status is the board's reading order, flattened.** `childItems()` has ordered
+  a parent's parts by the status ladder, then manual rank, then title all along — "the order
+  you'd work them" — and `sort=status` is that comparator one level up, so a list groups by
+  anything and still reads each group the way the kanban board reads left to right. Manual
+  rank rather than `updated` as the second key, because `order` is the puck's declared place
+  *within* its column, which is what the board uses there. Inert under the status grouping,
+  and offered there anyway (a menu row that vanishes under you teaches nothing) — where the
+  two automations happen to agree, since `groupSays` hides the status property in exactly
+  that case. `statusRank()` is the one writer: `DATA.statuses.indexOf` answers -1 for a
+  status the payload does not name and -1 sorts *first*, ahead of `now` — this repo's own
+  committed snapshot is five statuses to the live board's six, so a cancelled puck would
+  have led the list.
 - **`status` was the one property that was missing, not merely un-choosable.** Under every
   grouping but `status`, nothing on a card or a row said which state a puck was in: the
   glyph carries the repo colour and parent-ness, `SORTS` has no status mode, and the dimming

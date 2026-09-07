@@ -62,6 +62,59 @@ export async function run({ open }) {
     eq(s.columns.includes("Cancelled"), true, "den tomma kolumnen står kvar där den stod");
   }
 
+  group("sortering på status läser tavlan utplattad");
+  {
+    // Statusstegen sorterade redan något: `childItems()` ordnar en parents delar
+    // `status → manuell rank → titel`, "the order you'd work them". Den komparatorn hade
+    // bara aldrig nått toppnivån — det här är den, en våning upp, så en lista sorterad på
+    // status läser varje grupp precis som brädan skulle läsa den vänster till höger.
+    const ordnad = (d) => {
+      // Distinkta `order` behövs: fixturens pucker har alla 10, så andra nyckeln föll
+      // igenom till titeln och kontrollen hade inte kunnat se skillnad på rank och namn.
+      const sätt = (slug, o, st) => { const i = d.items.find((x) => x.slug === slug); i.order = o; if (st) i.status = st; };
+      // `a-parent` sist trots att den kommer först alfabetiskt — så raden bevisar att det
+      // är rangen som avgör och inte titeln.
+      sätt("a-now", 30); sätt("a-now-2", 10); sätt("a-next", 20); sätt("a-parent", 40);
+      return d;
+    };
+    const p = await open("?layout=list&group=repo&done=1&sort=status", { data: ordnad });
+    const rader = await p.evaluate(() => {
+      const data = window.__ROADMAP__.items;
+      return [...document.querySelectorAll(".list-group")[0].querySelectorAll(".list-row")].map((r) => {
+        const it = data.find((i) => i.id === r.getAttribute("data-id"));
+        return it.status + ":" + it.slug + ":" + it.order;
+      });
+    });
+    const stege = ["now", "next", "later", "inbox", "done", "cancelled"];
+    const iOrdning = rader.every((r, i) =>
+      i === 0 || stege.indexOf(rader[i - 1].split(":")[0]) <= stege.indexOf(r.split(":")[0]));
+    ok(iOrdning, `statusarna kommer i stegens ordning: ${JSON.stringify(rader)}`);
+    // Och inom en status avgör den manuella rangen — inte titeln, inte `updated`. Det är
+    // det som gör den till *brädans* ordning och inte bara en gruppering till.
+    const nu = rader.filter((r) => r.startsWith("now:"));
+    eq(nu, ["now:a-now-2:10", "now:a-now:30", "now:a-parent:40"],
+      `inom en status avgör manuell rank: ${JSON.stringify(nu)}`);
+  }
+
+  group("en status stegen inte känner hamnar sist, inte först");
+  {
+    // `DATA.statuses.indexOf` svarar -1 för en status nyttolastens egen lista inte nämner,
+    // och -1 sorterar *först* — före `now`. Inte hypotetiskt: repots incheckade snapshot
+    // har fem statusar mot den live-tavlans sex, så en avbruten puck hade lett listan.
+    const okänd = (d) => {
+      d.statuses = ["now", "next", "later", "inbox", "done"];   // stegen utan `cancelled`
+      d.items.find((i) => i.slug === "a-now").status = "cancelled";
+      return d;
+    };
+    const p = await open("?layout=list&group=repo&done=1&sort=status", { data: okänd });
+    const först = await p.evaluate(() => {
+      const data = window.__ROADMAP__.items;
+      const r = document.querySelectorAll(".list-group")[0].querySelector(".list-row");
+      return data.find((i) => i.id === r.getAttribute("data-id")).status;
+    });
+    eq(först, "now", `okänd status leder inte listan: första raden är ${först}`);
+  }
+
   group("list-layouten har inget fack");
   {
     const p = await open("?done=1&layout=list&q=-status%3Alater");

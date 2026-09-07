@@ -139,7 +139,7 @@
     // it has been through a saved view).
     fields: null,
   };
-  var SORTS = ["default", "updated-desc", "priority", "target", "updated-asc", "created-desc", "created-asc", "title"];
+  var SORTS = ["default", "updated-desc", "priority", "status", "target", "updated-asc", "created-desc", "created-asc", "title"];
   var PRIORITY_RANK = { urgent: 0, high: 1, medium: 2, low: 3 };
   // Display preferences persist (they're settings, not a transient filter); a URL
   // that names them wins over these on load — see readUrl().
@@ -213,9 +213,18 @@
   // says the board sorts them for display — this is the board keeping that promise.
   // Without it a parent you're running listed its parts alphabetically by slug,
   // with the one `next` puck sitting in the middle of the `now` ones.
+  // Where a status sits on the ladder. `indexOf` alone answers -1 for a status the
+  // payload's own list does not name, and -1 sorts *first* — ahead of `now`. Not
+  // hypothetical: this repo's committed snapshot is five statuses to the live board's six,
+  // so a cancelled puck would have led the list. Unknown goes last, where an unrecognised
+  // value belongs.
+  function statusRank(s) {
+    var i = DATA.statuses.indexOf(s);
+    return i === -1 ? Infinity : i;
+  }
   function childItems(item) {
     return (item.children || []).map(itemById).filter(Boolean).sort(function (a, b) {
-      var sa = DATA.statuses.indexOf(a.status), sb = DATA.statuses.indexOf(b.status);
+      var sa = statusRank(a.status), sb = statusRank(b.status);
       if (sa !== sb) return sa - sb;
       var oa = a.order == null ? Infinity : a.order, ob = b.order == null ? Infinity : b.order;
       if (oa !== ob) return oa - ob;
@@ -5019,6 +5028,27 @@
         return (b.updated || "").localeCompare(a.updated || "") || a.title.localeCompare(b.title);
       };
     }
+    // The board's own reading order, flattened. `childItems` has sorted a parent's parts
+    // this way all along — "the order you'd work them", status ladder then manual rank then
+    // title — and this is that comparator one level up, so a list sorted by status reads
+    // each group exactly as the kanban board would read left to right. Manual rank rather
+    // than `updated` as the second key for the same reason: `order` is the puck's declared
+    // place *within* its column, which is what the board uses there.
+    //
+    // Inert under the status grouping, where every puck in a column already shares a
+    // status — and the menu keeps offering it anyway, the way Display keeps offering
+    // groupings the layout cannot draw: a row that disappears under you teaches nothing.
+    // The two automations agree there, which is the pleasant part: `groupSays` hides the
+    // status property under that same grouping, for the same reason.
+    if (state.sort === "status") {
+      return function (a, b) {
+        var sa = statusRank(a.status), sb = statusRank(b.status);
+        if (sa !== sb) return sa - sb;
+        var oa = a.order == null ? Infinity : a.order, ob = b.order == null ? Infinity : b.order;
+        if (oa !== ob) return oa - ob;
+        return a.title.localeCompare(b.title);
+      };
+    }
     if (state.sort === "target") return byDate("target", 1); // nearest horizon first, undated last
     if (state.sort === "updated-desc") return byDate("updated", -1);
     if (state.sort === "updated-asc") return byDate("updated", 1);
@@ -5663,6 +5693,7 @@
   // because "showing more" must never read as "you have narrowed something".
   var SORT_LABEL = {
     default: "Manual", "updated-desc": "Recently updated", priority: "Priority (high→low)",
+    status: "Status (now→done)",
     target: "Target (soonest)",
     "updated-asc": "Oldest updated", "created-desc": "Newest created",
     "created-asc": "Oldest created", title: "Title A–Z",

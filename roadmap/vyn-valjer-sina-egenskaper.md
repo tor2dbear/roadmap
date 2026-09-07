@@ -357,6 +357,26 @@ grön mot sitt eget sabotage, och skälet var värt mer än sabotaget — kvar s
 automatiker som säger emot varandra om `target`, och den äldre och smalare har rätt:
 kolumnen hinkar per månad, raden säger "in 5 days". Kolumnen är grövre än raden.
 
+## Och sorteringen på status
+
+Samma form som egenskapen, en gång till: **mekanismen fanns redan en våning ned.**
+`childItems()` har hela tiden sorterat en parents delar `status → manuell rank → titel`,
+med kommentaren *"the order you'd work them"*. Den komparatorn hade bara aldrig nått
+toppnivån. Det ger också sorteringen dess rätta namn — `sort=status` är **tavlans egen
+läsordning, utplattad**: en lista grupperad på repo läser då varje repo precis som brädan
+skulle läsa det vänster till höger. Manuell rank som andra nyckel, inte `updated`, för
+`order` är puckens deklarerade plats *inom* sin kolumn, och det är vad brädan använder där.
+
+Den är inert under statusgruppering, och erbjuds ändå — en menyrad som försvinner under
+en teachar ingenting. Där råkar de två automatikerna vara överens: `groupSays` gömmer
+statusegenskapen i exakt det fallet.
+
+**En latent bugg på köpet.** `DATA.statuses.indexOf(status)` ger `-1` för en status
+nyttolastens stege inte nämner, och `-1` sorterar **först** — före `now`. Inte
+hypotetiskt: repots egen incheckade snapshot har fem statusar mot livetavlans sex, så en
+avbruten puck hade lett listan. `statusRank()` är en skrivare nu, och `childItems` bar
+samma flaw.
+
 ## Kvar
 - **Ordningen egenskaperna visas i** har redan en egen puck (`ordningen-egenskaperna-visas-i`).
   `PROPS` ordning är radens spårordning i dag; den pucken är där ett handval hör hemma.
