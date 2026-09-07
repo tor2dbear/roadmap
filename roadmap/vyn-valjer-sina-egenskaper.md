@@ -1,6 +1,6 @@
 ---
 title: Vyn väljer sina egenskaper
-status: next
+status: now
 tags: [ui, product]
 updated: 2026-09-07
 created: 2026-09-04

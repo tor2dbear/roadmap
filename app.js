@@ -124,6 +124,14 @@
     // that match nothing. Not in the board layout: there a column header is a drop
     // target and carries `+`, so a click on it already means something else.
     collapsed: new Set(),
+    // Which properties the card and the row draw. `null` means *no choice made*, which
+    // is not the same as an empty one: the automatic date rule (`autoDateField`) applies
+    // in the absence of a choice and never over one, so ticking every date off has to be
+    // expressible. A Set with nothing in it is that; `null` is the board as it shipped.
+    // In the URL as `props=` (a comma-separated list, or the literal `none` for the
+    // empty choice, since an empty string is indistinguishable from an absent key once
+    // it has been through a saved view).
+    fields: null,
   };
   var SORTS = ["default", "updated-desc", "priority", "target", "updated-asc", "created-desc", "created-asc", "title"];
   var PRIORITY_RANK = { urgent: 0, high: 1, medium: 2, low: 3 };
@@ -138,7 +146,11 @@
     if (savedGroup) state.group = savedGroup; // validated after GROUPS is defined
     state.showDone = localStorage.getItem("roadmap-done") === "1";
     if (localStorage.getItem("roadmap-empty") === "0") state.showEmpty = false;
+    savedProps = localStorage.getItem("roadmap-props");
   } catch (e) {}
+  // Read here, parsed after FIELDS is defined — the parser validates against it, and a
+  // stored key from a newer board must not become a property this one cannot draw.
+  var savedProps;
   function saveDisplay(key, value) { try { localStorage.setItem("roadmap-" + key, value); } catch (e) {} }
 
   // ── auto-status ──
@@ -789,6 +801,25 @@
   // so the view read as edited the moment it opened, and dropped its archive flag on
   // the way, because `ARCHIVABLE` has no `etapps` any more.
   function canonicalView(v) { return v === "etapps" ? "parents" : v; }
+  // `props` in both directions. The empty choice is the literal `none`, because an empty
+  // string cannot survive the round trip: `viewsEqual` compares `(a[k] || "")`, so an
+  // empty value and a missing key are the same value to it — and the difference between
+  // them is exactly what "an empty choice is a choice" means.
+  var PROPS_NONE = "none";
+  function serializeProps(set) {
+    var on = PROPS.filter(function (f) { return set.has(f.key); }).map(function (f) { return f.key; });
+    return on.length ? on.join(",") : PROPS_NONE;
+  }
+  function parseProps(v) {
+    if (v == null || v === "") return null;              // no choice — the automatic rule
+    if (v === PROPS_NONE) return new Set();             // a choice, and it is "nothing"
+    var set = new Set();
+    String(v).split(",").forEach(function (k) { if (PROP_BY_KEY[k]) set.add(k); });
+    // Every name unknown: a typo, or a key from a newer board. Treated as no choice rather
+    // than as the empty one, since silently drawing a bare list is a worse answer to a
+    // link we could not read than drawing the board's own default.
+    return set.size ? set : null;
+  }
   function effectiveParams(o) {
     if (o.view) o.view = canonicalView(o.view);
     var focus = o.view || "all";
@@ -827,6 +858,12 @@
       state.collapsed.forEach(function (k) { folded.push(k); });
       o.collapsed = folded.sort().join(",");
     }
+    // In FIELDS' order, not tick order, for the same reason the folds are sorted: the same
+    // choice has to serialize to the same string every time, or two identical views
+    // compare unequal and the URL churns. `none` is the empty choice — an empty string
+    // would be dropped by the comparer, which reads a missing key and an empty one alike,
+    // and the board would then quietly go back to choosing the date for you.
+    if (state.props) o.props = serializeProps(state.props);
     return effectiveParams(o);
   }
   // What the board carries *beyond* the view it is standing in. A built-in view is not
@@ -848,7 +885,7 @@
   // `collapsed` to the writer alone meant a saved view committed the fold and then
   // stripped it on the way back in. A list that has to be right in three files is a
   // list that will be wrong in one.
-  var VIEW_KEYS = ["view", "q", "group", "layout", "sort", "done", "empty", "collapsed"];
+  var VIEW_KEYS = ["view", "q", "group", "layout", "sort", "done", "empty", "collapsed", "props"];
   // `q` and `collapsed` carry values the URL can't take raw: a search string, and the
   // NUL that keys the "none" bucket (see NO_VALUE) — unencoded, the parser drops it
   // and a shared link loses the fold it was supposed to carry.
@@ -901,6 +938,7 @@
       state.view = DISPLAY_DEFAULTS.view;
       state.sort = DISPLAY_DEFAULTS.sort;
       state.collapsed.clear();
+      state.props = null;
     }
     // A link's display choices win over the saved preferences, but aren't saved
     // themselves — someone else's view shouldn't quietly become yours.
@@ -910,6 +948,11 @@
       state.collapsed.clear();
       got.collapsed.split(",").forEach(function (k) { if (k) state.collapsed.add(k); });
     }
+    // `!= null` rather than truthy: `props=none` is a real value and so, on the reset
+    // path, is the absence of the key — but only `reset` may turn a choice back into no
+    // choice, since the boot path is layering a URL over stored preferences and has
+    // nothing to say about keys it does not carry.
+    if (got.props != null) state.props = parseProps(got.props);
     if (GROUPS[got.group]) state.group = got.group;
     if (got.layout === "list" || got.layout === "board") state.view = got.layout;
     if (SORTS.indexOf(got.sort) !== -1) state.sort = got.sort;
@@ -948,10 +991,17 @@
   // Compact last-updated stamp for cards/list rows. Just the date — there's only
   // one on a card, and the modal + sort menu spell out which it is; a "Uppd."
   // label would only add clutter. The tooltip/aria keep it explicit.
-  function dateEl(date, cls) {
-    var d = el("span", cls || "card-date", date);
-    d.title = "Last updated";
-    d.setAttribute("aria-label", "Last updated " + date);
+  // `field` because the name used to be an assumption: "Last updated" was hardcoded into
+  // both the tooltip and the accessible name, so a view showing `created` announced the
+  // wrong field. `label` draws the name visibly, which a view showing two dates needs —
+  // two bare strings side by side say nothing about which is which.
+  function dateEl(date, cls, field, label) {
+    var name = DATE_LABEL[field || "updated"] || "Updated";
+    var d = el("span", cls || "card-date");
+    if (label) d.appendChild(el("span", "date-tag", name));
+    d.appendChild(document.createTextNode(date));
+    d.title = name + " " + date;
+    d.setAttribute("aria-label", name + " " + date);
     return d;
   }
 
@@ -1279,21 +1329,137 @@
     return g;
   }
 
-  // A card is a compact summary; tapping it opens the full detail in a modal
-  // (fullscreen on mobile) so long bodies don't blow up the column height.
-  // Which date a card shows: the one the ordering is actually about. Sorting by
-  // "Newest created" and then showing `updated` made the column look shuffled.
-  function cardDateField() {
+  // ── which properties a view shows ───────────────────────────────────────────
+  // One list, both surfaces. Every property is already its own guarded line in `card()`
+  // and `listRow()` — `if (item.priority)`, `if (item.agent)`, `if (item.progress)` — so
+  // the chooser is not a rewrite of the renderers but a question put to them. Keeping the
+  // question in one place is the point: two lists that must agree are the drift this file
+  // names elsewhere (`VIEW_KEYS` was three copies, and the one that wasn't updated
+  // silently dropped a fold).
+  //
+  // `where` says which part of the row the property belongs to, and it is also the order
+  // the row lays its tracks out in:
+  //   "name"  inline in the title cell (a mark that qualifies the title)
+  //   "cell"  its own grid track, with `track` giving the width
+  //   "date"  a date, which collapses into one shared track (see `dateCells`)
+  // The card has no tracks and reads the same list positionally.
+  //
+  // What is *not* here is what a puck cannot be read without: the title, the puck glyph
+  // (it carries the repo colour) and the ⚠ badge, which is the drift signal — being able
+  // to hide it is being able to hide that something is wrong.
+  var PROPS = [
+    { key: "rollup", label: "Rollup", where: "name",
+      has: function (i) { return !!i.progress; }, make: function (i) { return progressBadge(i); } },
+    { key: "parent", label: "Parent", where: "name",
+      // The *effective* grouping, not the stored preference — see card().
+      has: function (i) { return !!i.parentRef && effectiveGroup() !== "parent"; },
+      make: function (i) { return parentChip(i); } },
+    { key: "blocked", label: "Blocked by", where: "name",
+      has: function (i) { return (i.blockedBy || []).length > 0; }, make: function (i) { return blockBadge(i); } },
+    { key: "priority", label: "Priority", where: "cell", cls: "list-pri", track: "44px",
+      has: function (i) { return !!i.priority; }, make: function (i) { return priorityBadge(i.priority); } },
+    { key: "agent", label: "Agent", where: "cell", cls: "list-agent", track: "108px",
+      has: function (i) { return !!i.agent; }, make: function (i) { return agentBadge(i.agent); } },
+    { key: "owner", label: "Owner", where: "cell", cls: "list-owner", track: "28px",
+      has: function (i) { return !!i.owner; }, make: function (i) { return ownerEl(i.owner); } },
+    { key: "repo", label: "Repo", where: "cell", cls: "list-repo", track: "148px",
+      has: function () { return true; },
+      make: function (i) {
+        var f = document.createDocumentFragment();
+        var dot = el("span", "repo-dot");
+        dot.style.background = i.repoColor;
+        f.appendChild(dot);
+        f.appendChild(el("span", "repo-name", i.repoName));
+        return f;
+      } },
+    { key: "created", label: "Created", where: "date" },
+    { key: "updated", label: "Updated", where: "date" },
+    { key: "target", label: "Target", where: "date" },
+    { key: "tags", label: "Labels", where: "tags",
+      has: function (i) { return i.tags.length > 0 || !i.native; },
+      make: function (i) {
+        var f = document.createDocumentFragment();
+        i.tags.forEach(function (t) { f.appendChild(el("span", "tagpill", "#" + t)); });
+        if (!i.native) f.appendChild(el("span", "adapted-badge", "adapted"));
+        return f;
+      } },
+  ];
+  var PROP_BY_KEY = {};
+  PROPS.forEach(function (f) { PROP_BY_KEY[f.key] = f; });
+  state.props = parseProps(savedProps);
+  var DATE_PROPS = PROPS.filter(function (f) { return f.where === "date"; }).map(function (f) { return f.key; });
+  // The default set is the board as it shipped: everything on, with the dates left to the
+  // automatic rule below. Written as "no choice" rather than as a list, so a view that has
+  // never chosen keeps following the rule instead of freezing today's answer into a link.
+  function propOn(key) {
+    if (!state.props) return true;
+    return state.props.has(key);
+  }
+  // Which date the board picks *for* you: the one the ordering is actually about. Sorting
+  // by "Newest created" and then showing `updated` made the column look shuffled. It is a
+  // default, not an override — the moment a view names its dates, they win. Otherwise
+  // ticking `Updated` under a created-sort would show the update date while the order
+  // followed creation, which is the exact reading this rule exists to prevent.
+  function autoDateField() {
     if (state.sort === "target" || state.group === "target") return "target";
     return (state.sort === "created-desc" || state.sort === "created-asc") ? "created" : "updated";
   }
-  // The date cell for a card/row: the field the view is about, rendered in that
-  // field's own language. A puck with no target falls back to `updated` rather than
-  // leaving a hole where the others have a date.
-  function dateCell(item, cls) {
-    var f = cardDateField();
-    if (f === "target") return item.target ? targetEl(item.target, cls) : (item.updated ? dateEl(item.updated, cls) : null);
-    return item[f] ? dateEl(item[f], cls) : null;
+  // The dates a card or row shows, as field keys. No choice → the automatic one. A choice
+  // → exactly what it names, *including nothing*: an empty set is a choice, and a board
+  // that quietly put a date back would be claiming a tick that never took effect.
+  function dateFields() {
+    if (!state.props) return [autoDateField()];
+    return DATE_PROPS.filter(function (k) { return state.props.has(k); });
+  }
+  // One date element, in that field's own language. `label` is forced on whenever a view
+  // shows more than one: two bare date strings side by side say nothing about which is
+  // which, and `dateEl` used to hardcode *"Last updated"* into both its tooltip and its
+  // accessible name — so the second date was not merely unlabelled but read out wrong.
+  var DATE_LABEL = { created: "Created", updated: "Updated", target: "Target" };
+  function oneDate(item, field, cls, label) {
+    if (field === "target") {
+      if (item.target) return targetEl(item.target, cls); // already says "◷" and names itself
+      // Only the automatic rule falls back: it picked `target` on the view's behalf, so a
+      // puck without one would otherwise be a hole where every other row has a date. A
+      // view that *asked* for Target gets the truth, which is that this puck has none.
+      return state.props ? null : (item.updated ? dateEl(item.updated, cls, "updated", label) : null);
+    }
+    return item[field] ? dateEl(item[field], cls, field, label) : null;
+  }
+  // The row's tracks, from the same list the cells come from — one walk, two outputs, so
+  // a property cannot be drawn without a column or reserve a column it never fills. The
+  // CSS keeps the two it is never asked about (the glyph and the name); everything after
+  // them is this string.
+  //
+  // `--list-fixed` is the sum the row's `min-width` is built on, and it has to be summed
+  // here for the same reason: it is the floor the title's 220px sits on top of, and a
+  // floor computed from a track list that is no longer the track list is a row whose
+  // declared minimum is not its actual one.
+  var LIST_DATE_TRACK = "92px", LIST_TAGS_TRACK = "minmax(80px, 160px)";
+  function listTracks() {
+    var tracks = [], px = 0;
+    PROPS.forEach(function (f) {
+      if (f.where !== "cell" || !propOn(f.key)) return;
+      tracks.push(f.track);
+      px += parseInt(f.track, 10) || 0;
+    });
+    if (dateFields().length) { tracks.push(LIST_DATE_TRACK); px += parseInt(LIST_DATE_TRACK, 10); }
+    if (propOn("tags")) { tracks.push(LIST_TAGS_TRACK); px += 80; }
+    return { tracks: tracks.join(" "), fixed: px, gaps: tracks.length + 1 };
+  }
+  function applyListTracks(node) {
+    var t = listTracks();
+    node.style.setProperty("--list-tracks", t.tracks);
+    node.style.setProperty("--list-track-px", t.fixed + "px");
+    node.style.setProperty("--list-gaps", String(t.gaps));
+  }
+  function dateCells(item, cls) {
+    var fs = dateFields(), out = [], many = fs.length > 1;
+    fs.forEach(function (f) {
+      var e = oneDate(item, f, cls, many);
+      if (e) out.push(e);
+    });
+    return out;
   }
 
   function card(item) {
@@ -1309,35 +1475,29 @@
     c.appendChild(head);
 
     // Row 2: repo name on the left (the glyph carries the colour), ⚠ and date right.
+    // The order is the card's own, not FIELDS' — that list orders the *row's* tracks, and
+    // a card has none. What it does share is the answer to "is this property on", which is
+    // the whole point of keeping one list: `card-repo` is the repo property here and the
+    // `list-repo` cell is the same property there.
     var meta = el("div", "card-meta");
-    var repo = el("span", "card-repo");
-    repo.appendChild(document.createTextNode(item.repoName));
-    meta.appendChild(repo);
+    if (propOn("repo")) {
+      var repo = el("span", "card-repo");
+      repo.appendChild(document.createTextNode(item.repoName));
+      meta.appendChild(repo);
+    }
+    // Not in FIELDS and deliberately: the drift signal is not a property you may hide.
     if (sig.length) meta.appendChild(warnBadge(sig));
-    if (item.priority) meta.appendChild(priorityBadge(item.priority));
-    if (item.agent) meta.appendChild(agentBadge(item.agent));
-    if (item.progress) meta.appendChild(progressBadge(item));
-    // Membership is worth showing everywhere except under the parent grouping, where the
-    // heading above the card already says it.
-    //
-    // The *effective* grouping, not the stored preference. They came apart the moment
-    // the board stopped drawing parent columns: `state.group` deliberately keeps your
-    // choice while `effectiveGroup()` falls back, so a member card on the board hid its
-    // only parent label with no heading anywhere saying the same thing — and since the
-    // fallback is normalised out of the URL, the same link drew different metadata
-    // depending on which grouping the reader happened to have stored.
-    if (item.parentRef && effectiveGroup() !== "parent") meta.appendChild(parentChip(item));
-    if ((item.blockedBy || []).length) meta.appendChild(blockBadge(item));
-    if (item.owner) meta.appendChild(ownerEl(item.owner));
-    var dc = dateCell(item);
-    if (dc) meta.appendChild(dc);
+    ["priority", "agent", "rollup", "parent", "blocked", "owner"].forEach(function (k) {
+      var f = PROP_BY_KEY[k];
+      if (propOn(k) && f.has(item)) meta.appendChild(f.make(item));
+    });
+    dateCells(item).forEach(function (d) { meta.appendChild(d); });
     c.appendChild(meta);
 
     // Row 3: tags (static badges).
-    if (item.tags.length || !item.native) {
+    if (propOn("tags") && PROP_BY_KEY.tags.has(item)) {
       var tags = el("div", "card-tags");
-      item.tags.forEach(function (t) { tags.appendChild(el("span", "tagpill", "#" + t)); });
-      if (!item.native) tags.appendChild(el("span", "adapted-badge", "adapted"));
+      tags.appendChild(PROP_BY_KEY.tags.make(item));
       c.appendChild(tags);
     }
 
@@ -3637,33 +3797,42 @@
       name.appendChild(caret);
     }
     name.appendChild(el("span", "list-title", item.title));
-    if (sig.length) name.appendChild(warnBadge(sig));
-    if (item.progress) name.appendChild(progressBadge(item));
-    if (item.parentRef && effectiveGroup() !== "parent") name.appendChild(parentChip(item)); // effective: see card()
-    if ((item.blockedBy || []).length) name.appendChild(blockBadge(item));
+    if (sig.length) name.appendChild(warnBadge(sig)); // never a choice — see PROPS
+    PROPS.forEach(function (f) {
+      if (f.where === "name" && propOn(f.key) && f.has(item)) name.appendChild(f.make(item));
+    });
     r.appendChild(name);
 
-    // Priority · Agent · Repo · Updated — each its own aligned cell (empty cells
-    // still hold their track so rows stay in register).
-    var pri = el("div", "list-cell list-pri");
-    if (item.priority) pri.appendChild(priorityBadge(item.priority));
-    r.appendChild(pri);
+    // One cell per property that is on, in PROPS' order — and the tracks come from the
+    // same list (`listTracks`), so a property that is off takes its column with it. An
+    // empty cell still holds its track, which is what keeps the rows in register; an
+    // absent one must not, or the row would reserve width for a column nobody asked for.
+    PROPS.forEach(function (f) {
+      if (f.where !== "cell" || !propOn(f.key)) return;
+      var cell = el("div", "list-cell " + f.cls);
+      if (f.has(item)) cell.appendChild(f.make(item));
+      r.appendChild(cell);
+    });
 
-    var ag = el("div", "list-cell list-agent");
-    if (item.agent) ag.appendChild(agentBadge(item.agent));
-    r.appendChild(ag);
-
-    var rp = el("div", "list-cell list-repo");
-    var dot = el("span", "repo-dot");
-    dot.style.background = item.repoColor;
-    rp.appendChild(dot);
-    rp.appendChild(el("span", "repo-name", item.repoName));
-    r.appendChild(rp);
-
-    var dt = el("div", "list-cell list-dt");
-    var ldc = dateCell(item, "list-date");
-    if (ldc) dt.appendChild(ldc);
-    r.appendChild(dt);
+    // The dates share one track however many are shown: they are one answer to one
+    // question ("when"), and giving each its own would put a column of empty space in
+    // every row that happens to have no target.
+    //
+    // Whether the cell exists is a question about the *view*, never about this puck — the
+    // same rule as the cells above, and easy to get wrong here because the emptiness is
+    // per-item: skipping the cell for a puck with no date would shift every cell after it
+    // one track to the left, so one puck without a target would break the register of the
+    // whole list.
+    if (dateFields().length) {
+      var dt = el("div", "list-cell list-dt");
+      dateCells(item, "list-date").forEach(function (d) { dt.appendChild(d); });
+      r.appendChild(dt);
+    }
+    if (propOn("tags")) {
+      var tg = el("div", "list-cell list-tags");
+      if (PROP_BY_KEY.tags.has(item)) tg.appendChild(PROP_BY_KEY.tags.make(item));
+      r.appendChild(tg);
+    }
 
     r.addEventListener("click", function () { openModal(item); });
     return r;
@@ -4828,6 +4997,10 @@
     var layout = state.view;
     trayColumns = null; // set again by the tray, if this render draws one
     board.classList.toggle("as-list", layout === "list");
+    // On the board rather than on each row: one write for the whole list, and the rows
+    // inherit it. Written on every render because the set can change without the rows
+    // changing at all — ticking a property off is a redraw of the same pucks.
+    applyListTracks(board);
     activeQuery = activeTerms();
     var visible = DATA.items.filter(matches).sort(sortComparator());
     var groups = groupsOf(visible);
@@ -5429,6 +5602,9 @@
   var displayDot = document.getElementById("displayDot");
   function displayDirty() {
     for (var k in DISPLAY_DEFAULTS) if (state[k] !== DISPLAY_DEFAULTS[k]) return true;
+    // Not in DISPLAY_DEFAULTS because its default is `null` and the loop above compares by
+    // identity — every Set would read as changed, including one holding every property.
+    if (state.props) return true;
     // A folded group is a display change like any other, so the dot has to see it —
     // otherwise "Reset to default" would change something the dot said was default.
     return state.view === "list" && state.collapsed.size > 0;
@@ -5450,7 +5626,13 @@
       state.view = "list";
       saveDisplay("view", "list");
     }
-    saveDisplay(storeAs || key, typeof value === "boolean" ? (value ? "1" : "0") : value);
+    // `props` is a Set or null, not a string — stored through its own serializer so the
+    // preference survives a reload the way `sort` and `group` do. The empty choice stores
+    // as `none` and "no choice" as the empty string, which is exactly the distinction
+    // `parseProps` reads back: without it a board that had every property switched off
+    // would come back showing them all.
+    if (key === "props") saveDisplay("props", value ? serializeProps(value) : "");
+    else saveDisplay(storeAs || key, typeof value === "boolean" ? (value ? "1" : "0") : value);
     refreshDisplayDot();
     // The sidebar's numbers read `state.showDone` now, so a display change can move
     // them — and which rows exist at all, since a view whose count is zero is not
@@ -5488,9 +5670,25 @@
       options: function () {
         return SORTS.map(function (s) { return { value: s, label: SORT_LABEL[s] || s }; });
       } },
+    // The third row is a different shape: not one value out of a list but a subset, so
+    // level 2 draws checkboxes instead of a radio list. It reuses the same two levels
+    // because the alternative — a picker of its own — is the mistake this menu was
+    // rewritten to fix: on a phone a second surface takes this sheet's place and leaves
+    // no way back.
+    { key: "props", label: "Properties", multi: true,
+      current: function () {
+        if (!state.props) return "Default";
+        if (!state.props.size) return "None";
+        if (state.props.size === PROPS.length) return "All";
+        return String(state.props.size) + " of " + PROPS.length;
+      },
+      options: function () {
+        return PROPS.map(function (f) { return { value: f.key, label: f.label }; });
+      } },
   ];
   function displayLabel(f) {
     var cur = f.current(), hit = null;
+    if (f.multi) return cur; // a subset names itself; there is no single option to look up
     f.options().forEach(function (o) { if (o.value === cur) hit = o; });
     return hit ? hit.label : cur;
   }
@@ -5576,8 +5774,9 @@
     reset.addEventListener("click", function () {
       for (var k in DISPLAY_DEFAULTS) state[k] = DISPLAY_DEFAULTS[k];
       state.collapsed.clear();
+      state.props = null;
       saveDisplay("view", state.view); saveDisplay("sort", state.sort); saveDisplay("group", state.group);
-      saveDisplay("done", "0"); saveDisplay("empty", "1");
+      saveDisplay("done", "0"); saveDisplay("empty", "1"); saveDisplay("props", "");
       refreshDisplayDot();
       // Navigation, inte bara brädet: `viewCounts()` och `placeCounts()` läser
       // `showDone`, så en reset som släcker arkivet lämnade sidomenyns siffror — och
@@ -5600,6 +5799,8 @@
     back.addEventListener("click", function () { renderDisplayRoot(pop); });
     pop.appendChild(back);
 
+    if (f.multi) { renderFieldChecks(pop, f); return; }
+
     var cur = f.current();
     f.options().forEach(function (o) {
       var row = el("button", "row" + (o.value === cur ? " on" : ""));
@@ -5613,6 +5814,48 @@
       });
       pop.appendChild(row);
     });
+  }
+  // Level 2, the subset shape: a checkbox per property, and a way back to no choice at
+  // all. That last row is not decoration — "no choice" is a state the ticks cannot reach,
+  // since unticking everything is the *empty* choice and means a row with no metadata on
+  // it. Without it there would be no way back to letting the board pick the date.
+  function renderFieldChecks(pop, f) {
+    var chosen = state.props;
+    if (!chosen) {
+      // First tick starts from what is on screen, which is everything — so ticking one
+      // property off does that and nothing else. Starting from empty would read as the
+      // board throwing the row away because you touched one checkbox.
+      var note = el("div", "dp-note", "Showing every property. Untick to choose a set.");
+      pop.appendChild(note);
+    }
+    f.options().forEach(function (o) {
+      var row = el("label", "fp-toggle");
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = propOn(o.value);
+      cb.setAttribute("data-field", o.value);
+      cb.addEventListener("change", function () {
+        var next = new Set();
+        PROPS.forEach(function (g) { if (propOn(g.key)) next.add(g.key); });
+        if (cb.checked) next.add(o.value); else next.delete(o.value);
+        setDisplay("props", next);
+        renderDisplayValues(pop, f); // stay on the list: choosing a set is many clicks, not one
+      });
+      row.appendChild(cb);
+      row.appendChild(el("span", null, o.label));
+      pop.appendChild(row);
+    });
+    if (state.props) {
+      pop.appendChild(el("div", "dp-rule"));
+      var auto = el("button", "fp-back dp-auto");
+      auto.type = "button";
+      auto.appendChild(el("span", null, "Back to default"));
+      auto.addEventListener("click", function () {
+        setDisplay("props", null);
+        renderDisplayValues(pop, f);
+      });
+      pop.appendChild(auto);
+    }
   }
   if (displayBtn) displayBtn.addEventListener("click", function (e) { e.stopPropagation(); toggleDisplayMenu(); });
   refreshDisplayDot();
