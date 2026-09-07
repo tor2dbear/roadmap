@@ -2098,6 +2098,7 @@
     // — and a rect that already carries the previous correction makes them accumulate.
     root.style.transform = "";
     root.style.maxHeight = "";
+    root.classList.remove("pop-flip");
     var r = root.getBoundingClientRect();
     var dx = 0;
     if (r.right > window.innerWidth - m) dx = window.innerWidth - m - r.right;
@@ -2107,10 +2108,29 @@
     // `.app` clips, and there is no page scroll left, so a popover running past the
     // bottom does not merely look wrong — its lower rows cannot be reached at all.
     // Measured at 1000×420 with the Labels list open: 328px tall, 14 of them below the
-    // window. No floor under the cap: a short window gives a short menu, and a menu you
-    // can scroll is worth more than one that looks comfortable and hides its last row.
-    var room = window.innerHeight - r.top - m;
-    if (r.height > room) {
+    // window.
+    //
+    // Which side it hangs from is *not* authored, unlike `menu-right`: a rail control
+    // near the bottom of a puck page leaves no room below at any width, so capping to
+    // what is there gives a 15px menu (measured, status picker at y=247 in a 300px
+    // window) or, one row lower, a negative cap — invalid CSS, dropped, and the menu
+    // runs off the bottom again. So the side is measured too, and the gap comes from
+    // the stylesheet rather than being restated here.
+    var wrap = root.parentElement;
+    var a = wrap ? wrap.getBoundingClientRect() : r;
+    var gap = r.top - a.bottom;
+    var below = window.innerHeight - r.top - m;
+    var above = a.top - gap - m;
+    var flip = r.height > below && above > below;
+    root.classList.toggle("pop-flip", flip);
+    var room = flip ? above : below;
+    // `room > 0` guards the one case the flip cannot help with: a window shorter than the
+    // trigger itself, where both sides are negative. A cap of zero would hide the menu
+    // outright and a negative one is invalid CSS that the browser drops — so there it is
+    // left uncapped, which is no worse than before. No test reaches it; a floor with a
+    // number in it was written first and removed, since it changed real placements to
+    // guard an unreachable one.
+    if (room > 0 && r.height > room) {
       root.style.maxHeight = Math.round(room) + "px";
       root.style.overflowY = "auto";
     } else {

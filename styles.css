@@ -2241,6 +2241,12 @@ body.preload * { transition: none !important; }
 /* `.pop.` and not `.menu-right` alone: on a phone the same surface is a `.sheet`,
    which owns left/right itself — a bare class here would edge it off-screen. */
 .pop.menu-right { left: auto; right: -1px; }
+/* Which *side* a menu hangs from is authored (`menu-right`); which *end* is measured.
+   A rail control near the bottom of a puck page has no room below it at any width, so
+   `fitPop` flips the surface above its trigger rather than capping it to nothing. The
+   5px is the same gap the unflipped rule uses, and `fitPop` reads it rather than
+   restating it. */
+.pop.pop-flip { top: auto; bottom: calc(100% + 5px); }
 .menu-rule { height: 1px; background: var(--line); margin: 4px 6px; }
 /* A menu row's icon is the quiet half of the pair — except on a danger row, where
    the whole row is one colour and a grey glyph would read as disabled. */

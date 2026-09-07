@@ -363,7 +363,12 @@ sideways is a scroll container in *both* axes, so before the change a group head
   content change: the filter panel swaps its list for a field's values in place, so a fit
   measured only at open is a fit for the smallest thing the surface will ever be — and
   each pass resets `transform` and `max-height` before measuring, or the corrections
-  accumulate.
+  accumulate. **Which side is authored (`menu-right`); which end is measured.** A rail
+  control near the bottom of a puck page has no room below it at any width, so capping
+  downwards gives a 15px menu (measured: the status picker at y=247 in a 300px window) or,
+  a row lower, a negative cap — invalid CSS, dropped, and the menu hangs off the bottom
+  again. `fitPop` flips it above the trigger (`.pop-flip`) when that side is roomier, and
+  reads the 5px gap off the stylesheet rather than restating it.
 - **The port is a tab stop, because the page stopped being one.** With the document no
   longer scrolling, Page Down and Space from the topbar or the chip row had nothing to
   move, and `.work` was a plain `div`: Chrome puts scrollers in the tab order by itself,

@@ -990,6 +990,41 @@ export async function run({ open }) {
     ok(m.scrollar, `panelen är högre än sitt tak, alltså mäter vi något: ${JSON.stringify(m)}`);
     ok(m.bottom <= m.vh, `och håller sig innanför fönstret: ${JSON.stringify(m)}`);
     eq(m.sistaNåbar, true, "sista raden går att scrolla fram inuti den");
+
+    // Codex, #49, en gång till: vilken *ände* menyn hänger från är inte författad. En
+    // railkontroll långt ner på en puck-sida har inget rum under sig på någon bredd, så
+    // ett tak räknat nedåt ger en 15px hög meny (mätt: statusväljaren på y=247 i ett
+    // 300px fönster) — eller, en rad lägre, ett negativt tak: ogiltig CSS, ignorerad,
+    // och menyn hänger utanför igen. Sidan mäts därför också.
+    const gh = githubStub();
+    const q = await open("?done=1", { viewport: { width: 1000, height: 300 }, token: true, github: gh.handler });
+    await q.waitForSelector(".card, .list-row");
+    await q.evaluate(() => document.querySelector(".card, .list-row").click());
+    await q.waitForTimeout(700);
+    const väljare = () => q.evaluate(() =>
+      [...document.querySelectorAll(".prop button")].find((e) => /pick-chip/.test(e.className) && !/static/.test(e.className)));
+    ok(await väljare() !== null, "det finns en redigerbar railkontroll att öppna");
+    const trigger = await q.evaluate(() => {
+      const b = [...document.querySelectorAll(".prop button")].find((e) => /pick-chip/.test(e.className) && !/static/.test(e.className));
+      return b ? Math.round(b.getBoundingClientRect().top) : null;
+    });
+    ok(trigger !== null && trigger > 200, `och den sitter långt ner: y=${trigger} av 300`);
+    await q.evaluate(() => {
+      const b = [...document.querySelectorAll(".prop button")].find((e) => /pick-chip/.test(e.className) && !/static/.test(e.className));
+      b.click();
+    });
+    await q.waitForTimeout(400);
+    const f = await q.evaluate(() => {
+      const pop = document.querySelector(".pop");
+      if (!pop) return null;
+      const r = pop.getBoundingClientRect();
+      return { vänd: pop.classList.contains("pop-flip"), top: Math.round(r.top), bottom: Math.round(r.bottom),
+               höjd: Math.round(r.height), vh: window.innerHeight };
+    });
+    ok(f, "väljaren öppnas");
+    eq(f.vänd, true, `menyn vänder sig ovanför avtryckaren: ${JSON.stringify(f)}`);
+    ok(f.top >= 0 && f.bottom <= f.vh, `och ligger helt i fönstret: ${JSON.stringify(f)}`);
+    ok(f.höjd > 96, `med en användbar höjd — nedåt hade den blivit 15px: ${f.höjd}`);
   }
 
   group("chromet ovanför rutan är ingen död zon för hjulet");
