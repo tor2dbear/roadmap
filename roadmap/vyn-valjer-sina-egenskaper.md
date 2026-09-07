@@ -2,7 +2,7 @@
 title: Vyn väljer sina egenskaper
 status: next
 tags: [ui, product]
-updated: 2026-09-06
+updated: 2026-09-07
 created: 2026-09-04
 priority: high
 target: 2026-09-30
@@ -250,6 +250,25 @@ till ungefär 36 grader, så en svag drift skulle passera även utan regeln. Vid
 släpper det och tar hela sidledsvidden med sig — 352 av 352 — och det är talet sabotaget
 lämnar efter sig. iOS låser inte alls. Refuseringen av den vertikala panoreringen går av
 samma skäl bara att se som `defaultPrevented`, aldrig som en offset.
+
+## Kvitto från telefonen: kastet och indikatorerna
+
+Låset fungerar, och det som återstod var fyra symptom med två orsaker.
+
+**Sidleds kändes stum**, och det var priset som inte var betalt: `touch-action: pan-y` ger
+bort webbläsarens sidledsscroll, alltså också dess momentum. 1:1 med fingret och tvärstopp
+när det lyfts är inte hur någon annan scroll på telefonen beter sig. Så ett eget kast:
+utjämnad hastighet (en enda hackig bildruta i slutet av en svep får inte avgöra hela
+glidet) som dämpas per *millisekund*, så en långsam bildruta inte köper extra väg. Mätt:
+snabb flick 200 → 352, långsam dragning 200 → 200. En dragning som stannat innan fingret
+lyfts kastas inte alls — utan den vakten går den långsamma till 271.
+
+**De tre andra var samma sak: en tvåaxlig ruta ritar två indikatorer dåligt.** Den lodräta
+målas *under* de klibbiga gruppubrikerna, den följer med i sidled i stället för att stå vid
+rutans kant, och en flick nedåt blinkar fram den vågräta också — en indikator för en axel
+webbläsaren inte ens scrollar. Dolda under `(pointer: coarse)` och bara i listan: på en
+dator är stapeln hur man lär sig att listan går i sidled alls, och där är den inte
+flyktig.
 
 ## Open questions
 - **Ett val eller ett per layout?** Listan har spår, kortet har märken; samma

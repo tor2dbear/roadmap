@@ -725,6 +725,58 @@ export async function run({ open }) {
     ok(await p.evaluate(() => window.__nekade) > 0, "och den vertikala panoreringen nekas webbläsaren under tiden");
   }
 
+  group("sidledsdragningen har ett kast");
+  {
+    // `touch-action: pan-y` ger bort webbläsarens sidledsscroll, och därmed dess momentum.
+    // Utan ett eget kast läste axeln som stum: 1:1 med fingret och tvärstopp när det lyfts,
+    // vilket ingen annan scroll på telefonen gör. Hastigheten mäts utjämnad — en enda
+    // hackig bildruta i slutet av en svep skulle annars avgöra hela kastet — och en
+    // dragning som *stannat* innan fingret lyfts kastas inte alls.
+    const p = await open("?layout=list&done=1", { viewport: { width: 390, height: 600 }, hasTouch: true });
+    await p.waitForSelector(".list-row");
+    const cdp = await p.context().newCDPSession(p);
+    const dra = async (ms) => {
+      await p.evaluate(() => { const w = document.getElementById("work"); w.scrollLeft = 0; w.scrollTop = 0; });
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: 300, y: 400 }] });
+      for (let i = 1; i <= 10; i++) {
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: 300 - 20 * i, y: 400 - 3 * i }] });
+        await new Promise((r) => setTimeout(r, ms / 10));
+      }
+      const släpp = await p.evaluate(() => Math.round(document.getElementById("work").scrollLeft));
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+      await p.waitForTimeout(700);
+      const efter = await p.evaluate(() => Math.round(document.getElementById("work").scrollLeft));
+      return { släpp, efter };
+    };
+    const flick = await dra(100);
+    ok(flick.efter > flick.släpp, `en snabb flick fortsätter efter att fingret lyfts: ${flick.släpp} → ${flick.efter}`);
+    const långsam = await dra(900);
+    eq(långsam.efter, långsam.släpp, `men en långsam dragning står stilla: ${JSON.stringify(långsam)}`);
+  }
+
+  group("telefonen ritar inga scrollindikatorer i listan");
+  {
+    // Rapporterat från en riktig telefon, tre symptom av en orsak: den lodräta stapeln
+    // målas *under* de klibbiga gruppubrikerna, den följer med i sidled i stället för att
+    // stå vid rutans kant, och en vanlig flick nedåt blinkar fram den vågräta också — en
+    // indikator för en axel webbläsaren inte ens scrollar, eftersom `armAxisLock` driver
+    // den. Bara touch: på en dator är stapeln hur man lär sig att listan går i sidled alls.
+    const läs = async (url, opts) => {
+      const p = await open(url, opts);
+      await p.waitForSelector(".list-row, .column");
+      return p.evaluate(() => ({
+        work: getComputedStyle(document.getElementById("work")).scrollbarWidth,
+        board: getComputedStyle(document.getElementById("board")).scrollbarWidth,
+      }));
+    };
+    const telefon = await läs("?layout=list&done=1", { viewport: { width: 390, height: 600 }, hasTouch: true });
+    eq(telefon.work, "none", `listan på telefon ritar ingen: ${JSON.stringify(telefon)}`);
+    const tavla = await läs("?layout=board&done=1", { viewport: { width: 390, height: 600 }, hasTouch: true });
+    eq(tavla.work, "auto", `men tavlan rörs inte — den scrollar i sin egen låda: ${JSON.stringify(tavla)}`);
+    const desktop = await läs("?layout=list&done=1", { viewport: { width: 1200, height: 700 } });
+    eq(desktop.work, "auto", `och en dator behåller sin: ${JSON.stringify(desktop)}`);
+  }
+
   group("tavlans egen sidled tas inte av låset");
   {
     // `pan-y` på en förfader förbjuder sidled för allt under den, och kanban-tavlan är sin

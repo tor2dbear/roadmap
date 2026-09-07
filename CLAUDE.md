@@ -393,6 +393,17 @@ sideways is a scroll container in *both* axes, so before the change a group head
   up to ~36°, so only a steeper diagonal (measured: 352px of drift at 42°) can tell the
   rule from its absence, and `preventDefault` is observable only as `defaultPrevented`,
   never as an offset, for the same reason.
+- **The driven axis needs its own fling, and the phone needs no indicators.** Giving the
+  sideways pan to JS also gave away its momentum, and 1:1-then-dead-stop reads as a broken
+  scroller next to every other one on the device — so `armAxisLock` keeps a smoothed
+  velocity (one stuttered frame at the end of a swipe must not decide the glide) and
+  decays it per *millisecond*, so a slow frame buys no extra travel; a finger that paused
+  before lifting flings nothing. And a two-axis port draws two native indicators badly:
+  reported from a real device, the vertical bar paints *under* the sticky headings, travels
+  with the sideways scroll rather than standing at the port's edge, and a flick down
+  flashes the horizontal one — an indicator for an axis the browser is not scrolling at
+  all. Hidden under `(pointer: coarse)` only: on a desktop that bar is how you learn the
+  list scrolls sideways, and it is not transient there.
 - **A pinned box pins where it already sits, not at the port's edge.** `left: 0` is the
   obvious offset and the wrong one: the box slides to the edge *first* and freezes there,
   so the first stretch of every sideways drag moves everything on screen — measured, 26px

@@ -1497,15 +1497,45 @@
   function armAxisLock(port) {
     if (axisArmed) return;
     axisArmed = true;
-    var sx = 0, sy = 0, lastX = 0, axis = null, live = false;
+    var sx = 0, sy = 0, lastX = 0, lastT = 0, vx = 0, axis = null, live = false, fling = 0;
+    // The finger's velocity, smoothed, in pixels per millisecond. A single frame's delta
+    // is too noisy to fling on — one stuttered frame at the end of a swipe would decide
+    // the whole glide — so each sample is folded into the last.
+    function sample(x, t) {
+      var dt = t - lastT;
+      if (dt > 0) vx = vx * 0.7 + ((x - lastX) / dt) * 0.3;
+      lastX = x; lastT = t;
+    }
+    // The half of native scrolling that `touch-action: pan-y` gives away, given back by
+    // hand: a sideways swipe that ends with the finger moving keeps moving. Without it the
+    // axis reads dead — 1:1 with the finger and stopping the instant it lifts, which is
+    // not how any other scroll on the phone behaves.
+    function glide() {
+      var prev = performance.now();
+      fling = requestAnimationFrame(function step(now) {
+        var dt = Math.min(now - prev, 32) || 16;
+        prev = now;
+        var was = port.scrollLeft;
+        port.scrollLeft -= vx * dt;
+        // Per millisecond, not per frame: a slow frame must not buy the glide extra life.
+        vx *= Math.pow(0.9975, dt);
+        // The second test is the edge. `scrollLeft` clamps itself, so a glide that has run
+        // into one stops moving, and that is the only signal that says so.
+        if (Math.abs(vx) < 0.02 || port.scrollLeft === was) { fling = 0; return; }
+        fling = requestAnimationFrame(step);
+      });
+    }
     port.addEventListener("touchstart", function (e) {
+      // A finger down ends the previous glide — catching a moving list is how you stop it.
+      if (fling) { cancelAnimationFrame(fling); fling = 0; }
       // Two fingers is a pinch, not a pan — and `pinch-zoom` is in the touch-action for
       // exactly that reason, so nothing here may take it over.
       live = e.touches.length === 1;
-      axis = null;
+      axis = null; vx = 0;
       if (!live) return;
       sx = lastX = e.touches[0].clientX;
       sy = e.touches[0].clientY;
+      lastT = e.timeStamp;
     }, { passive: true });
     port.addEventListener("touchmove", function (e) {
       if (!live || e.touches.length !== 1) return;
@@ -1521,10 +1551,17 @@
       // Not cancelable once the browser has committed to a scroll; the 8px threshold is
       // what usually gets us in before that, and asking first keeps the console clean.
       if (e.cancelable) e.preventDefault();
-      port.scrollLeft -= t.clientX - lastX;
-      lastX = t.clientX;
+      var from = lastX;
+      sample(t.clientX, e.timeStamp);
+      port.scrollLeft -= t.clientX - from;
     }, { passive: false });
-    function up() { live = false; axis = null; }
+    function up(e) {
+      // A finger that stopped before it lifted meant to stop: the last sample is stale, so
+      // an old velocity would send the list off after a deliberate halt.
+      if (axis === "x" && e && e.timeStamp - lastT > 100) vx = 0;
+      if (axis === "x" && Math.abs(vx) > 0.05) glide();
+      live = false; axis = null;
+    }
     port.addEventListener("touchend", up, { passive: true });
     port.addEventListener("touchcancel", up, { passive: true });
   }

@@ -1361,6 +1361,17 @@ body.scroll-locked { overflow: hidden; }
    could not be zoomed. Scoped to the list by the class the renderer already sets — the
    kanban board is its own sideways scroller, and `pan-y` on an ancestor forbids it. */
 .work:has(> .board.as-list) { touch-action: pan-y pinch-zoom; }
+/* No native scroll indicators on a phone, and the reason is that a two-axis port draws
+   two of them badly. Reported from a real device, three symptoms of one cause: the
+   vertical bar is painted *under* the sticky group headings, it travels with the sideways
+   scroll instead of standing at the port's edge, and a plain flick down flashes the
+   horizontal one as well — an indicator for an axis the browser is not even scrolling,
+   since `armAxisLock` drives that one. Touch only: on a desktop the bar is how you learn
+   the list scrolls sideways at all, and it is not transient there. */
+@media (pointer: coarse) {
+  .work:has(> .board.as-list) { scrollbar-width: none; }
+  .work:has(> .board.as-list)::-webkit-scrollbar { display: none; }
+}
 /* A puck opens as a full-width page (same on desktop + mobile): the board and the
    view-header hide, and the detail fills the content area as a centered,
    document-width column. The breadcrumb "← All pucks" is the back action. */
