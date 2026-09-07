@@ -333,12 +333,31 @@ Fyra saker som var mekaniska på papperet och inte i verkligheten:
   *saknas*. En tom sträng kan inte bära det, för `viewsEqual` läser `(a[k] || "")` och ser
   då ingen skillnad mot en saknad nyckel — därför den literala `none`.
 
-## Kvar
+## Status, och regeln den drog med sig
 
-- **Status som egenskap.** Målet räknar upp den, och den är den enda i uppräkningen som
-  inte redan ritas någonstans på ett kort eller en rad — kolumnen säger den. Att lägga till
-  den är att bygga ett nytt märke, inte att välja bland befintliga, och grupperar man på
-  repo i listan finns den ingenstans. Egen omgång.
+Jag deferrade status med motiveringen "den ritas inte redan, alltså är det ett nytt märke".
+Första ledet stämde, slutsatsen inte: att den *saknades* var skälet att den var viktigast av
+dem. Mätt under `group=repo` med arkivet på — en `now`-rad och en `done`-rad identiska i
+klass, opacity och text, med **131 av 175 pucker klara**. Väljaren skapade inte hålet, den
+gjorde det läsbart. Och märket fanns redan: `.status-pill` satt i rälen, paletten och
+blockerarlistan, den hade bara aldrig nått ett kort.
+
+**Regeln den drog med sig:** det grupperingen redan säger säger raden inte igen
+(`groupSays`) — samma regel som `autoDateField`, en egenskap bort, och en *default* som en
+bock slår. Under `group=repo` går repo-cellen och statuschippet kommer; under
+`group=status` tvärtom.
+
+`parent` gjorde redan precis det här, fast som en **override** inuti sin egen vakt: bockad
+eller ej försvann chippet under parent-gruppering. Det är felet filen namnger tre gånger.
+Nu är den en default.
+
+Och datumen ligger utanför regeln **strukturellt**, inte som ett omdöme: de går genom
+`dateFields()`/`autoDateField()` och når aldrig `propOn`. Min första kontroll för det var
+grön mot sitt eget sabotage, och skälet var värt mer än sabotaget — kvar står två
+automatiker som säger emot varandra om `target`, och den äldre och smalare har rätt:
+kolumnen hinkar per månad, raden säger "in 5 days". Kolumnen är grövre än raden.
+
+## Kvar
 - **Ordningen egenskaperna visas i** har redan en egen puck (`ordningen-egenskaperna-visas-i`).
   `PROPS` ordning är radens spårordning i dag; den pucken är där ett handval hör hemma.
 

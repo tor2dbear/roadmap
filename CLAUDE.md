@@ -561,6 +561,24 @@ heading from one walk.
   the date the ordering is about — is the default when `props` is missing. It is not an
   override: sorting by created while `Updated` is ticked shows the update date, because the
   tick is the answer to the question the rule was guessing at.
+- **What the grouping already says, the row does not repeat** (`groupSays`) — the same rule
+  one property over, and a *default* a tick beats. Under `group=repo` the repo cell goes and
+  the status pill arrives; under `group=status` the reverse. `parent` used to do this as an
+  override (`effectiveGroup() !== "parent"` inside its own guard), so the chip vanished
+  whether you had ticked it or not — a control claiming a choice that never took effect.
+  The dates are outside the rule *structurally*, not by judgment: they route through
+  `dateFields()`/`autoDateField()` and never reach `propOn`. Which leaves the two
+  automations disagreeing about `target`, and the older, narrower one wins — under the
+  target grouping the row shows the target on purpose, because the column buckets by month
+  ("Sep 2026") while the row says "in 5 days". The column is coarser than the row.
+- **`status` was the one property that was missing, not merely un-choosable.** Under every
+  grouping but `status`, nothing on a card or a row said which state a puck was in: the
+  glyph carries the repo colour and parent-ness, `SORTS` has no status mode, and the dimming
+  for terminal pucks hangs on `.col-status-*`, a *column* class, so it only works where the
+  column already answers. Measured under `group=repo` with the archive on: a `now` row and a
+  `done` row identical in class, opacity and text — with 131 of 175 pucks done. The pill
+  itself already existed (`.status-pill`, in the rail, the palette and the blockers list);
+  it had simply never reached a card.
 - **An empty choice is a choice**, serialized as `props=none`. An empty string cannot carry
   it: `viewsEqual` compares `(a[k] || "")`, so a missing key and an empty one are the same
   value to it, and a board with every property switched off would come back showing them all.

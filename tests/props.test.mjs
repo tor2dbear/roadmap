@@ -193,6 +193,71 @@ export async function run({ open }) {
       "medan ett känt namn bredvid ett okänt är valet");
   }
 
+  group("status är en egenskap, och den fattades");
+  {
+    // Den enda i pucken mål som *saknades* snarare än bara var ovaljbar. Under varje
+    // gruppering utom `status` sa ingenting på ett kort eller en rad vilket läge pucken
+    // var i: glyfen bär repofärg och parent-skap, sorteringen har inget statusläge, och
+    // dämpningen för terminala pucker hänger på `.col-status-*` — en *kolumnklass*, som
+    // alltså bara verkar där kolumnen redan svarar. Mätt på den riktiga tavlan under
+    // `group=repo` med arkivet på: en `now`-rad och en `done`-rad identiska i klass,
+    // opacity och text, med 131 av 175 pucker klara.
+    const p = await open("?layout=list&done=1&group=repo");
+    ok(await p.evaluate(() => document.querySelectorAll(".list-row .status-pill").length) > 0,
+      "raden säger sitt läge när kolumnen inte gör det");
+    const kort = await open("?done=1&group=repo");
+    ok(await kort.evaluate(() => document.querySelectorAll(".card .status-pill").length) > 0,
+      "och kortet också — en lista, två ytor");
+  }
+
+  group("det grupperingen redan säger säger raden inte igen");
+  {
+    // `autoDateField`s regel en egenskap bort: den avgör *defaulten*, och en bock vinner
+    // över den — aldrig tvärtom. Under statusgruppering är kolumnrubriken svaret, så ett
+    // chip på varje rad hade varit samma mening en gång per rad.
+    const status = await open("?layout=list&done=1");           // grupperar på status
+    eq(await status.evaluate(() => document.querySelectorAll(".list-row .status-pill").length), 0,
+      "statuschippet uteblir under statusgruppering");
+    const repo = await open("?layout=list&done=1&group=repo");
+    eq(await repo.evaluate(() => document.querySelectorAll(".list-row .list-repo").length), 0,
+      "och repo-cellen uteblir under repo-gruppering, av samma skäl");
+
+    // Bägge riktningarna, för det är det som skiljer en default från en override: en bock
+    // hämtar tillbaka det grupperingen säger.
+    const bockad = await open("?layout=list&done=1&props=status,updated");
+    ok(await bockad.evaluate(() => document.querySelectorAll(".list-row .status-pill").length) > 0,
+      "men en bock vinner över defaulten, även under statusgruppering");
+
+    // `parent` gjorde precis det här förut — som en *override*. Bockad eller ej försvann
+    // chippet under parent-gruppering, alltså en kontroll som påstod ett val som aldrig
+    // trädde i kraft. Nu är den en default som en bock kan slå.
+    const föräldrar = await open("?layout=list&done=1&group=parent&props=parent,updated",
+      { data: (d) => { const m = d.items.find((i) => i.slug === "b-member"); m.parentRef = "alpha/a-parent"; return d; } });
+    ok(await föräldrar.evaluate(() => document.querySelectorAll(".list-row .parent-chip").length) > 0,
+      "en ibockad parent-chip syns även under parent-gruppering");
+  }
+
+  group("de två automatikerna pekar åt olika håll om target, och den äldre vinner");
+  {
+    // Första versionen av den här kontrollen var grön mot sitt eget sabotage, och skälet
+    // var värt mer än sabotaget: datumen går inte genom `propOn` alls. De går genom
+    // `dateFields()` och, i frånvaro av ett val, `autoDateField()` — så `GROUP_SAYS` kan
+    // inte nå `target` ens om den nämnde det, och att nämna det hade varit död kod med en
+    // motivering på sig.
+    //
+    // Kvar står två automatiker som pekar åt olika håll på samma puck, och den äldre och
+    // smalare har rätt: under target-gruppering visar `autoDateField` target *med flit*,
+    // för det är den ordningen handlar om. Det är inte samma mening två gånger — kolumnen
+    // hinkar per månad ("Sep 2026"), raden säger "in 5 days".
+    const p = await open("?layout=list&done=1&group=target");
+    const d = await p.evaluate(() => {
+      const e = document.querySelector(".list-row .list-dt > *");
+      return e ? { klass: e.className, aria: e.getAttribute("aria-label") } : null;
+    });
+    ok(d && /target-date/.test(d.klass),
+      `raden visar target under target-gruppering, inte uppdaterat: ${JSON.stringify(d)}`);
+  }
+
   group("rubriken delar radens uppsättning");
   {
     // The puck's open question, answered by `rollup`: the badge beside a group's name and

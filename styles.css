@@ -819,6 +819,7 @@ body {
 .list-repo .repo-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .list-repo .repo-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 .list-dt { justify-content: flex-end; gap: 8px; }
+.list-status { justify-content: flex-start; }
 .list-owner { justify-content: center; }
 .list-owner .owner-avatar { width: 20px; height: 20px; }
 .list-tags { gap: 4px; overflow: hidden; }

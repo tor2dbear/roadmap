@@ -82,6 +82,12 @@
     (DATA.items || []).forEach(function (it) { if (it.agent) set[it.agent] = true; });
     return Object.keys(set).sort();
   }
+  // The status pill, in one place. Three call sites wrote this same line — the rail, the
+  // palette and the blockers list — and the row and the card are now a fourth and fifth.
+  // (The picker's `valueNode` keeps its own: it labels a *value*, not a puck.)
+  function statusPill(st, cls) {
+    return el("span", (cls ? cls + " " : "") + "status-pill status-" + st, STATUS_LABEL[st] || st);
+  }
   function agentBadge(name) {
     var b = el("span", "agent-badge");
     b.title = "Routed to " + name;
@@ -1351,11 +1357,23 @@
     { key: "rollup", label: "Rollup", where: "name",
       has: function (i) { return !!i.progress; }, make: function (i) { return progressBadge(i); } },
     { key: "parent", label: "Parent", where: "name",
-      // The *effective* grouping, not the stored preference — see card().
-      has: function (i) { return !!i.parentRef && effectiveGroup() !== "parent"; },
+      // No grouping test here any more. It used to carry `effectiveGroup() !== "parent"`,
+      // which made it an *override*: ticked or not, the chip vanished under the parent
+      // grouping. That is the mistake this file names three times — a control claiming a
+      // choice that never took effect. `groupSays` below does the same job as a *default*.
+      has: function (i) { return !!i.parentRef; },
       make: function (i) { return parentChip(i); } },
     { key: "blocked", label: "Blocked by", where: "name",
       has: function (i) { return (i.blockedBy || []).length > 0; }, make: function (i) { return blockBadge(i); } },
+    { key: "status", label: "Status", where: "cell", cls: "list-status", track: "84px",
+      // The one property that was *missing* rather than merely un-choosable. Under every
+      // grouping but `status` nothing on a card or a row said which state a puck was in:
+      // the glyph carries the repo colour and parent-ness, the sort has no status mode,
+      // and the dimming for terminal pucks hangs on `.col-status-*`, a *column* class, so
+      // it only works where the column already answers. Measured on the live board under
+      // `group=repo` with the archive on: a `now` row and a `done` row were identical in
+      // class, opacity and text — with 131 of 175 pucks done.
+      has: function () { return true; }, make: function (i) { return statusPill(i.status); } },
     { key: "priority", label: "Priority", where: "cell", cls: "list-pri", track: "44px",
       has: function (i) { return !!i.priority; }, make: function (i) { return priorityBadge(i.priority); } },
     { key: "agent", label: "Agent", where: "cell", cls: "list-agent", track: "108px",
@@ -1398,8 +1416,26 @@
   // The default set is the board as it shipped: everything on, with the dates left to the
   // automatic rule below. Written as "no choice" rather than as a list, so a view that has
   // never chosen keeps following the rule instead of freezing today's answer into a link.
+  // A property the grouping already states does not need repeating on every row beneath
+  // it: the column heading is the answer, and saying it again costs a track for nothing.
+  // This is `autoDateField`'s rule one property over — it decides the *default*, and a tick
+  // overrides it, never the reverse.
+  //
+  // A list and not `effectiveGroup() === key`, and `target` is why — but not for the reason
+  // it first looked. The dates do not route through `propOn` at all: they go through
+  // `dateFields()` and, absent a choice, `autoDateField()`. So this rule could not reach
+  // `target` even if it named it, and naming it would have been dead code wearing a
+  // justification.
+  //
+  // Which leaves the two automations pointing opposite ways at the same puck, and the
+  // older, narrower one is right: under the target grouping `autoDateField` deliberately
+  // *shows* target — show the date the ordering is about — while this rule's instinct
+  // would be to suppress it. It is not the same sentence twice: the grouping buckets by
+  // month ("Sep 2026") and the row says "in 5 days". The column is coarser than the row.
+  var GROUP_SAYS = { status: 1, repo: 1, agent: 1, priority: 1, parent: 1 };
+  function groupSays(key) { return !!GROUP_SAYS[key] && effectiveGroup() === key; }
   function propOn(key) {
-    if (!state.props) return true;
+    if (!state.props) return !groupSays(key);
     return state.props.has(key);
   }
   // Which date the board picks *for* you: the one the ordering is actually about. Sorting
@@ -1503,7 +1539,7 @@
     }
     // Not in FIELDS and deliberately: the drift signal is not a property you may hide.
     if (sig.length) meta.appendChild(warnBadge(sig));
-    ["priority", "agent", "rollup", "parent", "blocked", "owner"].forEach(function (k) {
+    ["status", "priority", "agent", "rollup", "parent", "blocked", "owner"].forEach(function (k) {
       var f = PROP_BY_KEY[k];
       if (propOn(k) && f.has(item)) meta.appendChild(f.make(item));
     });
@@ -3533,7 +3569,7 @@
     }
     if ((m = rest.match(/(?:^|\s)(?:→|->)\s*(now|next|later|inbox|done|cancelled)\s*$/i))) {
       var st = m[1].toLowerCase();
-      var badge = el("span", "status-pill status-" + st, STATUS_LABEL[st] || st);
+      var badge = statusPill(st);
       return { badge: badge, text: "moved to" };
     }
     if ((m = rest.match(/priority\s+(urgent|high|medium|low|cleared)\s*$/i))) {
@@ -5860,7 +5896,8 @@
       // First tick starts from what is on screen, which is everything — so ticking one
       // property off does that and nothing else. Starting from empty would read as the
       // board throwing the row away because you touched one checkbox.
-      var note = el("div", "dp-note", "Showing every property. Untick to choose a set.");
+      var note = el("div", "dp-note",
+        "Chosen for you: everything the grouping does not already say. Tick to take over.");
       pop.appendChild(note);
     }
     f.options().forEach(function (o) {
@@ -6044,7 +6081,7 @@
         dot.style.background = it.repoColor;
         li.appendChild(dot);
         li.appendChild(el("span", "suggest-title", it.title));
-        li.appendChild(el("span", "status-pill status-" + it.status, STATUS_LABEL[it.status] || it.status));
+        li.appendChild(statusPill(it.status));
       }
       // pointerdown (not click): fires before blur and preventDefault keeps the
       // input focused, so the selection lands instead of the dropdown vanishing.
@@ -8605,7 +8642,7 @@
     // from 49px (Now) to 87px (Cancelled), and 62px clipped Inbox. Trailing, the
     // titles align on the left edge — better than any prefix column managed — and
     // the pill sits where the eye already goes for state.
-    r.appendChild(el("span", "status-pill status-" + k.status, STATUS_LABEL[k.status] || k.status));
+    r.appendChild(statusPill(k.status));
     r.title = STATUS_LABEL[k.status] || k.status;
     r.addEventListener("click", function () { openModal(k); });
     return r;
