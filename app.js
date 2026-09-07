@@ -2091,6 +2091,17 @@
   // A popover wider than the window can't be satisfied; pin it to the left edge
   // rather than the right, so it is the *end* of a row that is lost and not the
   // beginning — a truncated label is still readable from its start.
+  function wrapOf(root) { return root.parentElement || document.body; }
+  function clipBox(node) {
+    for (var n = node; n && n !== document.documentElement; n = n.parentElement) {
+      var cs = getComputedStyle(n);
+      if (/auto|scroll|hidden/.test(cs.overflowY) || /auto|scroll|hidden/.test(cs.overflowX)) {
+        var b = n.getBoundingClientRect();
+        return { top: b.top, bottom: b.bottom, left: b.left, right: b.right };
+      }
+    }
+    return { top: 0, bottom: window.innerHeight, left: 0, right: window.innerWidth };
+  }
   function fitPop(root) {
     var m = 8;
     // Measured as the surface *wants* to be, not as the last fit left it. This runs
@@ -2100,9 +2111,16 @@
     root.style.maxHeight = "";
     root.classList.remove("pop-flip");
     var r = root.getBoundingClientRect();
+    // The box that actually cuts, which is not the window: a rail popover lives inside
+    // `.work`, whose `overflow: auto` clips at its own top edge — 52px down on a puck
+    // page — so a flip measured against the viewport put the menu's first rows behind the
+    // topbar with no scroll range above them to bring back (measured: top 8, `.work` top
+    // 52, 44px gone). Asking the nearest clipping ancestor answers for every surface at
+    // once, and falls back to the viewport when nothing above it clips.
+    var box = clipBox(wrapOf(root));
     var dx = 0;
-    if (r.right > window.innerWidth - m) dx = window.innerWidth - m - r.right;
-    if (r.left + dx < m) dx = m - r.left;
+    if (r.right > box.right - m) dx = box.right - m - r.right;
+    if (r.left + dx < box.left + m) dx = box.left + m - r.left;
     if (dx) root.style.transform = "translateX(" + Math.round(dx) + "px)";
     // And the same question downwards, which the fixed-height shell made a real one:
     // `.app` clips, and there is no page scroll left, so a popover running past the
@@ -2119,8 +2137,8 @@
     var wrap = root.parentElement;
     var a = wrap ? wrap.getBoundingClientRect() : r;
     var gap = r.top - a.bottom;
-    var below = window.innerHeight - r.top - m;
-    var above = a.top - gap - m;
+    var below = box.bottom - r.top - m;
+    var above = a.top - gap - box.top - m;
     var flip = r.height > below && above > below;
     root.classList.toggle("pop-flip", flip);
     var room = flip ? above : below;
@@ -2314,7 +2332,21 @@
       // surface will ever be. Watching the body is what makes the cap follow it.
       var refit = new MutationObserver(function () { fitPop(root); });
       refit.observe(body, { childList: true, subtree: true });
-      onDestroy.push(function () { refit.disconnect(); });
+      // And when the window changes rather than the content: a shortened window left the
+      // flip and the cap that were right for the old one, and with no page scroll the rows
+      // that fell outside had nothing to bring them back short of closing the menu.
+      var onResize = function () {
+        // A window that shrank past the trigger leaves the menu hanging off a control
+        // nobody can see any more — measured at 1000×220: the chip's row sits at 250,
+        // the port ends at 220, and no cap can bring either back. Refitting answers the
+        // case where the anchor survived; the other one is a menu about nothing, so it
+        // closes.
+        var anchor = wrapOf(root).getBoundingClientRect(), box = clipBox(wrapOf(root));
+        if (anchor.bottom > box.bottom || anchor.top < box.top) { close(); return; }
+        fitPop(root);
+      };
+      window.addEventListener("resize", onResize);
+      onDestroy.push(function () { refit.disconnect(); window.removeEventListener("resize", onResize); });
     }
     // Give a sheet's search field breathing room before the list, the way the
     // reference apps do. The gap has to belong to the *pinned* element, not sit

@@ -368,7 +368,14 @@ sideways is a scroll container in *both* axes, so before the change a group head
   downwards gives a 15px menu (measured: the status picker at y=247 in a 300px window) or,
   a row lower, a negative cap — invalid CSS, dropped, and the menu hangs off the bottom
   again. `fitPop` flips it above the trigger (`.pop-flip`) when that side is roomier, and
-  reads the 5px gap off the stylesheet rather than restating it.
+  reads the 5px gap off the stylesheet rather than restating it. **And it measures the box
+  that actually cuts, not the window**: a rail popover lives inside `.work`, which clips at
+  its own top edge — 52px down on a puck page — so a flip measured against the viewport put
+  the menu's first rows behind the topbar with no scroll range above to bring them back
+  (measured: top 8, port top 52, 44px gone). A test that asks `top >= 0` passes while that
+  happens; ask the port. On a window resize it re-fits, and when the window shrank past the
+  trigger itself it closes instead: a menu hanging off a control nobody can see any more is
+  not a placement problem.
 - **The port is a tab stop, because the page stopped being one.** With the document no
   longer scrolling, Page Down and Space from the topbar or the chip row had nothing to
   move, and `.work` was a plain `div`: Chrome puts scrollers in the tab order by itself,

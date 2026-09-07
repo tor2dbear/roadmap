@@ -1014,17 +1014,42 @@ export async function run({ open }) {
       b.click();
     });
     await q.waitForTimeout(400);
-    const f = await q.evaluate(() => {
+    // Mätt mot **rutan**, inte mot fönstret. Codex igen, och den skarpaste av dem: en
+    // railpopover bor i `.work`, vars `overflow: auto` klipper vid sin egen överkant —
+    // 52px ner på en puck-sida — så en vändning mätt mot vyporten la menyns första rader
+    // bakom topbaren utan scrollvidd ovanför att hämta tillbaka dem med. Den första
+    // versionen av den här kontrollen frågade `top >= 0` och passerade medan 44px var
+    // borta: fel låda, rätt svar.
+    const läge = () => q.evaluate(() => {
       const pop = document.querySelector(".pop");
       if (!pop) return null;
-      const r = pop.getBoundingClientRect();
+      const r = pop.getBoundingClientRect(), w = document.getElementById("work").getBoundingClientRect();
       return { vänd: pop.classList.contains("pop-flip"), top: Math.round(r.top), bottom: Math.round(r.bottom),
-               höjd: Math.round(r.height), vh: window.innerHeight };
+               höjd: Math.round(r.height), portTop: Math.round(w.top), portBottom: Math.round(w.bottom) };
     });
+    const f = await läge();
     ok(f, "väljaren öppnas");
     eq(f.vänd, true, `menyn vänder sig ovanför avtryckaren: ${JSON.stringify(f)}`);
-    ok(f.top >= 0 && f.bottom <= f.vh, `och ligger helt i fönstret: ${JSON.stringify(f)}`);
+    ok(f.top >= f.portTop, `och börjar inne i scrollrutan, inte ovanför den: ${JSON.stringify(f)}`);
+    ok(f.bottom <= f.portBottom, `och slutar inne i den: ${JSON.stringify(f)}`);
     ok(f.höjd > 96, `med en användbar höjd — nedåt hade den blivit 15px: ${f.höjd}`);
+
+    // Och när *fönstret* ändras i stället för innehållet: en förkortad vy lämnade
+    // vändningen och taket som gällde för den förra, och utan sidscroll fanns ingenting
+    // som kunde hämta fram raderna som hamnade utanför.
+    await q.setViewportSize({ width: 1000, height: 285 });
+    await q.waitForTimeout(300);
+    const efterKrymp = await läge();
+    ok(efterKrymp, "menyn står kvar öppen så länge avtryckaren gör det");
+    ok(efterKrymp.top >= efterKrymp.portTop && efterKrymp.bottom <= efterKrymp.portBottom,
+      `och ryms i rutan efteråt: ${JSON.stringify(efterKrymp)}`);
+
+    // Krymper fönstret förbi avtryckaren finns det ingen passning kvar att göra: menyn
+    // hänger på en kontroll ingen längre ser. Mätt vid 220px — radens låda ligger på 250,
+    // rutan slutar på 220 — så den stängs i stället.
+    await q.setViewportSize({ width: 1000, height: 220 });
+    await q.waitForTimeout(300);
+    eq(await läge(), null, "och stängs när avtryckaren själv hamnar utanför rutan");
   }
 
   group("chromet ovanför rutan är ingen död zon för hjulet");
