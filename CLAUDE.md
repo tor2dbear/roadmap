@@ -312,6 +312,17 @@ buckets it was designed around, which is why the list could go first.
   parts, named exceptions for the two boxes that may shrink (the `h2` holding the name, and
   the name itself), and the exceptions written more specifically than the blanket rule
   since that is the only thing deciding them.
+- **On a phone `:hover` is a state you cannot leave, so the list's own controls stay behind
+  the `(hover: hover)` guard.** No pointer ever leaves an element on touch: the style sticks
+  after a tap and reads as a dark box drawn around whatever you just pressed — reported from
+  a phone, one screenshot per control. The convention was already in the stylesheet eleven
+  times; the fold toggle, the row's caret and the two archive controls had missed it.
+  Deliberately not a sweep of all 48 unguarded `:hover` rules: most sit in surfaces the tap
+  closes, or move only a text colour. What makes these four different is that they paint a
+  background *and* stay under your finger. The guard is a sweep over the controls the list
+  draws, and it asserts which ones it reached — a sweep is only as wide as what it was
+  given to sweep, and a fixture that quietly stops drawing one would otherwise retire the
+  rule with it. `isMobile`, not `hasTouch`, is what makes `(hover: hover)` answer false.
 - **The row carries no count.** `progress` is already there and answers the steadier
   question — how many parts the puck *has* — where a count of the rows below would move
   with the filter and read as though parts had been lost.

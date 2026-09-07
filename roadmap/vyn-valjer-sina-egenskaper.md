@@ -377,6 +377,25 @@ hypotetiskt: repots egen incheckade snapshot har fem statusar mot livetavlans se
 avbruten puck hade lett listan. `statusRank()` är en skrivare nu, och `childItems` bar
 samma flaw.
 
+## Hover fastnar på en telefon
+
+Rapporterat med en bild per kontroll: en mörk ruta runt precis det man nyss tryckte på.
+På touch finns ingen pekare som *lämnar*, så `:hover` står kvar efter tappet. Konventionen
+fanns redan i filen elva gånger — `@media (hover: hover)` — och listans fäll- och
+arkivkontroller hade missat den. Mätt med `(hover: hover)` falskt och framtvingad `:hover`:
+`.lh-toggle` och `.list-fold` målade `--panel-2`, medan `.list-row`, som hade guarden, inte
+gjorde det.
+
+Medvetet **inte** ett svep över alla 48 ovaktade hover-regler — de flesta sitter i ytor som
+tappet stänger, eller flyttar bara en textfärg. Det som skiljer de fyra är att de målar en
+bakgrund *och* står kvar under fingret.
+
+Kontrollen är däremot ett svep över listans kontroller, inte fyra namngivna regler — en
+uppräkning är precis det som missade en låda i rubrikfixen samma dag. Och den säger vad den
+*såg*: första versionen bytte fixtur och tappade tyst `.list-fold` ur svepet, alltså kunde
+den regelns sabotage inte längre fällas. Ett svep är bara så brett som det det fått svepa
+över, och det måste kontrollen själv påstå.
+
 ## Kvar
 - **Ordningen egenskaperna visas i** har redan en egen puck (`ordningen-egenskaperna-visas-i`).
   `PROPS` ordning är radens spårordning i dag; den pucken är där ett handval hör hemma.

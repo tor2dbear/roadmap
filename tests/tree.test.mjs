@@ -500,6 +500,61 @@ export async function run({ open }) {
       `och inget namn går in under sitt märke: ${JSON.stringify(m)} (styv stubbe: 175px in)`);
   }
 
+  group("ingen av listans kontroller målar hover på en telefon");
+  {
+    // Rapporterat från en telefon, en bild per kontroll: en mörk ruta runt precis det man
+    // nyss tryckte på. På touch finns ingen pekare som *lämnar*, så `:hover` fastnar efter
+    // tappet. Filen har redan konventionen — elva regler bakom `@media (hover: hover)` —
+    // och listans fäll- och arkivkontroller hade missat den.
+    //
+    // Ett svep, inte fyra namngivna regler: en uppräkning är precis det som missade en låda
+    // i "bara namnet ger med sig" tidigare i dag. Men ett svep är bara så brett som det det
+    // fått att svepa över, så det säger också *vad det såg* — annars smalnar en ändrad
+    // fixtur tyst av kontrollen tills den inte kan falla. Två brädor behövs för att alla
+    // fyra kontrolltyperna ska finnas på skärmen samtidigt.
+    //
+    // `isMobile`, inte bara `hasTouch`: det förra är vad som får `(hover: hover)` att svara
+    // falskt. Med bara `hasTouch` mäter kontrollen en skrivbordsdator och kan inte falla.
+    const sett = [], målar = [];
+    for (const data of [träd, arkiveratBarnbarn]) {
+      const p = await open("?layout=list&group=parent",
+        { data, viewport: { width: 390, height: 800 }, hasTouch: true, isMobile: true });
+      await p.waitForSelector(".lh-toggle");
+      eq(await p.evaluate(() => matchMedia("(hover: hover)").matches), false,
+        "mätningen görs i en vy utan pekare");
+      const cdp = await p.context().newCDPSession(p);
+      await cdp.send("DOM.enable");
+      await cdp.send("CSS.enable");
+      const { root } = await cdp.send("DOM.getDocument");
+      const { nodeIds } = await cdp.send("DOM.querySelectorAll", {
+        nodeId: root.nodeId, selector: ".list-group button, .list-group [role='button']",
+      });
+      for (let i = 0; i < nodeIds.length; i++) {
+        await cdp.send("DOM.setAttributeValue", { nodeId: nodeIds[i], name: "data-sweep", value: String(i) });
+        const läs = () => p.evaluate((m) => {
+          const e = document.querySelector('[data-sweep="' + m + '"]');
+          // Hela klasslistan, inte den första: arkivraden är `list-empty list-archived`,
+          // och den som bär hover-regeln är den andra.
+          return e ? { bg: getComputedStyle(e).backgroundColor, kl: e.className.trim() } : null;
+        }, i);
+        const före = await läs();
+        await cdp.send("CSS.forcePseudoState", { nodeId: nodeIds[i], forcedPseudoClasses: ["hover"] });
+        const efter = await läs();
+        await cdp.send("CSS.forcePseudoState", { nodeId: nodeIds[i], forcedPseudoClasses: [] });
+        if (!före || !efter) continue;
+        if (sett.indexOf(efter.kl) === -1) sett.push(efter.kl);
+        if (före.bg !== efter.bg) målar.push(efter.kl + ": " + före.bg + " → " + efter.bg);
+      }
+    }
+    // Vad svepet faktiskt fick syn på. Utan den här raden räckte det att en fixtur slutade
+    // rita en kontroll för att dess regel skulle sluta vara vaktad, tyst.
+    ["lh-toggle", "list-fold", "list-archived", "col-archived"].forEach(function (k) {
+      ok(sett.some((c) => c.split(" ").indexOf(k) !== -1),
+        `svepet nådde .${k}: ${JSON.stringify(sett)}`);
+    });
+    eq(målar, [], `ingen av dem får en bakgrund av :hover: ${JSON.stringify(målar)}`);
+  }
+
   group("listan spränger inte sidbredden på en telefon");
   {
     // Det här är felet som syntes som "sidbredden breakar": tavlan är ett rutnätsobjekt,
