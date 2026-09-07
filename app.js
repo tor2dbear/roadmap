@@ -1551,10 +1551,15 @@
       var t = e.touches[0], dx = t.clientX - sx, dy = t.clientY - sy;
       if (!axis) {
         if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
-        // Sideways only counts where there is somewhere sideways to go. In the board
-        // layout this box has no horizontal travel — the kanban scrolls itself — so the
-        // gesture stays the browser's and nothing here refuses it.
-        axis = Math.abs(dx) > Math.abs(dy) && port.scrollWidth > port.clientWidth + 1 ? "x" : "y";
+        // Sideways only counts where there is somewhere sideways to go *in the direction
+        // being asked for*. In the board layout this box has no horizontal travel at all
+        // — the kanban scrolls itself — and at either edge it has none that way: claiming
+        // x there refused the browser's vertical pan and then wrote a `scrollLeft` that
+        // clamped, so the gesture moved neither axis (measured at the left edge, dragging
+        // further left: 0/0). A finger moving left raises `scrollLeft`, hence the sides.
+        var maxX = port.scrollWidth - port.clientWidth;
+        var roomX = dx < 0 ? port.scrollLeft < maxX - 1 : port.scrollLeft > 1;
+        axis = Math.abs(dx) > Math.abs(dy) && maxX > 1 && roomX ? "x" : "y";
       }
       if (axis !== "x") return;
       // Not cancelable once the browser has committed to a scroll; the 8px threshold is
@@ -1604,31 +1609,34 @@
       // that — so forwarding its delta would scroll the board out from under someone who
       // is only trying to make it bigger.
       if (port.contains(e.target) || scrollLocks || e.ctrlKey) return;
-      for (var n = e.target; n && n !== col; n = n.parentElement) {
-        // A scroll *container*, not merely a box whose content rounds a few pixels past
-        // it: the view-switch button measures 24 against 21 from line-height alone, and
-        // asking about overflow only would have let it swallow every wheel over the
-        // topbar. Overflow first, then whether there is anything to scroll.
-        //
-        // And per axis, only where the event actually carries one. The chip row scrolls
-        // vertically and cannot take a `deltaX` at all, so asking `deltaY < 0` about a
-        // purely sideways trackpad swipe (`deltaY === 0`) read it as "downwards", found
-        // room, and swallowed a gesture the row had no use for — measured: 150px of
-        // sideways wheel over the chip row moved nothing, with 352px of list to the right.
+      // First refusal is per axis, and it is a *claim on that axis alone* rather than on
+      // the gesture. The chip row scrolls vertically and cannot take a `deltaX` at all,
+      // so two things went wrong in turn: asking `deltaY < 0` about a purely sideways
+      // swipe (`deltaY === 0`) read it as "downwards" and swallowed it (measured: 150px
+      // of sideways wheel moved nothing with 352px of list to the right), and then a
+      // diagonal one let the row keep the half it could use *and* the half it could not
+      // (measured: chip row 120, list 0). Each axis is followed separately and whatever
+      // no one wanted is forwarded.
+      //
+      // A scroll *container*, not merely a box whose content rounds a few pixels past it:
+      // the view-switch button measures 24 against 21 from line-height alone, and asking
+      // about overflow only would have let it swallow every wheel over the topbar.
+      var takeY = e.deltaY !== 0, takeX = e.deltaX !== 0;
+      for (var n = e.target; n && n !== col && (takeY || takeX); n = n.parentElement) {
         var cs = getComputedStyle(n);
-        var roomY = e.deltaY !== 0 && (cs.overflowY === "auto" || cs.overflowY === "scroll") &&
+        if (takeY && (cs.overflowY === "auto" || cs.overflowY === "scroll") &&
           n.scrollHeight > n.clientHeight + 1 &&
-          (e.deltaY < 0 ? n.scrollTop > 0 : n.scrollTop < n.scrollHeight - n.clientHeight - 1);
-        var roomX = e.deltaX !== 0 && (cs.overflowX === "auto" || cs.overflowX === "scroll") &&
+          (e.deltaY < 0 ? n.scrollTop > 0 : n.scrollTop < n.scrollHeight - n.clientHeight - 1)) takeY = false;
+        if (takeX && (cs.overflowX === "auto" || cs.overflowX === "scroll") &&
           n.scrollWidth > n.clientWidth + 1 &&
-          (e.deltaX < 0 ? n.scrollLeft > 0 : n.scrollLeft < n.scrollWidth - n.clientWidth - 1);
-        if (roomY || roomX) return;
+          (e.deltaX < 0 ? n.scrollLeft > 0 : n.scrollLeft < n.scrollWidth - n.clientWidth - 1)) takeX = false;
       }
+      if (!takeY && !takeX) return;
       // Lines and pages are real delta modes — Firefox sends lines for a mouse wheel —
       // and forwarding them as pixels would move the board by three.
       var k = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? port.clientHeight : 1;
-      port.scrollTop += e.deltaY * k;
-      port.scrollLeft += e.deltaX * k;
+      if (takeY) port.scrollTop += e.deltaY * k;
+      if (takeX) port.scrollLeft += e.deltaX * k;
     }, { passive: true });
   }
 
@@ -3509,6 +3517,11 @@
   // reopen it over the newly-picked view, so close in place and strip the hash.
   function exitPuckView() {
     if (!document.body.classList.contains("viewing-puck")) return;
+    // The place the board was left in belongs to *that* board. This exit is a navigation
+    // to a different one — a view, a repo, a tag from the rail — so the offsets are
+    // dropped rather than restored: measured, a four-row view opened at `scrollLeft: 150`
+    // with its titles off screen because a longer list had been read there.
+    boardAt = null;
     closeDetail();
     if (location.hash) { try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} }
   }

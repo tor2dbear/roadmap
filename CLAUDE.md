@@ -354,10 +354,12 @@ sideways is a scroll container in *both* axes, so before the change a group head
   and walks up from the target so a box that scrolls itself gets first refusal. It asks
   `overflow-y` before `scrollHeight`: the view-switch button measures 24 against 21 from
   line-height alone, and asking about overflow only let it swallow every wheel. First
-  refusal is per axis and only where the event carries a delta: the chip row cannot take a
-  `deltaX` at all, and asking `deltaY < 0` about a purely sideways swipe (`deltaY === 0`)
-  read it as "downwards" and swallowed it — measured, 150px of sideways wheel moved nothing
-  with 352px of list to the right.
+  refusal is per axis, only where the event carries a delta, and it is a claim on *that
+  axis alone*: the chip row cannot take a `deltaX` at all, so asking `deltaY < 0` about a
+  purely sideways swipe (`deltaY === 0`) read it as "downwards" and swallowed it (measured:
+  150px of sideways wheel moved nothing with 352px of list to the right), and a diagonal
+  one then let the row keep the half it could use *and* the half it could not (chip row
+  120, list 0). Each axis is followed separately; whatever nobody wanted is forwarded.
 - **A popover fits downwards too, and that became a real question here.** `fitPop` used to
   answer only sideways; with the shell clipping and no page scroll left, a menu running
   past the bottom has rows that cannot be reached at all — measured at 1000×420 with the
@@ -397,7 +399,10 @@ sideways is a scroll container in *both* axes, so before the change a group head
   0/0, so returning landed on the top-left of the list. The board is hidden across
   arbitrarily many rendering opportunities, so the same-task argument above cannot help:
   `openDetail` saves the place on the way *in* (only from the board, so puck → puck keeps
-  the first one, which is where Back actually returns) and `closeDetail` puts it back.
+  the first one, which is where Back actually returns) and `closeDetail` puts it back. The
+  place belongs to *that* board, so `exitPuckView` — the sidebar or rail navigating to a
+  different one — drops it instead: a four-row view opened at `scrollLeft: 150` with its
+  titles off screen because a longer list had been read there.
 - **Nothing may measure the board while it is empty.** `renderBoard` clears `#board` before
   it fills it, and emptying a scrollport's tall child clamps its offsets to the origin —
   but the clamp happens *at layout*, and nothing in between reads geometry, so the box is
@@ -423,7 +428,9 @@ sideways is a scroll container in *both* axes, so before the change a group head
   `.work:has(> .board.as-list)`, since the kanban board is its own sideways scroller and
   `pan-y` on an ancestor would forbid it), and sideways is `armAxisLock`'s to drive: the
   first 8px pick the axis, and a sideways one refuses the browser's vertical pan and moves
-  `scrollLeft` by the finger's delta. Vertical keeps momentum and the rubber band; a
+  `scrollLeft` by the finger's delta — but only where there is room *in the direction being
+  asked for*, since claiming x at an edge refused the vertical pan and then wrote a
+  `scrollLeft` that clamped, so the gesture moved neither axis. Vertical keeps momentum and the rubber band; a
   sideways flick has none, because it is not the browser scrolling. Test it with real
   gestures through CDP — and pick the angle deliberately: Chromium locks the axis itself
   up to ~36°, so only a steeper diagonal (measured: 352px of drift at 42°) can tell the

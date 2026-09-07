@@ -723,6 +723,21 @@ export async function run({ open }) {
     eq(sidled.y, 0, `och en dragning i sidled med 60px drift nedåt rör inte vertikalen: ${JSON.stringify(sidled)}`);
     ok(sidled.x > 100, `men går i sidled: ${sidled.x}`);
     ok(await p.evaluate(() => window.__nekade) > 0, "och den vertikala panoreringen nekas webbläsaren under tiden");
+
+    // Vid kanten, riktad bortom den, finns ingen sidled att ta: att ändå göra anspråk på
+    // x nekade webbläsarens lodräta panorering och skrev sedan ett `scrollLeft` som
+    // klampade, alltså rörde gesten ingen axel alls. Anspråket är det enda som går att
+    // observera här — Chromiums eget axellås vägrar panorera lodrätt för en
+    // sidledsdominant gest ändå, medan iOS, som inte låser, får den lodräta i stället.
+    await nolla();
+    await dra(150, 400, 200, -80);   // vid vänsterkanten, fingret åt höger
+    eq(await p.evaluate(() => window.__nekade), 0,
+      "vid kanten tas gesten inte ifrån webbläsaren");
+    await nolla();
+    await p.evaluate(() => { document.getElementById("work").scrollLeft = 120; });
+    await dra(150, 400, 200, -80);   // en bit in, samma gest
+    ok(await p.evaluate(() => window.__nekade) > 0,
+      "men en bit in, med rum åt det hållet, gör den det");
   }
 
   group("sidledsdragningen har ett kast");
@@ -918,6 +933,26 @@ export async function run({ open }) {
       return { x: Math.round(w.scrollLeft), y: Math.round(w.scrollTop) };
     });
     eq(JSON.stringify(efter), JSON.stringify(före), `och platsen är tillbaka: ${JSON.stringify({ före, efter })}`);
+
+    // Men platsen hör till *den* tavlan. Går man ur pucken via sidomenyn byts tavlan ut,
+    // och då ärvde den nya offseten: mätt öppnade en fyraradersvy på `scrollLeft: 150`
+    // med titlarna utanför skärmen, för att en längre lista lästs där innan.
+    await p.evaluate(() => { const w = document.getElementById("work"); w.scrollTop = 240; w.scrollLeft = 150; });
+    await p.evaluate(() => {
+      const w = document.getElementById("work");
+      [...document.querySelectorAll(".list-row")].find((r) => r.getBoundingClientRect().top > w.getBoundingClientRect().top + 40).click();
+    });
+    await p.waitForTimeout(400);
+    eq(await p.evaluate(() => document.body.classList.contains("viewing-puck")), true, "en puck är öppen igen");
+    await p.evaluate(() => [...document.querySelectorAll(".focusbtn")].find((b) => /Ready/.test(b.textContent)).click());
+    await p.waitForTimeout(500);
+    const nyVy = await p.evaluate(() => {
+      const w = document.getElementById("work");
+      return { x: Math.round(w.scrollLeft), y: Math.round(w.scrollTop), puck: document.body.classList.contains("viewing-puck") };
+    });
+    eq(nyVy.puck, false, "vybytet lämnar pucken");
+    eq(nyVy.x, 0, `och den nya tavlan börjar vid titlarna, inte i metadatan: ${JSON.stringify(nyVy)}`);
+    eq(nyVy.y, 0, `och överst: ${JSON.stringify(nyVy)}`);
   }
 
   group("en omritning i bakgrunden flyttar inte läsaren");
@@ -1129,6 +1164,22 @@ export async function run({ open }) {
         chip: Math.round(document.getElementById("chipRow").scrollTop),
       }));
       ok(våg.work > 100, `ett rent sidledshjul når listan förbi chipparaden: ${JSON.stringify(våg)}`);
+
+      // Och en diagonal gest är två anspråk, inte ett: chipparaden får den lodräta halvan
+      // den kan använda, listan den vågräta den inte kan. Mätt före: chipparaden 120,
+      // listan 0 — raden behöll bägge halvorna, varav en den inte kunde göra något med.
+      await p.evaluate(() => {
+        document.getElementById("work").scrollLeft = 0;
+        document.getElementById("chipRow").scrollTop = 0;
+      });
+      await p.mouse.wheel(120, 120);
+      await p.waitForTimeout(300);
+      const diag = await p.evaluate(() => ({
+        work: Math.round(document.getElementById("work").scrollLeft),
+        chip: Math.round(document.getElementById("chipRow").scrollTop),
+      }));
+      ok(diag.chip > 50, `chipparaden tar den lodräta halvan: ${JSON.stringify(diag)}`);
+      ok(diag.work > 50, `och listan den vågräta: ${JSON.stringify(diag)}`);
     }
   }
 
