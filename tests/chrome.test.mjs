@@ -1,6 +1,6 @@
 // The chrome around the board: the sidebar's own state, the theme, the puck page, and
 // where a menu lands. Two of the six review findings this session were here.
-import { snapshot } from "./fixture.mjs";
+import { snapshot, githubStub } from "./fixture.mjs";
 import { group, eq, ok } from "./assert.mjs";
 
 // The palette omits the state you are already in, so a pick is only offered from a
@@ -746,6 +746,39 @@ export async function run({ open }) {
     await p.waitForTimeout(400);
     const efter = await p.evaluate(() => Math.round(document.getElementById("board").scrollLeft));
     ok(efter > 100, `och kolumnerna går fortfarande att dra i sidled: ${före.x} → ${efter}`);
+  }
+
+  group("en omritning i bakgrunden flyttar inte läsaren");
+  {
+    // Codex, #49. `loadWritableRepos()` ritar om tavlan när behörighetsfrågorna landar,
+    // alltså långt efter att sidan lästs — och att tömma en scrollports höga barn *skulle*
+    // klampa dess offset till origo. Men klampningen sker vid layout, och `renderBoard`
+    // läser ingen geometri mellan sin `innerHTML = ""` och sina appends, så lådan mäts
+    // aldrig medan den är tom. Mätt med en påtvingad reflow inlagd i det glappet: 150/200
+    // → 0/0. Kontrollen finns för att den dagen någon lägger ett
+    // `getBoundingClientRect()` där inne ska det synas här och inte som ett hopp under
+    // fingret.
+    const gh = githubStub();
+    const p = await open("?layout=list&done=1", {
+      viewport: { width: 390, height: 380 }, token: true,
+      // Fördröjt, så scrollen hinner ske medan frågorna är i luften — annars mäter
+      // kontrollen en omritning som redan varit.
+      github: async (route) => { await new Promise((r) => setTimeout(r, 800)); return gh.handler(route); },
+    });
+    await p.waitForSelector(".list-row");
+    const före = await p.evaluate(() => {
+      const w = document.getElementById("work");
+      w.scrollTop = 200; w.scrollLeft = 150;
+      return { x: w.scrollLeft, y: w.scrollTop };
+    });
+    await p.waitForTimeout(2000);
+    const efter = await p.evaluate(() => {
+      const w = document.getElementById("work");
+      return { x: Math.round(w.scrollLeft), y: Math.round(w.scrollTop), kort: document.querySelectorAll(".list-row").length };
+    });
+    ok(efter.kort > 0, `tavlan är ritad: ${JSON.stringify(efter)}`);
+    eq(efter.y, före.y, `omritningen flyttar inte den lodräta platsen: ${före.y} → ${efter.y}`);
+    eq(efter.x, före.x, `och inte den vågräta heller: ${före.x} → ${efter.x}`);
   }
 
   group("chromet ovanför rutan är ingen död zon för hjulet");

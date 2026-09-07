@@ -362,6 +362,13 @@ sideways is a scroll container in *both* axes, so before the change a group head
   the same two places that toggle `body.viewing-puck`. The focus ring is
   `:focus:not(:focus-visible)`-guarded, since a click on the empty space beside the columns
   now lands on it.
+- **Nothing may measure the board while it is empty.** `renderBoard` clears `#board` before
+  it fills it, and emptying a scrollport's tall child clamps its offsets to the origin —
+  but the clamp happens *at layout*, and nothing in between reads geometry, so the box is
+  never measured while empty. That is the whole reason an async redraw (`loadWritableRepos`
+  resolving under a scrolled list) does not throw the reader back to the top. Measured with
+  a forced reflow inserted into that gap: 150/200 → 0/0. So no `getBoundingClientRect`,
+  `offsetHeight` or `scrollHeight` between the clear and the appends; a test holds it.
 - **A fold keeps its own control still.** `renderBoard` replaces the board, and a replaced
   board starts at the top — measured 262 → 0 — so the heading you had just tapped scrolled
   out from under your finger and the thing you folded finished off screen. `toggleGroup`

@@ -4577,6 +4577,13 @@
     // an Update offering to overwrite it with the new filter. Every mutation ends in a
     // render, so this is where the transition can be seen at all.
     if (state.fromView && !Object.keys(viewParamObject()).length) state.fromView = null;
+    // Emptying a scrollport's tall child *would* clamp its offsets to the origin — but the
+    // clamp happens at layout, and nothing between here and the appends below reads
+    // geometry, so the board is never measured while it is empty. That is what keeps an
+    // async redraw (`loadWritableRepos` resolving under a scrolled list) from throwing the
+    // reader back to the top. Measured with a forced reflow inserted in this gap: 150/200
+    // → 0/0. So: no `getBoundingClientRect`, `offsetHeight` or `scrollHeight` between the
+    // clear and the fill. `tests/chrome.test.mjs` holds the guarantee.
     board.innerHTML = "";
     // The layout is whatever the toggle says — in every view.
     //
