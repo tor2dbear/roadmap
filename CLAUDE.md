@@ -518,6 +518,53 @@ hidden by default, restored at container widths 560 and 720). They must stay *af
 whole mechanism, and putting them beside `.list-row` cost a round of two-line rows with
 the date wrapped under the title.
 
+## UI: the view chooses its properties
+
+`props` is the ninth key in `VIEW_KEYS`, so a chosen set of properties rides in the URL,
+in a shared link and in a saved view with no machinery of its own — which is what that
+list was for. `PROPS` is the catalogue, and it drives the row, the card *and* the group
+heading from one walk.
+
+- **One list, or the two surfaces drift.** Every property was already its own guarded line
+  (`if (item.priority)`, `if (item.agent)`, `if (item.progress)`), so the chooser is a
+  question put to the renderers rather than a rewrite of them. Keeping the question in one
+  place is the point: `VIEW_KEYS` itself was once three copies, and the copy nobody updated
+  silently dropped a fold.
+- **The row's tracks come from the same walk as its cells.** A property that is off takes
+  its grid column with it; a track cannot outlive the cell that filled it, and a cell
+  cannot appear without one. But *whether a cell exists* is a question about the view,
+  never about the puck — emptiness is per-item, so skipping the date cell for a puck with
+  no target would shift every cell after it one track left and break the register of the
+  whole list.
+- **The date track grows with what it holds.** Found by looking at a phone: with `Created`
+  and `Updated` both ticked, a fixed 92px cell — sized for one bare date — is right-aligned,
+  so it overflowed *leftwards* and printed both dates over the repo name (measured at 390px:
+  the first date started at 320 with the repo cell ending at 450). Not `max-content`: each
+  row is its own grid, so a content-sized track differs per row and the column stops being a
+  column. A width per date instead.
+- **Automation applies in the absence of a choice, never over one.** `autoDateField()` — show
+  the date the ordering is about — is the default when `props` is missing. It is not an
+  override: sorting by created while `Updated` is ticked shows the update date, because the
+  tick is the answer to the question the rule was guessing at.
+- **An empty choice is a choice**, serialized as `props=none`. An empty string cannot carry
+  it: `viewsEqual` compares `(a[k] || "")`, so a missing key and an empty one are the same
+  value to it, and a board with every property switched off would come back showing them all.
+  A name the board does not know falls back to *no* choice rather than the empty one — a bare
+  list is a worse answer to an unreadable link than the board's own default.
+- **The heading shares the row's set, and `rollup` is why.** The badge beside a group's name
+  and the badge on a row are the *same* property, so a heading with a set of its own would
+  have named it twice and could then disagree with the rows beneath it. `count` is
+  heading-only, and that is ordinary: `parent` says nothing under the parent grouping and
+  `repo` says nothing under the repo grouping either.
+- **What is not in `PROPS` is what a puck cannot be read without**: the title, the puck glyph
+  and the heading's swatch (both carry the repo colour), the ⚠ badge, and the archive mark.
+  The last two are the same rule from opposite ends — a drift signal you can hide is a
+  problem you can hide, and the mark is the one click that gets the archived cards back.
+- **`FIELDS` was taken.** The query language's field table has owned that name since the
+  filter was written, and the redeclaration blanked it: no term matched, twelve checks fell,
+  and nothing threw. The properties are `PROPS` and the key is `props`, so "field" means one
+  thing in the file.
+
 ## UI: one thing, one place
 
 Cards leave the board three ways — the `Filter` panel, a column's `⋯`, and Display's

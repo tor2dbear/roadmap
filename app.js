@@ -1375,6 +1375,13 @@
     { key: "created", label: "Created", where: "date" },
     { key: "updated", label: "Updated", where: "date" },
     { key: "target", label: "Target", where: "date" },
+    // Heading-only, and the one property with no row equivalent — which is why the puck
+    // asked whether the heading should carry a set of its own. It does not, and `rollup`
+    // is the reason: the badge beside a group's name and the badge on a row are the *same*
+    // property, so two sets would have had to name it twice and could then disagree. One
+    // set, and a property draws wherever it means something — which the list already does
+    // for `parent` (nothing to say under the parent grouping) and `repo` (likewise).
+    { key: "count", label: "Count", where: "head" },
     { key: "tags", label: "Labels", where: "tags",
       has: function (i) { return i.tags.length > 0 || !i.native; },
       make: function (i) {
@@ -1435,15 +1442,24 @@
   // here for the same reason: it is the floor the title's 220px sits on top of, and a
   // floor computed from a track list that is no longer the track list is a row whose
   // declared minimum is not its actual one.
-  var LIST_DATE_TRACK = "92px", LIST_TAGS_TRACK = "minmax(80px, 160px)";
+  var LIST_TAGS_TRACK = "minmax(80px, 160px)";
+  // The date track is the one that grows, because it is the one holding a variable number
+  // of things. A fixed 92px fits one bare date and nothing else: with `Created` and
+  // `Updated` both ticked, the cell is right-aligned, so the overflow ran *leftwards* and
+  // printed the two dates over the repo name beside them (measured on a 390px phone —
+  // "ALPHA" and "CREATED 2026-08-01" in the same pixels). Not `max-content`: each row is
+  // its own grid, so a content-sized track would be a different width on every row and the
+  // column would stop being a column. A width per date, and the labels are what makes them
+  // wider than one.
+  function dateTrack(n) { return n < 2 ? 92 : n * 136 + (n - 1) * 8; }
   function listTracks() {
-    var tracks = [], px = 0;
+    var tracks = [], px = 0, dn = dateFields().length;
     PROPS.forEach(function (f) {
       if (f.where !== "cell" || !propOn(f.key)) return;
       tracks.push(f.track);
       px += parseInt(f.track, 10) || 0;
     });
-    if (dateFields().length) { tracks.push(LIST_DATE_TRACK); px += parseInt(LIST_DATE_TRACK, 10); }
+    if (dn) { tracks.push(dateTrack(dn) + "px"); px += dateTrack(dn); }
     if (propOn("tags")) { tracks.push(LIST_TAGS_TRACK); px += 80; }
     return { tracks: tracks.join(" "), fixed: px, gaps: tracks.length + 1 };
   }
@@ -4525,10 +4541,10 @@
       var head = el("div", "col-head");
       head.appendChild(el("span", "swatch"));
       head.appendChild(headTitle(g, grp));
-      head.appendChild(el("span", "count", String(grp.items.length)));
+      if (propOn("count")) head.appendChild(el("span", "count", String(grp.items.length)));
       var held = archived ? (archived.count[grp.key] || 0) - grp.items.length : 0;
       if (held > 0) head.appendChild(archivedMark(held));
-      if (g.headExtra) { var hx = g.headExtra(grp.key); if (hx) head.appendChild(hx); }
+      if (g.headExtra && propOn("rollup")) { var hx = g.headExtra(grp.key); if (hx) head.appendChild(hx); }
       // Only where the column can actually be named by a term — a target month
       // cannot, and offering a dead menu item is worse than offering none.
       if (columnTerm(g, grp.key)) head.appendChild(colMenu(g, grp.key, grp.label));
@@ -4838,14 +4854,14 @@
       toggle.appendChild(el("span", "swatch"));
       if (!opens) {
         toggle.appendChild(el("span", "lh-label", grp.label));
-        toggle.appendChild(el("span", "count", String(grp.items.length)));
+        if (propOn("count")) toggle.appendChild(el("span", "count", String(grp.items.length)));
       }
       toggle.setAttribute("data-fold", grp.key);
       toggle.addEventListener("click", function () { toggleGroup(grp.key, toggle); });
       h.appendChild(toggle);
       if (opens) {
         h.appendChild(openButton(opens, grp.label, "lh-label"));
-        h.appendChild(el("span", "count", String(grp.items.length)));
+        if (propOn("count")) h.appendChild(el("span", "count", String(grp.items.length)));
       }
       inner.appendChild(h);
       if (warn.length) inner.appendChild(warnBadge(warn));
@@ -4853,7 +4869,11 @@
       // is invalid, and this one has its own click.
       var held = archived ? (archived.count[grp.key] || 0) - grp.items.length : 0;
       if (held > 0) inner.appendChild(archivedMark(held, grp.key));
-      if (g.headExtra) { var hx = g.headExtra(grp.key); if (hx) inner.appendChild(hx); }
+      // The heading's rollup badge is `rollup` — the same property the row's badge is, so
+      // one tick governs both. The swatch and the archive mark are not properties: the
+      // swatch is the repo colour (the heading's puck glyph) and the mark is a repair, the
+      // same reason ⚠ is not in PROPS.
+      if (g.headExtra && propOn("rollup")) { var hx = g.headExtra(grp.key); if (hx) inner.appendChild(hx); }
       section.appendChild(head);
       if (!shut) {
         if (tree) renderNodes(section, grp.items, 0, tree, archived);

@@ -130,6 +130,28 @@ export async function run({ open }) {
       "ett ensamt datum bär inget namn — det finns inget att förväxla det med");
   }
 
+  group("datumspåret rymmer det den håller");
+  {
+    // Found by looking at it on a phone: with `Created` and `Updated` both ticked, the
+    // dates printed *over* the repo name beside them. The cell is right-aligned, so a
+    // fixed 92px track — sized for one bare date — overflowed leftwards into its
+    // neighbour. Asked as a geometry question, because that is what was wrong; the DOM
+    // was correct the whole time.
+    const p = await open("?layout=list&done=1&props=created,updated,repo",
+      { viewport: { width: 390, height: 700 } });
+    const m = await p.evaluate(() => {
+      const r = document.querySelector(".list-row");
+      const repo = r.querySelector(".list-repo").getBoundingClientRect();
+      const first = r.querySelector(".list-dt > *").getBoundingClientRect();
+      return { repoSlut: Math.round(repo.right), datum: Math.round(first.left) };
+    });
+    ok(m.datum >= m.repoSlut, `datumen börjar efter repo-cellen: ${JSON.stringify(m)} (med fast spår: 320 mot 450 — 130px överlapp)`);
+    // And the page still does not grow — the row scrolls inside the box, which is the
+    // whole premise the chooser was built on top of.
+    eq(await p.evaluate(() => document.documentElement.scrollWidth), 390,
+      "och sidan växer fortfarande inte");
+  }
+
   group("datumcellen hör till vyn, inte till pucken");
   {
     // The register trap: emptiness here is per-item, so skipping the cell for a puck with
@@ -169,6 +191,42 @@ export async function run({ open }) {
     const halv = await open("?layout=list&done=1&props=grönsak,repo");
     eq(await cellsOf(halv), ["puck-glyph", "list-name", "list-repo"],
       "medan ett känt namn bredvid ett okänt är valet");
+  }
+
+  group("rubriken delar radens uppsättning");
+  {
+    // The puck's open question, answered by `rollup`: the badge beside a group's name and
+    // the badge on a row are the same property, so a heading with a set of its own would
+    // have named it twice and could then disagree with the rows beneath it. One set — and
+    // `count`, which only the heading has, is a property like any other.
+    // The archive mark carries a `.count` of its own ("2 archived"), and it is *not* a
+    // property — so a bare `.count` query would match it and this check would be asking
+    // about the wrong span. Counted by exclusion.
+    const räknare = (p, sel) => p.evaluate((s) =>
+      [...document.querySelectorAll(s + " .count")].filter((c) => !c.closest(".col-archived")).length, sel);
+    const av = await open("?layout=list&done=1&group=parent&props=repo");
+    eq(await räknare(av, ".list-head"), 0, "räknaren lämnar rubriken");
+    eq(await av.evaluate(() => document.querySelectorAll(".list-head .rollup").length), 0,
+      "och rollup-brickan med, på samma bock som radens");
+    const på = await open("?layout=list&done=1&group=parent&props=count,rollup");
+    ok(await räknare(på, ".list-head") > 0, "påslagna är de tillbaka");
+    ok(await på.evaluate(() => document.querySelectorAll(".list-head .rollup").length) > 0,
+      "bägge två");
+    // The same tick, one layout over: a board column head carries both marks too.
+    const kol = await open("?done=1&props=repo");
+    eq(await räknare(kol, ".col-head"), 0, "och kolumnrubriken följer samma val");
+  }
+
+  group("swatchen och arkivmärket är inga egenskaper");
+  {
+    // The swatch is the heading's puck glyph (it carries the repo colour) and the mark is a
+    // repair — it says what is being held back and gets it back in one click. Hiding either
+    // is the same mistake as hiding ⚠.
+    const p = await open("?layout=list&props=none");
+    ok(await p.evaluate(() => document.querySelectorAll(".list-head .swatch").length) > 0,
+      "swatchen står kvar när allt är bortvalt");
+    ok(await p.evaluate(() => document.querySelectorAll(".list-head .col-archived").length) > 0,
+      "och arkivmärket, som är vägen tillbaka till korten det håller");
   }
 
   group("valet är en del av vyn");

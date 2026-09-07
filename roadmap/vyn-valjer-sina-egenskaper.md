@@ -289,17 +289,55 @@ webbläsaren inte ens scrollar. Dolda under `(pointer: coarse)` och bara i lista
 dator är stapeln hur man lär sig att listan går i sidled alls, och där är den inte
 flyktig.
 
-## Open questions
-- **Ett val eller ett per layout?** Listan har spår, kortet har märken; samma
-  uppsättning i bägge är enklare att förklara och sämre för bägge. `effectiveParams`
-  kan bära det, men två uppsättningar är två saker att spara.
-- **Delar rubriken radens uppsättning?** De har bara `rollup` gemensamt, och rubrikens
-  `count` finns inte på raden alls — så en gemensam lista blir en lista med rader som
-  inte gäller överallt. Två små uppsättningar är förmodligen ärligare än en stor med
-  undantag.
-- **Vad kan aldrig stängas av?** Titeln, uppenbart. Puck-glyfen bär repofärgen, och
-  varningsmärket är driftsignalen — att kunna dölja den är att kunna dölja att något är
-  fel.
-- **Räknas det som filter eller som display?** Det är display (chipparaden talar om
-  filter), men gränsen är värd att skriva ner: `is:flagged` gömmer kort, `-flagged`
-  skulle gömma ett märke.
+## Byggt: väljaren
+
+`props` är den nionde vy-nyckeln, så valet ligger i URL:en, följer med en delad länk och
+sparas med en sparad vy — utan något eget maskineri, vilket är precis vad `VIEW_KEYS`
+fanns till för. `PROPS` är katalogen och driver raden, kortet **och** gruppens rubrik ur en
+vandring.
+
+Fyra saker som var mekaniska på papperet och inte i verkligheten:
+
+- **`FIELDS` var upptaget.** Frågespråkets fälttabell har hetat så sedan filtret skrevs, och
+  min redeklaration tömde den: inget term matchade, tolv kontroller föll — och ingenting
+  kastade. Egenskaperna heter `PROPS` och nyckeln `props`, så "fält" betyder en sak i filen.
+- **Om cellen finns är en fråga om vyn, aldrig om pucken.** Tomheten är per puck, så en puck
+  utan target som hoppade över sin datumcell flyttade varje cell efter den ett spår åt
+  vänster. En puck utan target hade alltså spräckt registret för hela listan.
+- **Datumspåret växer med det den håller.** Hittat genom att titta på en telefon: med
+  `Created` och `Updated` ibockade är cellen högerställd, så ett fast 92px-spår — måttat för
+  ett naket datum — rann över *åt vänster* och skrev bägge datumen ovanpå repo-namnet
+  (mätt på 390px: första datumet började på 320, repo-cellen slutade på 450). Inte
+  `max-content`: varje rad är sitt eget rutnät, så ett innehållsmätt spår blir olika brett på
+  varje rad och kolumnen slutar vara en kolumn.
+- **Ägare och etiketter fanns bara på kortet.** De finns på raden nu, för annars ljuger
+  kryssrutan i listläget — samma fel som filen redan namnger tre gånger: en kontroll som
+  påstår ett val som aldrig trädde i kraft.
+
+## Frågorna, besvarade
+
+- **Ett val eller ett per layout?** *Ett.* Argumentet för två var att raden är trängre än
+  kortet — och sidledsscrollen tog bort just den skillnaden innan väljaren byggdes. Kvar
+  blir "två saker att spara", vilket aldrig var argumentet *för*.
+- **Delar rubriken radens uppsättning?** *Ja, och `rollup` är skälet.* Brickan bredvid en
+  grupps namn och brickan på en rad är **samma egenskap**. Två uppsättningar hade fått
+  namnge den två gånger och kunnat säga emot varandra om raderna nedanför. `count` finns
+  bara i rubriken, och det är ingen invändning: `parent` säger ingenting under
+  parent-gruppering och `repo` ingenting under repo-gruppering.
+- **Vad kan aldrig stängas av?** Titeln, puck-glyfen och rubrikens swatch (bägge bär
+  repofärgen), ⚠, och arkivmärket. De två sista är samma regel från var sitt håll: en
+  driftsignal man kan gömma är ett fel man kan gömma, och märket är det enda klicket
+  tillbaka till korten det håller.
+- **Filter eller display?** Display, som förutspått — men gränsen visade sig ha en tredje
+  sida: `props=none` är ett val, inte frånvaron av ett. Automatiken gäller när nyckeln
+  *saknas*. En tom sträng kan inte bära det, för `viewsEqual` läser `(a[k] || "")` och ser
+  då ingen skillnad mot en saknad nyckel — därför den literala `none`.
+
+## Kvar
+
+- **Status som egenskap.** Målet räknar upp den, och den är den enda i uppräkningen som
+  inte redan ritas någonstans på ett kort eller en rad — kolumnen säger den. Att lägga till
+  den är att bygga ett nytt märke, inte att välja bland befintliga, och grupperar man på
+  repo i listan finns den ingenstans. Egen omgång.
+- **Ordningen egenskaperna visas i** har redan en egen puck (`ordningen-egenskaperna-visas-i`).
+  `PROPS` ordning är radens spårordning i dag; den pucken är där ett handval hör hemma.
