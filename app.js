@@ -2093,11 +2093,29 @@
   // beginning — a truncated label is still readable from its start.
   function fitPop(root) {
     var m = 8;
+    // Measured as the surface *wants* to be, not as the last fit left it. This runs
+    // again whenever the content changes — opening a field's value list grows the panel
+    // — and a rect that already carries the previous correction makes them accumulate.
+    root.style.transform = "";
+    root.style.maxHeight = "";
     var r = root.getBoundingClientRect();
     var dx = 0;
     if (r.right > window.innerWidth - m) dx = window.innerWidth - m - r.right;
     if (r.left + dx < m) dx = m - r.left;
     if (dx) root.style.transform = "translateX(" + Math.round(dx) + "px)";
+    // And the same question downwards, which the fixed-height shell made a real one:
+    // `.app` clips, and there is no page scroll left, so a popover running past the
+    // bottom does not merely look wrong — its lower rows cannot be reached at all.
+    // Measured at 1000×420 with the Labels list open: 328px tall, 14 of them below the
+    // window. No floor under the cap: a short window gives a short menu, and a menu you
+    // can scroll is worth more than one that looks comfortable and hides its last row.
+    var room = window.innerHeight - r.top - m;
+    if (r.height > room) {
+      root.style.maxHeight = Math.round(room) + "px";
+      root.style.overflowY = "auto";
+    } else {
+      root.style.overflowY = "";
+    }
   }
 
   //   opts: { title, anchorWrap, cls, help, onClose, build(body, api) }
@@ -2269,7 +2287,15 @@
     // Only the anchored shell. A sheet spans the window by construction, and
     // `.pop-center` is already placed by transform — shifting either would move a
     // surface that was never out of bounds.
-    if (!phone && opts.anchorWrap) fitPop(root);
+    if (!phone && opts.anchorWrap) {
+      fitPop(root);
+      // The panel rebuilds itself in place — a field row swaps the list for that field's
+      // values — so a fit measured only at open is a fit for the smallest thing the
+      // surface will ever be. Watching the body is what makes the cap follow it.
+      var refit = new MutationObserver(function () { fitPop(root); });
+      refit.observe(body, { childList: true, subtree: true });
+      onDestroy.push(function () { refit.disconnect(); });
+    }
     // Give a sheet's search field breathing room before the list, the way the
     // reference apps do. The gap has to belong to the *pinned* element, not sit
     // between it and the list: a margin there is not painted, so rows would scroll

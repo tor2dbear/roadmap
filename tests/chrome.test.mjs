@@ -953,6 +953,45 @@ export async function run({ open }) {
     eq(efter.x, före.x, `och inte den vågräta heller: ${före.x} → ${efter.x}`);
   }
 
+  group("en popover ryms i skalet");
+  {
+    // Codex, #49. Med en fast höjd klipper `.app`, och det finns ingen sidscroll kvar —
+    // så en popover som går förbi underkanten är inte bara ful: dess nedersta rader går
+    // inte att nå alls. Mätt på 1000×420 med etikettlistan öppen: 328px hög, 14 av dem
+    // under fönstret. `fitPop` svarade redan på samma fråga i sidled; det här är den
+    // andra axeln, och den blev en riktig fråga först när sidan slutade scrolla.
+    const fett = (d) => {
+      d.items.forEach((it, i) => { it.tags = Array.from({ length: 6 }, (_, k) => "etikett-" + ((i * 6 + k) % 48)); });
+      return d;
+    };
+    const p = await open("?done=1", { viewport: { width: 1000, height: 420 }, data: fett });
+    await p.waitForSelector("#filterBtn");
+    await p.click("#filterBtn");
+    await p.waitForTimeout(250);
+    // Etikettraden, som byter listan mot fältets värden — det är den ombyggnaden som gör
+    // panelen hög, och som en passning mätt bara vid öppning aldrig ser.
+    await p.evaluate(() => {
+      const r = [...document.querySelectorAll(".pop .row, .pop button")].find((e) => /^Labels/.test(e.textContent.trim()));
+      if (r) r.click();
+    });
+    await p.waitForTimeout(350);
+    const m = await p.evaluate(() => {
+      const pop = document.querySelector(".pop");
+      const r = pop.getBoundingClientRect();
+      pop.scrollTop = pop.scrollHeight; // nåbarhet, inte synlighet
+      const sista = pop.querySelector(".surface-body > *:last-child");
+      const sr = sista && sista.getBoundingClientRect();
+      return {
+        höjd: Math.round(r.height), bottom: Math.round(r.bottom), vh: window.innerHeight,
+        scrollar: pop.scrollHeight > pop.clientHeight,
+        sistaNåbar: sr ? sr.bottom <= r.bottom + 1 : null,
+      };
+    });
+    ok(m.scrollar, `panelen är högre än sitt tak, alltså mäter vi något: ${JSON.stringify(m)}`);
+    ok(m.bottom <= m.vh, `och håller sig innanför fönstret: ${JSON.stringify(m)}`);
+    eq(m.sistaNåbar, true, "sista raden går att scrolla fram inuti den");
+  }
+
   group("chromet ovanför rutan är ingen död zon för hjulet");
   {
     // Codex, #49. Topbaren, vyrubriken och chipparaden är *syskon* till rutan, och med

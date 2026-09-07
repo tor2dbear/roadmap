@@ -354,6 +354,16 @@ sideways is a scroll container in *both* axes, so before the change a group head
   and walks up from the target so a box that scrolls itself gets first refusal. It asks
   `overflow-y` before `scrollHeight`: the view-switch button measures 24 against 21 from
   line-height alone, and asking about overflow only let it swallow every wheel.
+- **A popover fits downwards too, and that became a real question here.** `fitPop` used to
+  answer only sideways; with the shell clipping and no page scroll left, a menu running
+  past the bottom has rows that cannot be reached at all — measured at 1000×420 with the
+  filter's Labels list open: 328px tall, 14 of them below the window. It now caps itself
+  to the room below its trigger and scrolls, with no floor under the cap (a menu you can
+  scroll beats one that looks comfortable and hides its last row). It also re-fits on
+  content change: the filter panel swaps its list for a field's values in place, so a fit
+  measured only at open is a fit for the smallest thing the surface will ever be — and
+  each pass resets `transform` and `max-height` before measuring, or the corrections
+  accumulate.
 - **The port is a tab stop, because the page stopped being one.** With the document no
   longer scrolling, Page Down and Space from the topbar or the chip row had nothing to
   move, and `.work` was a plain `div`: Chrome puts scrollers in the tab order by itself,
