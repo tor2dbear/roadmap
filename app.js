@@ -1599,7 +1599,11 @@
       live = false; axis = null;
     }
     port.addEventListener("touchend", up, { passive: true });
-    port.addEventListener("touchcancel", up, { passive: true });
+    // A cancelled sequence is not a finished one. `touchcancel` means the system took the
+    // gesture — a call, an edge swipe, a scroll the browser decided to own — and finishing
+    // it through `up` would fling the list on the strength of a swipe the user never
+    // completed. It clears instead: no velocity, no glide.
+    port.addEventListener("touchcancel", function () { vx = 0; live = false; axis = null; }, { passive: true });
     // Capture, so it runs before the row's own listener rather than after it.
     port.addEventListener("click", function (e) {
       if (!caught) return;
@@ -2065,6 +2069,10 @@
     }
     body.addEventListener("touchmove", handoff, { passive: true });
     body.addEventListener("touchend", function () { if (handOn) up(); }, { passive: true });
+    // Här *ska* ett avbrott avslutas, till skillnad från listans sidledskast en våning upp:
+    // det finns ingen tröghet att sjösätta, bara ett ark som står mitt i ett drag med en
+    // inline-höjd och `.dragging` kvar. Alternativet till `up()` är ett ark som hänger sig,
+    // inte ett som står stilla.
     body.addEventListener("touchcancel", function () { if (handOn) up(); }, { passive: true });
     // Panoreringen är listans bara när listan har någonstans att ta vägen *åt det
     // håll webbläsaren låser sig vid*.

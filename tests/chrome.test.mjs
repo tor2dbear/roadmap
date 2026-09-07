@@ -801,6 +801,29 @@ export async function run({ open }) {
     ok(föreBlock > 40, `glidet var på väg när sidan pausades: ${föreBlock}`);
     ok(efterBlock - föreBlock < 15,
       `och återupptas inte efteråt: ${föreBlock} → ${efterBlock} (utan regeln 100 → 174)`);
+
+    // Codex, #49: en avbruten gest är ingen avslutad. `touchcancel` betyder att systemet
+    // tog gesten ifrån oss — ett samtal, ett kantsvep, en scroll webbläsaren bestämde sig
+    // för att äga — och att avsluta den genom samma väg som ett lyft finger kastade listan
+    // på styrkan hos ett svep användaren aldrig slutförde. Samma svep, två slut: mätt
+    // 100 → 174 för `touchEnd`, 100 → 100 för `touchCancel`.
+    const slut = async (typ) => {
+      await p.evaluate(() => { const w = document.getElementById("work"); w.scrollLeft = 0; w.scrollTop = 0; });
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: 300, y: 400 }] });
+      for (let i = 1; i <= 10; i++) {
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: 300 - 10 * i, y: 400 - 2 * i }] });
+        await new Promise((r) => setTimeout(r, 15));
+      }
+      const vid = await p.evaluate(() => Math.round(document.getElementById("work").scrollLeft));
+      await cdp.send("Input.dispatchTouchEvent", { type: typ, touchPoints: [] });
+      await p.waitForTimeout(800);
+      return { vid, efter: await p.evaluate(() => Math.round(document.getElementById("work").scrollLeft)) };
+    };
+    const lyft = await slut("touchEnd");
+    ok(lyft.efter - lyft.vid > 40, `ett lyft finger kastar: ${lyft.vid} → ${lyft.efter}`);
+    const avbrutet = await slut("touchCancel");
+    eq(avbrutet.efter, avbrutet.vid,
+      `men en avbruten gest står stilla: ${avbrutet.vid} → ${avbrutet.efter} (utan regeln lika långt som lyftet)`);
   }
 
   group("att fånga ett glid öppnar ingen puck");

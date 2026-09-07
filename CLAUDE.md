@@ -453,7 +453,12 @@ sideways is a scroll container in *both* axes, so before the change a group head
   scroller next to every other one on the device — so `armAxisLock` keeps a smoothed
   velocity (one stuttered frame at the end of a swipe must not decide the glide) and
   decays it per *millisecond*, so a slow frame buys no extra travel; a finger that paused
-  before lifting flings nothing, and a frame gap over 100ms cancels rather than clamps —
+  before lifting flings nothing, and a gesture the system *takes* — `touchcancel`: a call,
+  an edge swipe, a scroll the browser decided to own — flings nothing either. That last one
+  is a distinction the sheet does not make and must not: routed through the same `up()` as a
+  lifted finger, the same swipe glided just as far as a completed one (measured, 100 → 174
+  against 100 → 100), while the sheet's cancel has no inertia to launch and only an
+  interrupted drag to settle. A frame gap over 100ms cancels rather than clamps —
   put the page aside and `requestAnimationFrame` stands still, so clamping would let the
   inertia survive the pause and roll on when you came back (measured over a 350ms block:
   100 → 174 with the clamp, 100 → 103 without). The sheet's inertia already had that rule;

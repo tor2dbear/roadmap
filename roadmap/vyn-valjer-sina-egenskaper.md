@@ -261,7 +261,12 @@ när det lyfts är inte hur någon annan scroll på telefonen beter sig. Så ett
 utjämnad hastighet (en enda hackig bildruta i slutet av en svep får inte avgöra hela
 glidet) som dämpas per *millisekund*, så en långsam bildruta inte köper extra väg. Mätt:
 snabb flick 200 → 352, långsam dragning 200 → 200. En dragning som stannat innan fingret
-lyfts kastas inte alls — utan den vakten går den långsamma till 271.
+lyfts kastas inte alls — utan den vakten går den långsamma till 271. Och en gest som
+*tas* ifrån oss kastas inte heller: `touchcancel` — ett samtal, ett kantsvep, en scroll
+webbläsaren bestämde sig för att äga — låg på samma väg som ett lyft finger och glidde
+alltså lika långt som ett svep användaren aldrig slutförde (100 → 174 mot 100 → 100).
+Arket en våning ned gör tvärtom, med rätta: där finns ingen tröghet att sjösätta, bara
+ett drag som måste landa.
 
 **De tre andra var samma sak: en tvåaxlig ruta ritar två indikatorer dåligt.** Den lodräta
 målas *under* de klibbiga gruppubrikerna, den följer med i sidled i stället för att stå vid
