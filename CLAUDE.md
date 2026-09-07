@@ -294,6 +294,16 @@ buckets it was designed around, which is why the list could go first.
 - **The caret sits in the row's left gutter, not a grid track.** A track would have to
   exist on the leaves too, to keep the five columns in register, and a leaf reserving a
   control it never gets is a target that answers nothing.
+- **In a group heading, only the name gives.** The swatch, the count, the archive control
+  and the rollup badge are fixed marks, but a flex item with a width is still shrinkable —
+  so a long parent name pressed against the heading's `100cqw` cap squeezed them instead of
+  ellipsising itself: measured at 393px on the live board, the squeeze is *gradual* — 10px
+  where the name fits, then 9.3, 7.8, 7.0 and finally **0**. The eye reads that as one dot
+  missing; four of the five were already shaved, which is why the guard asks every heading
+  and not just the tightest. `flex: none` on the
+  parts, named exceptions for the two boxes that may shrink (the `h2` holding the name, and
+  the name itself), and the exceptions written more specifically than the blanket rule
+  since that is the only thing deciding them.
 - **The row carries no count.** `progress` is already there and answers the steadier
   question — how many parts the puck *has* — where a count of the rows below would move
   with the filter and read as though parts had been lost.
@@ -320,6 +330,181 @@ unbreakable thing on the page started deciding the document's width: 652px on a 
 phone, with the topbar and chip row (sized to the viewport) sitting in 60% of the page.
 `min-width: 0` on `.board.as-list` is the fix — `min-width: 0` on the *label* lets it
 shrink but does not lower what it contributes.
+
+**The shell is a fixed-height column with one scrollport (`.work`), not a page that
+scrolls.** That is what makes the list's two axes possible at once: a box that scrolls
+sideways is a scroll container in *both* axes, so before the change a group heading's
+`top: sticky` resolved against a port with no vertical travel and stopped sticking (−575,
+−521, −468 while scrolling down). Three consequences worth knowing before touching it:
+
+- **Two sticky boxes, one axis each, nested.** A sticky box can only travel *inside* its
+  containing block, so vertical needs an element shorter than its container (`.list-head`
+  in the tall group) and horizontal one narrower (`.lh-inner` in the full-width heading).
+  Either alone gets you half the behaviour and looks like a bug.
+- **The heading outranks the frozen cells** (`z-index` 4 against 2): same level and later
+  in the document meant a scrolled row's title painted over the pinned heading.
+- **Only the group heading is pinned; the row scrolls whole, title included.** Freezing
+  the glyph and the name was the first answer and the measurement retired it: on a 390px
+  phone the frozen block was 288px flat and **368px** once the tree's indent was inside
+  it, leaving 102 and *22* pixels of window onto the metadata the scroll exists to reach.
+  A frozen column that leaves 6% of the screen to scroll in is not keeping your place, it
+  is taking the screen. It leaked too, and structurally rather than for want of a
+  background: two frozen cells with a grid gap between them are two opaque boxes and one
+  14px slot belonging to neither, so priority bars and agent chips slid through it and sat
+  beside the glyph. The heading stays pinned in both axes — it names the group you are
+  inside, one line per group rather than one per row, and being one box it has no gap of
+  its own. Its background still bleeds across the gutter to its left (`background:
+  inherit`, so hover and selection have one place to change).
+- **The chrome above the port is not a dead zone either.** The topbar, the view header and
+  the chip row are siblings of `.work`, so with the document no longer scrolling a wheel
+  over them moved nothing (measured: 300 notches over the topbar, `scrollTop` still 0);
+  before the fixed height they scrolled the page, which was to scroll the board.
+  `armChromeWheel` forwards from `.maincol` only — the sidebar is a region *beside* the
+  board, and moving it from there would be a new behaviour rather than a restored one —
+  and walks up from the target so a box that scrolls itself gets first refusal. It asks
+  `overflow-y` before `scrollHeight`: the view-switch button measures 24 against 21 from
+  line-height alone, and asking about overflow only let it swallow every wheel. First
+  refusal is per axis, only where the event carries a delta, and it is a claim on *that
+  axis alone*: the chip row cannot take a `deltaX` at all, so asking `deltaY < 0` about a
+  purely sideways swipe (`deltaY === 0`) read it as "downwards" and swallowed it (measured:
+  150px of sideways wheel moved nothing with 352px of list to the right), and a diagonal
+  one then let the row keep the half it could use *and* the half it could not (chip row
+  120, list 0). Each axis is followed separately; whatever nobody wanted is forwarded.
+- **A popover fits downwards too, and that became a real question here.** `fitPop` used to
+  answer only sideways; with the shell clipping and no page scroll left, a menu running
+  past the bottom has rows that cannot be reached at all — measured at 1000×420 with the
+  filter's Labels list open: 328px tall, 14 of them below the window. It now caps itself
+  to the room below its trigger and scrolls, with no floor under the cap (a menu you can
+  scroll beats one that looks comfortable and hides its last row). It also re-fits on
+  content change: the filter panel swaps its list for a field's values in place, so a fit
+  measured only at open is a fit for the smallest thing the surface will ever be — and
+  each pass resets `transform` and `max-height` before measuring, or the corrections
+  accumulate. **Which side is authored (`menu-right`); which end is measured.** A rail
+  control near the bottom of a puck page has no room below it at any width, so capping
+  downwards gives a 15px menu (measured: the status picker at y=247 in a 300px window) or,
+  a row lower, a negative cap — invalid CSS, dropped, and the menu hangs off the bottom
+  again. `fitPop` flips it above the trigger (`.pop-flip`) when that side is roomier, and
+  reads the 5px gap off the stylesheet rather than restating it. **And it measures the box
+  that actually cuts, not the window**: a rail popover lives inside `.work`, which clips at
+  its own top edge — 52px down on a puck page — so a flip measured against the viewport put
+  the menu's first rows behind the topbar with no scroll range above to bring them back
+  (measured: top 8, port top 52, 44px gone). A test that asks `top >= 0` passes while that
+  happens; ask the port. The box is every clipping ancestor *intersected, per axis* — the
+  kanban board's `overflow-x: auto` makes its computed `overflow-y` `auto` too, so a
+  first-match walk read a bottom wherever the tallest column ends (measured at 1000×240: a
+  column menu ran to 245 with the port ending at 240, uncapped, because the board's bottom
+  was 473). On a window resize it re-fits, and when the window shrank past the
+  trigger itself it closes instead: a menu hanging off a control nobody can see any more is
+  not a placement problem.
+- **The port is a tab stop, because the page stopped being one.** With the document no
+  longer scrolling, Page Down and Space from the topbar or the chip row had nothing to
+  move, and `.work` was a plain `div`: Chrome puts scrollers in the tab order by itself,
+  Safari does not. It carries `tabindex="0"` and `role="region"`, and its `aria-label`
+  follows what it is holding — `Board`, or `Puck` while a puck page is open, written from
+  the same two places that toggle `body.viewing-puck`. The focus ring is
+  `:focus:not(:focus-visible)`-guarded, since a click on the empty space beside the columns
+  now lands on it.
+- **A puck page gives the board's place back.** `body.viewing-puck` hides `#board`, which
+  takes the port's scroll range away and clamps both offsets to 0 — measured 150/250 →
+  0/0, so returning landed on the top-left of the list. The board is hidden across
+  arbitrarily many rendering opportunities, so the same-task argument above cannot help:
+  `openDetail` saves the place on the way *in* (only from the board, so puck → puck keeps
+  the first one, which is where Back actually returns) and `closeDetail` puts it back. The
+  place belongs to *that* board, so `exitPuckView` — the sidebar or rail navigating to a
+  different one — drops it instead: a four-row view opened at `scrollLeft: 150` with its
+  titles off screen because a longer list had been read there. It resets the *live* port
+  as well, because the offset standing in it by then is the puck's own: a view picked after
+  reading 300px into a puck opened 186px down its own list.
+- **Nothing may measure the board while it is empty.** `renderBoard` clears `#board` before
+  it fills it, and emptying a scrollport's tall child clamps its offsets to the origin —
+  but the clamp happens *at layout*, and nothing in between reads geometry, so the box is
+  never measured while empty. That is the whole reason an async redraw (`loadWritableRepos`
+  resolving under a scrolled list) does not throw the reader back to the top. Measured with
+  a forced reflow inserted into that gap: 150/200 → 0/0. So no `getBoundingClientRect`,
+  `offsetHeight` or `scrollHeight` between the clear and the appends; a test holds it.
+- **A fold keeps its own control still.** `renderBoard` replaces the board, and a replaced
+  board starts at the top — measured 262 → 0 — so the heading you had just tapped scrolled
+  out from under your finger and the thing you folded finished off screen. `toggleGroup`
+  reads the pressed control's distance from the port's top edge, renders, finds the
+  control again by its `data-fold` key (the old node is detached and measures nothing) and
+  puts that distance back. It clamps honestly: fold the last group and there may be no
+  content left to hold the offset, and then the port does move.
+- **A drag keeps to one axis, and the browser is told so before the gesture, not after.**
+  The port scrolls both ways in the list and a phone drag is never straight, so a flick
+  down it with a few degrees of drift moved the columns sideways too. The first fix read
+  the scroll that had already happened and put the off-axis back; it passed a synthetic
+  test and did nothing on a real phone, which is the lesson worth keeping: **an iOS touch
+  scroll runs on the compositor, and writing `scrollTop` while the finger is down does not
+  reach it** — a test that moves the offsets itself measures the arithmetic, not the
+  mechanism. So the port carries `touch-action: pan-y pinch-zoom` (scoped by
+  `.work:has(> .board.as-list)`, since the kanban board is its own sideways scroller and
+  `pan-y` on an ancestor would forbid it), and sideways is `armAxisLock`'s to drive: the
+  first 8px pick the axis, and a sideways one refuses the browser's vertical pan and moves
+  `scrollLeft` by the finger's delta — but only where there is room *in the direction being
+  asked for*, since claiming x at an edge refused the vertical pan and then wrote a
+  `scrollLeft` that clamped, so the gesture moved neither axis. Vertical keeps momentum and the rubber band; a
+  sideways flick has none, because it is not the browser scrolling. Test it with real
+  gestures through CDP — and pick the angle deliberately: Chromium locks the axis itself
+  up to ~36°, so only a steeper diagonal (measured: 352px of drift at 42°) can tell the
+  rule from its absence, and `preventDefault` is observable only as `defaultPrevented`,
+  never as an offset, for the same reason.
+- **The driven axis needs its own fling, and the phone needs no indicators.** Giving the
+  sideways pan to JS also gave away its momentum, and 1:1-then-dead-stop reads as a broken
+  scroller next to every other one on the device — so `armAxisLock` keeps a smoothed
+  velocity (one stuttered frame at the end of a swipe must not decide the glide) and
+  decays it per *millisecond*, so a slow frame buys no extra travel; a finger that paused
+  before lifting flings nothing, and a gesture the system *takes* — `touchcancel`: a call,
+  an edge swipe, a scroll the browser decided to own — flings nothing either. That last one
+  is a distinction the sheet does not make and must not: routed through the same `up()` as a
+  lifted finger, the same swipe glided just as far as a completed one (measured, 100 → 174
+  against 100 → 100), while the sheet's cancel has no inertia to launch and only an
+  interrupted drag to settle. A frame gap over 100ms cancels rather than clamps —
+  put the page aside and `requestAnimationFrame` stands still, so clamping would let the
+  inertia survive the pause and roll on when you came back (measured over a 350ms block:
+  100 → 174 with the clamp, 100 → 103 without). The sheet's inertia already had that rule;
+  this is the same one, a floor up. **The glide belongs to its gesture, and three things end
+  it**: a touch anywhere (the finger that opens Filter never reaches `.work`, so the port's
+  own handler cannot see it — and that document-level listener, running in capture before
+  the port's, is also the only place that can still tell whether there was a glide to
+  interrupt, which is what decides the click — and the receipt it leaves is only good for a
+  click that is *about* to arrive: move the finger, or lose the gesture to the system, and no
+  click follows, so an uncleared flag eats the next real one instead. The touch checks cannot
+  see that, because their next tap is a touch and its own `touchstart` clears the flag on the
+  way in; a mouse on a hybrid device or a click from assistive technology arrives with no
+  `touchstart` at all, and measured, the puck stopped opening), a scroll lock (`overflow: hidden` holds the
+  *user's* scrolling, not our `scrollLeft` writes — measured, the board slid from 229 to
+  352 under an open sheet), and a board that is replaced under it. And a two-axis port draws two native indicators badly:
+  reported from a real device, the vertical bar paints *under* the sticky headings, travels
+  with the sideways scroll rather than standing at the port's edge, and a flick down
+  flashes the horizontal one — an indicator for an axis the browser is not scrolling at
+  all. Hidden under `(pointer: coarse)` only: on a desktop that bar is how you learn the
+  list scrolls sideways, and it is not transient there. Both rules are also scoped out of
+  `body.viewing-puck`: a hidden `#board` keeps its `as-list` class, so a puck opened *from*
+  the list carried the list's lock and its hidden indicators onto a page that is not a
+  list — while the same puck reached from the board had neither.
+- **A pinned box pins where it already sits, not at the port's edge.** `left: 0` is the
+  obvious offset and the wrong one: the box slides to the edge *first* and freezes there,
+  so the first stretch of every sideways drag moves everything on screen — measured, 26px
+  for the heading (36 and 50 for the glyph and title, while those were pinned). With
+  nothing standing still, a drag down with any sideways drift read as the page sliding in
+  all directions at once. The heading's offset is its resting one, `--list-pad` +
+  `--head-pad`, which makes the travel zero.
+- **The scroll lock moved with the scroll.** `body { position: fixed }` held the page's
+  offset; the page has none now, so `lockScroll` hides `.work`'s overflow and restores its
+  offset. Anything else that reaches for `window.scrollTo` is reaching for the wrong box —
+  the puck page and the editor's `reveal()` both scroll the port.
+
+- **The fixed height is on `body`, not on `.app`.** The shell is not always the only thing
+  on the page: the config-driven ribbon (`CFG.ribbon`, and demo mode) is inserted as
+  `.app`'s *sibling*. With the height on `.app` the document came out ribbon-tall plus a
+  full viewport — measured 458px of content in a 420px window — which is an outer page
+  scroll back again, `.work`'s bottom below the fold, and a page that can still move while
+  a sheet locks only `.work`. `body` is the column; the ribbon takes what it needs and
+  `flex: 1` gives the shell the rest, with no height to keep in sync.
+
+`100dvh` rather than `100vh` on the shell, which also retires the ghost scroll: on iOS
+`100vh` is the *large* viewport, so every page was taller than its own window by the
+toolbar's height — a scrollable board with one card on it.
 
 **And the row's columns are a `@container` query, not a media query**, because the row is
 as wide as the *board* and the board is not the window: the sidebar takes 240px whenever

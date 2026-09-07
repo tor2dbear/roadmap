@@ -2,7 +2,7 @@
 title: Vyn väljer sina egenskaper
 status: next
 tags: [ui, product]
-updated: 2026-09-05
+updated: 2026-09-07
 created: 2026-09-04
 priority: high
 target: 2026-09-30
@@ -148,12 +148,148 @@ Fyra saker som inte var uppenbara, och som var och en tog en mätning:
 Och det som gick: `@container`-nivåerna, alltså 560/720 och 652/812. En rad som får
 scrolla behöver ingen veta vad som får plats.
 
-## Open questions
+## Priset återköpt: skalet är en fast höjd
 
-- **Gruppens rubrik följer inte längre med nedåt.** Det är priset, och det är betalt i
-  koden — men det är ett smakbeslut och går att ångra: listan kan bli sin egen scrollruta,
-  vilket rör iOS-scroll, footern och samma geometri som
-  `headern-malas-inte-vid-omladdning`.
+Rubriken följer med nedåt igen. Skalet är en fast höjd med `.work` som enda scrollruta,
+alltså det bygget som stod som "går att ångra" här — och det visade sig vara mindre än
+befarat, för sidan hade redan lämnat sin scroll till `.app`s `min-height`.
+
+- **Två sticky-lådor, en per axel.** En sticky-box kan bara röra sig inuti sitt containing
+  block: vertikalt behövs ett element kortare än sin behållare (`.list-head` i den höga
+  gruppen), horisontellt ett smalare (`.lh-inner` i den fullbreda rubriken). Bara den inre
+  gav sidled och −469px nedåt.
+- **Rubriken över de frysta cellerna** (z-index 4 mot 2): på samma nivå målade den
+  scrollade radens titel över den fastnaglade rubriken.
+- **Låset flyttade med scrollen.** `body { position: fixed }` höll sidans offset; sidan
+  har ingen nu, så `lockScroll` gömmer rutans överflöd och lägger tillbaka dess offset.
+- **`100dvh` tar spökskrollen på köpet** — kandidat 1 i `headern-malas-inte-vid-omladdning`
+  är därmed prövad utan att den pucken rörts.
+- **Höjden hör hemma på `body`, inte på `.app`.** Skalet är inte alltid ensamt på sidan:
+  den config-styrda banderollen sätts in som syskon. Mätt: 38px banderoll i ett 420px
+  fönster gav 458px dokument — sidscroll igen, och en sida som kan röra sig medan en sheet
+  låser bara rutan. Som kolumn tar banderollen sitt och `flex: 1` ger skalet resten.
+
+## Fryst är orörligt, inte "fastnar till slut"
+
+Rättelse av raden ovan: *"Karetet hörde till namnet"* löste var frysningen satt, men inte
+**när** den inträffade. Med `left: 0` frös cellen först sedan den glidit fram till rutans
+kant. Mätt på 390px: glyfen 36px, titeln 50px, gruppens rubrik 26px — alltså rörde sig
+allt på skärmen under den första biten av varje dragning i sidled, och en dragning nedåt
+med minsta sidodrift gjorde det också, eftersom en ruta som scrollar i båda axlarna
+panorerar diagonalt. Rapporten löd "det skrollar i alla led", vilket var precis vad den
+gjorde.
+
+Offseten är nu viloläget — tavlans ränna plus radens padding, plus glyfspåret och ett
+mellanrum för namnet — så vägen är noll. Två följder:
+
+- **Talen blev tokens.** `--list-pad`, `--row-pad`, `--glyph-w`, `--row-gap`, `--head-pad`.
+  Ett mellanrum som breddas i rutnätet men inte i offseten *är* det glapp som just togs
+  bort, och det är den sortens skillnad ingen ser förrän någon drar i listan på en telefon.
+- **Rännan täcks per låda.** Glyfen och rubriken fäster på olika x, så de kan inte längre
+  dela en `::before` med en bredd: två regler, två bredder.
+
+Vad som står kvar: rutan panorerar fortfarande diagonalt, för en enda scrollruta i båda
+axlarna är priset för den klibbiga rubriken. Skillnaden är att det som glider nu är bara
+metadatan till höger. Den riktiga kuren är den här pucken själv — en telefonvy med färre
+kolumner har ingen sidled att scrolla i (mätt i fixturen: 352px överskott med hela
+uppsättningen påslagen).
+
+## Frysningen togs bort: den tog skärmen, och den läckte
+
+Mätt på den riktiga tavlan, 390px, med glyf och namn frysta:
+
+| | fryst block | kvar att scrolla i |
+|---|---|---|
+| `group=status` | 288px | 102px (26%) |
+| `group=parent` (med indrag) | **368px** | **22px (6%)** |
+
+En fryst kolumn som lämnar 6% av skärmen håller inte din plats, den tar skärmen. Och
+läckan som rapporterades i samma andetag var strukturell, inte en glömd bakgrund: **två
+frysta celler med ett rutnätsglapp mellan sig är två ogenomskinliga lådor och ett
+14px-fack som tillhör ingen.** Prioritetsstaplar och agentbrickor gled igenom det och la
+sig bredvid glyfen. En enda fryst låda hade löst läckan — och inte de 22 pixlarna.
+
+Alltså scrollar hela raden, titeln med. Gruppens rubrik står kvar i bägge axlarna: den
+namnger gruppen man är i, en rad per grupp i stället för en per rad, och som *en* låda har
+den inget glapp att läcka genom.
+
+Det bekräftar pucken snarare än att göra den mindre nödvändig: det som gjorde blocket
+368px brett var att alla sex kolumnerna alltid är på. Med ett val per vy finns det
+ingenting att scrolla till på en telefon, och då kan frysningen prövas igen om den saknas.
+
+## En dragning håller sig till en axel
+
+Det som stod kvar efter avfrysningen: rutan panorerar diagonalt, för en enda scrollruta i
+båda axlarna är priset för den klibbiga rubriken. **Det finns ingen CSS för det.** Tre
+saker som ser ut att vara svaret och inte är det:
+
+- `touch-action: pan-x|pan-y` binder ett element till *en* axel för gott, inte per gest —
+  raden hade aldrig gått att scrolla nedåt igen.
+- `overscroll-behavior` talar om kedjning, inte riktning.
+- Två nästlade enaxliga rutor gör det inte heller: en låda som inte kan scrolla vertikalt
+  kedjar den vertikala delen rakt till sin förälder, så en diagonal dragning rör bägge ändå.
+
+**Första svaret var fel, och felet är det som är värt att spara.** Det läste den scroll
+webbläsaren redan gjort och la tillbaka off-axeln. Det passerade ett syntetiskt test och
+gjorde ingenting på en riktig telefon: *en iOS-touchscroll körs på kompositorn, och att
+skriva `scrollTop` medan fingret är nere når inte dit.* Ett test som flyttar offseten själv
+rör aldrig den mekanismen — det mätte aritmetiken, inte saken.
+
+Så webbläsaren får veta i förväg i stället. `touch-action: pan-y pinch-zoom` på rutan
+(bara i listan — kanban-tavlan är sin egen sidledsscroller, och `pan-y` på en förfader
+förbjuder den) gör att en dragning *inte kan* panorera den i sidled hur sne den än är.
+Sidled är sedan vår att driva: de första 8 pixlarna väljer axel, och en sidledsgest nekar
+webbläsarens vertikala panorering och flyttar `scrollLeft` med fingrets eget delta.
+
+Priset, och det är den ärliga halvan: en sidledsflick har inget momentum, för det är inte
+webbläsaren som scrollar. Vertikalt behåller allt — momentum, gummibandet — vilket är den
+axel en lång lista faktiskt läses i.
+
+**Vinkeln i kontrollen är vald, inte gissad.** Chromium har ett eget axellås som håller upp
+till ungefär 36 grader, så en svag drift skulle passera även utan regeln. Vid 42 grader
+släpper det och tar hela sidledsvidden med sig — 352 av 352 — och det är talet sabotaget
+lämnar efter sig. iOS låser inte alls. Refuseringen av den vertikala panoreringen går av
+samma skäl bara att se som `defaultPrevented`, aldrig som en offset.
+
+## Kvitto från telefonen: kastet och indikatorerna
+
+Låset fungerar, och det som återstod var fyra symptom med två orsaker.
+
+**Sidleds kändes stum**, och det var priset som inte var betalt: `touch-action: pan-y` ger
+bort webbläsarens sidledsscroll, alltså också dess momentum. 1:1 med fingret och tvärstopp
+när det lyfts är inte hur någon annan scroll på telefonen beter sig. Så ett eget kast:
+utjämnad hastighet (en enda hackig bildruta i slutet av en svep får inte avgöra hela
+glidet) som dämpas per *millisekund*, så en långsam bildruta inte köper extra väg. Mätt:
+snabb flick 200 → 352, långsam dragning 200 → 200. En dragning som stannat innan fingret
+lyfts kastas inte alls — utan den vakten går den långsamma till 271. Och en gest som
+*tas* ifrån oss kastas inte heller: `touchcancel` — ett samtal, ett kantsvep, en scroll
+webbläsaren bestämde sig för att äga — låg på samma väg som ett lyft finger och glidde
+alltså lika långt som ett svep användaren aldrig slutförde (100 → 174 mot 100 → 100).
+Arket en våning ned gör tvärtom, med rätta: där finns ingen tröghet att sjösätta, bara
+ett drag som måste landa.
+
+**Och kvittot för det fångade klicket höll bara för ett klick som var på väg.** Fångar man
+ett glid och sedan *drar*, kommer inget syntetiskt klick — flaggan låg kvar och åt nästa
+riktiga tryck i stället. Det gick inte att se med beröringar, för nästa tapp är en beröring
+och dess egen `touchstart` nollar flaggan på vägen in; en mus på en hybrid, eller ett klick
+från hjälpmedel, kommer utan `touchstart` alls. Mätt: rent musklick öppnar pucken, samma
+klick efter en fångad-och-dragen gest gjorde det inte.
+
+Fyndet avslöjade något värre än sig självt: **den befintliga kontrollen för samma gest var
+grön mot vilket sabotage som helst.** Listan stod vid högerkanten när den kördes (352 av
+352), och där ber fingret om ett håll som inte finns — alltså inget glid, ingen fångst,
+inget påstående. Nu nollställs offseten först och kontrollen kollar att det *finns* ett glid
+att fånga. En kontroll som inte kan falla är samma sorts fel som kod inget sabotage kan
+fälla; den här filen letar redan efter det ena och missade det andra i sin egen svit.
+
+**De tre andra var samma sak: en tvåaxlig ruta ritar två indikatorer dåligt.** Den lodräta
+målas *under* de klibbiga gruppubrikerna, den följer med i sidled i stället för att stå vid
+rutans kant, och en flick nedåt blinkar fram den vågräta också — en indikator för en axel
+webbläsaren inte ens scrollar. Dolda under `(pointer: coarse)` och bara i listan: på en
+dator är stapeln hur man lär sig att listan går i sidled alls, och där är den inte
+flyktig.
+
+## Open questions
 - **Ett val eller ett per layout?** Listan har spår, kortet har märken; samma
   uppsättning i bägge är enklare att förklara och sämre för bägge. `effectiveParams`
   kan bära det, men två uppsättningar är två saker att spara.

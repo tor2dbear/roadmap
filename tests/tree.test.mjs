@@ -299,8 +299,9 @@ export async function run({ open }) {
     // eftersom en nästlad rad betalade 28px ränna plus upp till 64px indrag av sin egen
     // bredd. Den räkningen behövs inte längre — raden scrollar i stället för att droppa
     // kolumner — men *indraget* måste fortfarande sluta äta titeln, och det gör det
-    // genom att bo i namncellen: cellen är den frysta, så strukturen står kvar när
-    // metadatan scrollar, och varje rads metadata hamnar på samma x oavsett djup.
+    // genom att bo i namncellen i stället för på raden: så hamnar varje rads metadata på
+    // samma x oavsett djup, och karetet följer sin egen titel i stället för att hänga
+    // kvar hos ett förfaderselement.
     const kedja = (d) => {
       const t = träd(d);
       const mitten = t.items.find((i) => i.slug === "b-member");
@@ -330,18 +331,63 @@ export async function run({ open }) {
     });
     const före = await läs();
     ok(före.djup >= 2, `kedjan når djupet den ska: ${JSON.stringify(före)}`);
-    // Scrollat i sidled: både karetet och titeln ska vara kvar i bild, eftersom bägge bor
-    // i den frysta namncellen. Som barn till *raden* — där karetet satt förut — åkte det
-    // ut med metadatan, mätt till −4px.
-    await p.evaluate(() => { document.querySelector(".board.as-list").scrollLeft = 400; });
+    // Utan att scrolla: den djupaste titeln börjar inne på skärmen. Det är vad indraget
+    // inte får äta upp — raden får ett bredare minimum för trädet just för att golvet
+    // under titeln ska överleva 64px trappa.
+    const vy = await p.evaluate(() => document.documentElement.clientWidth);
+    ok(före.titel > 0 && före.titel < vy,
+      `den djupaste radens titel börjar i bild utan att man scrollar: ${JSON.stringify({ före, vy })}`);
+    // Avståndet mellan karet och titel, inte karetets plats: bägge bor i namncellen, så de
+    // rör sig tillsammans. Som barn till *raden* hängde karetet kvar hos ett
+    // förfaderselement medan cellen rörde sig — samma bild, olika avstånd.
+    await p.evaluate(() => { document.getElementById("work").scrollLeft = 400; });
     await p.waitForTimeout(150);
     const efter = await läs();
-    ok(efter.titel > 0, `den djupaste radens titel är kvar i bild: ${JSON.stringify(efter)}`);
-    // Avståndet mellan karet och titel, inte karetets plats: bägge bor i den frysta
-    // cellen, så de rör sig tillsammans. Som barn till *raden* hängde karetet i stället
-    // kvar hos ett förfaderselement medan titeln frös — samma bild, olika avstånd.
     eq(efter.titel - efter.karet, före.titel - före.karet,
       `karetet följer sin titel: ${JSON.stringify({ före, efter })}`);
+    ok(efter.titel < före.titel, `och hela raden följer scrollen: ${före.titel} → ${efter.titel}`);
+  }
+
+  group("bara namnet ger med sig i rubriken");
+  {
+    // Rubrikens övriga delar är fasta märken — swatchen, räknaren, arkivkontrollen,
+    // rollup-brickan — men ett flex-objekt med en bredd är ändå krympbart, så ett långt
+    // parentnamn tryckt mot rubrikens `100cqw`-tak klämde dem i stället för att ellipsisa
+    // sig självt. Mätt på 393px: swatchen gick från 10px till **0** — färgpricken helt
+    // borta — medan namnet behöll sin fulla bredd.
+    const p = await open("?layout=list&group=parent", { data: träd, viewport: { width: 393, height: 840 }, hasTouch: true });
+    await p.waitForSelector(".list-head");
+    const m = await p.evaluate(() => {
+      const inner = [...document.querySelectorAll(".lh-inner")]
+        .map((e) => ({ e, w: e.getBoundingClientRect().width }))
+        .sort((a, b) => b.w - a.w)[0].e;
+      const bredd = (s) => { const q = inner.querySelector(s); return q ? +q.getBoundingClientRect().width.toFixed(1) : null; };
+      const label = inner.querySelector(".lh-label");
+      return {
+        inner: Math.round(inner.getBoundingClientRect().width),
+        tak: Math.round(parseFloat(getComputedStyle(inner).maxWidth)),
+        swatch: bredd(".swatch"),
+        label: bredd(".lh-label"),
+        labelInne: label ? label.scrollWidth : null,
+      };
+    });
+    eq(m.inner, m.tak, `rubriken ligger mot sitt tak, alltså trängs den: ${JSON.stringify(m)}`);
+    eq(m.swatch, 10, `men swatchen behåller sina 10px: ${JSON.stringify(m)}`);
+    ok(m.labelInne > m.label, `det är namnet som ger med sig i stället: ${JSON.stringify(m)}`);
+
+    // Varje rubrik, inte bara den trängsta. Krympningen är *gradvis* — mätt på den riktiga
+    // tavlan före fixen: 10 där namnet fick plats, sedan 9.3, 7.8, 7.0 och till slut 0.
+    // Ögat läser det som "en prick är borta", men fyra av fem var redan naggade, och en
+    // kontroll som bara ser ytterfallet hade sluppit igenom de andra fyra.
+    const alla = await p.evaluate(() => [...document.querySelectorAll(".lh-inner")].map((inner) => {
+      const sw = inner.querySelector(".swatch");
+      const lbl = inner.querySelector(".lh-label");
+      return { rubrik: (lbl ? lbl.textContent : "").trim().slice(0, 18),
+               swatch: sw ? +sw.getBoundingClientRect().width.toFixed(1) : null };
+    }).filter((x) => x.swatch !== null));
+    ok(alla.length > 1, `det finns flera rubriker att mäta: ${JSON.stringify(alla)}`);
+    eq(alla.filter((x) => x.swatch !== 10).length, 0,
+      `och ingen av dem har en naggad prick: ${JSON.stringify(alla)}`);
   }
 
   group("listan spränger inte sidbredden på en telefon");
