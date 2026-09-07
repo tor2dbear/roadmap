@@ -3541,6 +3541,12 @@
     // with its titles off screen because a longer list had been read there.
     boardAt = null;
     closeDetail();
+    // And the offset standing in the port right now is the *puck's* — `openDetail` zeroes
+    // it on the way in, but the reader may have scrolled the page itself since. Dropping
+    // the saved place without dropping the live one just moves the problem: measured, a
+    // view picked after reading 300px into a puck opened 186px down its own list.
+    var port = scrollPort();
+    if (port) { port.scrollTop = 0; port.scrollLeft = 0; }
     if (location.hash) { try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} }
   }
   function closeDetail() {

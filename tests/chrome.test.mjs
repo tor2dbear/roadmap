@@ -729,6 +729,11 @@ export async function run({ open }) {
     // klampade, alltså rörde gesten ingen axel alls. Anspråket är det enda som går att
     // observera här — Chromiums eget axellås vägrar panorera lodrätt för en
     // sidledsdominant gest ändå, medan iOS, som inte låser, får den lodräta i stället.
+    // Vänta ut föregående kast först: `nolla()` nollställer offseten, men ett glid som
+    // fortfarande lever hinner flytta den innan nästa gest börjar — och då *finns* det rum
+    // åt höger, så anspråket blir korrekt men kontrollen mäter något annat än den tror.
+    // (Det förklarar också ett enstaka fel jag såg utan att kunna återskapa det.)
+    await p.waitForTimeout(700);
     await nolla();
     await dra(150, 400, 200, -80);   // vid vänsterkanten, fingret åt höger
     eq(await p.evaluate(() => window.__nekade), 0,
@@ -805,7 +810,14 @@ export async function run({ open }) {
     ok(under > 100, `listan glider fortfarande: ${under}`);
     const fångat = await tapp();
     eq(fångat.puck, false, `tappet stoppar glidet utan att öppna något: ${JSON.stringify(fångat)}`);
-    ok(Math.abs(fångat.x - under) < 40, `och glidet står stilla efteråt: ${under} → ${fångat.x}`);
+    // Två prov *efter* tappet, inte ett före och ett efter. Glidet rör sig ju mellan
+    // mätningen och beröringen, så en jämförelse över den luckan mäter maskinens tempo
+    // lika mycket som koden — den varianten föll ungefär var tredje körning (248 → 295).
+    // Står det still efter tappet är det stoppat, och det är hela påståendet.
+    const stilla1 = await p.evaluate(() => Math.round(document.getElementById("work").scrollLeft));
+    await p.waitForTimeout(400);
+    const stilla2 = await p.evaluate(() => Math.round(document.getElementById("work").scrollLeft));
+    eq(stilla2, stilla1, `och glidet står stilla efteråt: ${stilla1} → ${stilla2}`);
 
     // Men ett tapp är fortfarande ett tapp — vakten får inte äta ett riktigt klick.
     eq((await tapp()).puck, true, "ett vanligt tapp öppnar pucken");
@@ -1070,6 +1082,34 @@ export async function run({ open }) {
     eq(nyVy.puck, false, "vybytet lämnar pucken");
     eq(nyVy.x, 0, `och den nya tavlan börjar vid titlarna, inte i metadatan: ${JSON.stringify(nyVy)}`);
     eq(nyVy.y, 0, `och överst: ${JSON.stringify(nyVy)}`);
+
+    // Codex, #49: den sparade platsen är inte den enda. `openDetail` nollar rutan på vägen
+    // in, men *läsaren* kan ha scrollat puck-sidan sedan dess — och den offseten står kvar
+    // i porten när tavlan byts. Att släppa den sparade utan den levande flyttar bara
+    // problemet: mätt öppnade en vy 186px ner efter att pucken lästs 300px in.
+    // Egen sida med en lång puck-text: fixturens pucksidor är 43px höga, och en sida som
+    // inte kan scrollas kan inte bära en läsares offset in i nästa tavla.
+    const lång = (d) => { d.items.forEach((it) => { it.body = ("Ett stycke text som gör sidan hög.\n\n").repeat(40); }); return d; };
+    const q2 = await open("?layout=list&done=1", { viewport: { width: 390, height: 500 }, data: lång });
+    await q2.waitForSelector(".list-row");
+    await q2.evaluate(() => document.querySelector(".list-row").click());
+    await q2.waitForTimeout(400);
+    const läst = await q2.evaluate(() => {
+      const w = document.getElementById("work");
+      w.scrollTop = 300;
+      return { puck: document.body.classList.contains("viewing-puck"), y: Math.round(w.scrollTop),
+               max: w.scrollHeight - w.clientHeight };
+    });
+    eq(läst.puck, true, "en puck är öppen");
+    ok(läst.y > 100, `och läsaren har scrollat ner i den: ${JSON.stringify(läst)}`);
+    await q2.evaluate(() => [...document.querySelectorAll(".focusbtn")].find((b) => /Ready/.test(b.textContent)).click());
+    await q2.waitForTimeout(500);
+    const efterLäst = await q2.evaluate(() => {
+      const w = document.getElementById("work");
+      return { x: Math.round(w.scrollLeft), y: Math.round(w.scrollTop), rader: document.querySelectorAll(".list-row").length };
+    });
+    ok(efterLäst.rader > 0, `den nya listan är ritad: ${JSON.stringify(efterLäst)}`);
+    eq(efterLäst.y, 0, `och börjar överst, inte där pucken lästes: ${JSON.stringify(efterLäst)}`);
   }
 
   group("en omritning i bakgrunden flyttar inte läsaren");

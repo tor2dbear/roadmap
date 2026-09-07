@@ -402,7 +402,9 @@ sideways is a scroll container in *both* axes, so before the change a group head
   the first one, which is where Back actually returns) and `closeDetail` puts it back. The
   place belongs to *that* board, so `exitPuckView` — the sidebar or rail navigating to a
   different one — drops it instead: a four-row view opened at `scrollLeft: 150` with its
-  titles off screen because a longer list had been read there.
+  titles off screen because a longer list had been read there. It resets the *live* port
+  as well, because the offset standing in it by then is the puck's own: a view picked after
+  reading 300px into a puck opened 186px down its own list.
 - **Nothing may measure the board while it is empty.** `renderBoard` clears `#board` before
   it fills it, and emptying a scrollport's tall child clamps its offsets to the origin —
   but the clamp happens *at layout*, and nothing in between reads geometry, so the box is
