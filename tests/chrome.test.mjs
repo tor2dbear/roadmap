@@ -880,17 +880,50 @@ export async function run({ open }) {
     // själv — annars äts nästa riktiga tryck i stället.
     await p.goBack();
     await p.waitForTimeout(300);
-    await flick();
-    await p.waitForTimeout(80);
-    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: 200, y: 400 }] });
-    for (let i = 1; i <= 6; i++) {
-      await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: 200 - 15 * i, y: 400 }] });
-      await new Promise((r) => setTimeout(r, 20));
-    }
-    await new Promise((r) => setTimeout(r, 250));
-    await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
-    await p.waitForTimeout(600);
+    // Nollställ först, och kolla att det *finns* ett glid att fånga. Listan står vid
+    // högerkanten efter allt ovan, och där ber fingret om ett håll som inte finns —
+    // `flick()` gör då inget glid alls, `caught` sätts aldrig, och kontrollen påstår
+    // ingenting. Mätt: 352 av 352 vid den här punkten, alltså grön mot vilket sabotage
+    // som helst. Det är samma slags fel som resten av filen letar efter, en våning upp.
+    const glidande = async () => {
+      await p.evaluate(() => { const w = document.getElementById("work"); w.scrollLeft = 0; w.scrollTop = 0; });
+      await flick();
+      await p.waitForTimeout(80);
+      ok(await p.evaluate(() => Math.round(document.getElementById("work").scrollLeft)) > 100,
+        "listan glider när gesten fångas");
+    };
+    const fångaOchDra = async () => {
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: 200, y: 400 }] });
+      for (let i = 1; i <= 6; i++) {
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: 200 - 15 * i, y: 400 }] });
+        await new Promise((r) => setTimeout(r, 20));
+      }
+      await new Promise((r) => setTimeout(r, 250));
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+      await p.waitForTimeout(600);
+    };
+    await glidande();
+    await fångaOchDra();
     eq((await tapp()).puck, true, "ett tapp efter en fångad-och-dragen gest öppnar pucken");
+
+    // Codex, #49: och den kontrollen kan inte se hela saken, för *tappet* är en beröring
+    // och dess egen `touchstart` nollar flaggan på vägen in. Ett klick som kommer utan
+    // beröring — en mus på en hybrid, eller ett klick från hjälpmedel — gör inte det, och
+    // åt det ligger flaggan kvar från draget och äter det. Mätt: ett rent musklick öppnar
+    // pucken, samma klick efter en fångad-och-dragen gest gjorde det inte.
+    const musklick = async () => {
+      await p.mouse.click(200, 400);
+      await p.waitForTimeout(400);
+      return p.evaluate(() => document.body.classList.contains("viewing-puck"));
+    };
+    await p.goBack();
+    await p.waitForTimeout(300);
+    eq(await musklick(), true, "ett rent musklick öppnar pucken");
+    await p.goBack();
+    await p.waitForTimeout(300);
+    await glidande();
+    await fångaOchDra();
+    eq(await musklick(), true, "och ett musklick efter en fångad-och-dragen gest också");
 
     // Codex, #49: glidet hör till sin gest, och allt som tar över rutan avslutar det. Ett
     // tapp på Filter startar *utanför* `.work`, så portens egen `touchstart` såg det

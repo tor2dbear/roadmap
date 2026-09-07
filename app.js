@@ -1569,6 +1569,15 @@
       lastT = e.timeStamp;
     }, { passive: true });
     port.addEventListener("touchmove", function (e) {
+      // The flag is a receipt for a click that is about to arrive, and only a still finger
+      // produces one. Move it — the catch became a drag — and no click follows, so the
+      // receipt would sit there and eat the *next* real one instead. The touch checks
+      // cannot see that: their next tap is a touch, and its own `touchstart` clears the
+      // flag on the way in. A mouse on a hybrid device, or a click from assistive
+      // technology, arrives with no `touchstart` at all — measured, the puck stopped
+      // opening. Cleared before the single-finger guard: a second finger is no click either.
+      if (caught && e.touches[0] &&
+          (Math.abs(e.touches[0].clientX - sx) > 8 || Math.abs(e.touches[0].clientY - sy) > 8)) caught = false;
       if (!live || e.touches.length !== 1) return;
       var t = e.touches[0], dx = t.clientX - sx, dy = t.clientY - sy;
       if (!axis) {
@@ -1603,7 +1612,8 @@
     // gesture — a call, an edge swipe, a scroll the browser decided to own — and finishing
     // it through `up` would fling the list on the strength of a swipe the user never
     // completed. It clears instead: no velocity, no glide.
-    port.addEventListener("touchcancel", function () { vx = 0; live = false; axis = null; }, { passive: true });
+    // A gesture the system takes produces no click either, so the receipt goes with it.
+    port.addEventListener("touchcancel", function () { vx = 0; live = false; axis = null; caught = false; }, { passive: true });
     // Capture, so it runs before the row's own listener rather than after it.
     port.addEventListener("click", function (e) {
       if (!caught) return;

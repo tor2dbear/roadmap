@@ -466,7 +466,12 @@ sideways is a scroll container in *both* axes, so before the change a group head
   it**: a touch anywhere (the finger that opens Filter never reaches `.work`, so the port's
   own handler cannot see it — and that document-level listener, running in capture before
   the port's, is also the only place that can still tell whether there was a glide to
-  interrupt, which is what decides the click), a scroll lock (`overflow: hidden` holds the
+  interrupt, which is what decides the click — and the receipt it leaves is only good for a
+  click that is *about* to arrive: move the finger, or lose the gesture to the system, and no
+  click follows, so an uncleared flag eats the next real one instead. The touch checks cannot
+  see that, because their next tap is a touch and its own `touchstart` clears the flag on the
+  way in; a mouse on a hybrid device or a click from assistive technology arrives with no
+  `touchstart` at all, and measured, the puck stopped opening), a scroll lock (`overflow: hidden` holds the
   *user's* scrolling, not our `scrollLeft` writes — measured, the board slid from 229 to
   352 under an open sheet), and a board that is replaced under it. And a two-axis port draws two native indicators badly:
   reported from a real device, the vertical bar paints *under* the sticky headings, travels

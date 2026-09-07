@@ -268,6 +268,20 @@ alltså lika långt som ett svep användaren aldrig slutförde (100 → 174 mot 
 Arket en våning ned gör tvärtom, med rätta: där finns ingen tröghet att sjösätta, bara
 ett drag som måste landa.
 
+**Och kvittot för det fångade klicket höll bara för ett klick som var på väg.** Fångar man
+ett glid och sedan *drar*, kommer inget syntetiskt klick — flaggan låg kvar och åt nästa
+riktiga tryck i stället. Det gick inte att se med beröringar, för nästa tapp är en beröring
+och dess egen `touchstart` nollar flaggan på vägen in; en mus på en hybrid, eller ett klick
+från hjälpmedel, kommer utan `touchstart` alls. Mätt: rent musklick öppnar pucken, samma
+klick efter en fångad-och-dragen gest gjorde det inte.
+
+Fyndet avslöjade något värre än sig självt: **den befintliga kontrollen för samma gest var
+grön mot vilket sabotage som helst.** Listan stod vid högerkanten när den kördes (352 av
+352), och där ber fingret om ett håll som inte finns — alltså inget glid, ingen fångst,
+inget påstående. Nu nollställs offseten först och kontrollen kollar att det *finns* ett glid
+att fånga. En kontroll som inte kan falla är samma sorts fel som kod inget sabotage kan
+fälla; den här filen letar redan efter det ena och missade det andra i sin egen svit.
+
 **De tre andra var samma sak: en tvåaxlig ruta ritar två indikatorer dåligt.** Den lodräta
 målas *under* de klibbiga gruppubrikerna, den följer med i sidled i stället för att stå vid
 rutans kant, och en flick nedåt blinkar fram den vågräta också — en indikator för en axel
