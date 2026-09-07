@@ -831,6 +831,94 @@ export async function run({ open }) {
     await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
     await p.waitForTimeout(600);
     eq((await tapp()).puck, true, "ett tapp efter en fångad-och-dragen gest öppnar pucken");
+
+    // Codex, #49: glidet hör till sin gest, och allt som tar över rutan avslutar det. Ett
+    // tapp på Filter startar *utanför* `.work`, så portens egen `touchstart` såg det
+    // aldrig — och `lockScroll` gömmer bara överflödet, vilket inte hindrar våra egna
+    // `scrollLeft`-skrivningar. Mätt: glidande på 229, ytan öppnad vid 271, listan stod
+    // still först på 352 — under en öppen sheet.
+    await p.goBack();
+    await p.waitForTimeout(300);
+    // En *neutral* punkt i chromet, inte Filter: på en telefon öppnar Filter en sheet, och
+    // sheetens lås stoppar glidet ändå — så en kontroll som tappar där mäter låset och
+    // inte lyssnaren. `.vhead`s tomma yta öppnar ingenting.
+    const knapp = { x: 340, y: 66 };
+    ok(await p.evaluate(({ x, y }) => {
+      const e = document.elementFromPoint(x, y);
+      return !!e && !e.closest("button, a") && !document.getElementById("work").contains(e);
+    }, knapp), "punkten ligger i chromet och är ingen kontroll");
+    // En mjukare flick än `flick()`, med flit: den hårda når sidledskanten på ett par
+    // hundra millisekunder, och ett glid som redan stannat vid kanten kan inte visa om
+    // något stoppade det. Den här glider 100 → 172 av sig själv, alltså finns det ett
+    // fönster att mäta i.
+    await p.evaluate(() => { const w = document.getElementById("work"); w.scrollLeft = 0; w.scrollTop = 0; });
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: 300, y: 400 }] });
+    for (let i = 1; i <= 10; i++) {
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: 300 - 10 * i, y: 400 - 2 * i }] });
+      await new Promise((r) => setTimeout(r, 15));
+    }
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: knapp.x, y: knapp.y }] });
+    const vidTapp = await p.evaluate(() => Math.round(document.getElementById("work").scrollLeft));
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await p.waitForTimeout(800);
+    const efterYta = await p.evaluate(() => Math.round(document.getElementById("work").scrollLeft));
+    ok(vidTapp > 40 && vidTapp < 200, `glidet är på väg när fingret rör chromet: ${vidTapp}`);
+    ok(efterYta - vidTapp < 15,
+      `och listan står stilla därifrån: ${vidTapp} → ${efterYta} (ostoppad glider den vidare ~70px)`);
+
+    // Och en yta som öppnas *utan* en beröring — här från tangentbordet — når aldrig
+    // lyssnaren ovan. `lockScroll` gömmer bara överflödet, vilket håller användarens
+    // scrollande men inte våra egna skrivningar, så låset måste stoppa glidet självt.
+    await p.keyboard.press("Escape");
+    await p.waitForTimeout(200);
+    await p.evaluate(() => {
+      const w = document.getElementById("work");
+      w.scrollLeft = 0; w.scrollTop = 0;
+      document.getElementById("displayBtn").focus();
+    });
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: 300, y: 400 }] });
+    for (let i = 1; i <= 10; i++) {
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: 300 - 10 * i, y: 400 - 2 * i }] });
+      await new Promise((r) => setTimeout(r, 15));
+    }
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await p.keyboard.press("Enter");
+    const vidLås = await p.evaluate(() => Math.round(document.getElementById("work").scrollLeft));
+    await p.waitForTimeout(800);
+    const efterLås = await p.evaluate(() => ({
+      x: Math.round(document.getElementById("work").scrollLeft),
+      låst: getComputedStyle(document.getElementById("work")).overflow,
+      yta: !!document.querySelector(".sheet, .pop"),
+    }));
+    eq(efterLås.yta, true, "ytan öppnades från tangentbordet");
+    eq(efterLås.låst, "hidden", "och rutan är låst");
+    ok(efterLås.x - vidLås < 15, `en låst ruta glider inte vidare: ${vidLås} → ${efterLås.x}`);
+
+    // Tredje vägen: tavlan byts ut under glidet. Ingen beröring, inget lås — bara en ny
+    // lista, som ett glid som lever vidare skulle fortsätta flytta.
+    await p.keyboard.press("Escape");
+    await p.waitForTimeout(200);
+    await p.evaluate(() => {
+      const w = document.getElementById("work");
+      w.scrollLeft = 0; w.scrollTop = 0;
+      [...document.querySelectorAll(".focusbtn")].find((e) => /Ready/.test(e.textContent)).focus();
+    });
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: 300, y: 400 }] });
+    for (let i = 1; i <= 10; i++) {
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: 300 - 10 * i, y: 400 - 2 * i }] });
+      await new Promise((r) => setTimeout(r, 15));
+    }
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await p.keyboard.press("Enter");
+    const vidByte = await p.evaluate(() => Math.round(document.getElementById("work").scrollLeft));
+    await p.waitForTimeout(800);
+    const efterByte = await p.evaluate(() => ({
+      x: Math.round(document.getElementById("work").scrollLeft),
+      rader: document.querySelectorAll(".list-row").length,
+    }));
+    ok(efterByte.rader > 0, `den nya listan är ritad: ${JSON.stringify(efterByte)}`);
+    ok(efterByte.x - vidByte < 15, `och glidet flyttar den inte: ${vidByte} → ${efterByte.x}`);
   }
 
   group("telefonen ritar inga scrollindikatorer i listan");

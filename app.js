@@ -1494,6 +1494,13 @@
   // is not the browser scrolling. Vertical keeps everything — momentum, the rubber band —
   // which is the axis a long list is actually read in.
   var axisArmed = false;
+  // The glide belongs to its gesture, and anything that takes the port over ends it: a
+  // touch anywhere (the finger that opened Filter never reached `.work`, so the port's own
+  // `touchstart` could not see it), a scroll lock (`overflow: hidden` does not stop a
+  // programmatic `scrollLeft`, so the board slid on under an open sheet — measured 229 at
+  // the tap, 271 as it opened, 352 by the time it stopped), and a board that is replaced
+  // under it. Set by `armAxisLock`; a no-op until then.
+  var stopGlide = function () {};
   function armAxisLock(port) {
     if (axisArmed) return;
     axisArmed = true;
@@ -1529,18 +1536,27 @@
         fling = requestAnimationFrame(step);
       });
     }
+    stopGlide = function () { if (fling) { cancelAnimationFrame(fling); fling = 0; } vx = 0; };
+    // Every touch, not only one that lands in the port: the tap that opens Filter or picks
+    // a view from the sidebar starts outside it, and the glide has to end there too.
+    // Capture, so a surface that stops the event cannot keep the list moving behind itself
+    // — and because this runs *before* the port's own handler, it is also the only place
+    // that can still see whether there was a glide to interrupt.
+    //
+    // Which is the second half: with no movement the browser synthesises a click, so
+    // catching a gliding list opened the puck under your thumb (measured: gliding at 246,
+    // tapped to stop, the puck page opened). The catch is remembered and the click it
+    // produces is eaten below — but only for a touch *inside* the port. A tap on Filter
+    // that happens to stop the glide still means Filter.
+    document.addEventListener("touchstart", function (e) {
+      caught = !!fling && port.contains(e.target);
+      stopGlide();
+    }, { capture: true, passive: true });
     port.addEventListener("touchstart", function (e) {
-      // A finger down ends the previous glide — catching a moving list is how you stop it.
-      // And *only* stop it: with no movement the browser synthesises a click afterwards,
-      // so catching a gliding list opened the puck under your thumb (measured: gliding at
-      // 246, tapped to stop, the puck page opened). The catch is remembered and the click
-      // it produces is eaten below.
-      caught = !!fling;
-      if (fling) { cancelAnimationFrame(fling); fling = 0; }
       // Two fingers is a pinch, not a pan — and `pinch-zoom` is in the touch-action for
       // exactly that reason, so nothing here may take it over.
       live = e.touches.length === 1;
-      axis = null; vx = 0;
+      axis = null;
       if (!live) return;
       sx = lastX = e.touches[0].clientX;
       sy = e.touches[0].clientY;
@@ -1703,6 +1719,8 @@
     if (scrollLocks++) return;
     var port = scrollPort();
     if (!port) return;
+    // `overflow: hidden` holds the *user's* scrolling, not ours.
+    stopGlide();
     lockedY = port.scrollTop;
     lockedX = port.scrollLeft;
     port.style.overflow = "hidden";
@@ -4762,6 +4780,8 @@
     // reader back to the top. Measured with a forced reflow inserted in this gap: 150/200
     // → 0/0. So: no `getBoundingClientRect`, `offsetHeight` or `scrollHeight` between the
     // clear and the fill. `tests/chrome.test.mjs` holds the guarantee.
+    // A glide still running would carry on moving whatever replaces the list it belonged to.
+    stopGlide();
     board.innerHTML = "";
     // The layout is whatever the toggle says — in every view.
     //

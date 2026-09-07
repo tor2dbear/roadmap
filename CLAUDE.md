@@ -441,7 +441,13 @@ sideways is a scroll container in *both* axes, so before the change a group head
   scroller next to every other one on the device — so `armAxisLock` keeps a smoothed
   velocity (one stuttered frame at the end of a swipe must not decide the glide) and
   decays it per *millisecond*, so a slow frame buys no extra travel; a finger that paused
-  before lifting flings nothing. And a two-axis port draws two native indicators badly:
+  before lifting flings nothing. **The glide belongs to its gesture, and three things end
+  it**: a touch anywhere (the finger that opens Filter never reaches `.work`, so the port's
+  own handler cannot see it — and that document-level listener, running in capture before
+  the port's, is also the only place that can still tell whether there was a glide to
+  interrupt, which is what decides the click), a scroll lock (`overflow: hidden` holds the
+  *user's* scrolling, not our `scrollLeft` writes — measured, the board slid from 229 to
+  352 under an open sheet), and a board that is replaced under it. And a two-axis port draws two native indicators badly:
   reported from a real device, the vertical bar paints *under* the sticky headings, travels
   with the sideways scroll rather than standing at the port's edge, and a flick down
   flashes the horizontal one — an indicator for an axis the browser is not scrolling at
