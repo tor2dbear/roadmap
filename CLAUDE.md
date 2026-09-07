@@ -294,7 +294,15 @@ buckets it was designed around, which is why the list could go first.
 - **The caret sits in the row's left gutter, not a grid track.** A track would have to
   exist on the leaves too, to keep the five columns in register, and a leaf reserving a
   control it never gets is a target that answers nothing.
-- **In a group heading, only the name gives.** The swatch, the count, the archive control
+- **In a group heading, only the name gives — and every box on the way down to it.** The
+  first version of this rule named the `h2` and the name and stopped, so `.lh-stub` and
+  `.lh-toggle`, which sit between them, were caught by the blanket `flex: none`. Rigid, they
+  held their content width inside a shrunk parent and overflowed it: measured on live data
+  at 390px, a stub 359px wide inside a 246px `h2`, its name running **89px** under the
+  archive mark. A box may give only if the name is *inside* it, which is why
+  `.lh-toggle--split` — the toggle of a heading whose name is its sibling — is excluded:
+  letting that one shrink squeezed 39px of caret and swatch into 28px and pushed the swatch
+  onto the title's first letter. The swatch, the count, the archive control
   and the rollup badge are fixed marks, but a flex item with a width is still shrinkable —
   so a long parent name pressed against the heading's `100cqw` cap squeezed them instead of
   ellipsising itself: measured at 393px on the live board, the squeeze is *gradual* — 10px
@@ -332,7 +340,14 @@ phone, with the topbar and chip row (sized to the viewport) sitting in 60% of th
 shrink but does not lower what it contributes.
 
 **The shell is a fixed-height column with one scrollport (`.work`), not a page that
-scrolls.** That is what makes the list's two axes possible at once: a box that scrolls
+scrolls.** Its rows say `grid-auto-rows: max-content`, and they have to say it out loud:
+`#board` carries `overflow-x: auto`, which makes it a scroll container in both axes, and a
+scroll container contributes almost nothing to its row's height — it can scroll, so it need
+not be tall. Left `auto`, row one took only the leftover space (573px) while the board stood
+at its own content height (3019px), and the difference painted straight over the footer
+beneath it — reported from a phone as the footer's text sitting among the cards. It is the
+one thing the fixed height cost: with no definite height there is no free space to
+distribute, so the rows sized to their content by themselves. That is what makes the list's two axes possible at once: a box that scrolls
 sideways is a scroll container in *both* axes, so before the change a group heading's
 `top: sticky` resolved against a port with no vertical travel and stopped sticking (−575,
 −521, −468 while scrolling down). Three consequences worth knowing before touching it:

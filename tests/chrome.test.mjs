@@ -1421,6 +1421,45 @@ export async function run({ open }) {
     }
   }
 
+  group("tavlan målar inte över foten");
+  {
+    // Rapporterat från en telefon som fotens text mitt inne på brädan, bland korten.
+    // `.work` är ett rutnät, och `#board` bär `overflow-x: auto` — vilket gör den till
+    // scrollcontainer i *bägge* axlarna, och en scrollcontainer bidrar nästan ingenting
+    // till sin rads höjd: den kan ju scrolla. Med `auto`-rader tog rad ett därför bara det
+    // som blev över (mätt: 573px) medan brädan själv, `align-self: start` och alltså sin
+    // egen innehållshöjd, stod 3019px hög — och de 2446px målades rakt över foten.
+    //
+    // Bara nåbart sedan skalet fick en bestämd höjd: utan en sådan finns inget överskott
+    // att fördela, och raderna storleksätts efter innehållet ändå. Det är alltså det enda
+    // den ändringen kostade, och den kostar det bara i kolumnläget.
+    // Fixturens elva pucker gör en bräda som är kortare än sin rad, alltså ingen spill —
+    // kontrollen var grön mot sitt eget sabotage tills den här kolumnen fanns. Det som
+    // mäts är brädan *högre än rutan*, så pucksen mångfaldigas in i en och samma kolumn.
+    const hög = (d) => {
+      const en = d.items.find((i) => i.status === "now");
+      for (let i = 0; i < 40; i++) {
+        d.items.push(Object.assign({}, en, { id: "alpha/fyll-" + i, slug: "fyll-" + i, title: "Fyllnad " + i }));
+      }
+      return d;
+    };
+    const p = await open("", { viewport: { width: 390, height: 780 }, data: hög });
+    await p.waitForSelector(".column");
+    ok(await p.evaluate(() => document.getElementById("board").getBoundingClientRect().height) > 780,
+      "brädan är högre än fönstret, alltså finns det spill att måla med");
+    const m = await p.evaluate(() => {
+      const b = document.getElementById("board").getBoundingClientRect();
+      const f = document.querySelector(".foot").getBoundingClientRect();
+      return { brädBotten: Math.round(b.bottom), fotTopp: Math.round(f.top) };
+    });
+    ok(m.fotTopp >= m.brädBotten,
+      `foten börjar där brädan slutar: ${JSON.stringify(m)} (med auto-rader: 4813 mot 686)`);
+    // Brädan scrollar fortfarande i sidled — fixen får inte köpa ordningen genom att ta
+    // bort det kolumnläget bygger på.
+    ok(await p.evaluate(() => { const b = document.getElementById("board"); return b.scrollWidth > b.clientWidth; }),
+      "och kolumnerna scrollar fortfarande i sidled");
+  }
+
   group("banderollen ryms i skalet i stället för att förlänga sidan");
   {
     // Codex, #49. Skalet är inte alltid det enda på sidan: den config-styrda banderollen

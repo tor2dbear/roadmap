@@ -638,11 +638,24 @@ body {
    is still shrinkable, so a long parent name pressed against the heading's `100cqw` cap
    squeezed them instead of ellipsising itself: measured at 393px, the swatch went from
    10px to **0** (the colour dot simply gone) and the count from 16px to 7, clipping the
-   digit. The two shrinkable boxes are named, in the order they give: the `h2` that holds
-   the name, and the name itself. Both exceptions are written more specifically than the
-   blanket rule, since that is the only thing deciding them. */
-.list-head .lh-inner > *, .list-head h2 > *, .list-head .lh-toggle > * { flex: none; }
+   digit. The shrinkable boxes are named — and they are every box *on the way down to the
+   name*, which is the part the first version got wrong. It named the `h2` and the name
+   itself and stopped; between them sit `.lh-stub` and `.lh-toggle`, children of the `h2`
+   and therefore caught by the blanket rule. Rigid, they kept their content width inside a
+   shrunk parent and simply overflowed it: measured on live data at 390px, a stub 359px
+   wide inside a 246px `h2`, its name running **89px** under the archive mark. The
+   stylesheet already carried a comment saying this exact overlap had been fixed once — it
+   had, one box further in, and this rule re-broke it from one box further out. Each
+   exception is written more specifically than the blanket rule, since source order is the
+   only thing deciding them. */
+.list-head .lh-inner > *, .list-head h2 > *, .list-head .lh-toggle > *, .list-head .lh-stub > * { flex: none; }
 .list-head .lh-inner > h2 { flex: 0 1 auto; min-width: 0; }
+/* A box may give only if the name is *inside* it. `.lh-toggle--split` is the toggle of a
+   heading whose name is its own sibling button, so it holds nothing but the caret and the
+   swatch — letting it shrink squeezed it to 28px around 39px of content and pushed the
+   swatch out of its own box onto the first letter of the title (measured: swatch at
+   47–57, name starting at 46). Which is the blanket rule's own point, one level in. */
+.list-head h2 > .lh-stub, .list-head h2 > .lh-toggle:not(.lh-toggle--split) { flex: 0 1 auto; min-width: 0; }
 .list-head .lh-label { flex: 0 1 auto; min-width: 0; }
 .lh-toggle--split { margin-right: 0; padding-right: 0; }
 .list-head .head-open { font: inherit; text-transform: inherit; letter-spacing: inherit; }
@@ -1377,6 +1390,19 @@ body.scroll-locked { overflow: hidden; }
    — without it the box grows and the shell's height means nothing. */
 .work {
   display: grid; grid-template-columns: 1fr; align-items: start;
+  /* The rows are sized by what is in them, said out loud — because with a scroll container
+     in one, `auto` does not mean that. `#board` carries `overflow-x: auto`, which makes it
+     a scroll container in *both* axes, and a scroll container contributes almost nothing to
+     its row's height: it can scroll, so it need not be tall. Left `auto`, row one took the
+     leftover space (573px) while the board itself, `align-self: start` and therefore its
+     own content height, stood 3019px tall — and the 2446px difference was painted straight
+     over the footer beneath it. Reported from a phone as the footer's text sitting among
+     the cards, mid-board.
+     It only became reachable when the shell gained a definite height: with none, the rows
+     had no free space to distribute and sized to their content by default. So this is the
+     one thing that change cost, and it costs it only in the kanban layout — the list's
+     board is short enough that its row and its content agreed. */
+  grid-auto-rows: max-content;
   flex: 1; min-height: 0; overflow: auto;
 }
 /* It is a tab stop (see `index.html`), so a click on the empty space beside the columns

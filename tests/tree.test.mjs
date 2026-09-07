@@ -388,6 +388,57 @@ export async function run({ open }) {
     ok(alla.length > 1, `det finns flera rubriker att mäta: ${JSON.stringify(alla)}`);
     eq(alla.filter((x) => x.swatch !== 10).length, 0,
       `och ingen av dem har en naggad prick: ${JSON.stringify(alla)}`);
+
+    // Baksidan av samma regel, och det första försöket gick rakt i den: en toggle som
+    // *inte* håller namnet (`.lh-toggle--split`, där namnet är dess syskon) håller bara
+    // karetet och swatchen. Låter man den krympa pressas 39px innehåll in i 28px och
+    // swatchen hamnar utanför sin egen låda, ovanpå titelns första bokstav.
+    const utanför = await p.evaluate(() => [...document.querySelectorAll(".lh-toggle")].map((t) => {
+      const sw = t.querySelector(".swatch");
+      if (!sw) return null;
+      return { delad: t.classList.contains("lh-toggle--split"),
+               utstick: Math.round(sw.getBoundingClientRect().right - t.getBoundingClientRect().right) };
+    }).filter(Boolean));
+    ok(utanför.length > 0, `det finns en toggle att mäta: ${JSON.stringify(utanför)}`);
+    eq(utanför.filter((x) => x.utstick > 0).length, 0,
+      `ingen swatch sticker ut ur sin toggle: ${JSON.stringify(utanför)}`);
+  }
+
+  group("ett långt namn ellipsisar i stället för att gå in under märket");
+  {
+    // Rapporterat från en telefon. Regeln ovan gjorde *varje* del av rubriken styv och
+    // fångade därmed också lådorna som håller namnet: `.lh-stub` och `.lh-toggle` är barn
+    // till `h2`. Styva behöll de sin innehållsbredd inne i en krympt förälder och rann ur
+    // den — mätt på riktig data vid 390px: en stub 359px bred inne i ett 246px `h2`, med
+    // namnet 89px in under arkivmärket. Stylesheeten bar redan en kommentar om att precis
+    // det överlappet var fixat en gång; det var det, en låda längre in, och regeln
+    // ovanför bröt det igen en låda längre ut.
+    //
+    // Egen fixtur, för `träd` har ingen stub: den kräver en parent vars *alla* delar är
+    // arkiverade, alltså den ena grenen som ritar en rubrik utan kontroll. Utan den var
+    // kontrollen grön mot sitt eget sabotage — samma tomma kontroll som fallit ut ur den
+    // här filen två gånger förut.
+    const stub = (d) => {
+      const rot = d.items.find((i) => i.slug === "a-parent");
+      const mitten = d.items.find((i) => i.slug === "b-member");
+      rot.title = LONG;
+      rot.children = ["beta/b-member"];
+      rot.progress = { done: 1, total: 1 };
+      mitten.status = "done"; // enda delen, arkiverad → gruppen blir en stubbe
+      return d;
+    };
+    const p = await open("?layout=list&group=parent", { data: stub, viewport: { width: 390, height: 780 } });
+    await p.waitForSelector(".lh-stub");
+    const m = await p.evaluate(() => [...document.querySelectorAll(".lh-inner")].map((inner) => {
+      const lbl = inner.querySelector(".lh-label");
+      const mark = inner.querySelector(".col-archived");
+      if (!lbl || !mark) return null;
+      return { rubrik: lbl.textContent.trim().slice(0, 16), stub: !!inner.querySelector(".lh-stub"),
+               överlapp: Math.round(lbl.getBoundingClientRect().right - mark.getBoundingClientRect().left) };
+    }).filter(Boolean));
+    ok(m.some((x) => x.stub), `det finns en stubbe att mäta: ${JSON.stringify(m)}`);
+    eq(m.filter((x) => x.överlapp > 0).length, 0,
+      `och inget namn går in under sitt märke: ${JSON.stringify(m)} (styv stubbe: 175px in)`);
   }
 
   group("listan spränger inte sidbredden på en telefon");
