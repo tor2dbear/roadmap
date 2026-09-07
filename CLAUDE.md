@@ -362,6 +362,12 @@ sideways is a scroll container in *both* axes, so before the change a group head
   the same two places that toggle `body.viewing-puck`. The focus ring is
   `:focus:not(:focus-visible)`-guarded, since a click on the empty space beside the columns
   now lands on it.
+- **A puck page gives the board's place back.** `body.viewing-puck` hides `#board`, which
+  takes the port's scroll range away and clamps both offsets to 0 — measured 150/250 →
+  0/0, so returning landed on the top-left of the list. The board is hidden across
+  arbitrarily many rendering opportunities, so the same-task argument above cannot help:
+  `openDetail` saves the place on the way *in* (only from the board, so puck → puck keeps
+  the first one, which is where Back actually returns) and `closeDetail` puts it back.
 - **Nothing may measure the board while it is empty.** `renderBoard` clears `#board` before
   it fills it, and emptying a scrollport's tall child clamps its offsets to the origin —
   but the clamp happens *at layout*, and nothing in between reads geometry, so the box is

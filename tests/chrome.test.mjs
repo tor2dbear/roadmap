@@ -800,6 +800,62 @@ export async function run({ open }) {
     ok(efter > 100, `och kolumnerna går fortfarande att dra i sidled: ${före.x} → ${efter}`);
   }
 
+  group("ett zoomhjul scrollar inte tavlan");
+  {
+    // Codex, #49. En trackpad-nypning kommer fram som ett hjul med `ctrlKey` — samma
+    // gest webbläsaren zoomar med — så att vidarebefordra dess delta skulle scrolla
+    // tavlan bort under någon som bara försöker göra den större.
+    const p = await open("?layout=list&done=1", { viewport: { width: 900, height: 500 } });
+    await p.waitForSelector(".list-row");
+    const pt = await p.evaluate(() => {
+      const r = document.querySelector(".topbar").getBoundingClientRect();
+      return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
+    });
+    await p.mouse.move(pt.x, pt.y);
+    await p.keyboard.down("Control");
+    await p.mouse.wheel(0, 200);
+    await p.keyboard.up("Control");
+    await p.waitForTimeout(250);
+    eq(await p.evaluate(() => Math.round(document.getElementById("work").scrollTop)), 0,
+      "ctrl+hjul över topbaren rör inte tavlan");
+    // Och vidarebefordran lever — annars vaktar kontrollen ovan bara en död lyssnare.
+    await p.mouse.wheel(0, 200);
+    await p.waitForTimeout(250);
+    ok(await p.evaluate(() => document.getElementById("work").scrollTop) > 100,
+      "medan ett vanligt hjul direkt efteråt fortfarande gör det");
+  }
+
+  group("listan står kvar där den stod när man kommer tillbaka från en puck");
+  {
+    // Codex, #49. `body.viewing-puck` gömmer `#board`, alltså tar rutans scrollvidd bort,
+    // alltså klampas bägge offseten till 0 — och tillbaka på tavlan landar man på listans
+    // övre vänstra hörn. Mätt: 150/250 → 0/0. Det går inte att lösa som fällningen (samma
+    // task), för brädan är gömd över godtyckligt många renderingstillfällen; platsen måste
+    // sparas på vägen in.
+    const p = await open("?layout=list&done=1", { viewport: { width: 390, height: 500 } });
+    await p.waitForSelector(".list-row");
+    const före = await p.evaluate(() => {
+      const w = document.getElementById("work");
+      w.scrollTop = 250; w.scrollLeft = 150;
+      return { x: Math.round(w.scrollLeft), y: Math.round(w.scrollTop) };
+    });
+    ok(före.x > 0 && före.y > 0, `listan är scrollad i bägge led: ${JSON.stringify(före)}`);
+    await p.evaluate(() => {
+      const w = document.getElementById("work");
+      [...document.querySelectorAll(".list-row")]
+        .find((r) => r.getBoundingClientRect().top > w.getBoundingClientRect().top + 40).click();
+    });
+    await p.waitForTimeout(300);
+    eq(await p.evaluate(() => document.body.classList.contains("viewing-puck")), true, "en puck är öppen");
+    await p.goBack();
+    await p.waitForTimeout(400);
+    const efter = await p.evaluate(() => {
+      const w = document.getElementById("work");
+      return { x: Math.round(w.scrollLeft), y: Math.round(w.scrollTop) };
+    });
+    eq(JSON.stringify(efter), JSON.stringify(före), `och platsen är tillbaka: ${JSON.stringify({ före, efter })}`);
+  }
+
   group("en omritning i bakgrunden flyttar inte läsaren");
   {
     // Codex, #49. `loadWritableRepos()` ritar om tavlan när behörighetsfrågorna landar,

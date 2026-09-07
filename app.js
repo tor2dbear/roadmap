@@ -1460,7 +1460,7 @@
   }
 
   // ── detail: a side pane on desktop, a modal overlay on mobile ──
-  var detailPane, detailContent, workEl, selectedId = null, currentDetailItem = null;
+  var detailPane, detailContent, workEl, selectedId = null, currentDetailItem = null, boardAt = null;
   function isWide() { return window.matchMedia("(min-width: 900px)").matches; }
   function paneRefs() {
     if (!detailPane) {
@@ -1584,7 +1584,10 @@
     if (!col) return;
     wheelArmed = true;
     col.addEventListener("wheel", function (e) {
-      if (port.contains(e.target) || scrollLocks) return;
+      // Ctrl+wheel is the browser's zoom gesture — a trackpad pinch arrives as exactly
+      // that — so forwarding its delta would scroll the board out from under someone who
+      // is only trying to make it bigger.
+      if (port.contains(e.target) || scrollLocks || e.ctrlKey) return;
       for (var n = e.target; n && n !== col; n = n.parentElement) {
         // A scroll *container*, not merely a box whose content rounds a few pixels past
         // it: the view-switch button measures 24 against 21 from line-height alone, and
@@ -3341,6 +3344,13 @@
     closeSurfaces();
     paneRefs();
     fillDetail(detailContent, item);
+    // Where the board was. Hiding it takes the port's scroll range away, so both
+    // offsets clamp to 0 and coming back would land on the top-left of the list —
+    // measured 150/250 → 0/0. Captured only on the way *in* from the board: puck →
+    // puck keeps the first one, which is the place Back actually returns to.
+    if (workEl && !document.body.classList.contains("viewing-puck")) {
+      boardAt = { x: workEl.scrollLeft, y: workEl.scrollTop };
+    }
     detailPane.hidden = false;
     document.body.classList.add("viewing-puck");
     // The scrollport is a labelled region (it is the only thing that scrolls, so it is
@@ -3407,6 +3417,13 @@
     if (workEl) workEl.setAttribute("aria-label", "Board");
     if (detailPane) detailPane.hidden = true;
     highlightSelected();
+    // The board is back and has its scroll range again, so the place it was left in can
+    // be. After `highlightSelected`, which is the last thing that touches the rows.
+    if (workEl && boardAt) {
+      workEl.scrollTop = boardAt.y;
+      workEl.scrollLeft = boardAt.x;
+      boardAt = null;
+    }
   }
 
   // A table row — full-width, aligned columns (Name · Priority · Agent · Repo ·
