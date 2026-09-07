@@ -297,8 +297,10 @@ buckets it was designed around, which is why the list could go first.
 - **In a group heading, only the name gives.** The swatch, the count, the archive control
   and the rollup badge are fixed marks, but a flex item with a width is still shrinkable —
   so a long parent name pressed against the heading's `100cqw` cap squeezed them instead of
-  ellipsising itself: measured at 393px, the swatch went from 10px to **0**, the colour dot
-  simply gone from that one heading while every shorter one kept it. `flex: none` on the
+  ellipsising itself: measured at 393px on the live board, the squeeze is *gradual* — 10px
+  where the name fits, then 9.3, 7.8, 7.0 and finally **0**. The eye reads that as one dot
+  missing; four of the five were already shaved, which is why the guard asks every heading
+  and not just the tightest. `flex: none` on the
   parts, named exceptions for the two boxes that may shrink (the `h2` holding the name, and
   the name itself), and the exceptions written more specifically than the blanket rule
   since that is the only thing deciding them.

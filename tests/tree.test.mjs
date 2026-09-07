@@ -374,6 +374,20 @@ export async function run({ open }) {
     eq(m.inner, m.tak, `rubriken ligger mot sitt tak, alltså trängs den: ${JSON.stringify(m)}`);
     eq(m.swatch, 10, `men swatchen behåller sina 10px: ${JSON.stringify(m)}`);
     ok(m.labelInne > m.label, `det är namnet som ger med sig i stället: ${JSON.stringify(m)}`);
+
+    // Varje rubrik, inte bara den trängsta. Krympningen är *gradvis* — mätt på den riktiga
+    // tavlan före fixen: 10 där namnet fick plats, sedan 9.3, 7.8, 7.0 och till slut 0.
+    // Ögat läser det som "en prick är borta", men fyra av fem var redan naggade, och en
+    // kontroll som bara ser ytterfallet hade sluppit igenom de andra fyra.
+    const alla = await p.evaluate(() => [...document.querySelectorAll(".lh-inner")].map((inner) => {
+      const sw = inner.querySelector(".swatch");
+      const lbl = inner.querySelector(".lh-label");
+      return { rubrik: (lbl ? lbl.textContent : "").trim().slice(0, 18),
+               swatch: sw ? +sw.getBoundingClientRect().width.toFixed(1) : null };
+    }).filter((x) => x.swatch !== null));
+    ok(alla.length > 1, `det finns flera rubriker att mäta: ${JSON.stringify(alla)}`);
+    eq(alla.filter((x) => x.swatch !== 10).length, 0,
+      `och ingen av dem har en naggad prick: ${JSON.stringify(alla)}`);
   }
 
   group("listan spränger inte sidbredden på en telefon");
