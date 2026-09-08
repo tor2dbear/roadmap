@@ -745,6 +745,46 @@ export async function run({ open }) {
       "men en bit in, med rum åt det hållet, gör den det");
   }
 
+  group("listan studsar inte i sidled, men gör det i höjdled");
+  {
+    // Från telefonen: kedjar man ett svep nedåt direkt in i ett åt höger drar hela listan
+    // förbi sin egen vänsterkant — rubriker och rader ~180px till höger om där de hör
+    // hemma, med de klibbiga lådorna på compositorns resa medan `scrollLeft` står på 0 och
+    // inte kan säga något om det. `touch-action` hindrar webbläsaren från att *starta* en
+    // sidledspanorering men omprövar inte en scroll som redan är igång, så den halvan är
+    // inte vår att ta tillbaka. Kanten är det.
+    //
+    // `-x` och inte bägge: den lodräta studsen är den en lång lista faktiskt läses med.
+    // `none` och inte `contain`: `contain` stoppar kedjningen ut till sidan men behåller
+    // studsen på plats, vilket är precis det som ska bort.
+    const p = await open("?layout=list&group=parent&done=1", { viewport: { width: 390, height: 800 }, hasTouch: true });
+    await p.waitForSelector(".list-row");
+    const lista = await p.evaluate(() => {
+      const cs = getComputedStyle(document.getElementById("work"));
+      return { x: cs.overscrollBehaviorX, y: cs.overscrollBehaviorY };
+    });
+    eq(lista.x, "none", `sidled studsar inte: ${JSON.stringify(lista)}`);
+    eq(lista.y, "auto", `men höjdled gör det: ${JSON.stringify(lista)}`);
+    // Och sidledsscrollen finns fortfarande — en regel som köpte lugnet genom att ta bort
+    // resan hade "lyckats" utan att lösa något.
+    eq(await p.evaluate(() => {
+      const w = document.getElementById("work");
+      w.scrollLeft = 99999;
+      return Math.round(w.scrollLeft) === Math.round(w.scrollWidth - w.clientWidth) && w.scrollLeft > 0;
+    }), true, "och listan går fortfarande att scrolla hela vägen i sidled");
+
+    // Samma två undantag som låset har, och av samma skäl: brädan är sin egen
+    // sidledsscroller, och en puck som öppnats *ur* listan är ingen lista.
+    const bräda = await open("?done=1");
+    eq(await bräda.evaluate(() => getComputedStyle(document.getElementById("work")).overscrollBehaviorX),
+      "auto", "kolumnläget rör den inte");
+    await p.evaluate(() => document.querySelector(".list-row").click());
+    await p.waitForTimeout(400);
+    eq(await p.evaluate(() => document.body.classList.contains("viewing-puck")), true, "pucken är öppen");
+    eq(await p.evaluate(() => getComputedStyle(document.getElementById("work")).overscrollBehaviorX),
+      "auto", "och en puck ur listan bär inte listans regel");
+  }
+
   group("en gest webbläsaren redan äger tar vi inte halva");
   {
     // Rapporterat från en telefon, ordagrant: "Jag skrollar ner. Sidan är i rörelse. Sätter

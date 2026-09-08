@@ -486,6 +486,19 @@ sideways is a scroll container in *both* axes, so before the change a group head
   cancelable move must not take the axis back — and drops the velocity, so nothing flings
   out of a drag we stopped steering. It read as a property of `No parent` because that is
   the only group tall enough (142 rows against 8) to still be moving when you re-grab.
+- **No rubber band sideways — the half of the browser's gesture we *can* reach.**
+  `touch-action` stops it *starting* a horizontal pan; it does not re-decide a scroll
+  already under way, which is why chaining a swipe down straight into a swipe right moves
+  both axes on iOS. Measured on the device, and only there: 1 of 9 touchmoves cancelable,
+  we refused none and wrote no `scrollLeft`, and x still travelled 138 with y 318. That
+  half is the browser's. What is ours is the *edge*: with a bounce, that gesture drags the
+  whole list past its own left edge — headings and rows some 180px right of where they
+  belong, the sticky boxes riding along with the compositor while `scrollLeft` sits at 0
+  and cannot report it. `overscroll-behavior-x: none`, scoped exactly like the lock. `-x`
+  only, because the vertical rubber band is the one a long list is read with; `none` rather
+  than `contain`, because `contain` stops the chaining and keeps the local bounce, which is
+  the part being removed. The property is not new here — the sheet has used it since
+  `overscroll-behavior: none` was what removed *its* bounce.
 - **The driven axis needs its own fling, and the phone needs no indicators.** Giving the
   sideways pan to JS also gave away its momentum, and 1:1-then-dead-stop reads as a broken
   scroller next to every other one on the device — so `armAxisLock` keeps a smoothed

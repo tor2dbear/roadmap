@@ -1429,6 +1429,19 @@ body.scroll-locked { overflow: hidden; }
    list at all, and forbid sideways panning inside its own code blocks and tables. The same
    puck reached from the board layout had none — an asymmetry with no reason behind it. */
 body:not(.viewing-puck) .work:has(> .board.as-list) { touch-action: pan-y pinch-zoom; }
+/* And no rubber band sideways. `touch-action` stops the browser *starting* a horizontal
+   pan; it does not re-decide a scroll already under way, which is why chaining a swipe
+   down straight into a swipe right moves both axes on iOS (measured on the device: 1 of 9
+   touchmoves cancelable, we refused none and wrote nothing, and x still travelled 138 with
+   y 318). The half we cannot take back is the browser's. The half we can is what it does
+   at the *edge*: with a bounce, that gesture drags the whole list past its own left edge —
+   headings and rows shifted ~180px right of where they belong, the sticky boxes riding
+   along with the compositor while `scrollLeft` sits at 0 and cannot say so.
+   `-x` only, and `none` rather than `contain`: the vertical rubber band is the one a long
+   list is actually read with, and it stays. The property is not new here — the sheet has
+   used it since `overscroll-behavior: none` was what removed *its* bounce, so it is known
+   to land on the device this is for. */
+body:not(.viewing-puck) .work:has(> .board.as-list) { overscroll-behavior-x: none; }
 /* No native scroll indicators on a phone, and the reason is that a two-axis port draws
    two of them badly. Reported from a real device, three symptoms of one cause: the
    vertical bar is painted *under* the sticky group headings, it travels with the sideways
