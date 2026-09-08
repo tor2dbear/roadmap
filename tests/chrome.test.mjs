@@ -745,6 +745,117 @@ export async function run({ open }) {
       "men en bit in, med rum åt det hållet, gör den det");
   }
 
+  group("listan studsar inte i sidled, men gör det i höjdled");
+  {
+    // Från telefonen: kedjar man ett svep nedåt direkt in i ett åt höger drar hela listan
+    // förbi sin egen vänsterkant — rubriker och rader ~180px till höger om där de hör
+    // hemma, med de klibbiga lådorna på compositorns resa medan `scrollLeft` står på 0 och
+    // inte kan säga något om det. `touch-action` hindrar webbläsaren från att *starta* en
+    // sidledspanorering men omprövar inte en scroll som redan är igång, så den halvan är
+    // inte vår att ta tillbaka. Kanten är det.
+    //
+    // `-x` och inte bägge: den lodräta studsen är den en lång lista faktiskt läses med.
+    // `none` och inte `contain`: `contain` stoppar kedjningen ut till sidan men behåller
+    // studsen på plats, vilket är precis det som ska bort.
+    const p = await open("?layout=list&group=parent&done=1", { viewport: { width: 390, height: 800 }, hasTouch: true });
+    await p.waitForSelector(".list-row");
+    const lista = await p.evaluate(() => {
+      const cs = getComputedStyle(document.getElementById("work"));
+      return { x: cs.overscrollBehaviorX, y: cs.overscrollBehaviorY };
+    });
+    eq(lista.x, "none", `sidled studsar inte: ${JSON.stringify(lista)}`);
+    eq(lista.y, "auto", `men höjdled gör det: ${JSON.stringify(lista)}`);
+    // Och sidledsscrollen finns fortfarande — en regel som köpte lugnet genom att ta bort
+    // resan hade "lyckats" utan att lösa något.
+    eq(await p.evaluate(() => {
+      const w = document.getElementById("work");
+      w.scrollLeft = 99999;
+      return Math.round(w.scrollLeft) === Math.round(w.scrollWidth - w.clientWidth) && w.scrollLeft > 0;
+    }), true, "och listan går fortfarande att scrolla hela vägen i sidled");
+
+    // Samma två undantag som låset har, och av samma skäl: brädan är sin egen
+    // sidledsscroller, och en puck som öppnats *ur* listan är ingen lista.
+    const bräda = await open("?done=1");
+    eq(await bräda.evaluate(() => getComputedStyle(document.getElementById("work")).overscrollBehaviorX),
+      "auto", "kolumnläget rör den inte");
+    await p.evaluate(() => document.querySelector(".list-row").click());
+    await p.waitForTimeout(400);
+    eq(await p.evaluate(() => document.body.classList.contains("viewing-puck")), true, "pucken är öppen");
+    eq(await p.evaluate(() => getComputedStyle(document.getElementById("work")).overscrollBehaviorX),
+      "auto", "och en puck ur listan bär inte listans regel");
+  }
+
+  group("en gest webbläsaren redan äger tar vi inte halva");
+  {
+    // Rapporterat från en telefon, ordagrant: "Jag skrollar ner. Sidan är i rörelse. Sätter
+    // ner fingret och drar igen. Sidan skrollar i både X och y."
+    //
+    // En touchmove är *inte avbrytbar* precis när webbläsaren redan bestämt sig för att
+    // scrolla — vilket är exakt det läget. Vi kunde alltså inte neka dess lodräta
+    // panorering, men körde vår sidled ändå. Att ta om en lista som rör sig gör de första
+    // pixlarna ryckiga, så 8px-tröskeln kan läsa det som sidled.
+    //
+    // `cancelable` är den enda skillnaden mellan de två gesterna här, och det är den enda
+    // vägen att mäta det: CDP:s beröringar är alltid avbrytbara, så en riktig gest genom
+    // riggen kan inte skilja fallen åt. Syntetiska `TouchEvent` når samma lyssnare med
+    // samma `passive: false`.
+    const p = await open("?layout=list&done=1", { viewport: { width: 390, height: 600 }, hasTouch: true });
+    await p.waitForSelector(".list-row");
+    const dra = (cancelable) => p.evaluate((cx) => {
+      const w = document.getElementById("work");
+      w.scrollLeft = 0; w.scrollTop = 0;
+      const el = document.elementFromPoint(200, 400);
+      const t = (x, y) => new Touch({ identifier: 1, target: el, clientX: x, clientY: y });
+      const send = (type, pt, can) => {
+        const ev = new TouchEvent(type, { bubbles: true, cancelable: can,
+          touches: pt ? [pt] : [], targetTouches: pt ? [pt] : [], changedTouches: pt ? [pt] : [] });
+        el.dispatchEvent(ev);
+        return ev.defaultPrevented;
+      };
+      send("touchstart", t(200, 400), true);
+      let nekade = 0;
+      for (let i = 1; i <= 10; i++) if (send("touchmove", t(200 - 20 * i, 400 - 2 * i), cx)) nekade++;
+      send("touchend", null, true);
+      return { x: Math.round(w.scrollLeft), nekade };
+    }, cancelable);
+
+    const vanlig = await dra(true);
+    ok(vanlig.x > 100, `en vanlig gest driver sidleds: ${JSON.stringify(vanlig)}`);
+    eq(vanlig.nekade, 10, "och nekar webbläsaren dess lodräta panorering hela vägen");
+
+    const ägd = await dra(false);
+    eq(ägd.nekade, 0, "en gest webbläsaren äger går inte att neka");
+    eq(ägd.x, 0, `så vi tar inte heller dess andra axel: ${JSON.stringify(ägd)} (utan regeln 200)`);
+
+    // Och överlämnandet gäller *gesten*, inte den enskilda händelsen — vilket är det
+    // blandade fallet: de första pixlarna hinner före webbläsarens beslut, resten inte.
+    // Två saker faller ut ur det, och ingen av dem syns i provet ovan: en avbrytbar
+    // händelse efter en icke avbrytbar får inte ta tillbaka axeln, och hastigheten som
+    // hann samlas får inte kastas iväg av ett `touchend` på en gest vi slutat styra.
+    const blandad = await p.evaluate(() => {
+      const w = document.getElementById("work");
+      w.scrollLeft = 0; w.scrollTop = 0;
+      const el = document.elementFromPoint(200, 400);
+      const t = (x, y) => new Touch({ identifier: 1, target: el, clientX: x, clientY: y });
+      const send = (type, pt, can) => el.dispatchEvent(new TouchEvent(type, { bubbles: true,
+        cancelable: can, touches: pt ? [pt] : [], targetTouches: pt ? [pt] : [], changedTouches: pt ? [pt] : [] }));
+      send("touchstart", t(200, 400), true);
+      for (let i = 1; i <= 5; i++) send("touchmove", t(200 - 20 * i, 400 - 2 * i), true);   // vi styr
+      const vidÖvertag = Math.round(w.scrollLeft);
+      for (let i = 6; i <= 10; i++) send("touchmove", t(200 - 20 * i, 400 - 2 * i), false); // webbläsaren tar över
+      send("touchmove", t(200 - 20 * 11, 400 - 2 * 11), true);                              // avbrytbar igen
+      const efterÖvertag = Math.round(w.scrollLeft);
+      send("touchend", null, true);
+      return { vidÖvertag, efterÖvertag };
+    });
+    ok(blandad.vidÖvertag > 50, `vi styrde tills webbläsaren tog över: ${JSON.stringify(blandad)}`);
+    eq(blandad.efterÖvertag, blandad.vidÖvertag,
+      `och tar inte tillbaka axeln när en avbrytbar händelse kommer igen: ${JSON.stringify(blandad)}`);
+    await p.waitForTimeout(700);
+    eq(await p.evaluate(() => Math.round(document.getElementById("work").scrollLeft)), blandad.vidÖvertag,
+      "och inget kast sjösätts ur en gest vi slutat styra");
+  }
+
   group("sidledsdragningen har ett kast");
   {
     // `touch-action: pan-y` ger bort webbläsarens sidledsscroll, och därmed dess momentum.
@@ -1419,6 +1530,45 @@ export async function run({ open }) {
       ok(diag.chip > 50, `chipparaden tar den lodräta halvan: ${JSON.stringify(diag)}`);
       ok(diag.work > 50, `och listan den vågräta: ${JSON.stringify(diag)}`);
     }
+  }
+
+  group("tavlan målar inte över foten");
+  {
+    // Rapporterat från en telefon som fotens text mitt inne på brädan, bland korten.
+    // `.work` är ett rutnät, och `#board` bär `overflow-x: auto` — vilket gör den till
+    // scrollcontainer i *bägge* axlarna, och en scrollcontainer bidrar nästan ingenting
+    // till sin rads höjd: den kan ju scrolla. Med `auto`-rader tog rad ett därför bara det
+    // som blev över (mätt: 573px) medan brädan själv, `align-self: start` och alltså sin
+    // egen innehållshöjd, stod 3019px hög — och de 2446px målades rakt över foten.
+    //
+    // Bara nåbart sedan skalet fick en bestämd höjd: utan en sådan finns inget överskott
+    // att fördela, och raderna storleksätts efter innehållet ändå. Det är alltså det enda
+    // den ändringen kostade, och den kostar det bara i kolumnläget.
+    // Fixturens elva pucker gör en bräda som är kortare än sin rad, alltså ingen spill —
+    // kontrollen var grön mot sitt eget sabotage tills den här kolumnen fanns. Det som
+    // mäts är brädan *högre än rutan*, så pucksen mångfaldigas in i en och samma kolumn.
+    const hög = (d) => {
+      const en = d.items.find((i) => i.status === "now");
+      for (let i = 0; i < 40; i++) {
+        d.items.push(Object.assign({}, en, { id: "alpha/fyll-" + i, slug: "fyll-" + i, title: "Fyllnad " + i }));
+      }
+      return d;
+    };
+    const p = await open("", { viewport: { width: 390, height: 780 }, data: hög });
+    await p.waitForSelector(".column");
+    ok(await p.evaluate(() => document.getElementById("board").getBoundingClientRect().height) > 780,
+      "brädan är högre än fönstret, alltså finns det spill att måla med");
+    const m = await p.evaluate(() => {
+      const b = document.getElementById("board").getBoundingClientRect();
+      const f = document.querySelector(".foot").getBoundingClientRect();
+      return { brädBotten: Math.round(b.bottom), fotTopp: Math.round(f.top) };
+    });
+    ok(m.fotTopp >= m.brädBotten,
+      `foten börjar där brädan slutar: ${JSON.stringify(m)} (med auto-rader: 4813 mot 686)`);
+    // Brädan scrollar fortfarande i sidled — fixen får inte köpa ordningen genom att ta
+    // bort det kolumnläget bygger på.
+    ok(await p.evaluate(() => { const b = document.getElementById("board"); return b.scrollWidth > b.clientWidth; }),
+      "och kolumnerna scrollar fortfarande i sidled");
   }
 
   group("banderollen ryms i skalet i stället för att förlänga sidan");

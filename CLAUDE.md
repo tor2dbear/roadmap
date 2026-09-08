@@ -294,7 +294,15 @@ buckets it was designed around, which is why the list could go first.
 - **The caret sits in the row's left gutter, not a grid track.** A track would have to
   exist on the leaves too, to keep the five columns in register, and a leaf reserving a
   control it never gets is a target that answers nothing.
-- **In a group heading, only the name gives.** The swatch, the count, the archive control
+- **In a group heading, only the name gives — and every box on the way down to it.** The
+  first version of this rule named the `h2` and the name and stopped, so `.lh-stub` and
+  `.lh-toggle`, which sit between them, were caught by the blanket `flex: none`. Rigid, they
+  held their content width inside a shrunk parent and overflowed it: measured on live data
+  at 390px, a stub 359px wide inside a 246px `h2`, its name running **89px** under the
+  archive mark. A box may give only if the name is *inside* it, which is why
+  `.lh-toggle--split` — the toggle of a heading whose name is its sibling — is excluded:
+  letting that one shrink squeezed 39px of caret and swatch into 28px and pushed the swatch
+  onto the title's first letter. The swatch, the count, the archive control
   and the rollup badge are fixed marks, but a flex item with a width is still shrinkable —
   so a long parent name pressed against the heading's `100cqw` cap squeezed them instead of
   ellipsising itself: measured at 393px on the live board, the squeeze is *gradual* — 10px
@@ -304,6 +312,17 @@ buckets it was designed around, which is why the list could go first.
   parts, named exceptions for the two boxes that may shrink (the `h2` holding the name, and
   the name itself), and the exceptions written more specifically than the blanket rule
   since that is the only thing deciding them.
+- **On a phone `:hover` is a state you cannot leave, so the list's own controls stay behind
+  the `(hover: hover)` guard.** No pointer ever leaves an element on touch: the style sticks
+  after a tap and reads as a dark box drawn around whatever you just pressed — reported from
+  a phone, one screenshot per control. The convention was already in the stylesheet eleven
+  times; the fold toggle, the row's caret and the two archive controls had missed it.
+  Deliberately not a sweep of all 48 unguarded `:hover` rules: most sit in surfaces the tap
+  closes, or move only a text colour. What makes these four different is that they paint a
+  background *and* stay under your finger. The guard is a sweep over the controls the list
+  draws, and it asserts which ones it reached — a sweep is only as wide as what it was
+  given to sweep, and a fixture that quietly stops drawing one would otherwise retire the
+  rule with it. `isMobile`, not `hasTouch`, is what makes `(hover: hover)` answer false.
 - **The row carries no count.** `progress` is already there and answers the steadier
   question — how many parts the puck *has* — where a count of the rows below would move
   with the filter and read as though parts had been lost.
@@ -332,7 +351,14 @@ phone, with the topbar and chip row (sized to the viewport) sitting in 60% of th
 shrink but does not lower what it contributes.
 
 **The shell is a fixed-height column with one scrollport (`.work`), not a page that
-scrolls.** That is what makes the list's two axes possible at once: a box that scrolls
+scrolls.** Its rows say `grid-auto-rows: max-content`, and they have to say it out loud:
+`#board` carries `overflow-x: auto`, which makes it a scroll container in both axes, and a
+scroll container contributes almost nothing to its row's height — it can scroll, so it need
+not be tall. Left `auto`, row one took only the leftover space (573px) while the board stood
+at its own content height (3019px), and the difference painted straight over the footer
+beneath it — reported from a phone as the footer's text sitting among the cards. It is the
+one thing the fixed height cost: with no definite height there is no free space to
+distribute, so the rows sized to their content by themselves. That is what makes the list's two axes possible at once: a box that scrolls
 sideways is a scroll container in *both* axes, so before the change a group heading's
 `top: sticky` resolved against a port with no vertical travel and stopped sticking (−575,
 −521, −468 while scrolling down). Three consequences worth knowing before touching it:
@@ -447,7 +473,38 @@ sideways is a scroll container in *both* axes, so before the change a group head
   gestures through CDP — and pick the angle deliberately: Chromium locks the axis itself
   up to ~36°, so only a steeper diagonal (measured: 352px of drift at 42°) can tell the
   rule from its absence, and `preventDefault` is observable only as `defaultPrevented`,
-  never as an offset, for the same reason.
+  never as an offset, for the same reason. **And a gesture the browser already owns is not
+  ours to take half of.** A touchmove is non-cancelable exactly when the browser has
+  committed to a scroll — the reported case word for word: the list is still moving, a
+  finger lands and drags again, and re-grabbing a moving list makes the first pixels erratic
+  enough for the 8px threshold to read them as sideways. The old line asked `if
+  (e.cancelable) preventDefault()` and then drove `scrollLeft` regardless, treating the flag
+  as console hygiene rather than as the browser saying it already owns the gesture. Measured
+  with a sideways drag whose only difference was the flag: cancelable → 10 of 10 refused and
+  200px of x; non-cancelable → 0 refused and the same 200px, with the browser still panning
+  y underneath. It hands over for the rest of the *gesture*, not the event — a later
+  cancelable move must not take the axis back — and drops the velocity, so nothing flings
+  out of a drag we stopped steering. It read as a property of `No parent` because that is
+  the only group tall enough (142 rows against 8) to still be moving when you re-grab.
+- **No rubber band sideways — the half of the browser's gesture we *can* reach.**
+  `touch-action` stops it *starting* a horizontal pan; it does not re-decide a scroll
+  already under way, which is why chaining a swipe down straight into a swipe right moves
+  both axes on iOS. Measured on the device, and only there: 1 of 9 touchmoves cancelable,
+  we refused none and wrote no `scrollLeft`, and x still travelled 138 with y 318. That
+  half is the browser's. What is ours is the *edge*: with a bounce, that gesture drags the
+  whole list past its own left edge — headings and rows some 180px right of where they
+  belong, the sticky boxes riding along with the compositor while `scrollLeft` sits at 0
+  and cannot report it. `overscroll-behavior-x: none`, scoped exactly like the lock. `-x`
+  only, because the vertical rubber band is the one a long list is read with; `none` rather
+  than `contain`, because `contain` stops the chaining and keeps the local bounce, which is
+  the part being removed. The property is not new here — the sheet has used it since
+  `overscroll-behavior: none` was what removed *its* bounce. What is left after it is
+  directional, reported from the device: a diagonal up-left takes no sideways travel, one to
+  the right does. The browser can only take sideways where there *is* sideways to take, so a
+  gesture aimed at an edge comes out clean. That residue stands. The only thing left is
+  structural — split the axes across two elements — and `position: sticky` resolves against
+  the nearest scroll container, so the group heading would lose its vertical pin again: the
+  exact bug the fixed-height shell was built to fix, traded for ten pixels of drift.
 - **The driven axis needs its own fling, and the phone needs no indicators.** Giving the
   sideways pan to JS also gave away its momentum, and 1:1-then-dead-stop reads as a broken
   scroller next to every other one on the device — so `armAxisLock` keeps a smoothed
@@ -518,6 +575,110 @@ hidden by default, restored at container widths 560 and 720). They must stay *af
 whole mechanism, and putting them beside `.list-row` cost a round of two-line rows with
 the date wrapped under the title.
 
+## UI: the view chooses its properties
+
+`props` is the ninth key in `VIEW_KEYS`, so a chosen set of properties rides in the URL,
+in a shared link and in a saved view with no machinery of its own — which is what that
+list was for. `PROPS` is the catalogue, and it drives the row, the card *and* the group
+heading from one walk.
+
+- **One list, or the two surfaces drift.** Every property was already its own guarded line
+  (`if (item.priority)`, `if (item.agent)`, `if (item.progress)`), so the chooser is a
+  question put to the renderers rather than a rewrite of them. Keeping the question in one
+  place is the point: `VIEW_KEYS` itself was once three copies, and the copy nobody updated
+  silently dropped a fold.
+- **The row's tracks come from the same walk as its cells.** A property that is off takes
+  its grid column with it; a track cannot outlive the cell that filled it, and a cell
+  cannot appear without one. But *whether a cell exists* is a question about the view,
+  never about the puck — emptiness is per-item, so skipping the date cell for a puck with
+  no target would shift every cell after it one track left and break the register of the
+  whole list.
+- **The date track grows with what it holds.** Found by looking at a phone: with `Created`
+  and `Updated` both ticked, a fixed 92px cell — sized for one bare date — is right-aligned,
+  so it overflowed *leftwards* and printed both dates over the repo name (measured at 390px:
+  the first date started at 320 with the repo cell ending at 450). Not `max-content`: each
+  row is its own grid, so a content-sized track differs per row and the column stops being a
+  column. A width per date instead.
+- **Automation applies in the absence of a choice, never over one.** `autoDateField()` — show
+  the date the ordering is about — is the default when `props` is missing. It is not an
+  override: sorting by created while `Updated` is ticked shows the update date, because the
+  tick is the answer to the question the rule was guessing at.
+- **The chooser asks what is *drawn*, which is `propShown` and not `propOn`.** The dates are
+  the whole difference: absent a choice they never reach `propOn` at all, so it answers "on"
+  for all three while the row shows one. Seeding the first tick from it therefore copied
+  `created`, `updated` and `target` into the set — unticking *Agent* on a default board turned
+  one date into three, with the three boxes standing ticked over a row showing one. Every
+  other property answers the same to both, which is exactly why this was invisible.
+- **A card's dates get a box of their own as soon as there are two.** `.card-meta` is one
+  non-wrapping flex row and every date is `nowrap`, so `props=created,updated,target` on a
+  puck with a target ran the last one 68px past the card's right edge and into the next
+  column (measured in a 280px column, the board's narrowest). The list had already answered
+  this with a wider track; the card has no tracks, so the answer is a box that carries the
+  auto margin and wraps inside itself. `min-width: 0` is what lets it be narrower than what
+  it holds — a flex item's content width is how the row came to paint outside the card.
+- **An empty track list is a value, not a missing one.** `setProperty(name, "")` *removes*
+  the declaration, and a removed custom property is precisely what makes
+  `var(--list-tracks, …)` reach for the four tracks the stylesheet ships — so `props=none`,
+  the emptiest choice on the board, drew four phantom columns and reserved 392px for them.
+  A space is an empty value; an empty value is not the guaranteed-invalid one, so it
+  substitutes nothing and the fallback stays where it belongs.
+- **`props` is canonicalized in `effectiveParams`, beside `canonicalQuery`.** The board
+  renders from `parseProps`, which drops names it does not know, so a saved view carrying a
+  typo — or a key from a newer board — drew `repo` and compared `repo,newField`, and read as
+  *(edited)* the moment it opened. The same shape as the `etapps` rename, and the same cure:
+  one normaliser, which both a saved view's parameters and the live board's pass through.
+- **What the grouping already says, the row does not repeat** (`groupSays`) — the same rule
+  one property over, and a *default* a tick beats. Under `group=repo` the repo cell goes and
+  the status pill arrives; under `group=status` the reverse. `parent` used to do this as an
+  override (`effectiveGroup() !== "parent"` inside its own guard), so the chip vanished
+  whether you had ticked it or not — a control claiming a choice that never took effect.
+  The dates are outside the rule *structurally*, not by judgment: they route through
+  `dateFields()`/`autoDateField()` and never reach `propOn`. Which leaves the two
+  automations disagreeing about `target`, and the older, narrower one wins — under the
+  target grouping the row shows the target on purpose, because the column buckets by month
+  ("Sep 2026") while the row says "in 5 days". The column is coarser than the row.
+- **Sorting by status is the board's reading order, flattened.** `childItems()` has ordered
+  a parent's parts by the status ladder, then manual rank, then title all along — "the order
+  you'd work them" — and `sort=status` is that comparator one level up, so a list groups by
+  anything and still reads each group the way the kanban board reads left to right. Manual
+  rank rather than `updated` as the second key, because `order` is the puck's declared place
+  *within* its column, which is what the board uses there. Inert under the status grouping,
+  and offered there anyway (a menu row that vanishes under you teaches nothing) — where the
+  two automations happen to agree, since `groupSays` hides the status property in exactly
+  that case. `statusRank()` is the one writer: `DATA.statuses.indexOf` answers -1 for a
+  status the payload does not name and -1 sorts *first*, ahead of `now` — this repo's own
+  committed snapshot is five statuses to the live board's six, so a cancelled puck would
+  have led the list.
+- **`status` was the one property that was missing, not merely un-choosable.** Under every
+  grouping but `status`, nothing on a card or a row said which state a puck was in: the
+  glyph carries the repo colour and parent-ness, `SORTS` has no status mode, and the dimming
+  for terminal pucks hangs on `.col-status-*`, a *column* class, so it only works where the
+  column already answers. Measured under `group=repo` with the archive on: a `now` row and a
+  `done` row identical in class, opacity and text — with 131 of 175 pucks done. The pill
+  itself already existed (`.status-pill`, in the rail, the palette and the blockers list);
+  it had simply never reached a card.
+- **An empty choice is a choice**, serialized as `props=none`. An empty string cannot carry
+  it: `viewsEqual` compares `(a[k] || "")`, so a missing key and an empty one are the same
+  value to it, and a board with every property switched off would come back showing them all.
+  A name the board does not know falls back to *no* choice rather than the empty one — a bare
+  list is a worse answer to an unreadable link than the board's own default.
+- **The heading shares the row's set, and `rollup` is why.** The badge beside a group's name
+  and the badge on a row are the *same* property, so a heading with a set of its own would
+  have named it twice and could then disagree with the rows beneath it. `count` is
+  heading-only, and that is ordinary: `parent` says nothing under the parent grouping and
+  `repo` says nothing under the repo grouping either. *Every* heading, the archive stub
+  included — that branch returns early, so it was the one place where the tick governed
+  nothing at all. The stub's number is the puck's own `progress`, over its children in the
+  payload, which is why it stays true of a heading holding no rows.
+- **What is not in `PROPS` is what a puck cannot be read without**: the title, the puck glyph
+  and the heading's swatch (both carry the repo colour), the ⚠ badge, and the archive mark.
+  The last two are the same rule from opposite ends — a drift signal you can hide is a
+  problem you can hide, and the mark is the one click that gets the archived cards back.
+- **`FIELDS` was taken.** The query language's field table has owned that name since the
+  filter was written, and the redeclaration blanked it: no term matched, twelve checks fell,
+  and nothing threw. The properties are `PROPS` and the key is `props`, so "field" means one
+  thing in the file.
+
 ## UI: one thing, one place
 
 Cards leave the board three ways — the `Filter` panel, a column's `⋯`, and Display's
@@ -561,6 +722,21 @@ it off showed PIA's 6 open pucks and dropped 39 landed ones in silence.
   definition* in Done or Cancelled, and the toggle has already taken those columns off
   the board — so a column that still stands can never be holding one back, and no mark is
   drawn. A guard was written first and removed after sabotage could not break anything.
+- **Under the parent grouping the heading *is* a puck, so the same rule has to be said out
+  loud.** "Archived" is not a state of its own — `TERMINAL` is `done` or `cancelled`, which
+  is exactly what the toggle's label spells out — so a heading whose puck is done was an
+  archived puck drawn on a board that hides archived pucks. Measured on the live board:
+  four of six headings, none of them counted in the view's own 32. A group leaves with the
+  archive when it is archive *all the way up*: its own puck terminal **and** no live part
+  left. A live parent whose parts the archive holds keeps its stub and its mark — that is
+  what the mark is for — and a terminal parent with one open part keeps its heading too,
+  since there is no way to draw the part without it. **The count keeps the puck the stub
+  gave up**, deliberately: with no heading anywhere it is one of the ones `No parent` is
+  short of, and it is the only thing that can draw a mark at all when a whole tree is
+  archived and nothing else is — uncounted, that board would have no eye, which is the
+  blank-board case `liftRoots`' `only` exists to prevent. It comes back as a heading rather
+  than as a row (measured: `5 archived` gives four rows and one tree), so the number counts
+  pucks held back, which is what the mark says it counts.
 - **The list layout was worse, and this is where it was found.** It has no tray at all, so
   `?layout=list` with the archive off simply had no Done section — in the *default*
   grouping — with nothing anywhere saying so. It therefore makes no exemption: the mark

@@ -1,8 +1,8 @@
 ---
 title: Vyn väljer sina egenskaper
-status: next
+status: done
 tags: [ui, product]
-updated: 2026-09-07
+updated: 2026-09-08
 created: 2026-09-04
 priority: high
 target: 2026-09-30
@@ -289,17 +289,219 @@ webbläsaren inte ens scrollar. Dolda under `(pointer: coarse)` och bara i lista
 dator är stapeln hur man lär sig att listan går i sidled alls, och där är den inte
 flyktig.
 
-## Open questions
-- **Ett val eller ett per layout?** Listan har spår, kortet har märken; samma
-  uppsättning i bägge är enklare att förklara och sämre för bägge. `effectiveParams`
-  kan bära det, men två uppsättningar är två saker att spara.
-- **Delar rubriken radens uppsättning?** De har bara `rollup` gemensamt, och rubrikens
-  `count` finns inte på raden alls — så en gemensam lista blir en lista med rader som
-  inte gäller överallt. Två små uppsättningar är förmodligen ärligare än en stor med
-  undantag.
-- **Vad kan aldrig stängas av?** Titeln, uppenbart. Puck-glyfen bär repofärgen, och
-  varningsmärket är driftsignalen — att kunna dölja den är att kunna dölja att något är
-  fel.
-- **Räknas det som filter eller som display?** Det är display (chipparaden talar om
-  filter), men gränsen är värd att skriva ner: `is:flagged` gömmer kort, `-flagged`
-  skulle gömma ett märke.
+## Byggt: väljaren
+
+`props` är den nionde vy-nyckeln, så valet ligger i URL:en, följer med en delad länk och
+sparas med en sparad vy — utan något eget maskineri, vilket är precis vad `VIEW_KEYS`
+fanns till för. `PROPS` är katalogen och driver raden, kortet **och** gruppens rubrik ur en
+vandring.
+
+Fyra saker som var mekaniska på papperet och inte i verkligheten:
+
+- **`FIELDS` var upptaget.** Frågespråkets fälttabell har hetat så sedan filtret skrevs, och
+  min redeklaration tömde den: inget term matchade, tolv kontroller föll — och ingenting
+  kastade. Egenskaperna heter `PROPS` och nyckeln `props`, så "fält" betyder en sak i filen.
+- **Om cellen finns är en fråga om vyn, aldrig om pucken.** Tomheten är per puck, så en puck
+  utan target som hoppade över sin datumcell flyttade varje cell efter den ett spår åt
+  vänster. En puck utan target hade alltså spräckt registret för hela listan.
+- **Datumspåret växer med det den håller.** Hittat genom att titta på en telefon: med
+  `Created` och `Updated` ibockade är cellen högerställd, så ett fast 92px-spår — måttat för
+  ett naket datum — rann över *åt vänster* och skrev bägge datumen ovanpå repo-namnet
+  (mätt på 390px: första datumet började på 320, repo-cellen slutade på 450). Inte
+  `max-content`: varje rad är sitt eget rutnät, så ett innehållsmätt spår blir olika brett på
+  varje rad och kolumnen slutar vara en kolumn.
+- **Ägare och etiketter fanns bara på kortet.** De finns på raden nu, för annars ljuger
+  kryssrutan i listläget — samma fel som filen redan namnger tre gånger: en kontroll som
+  påstår ett val som aldrig trädde i kraft.
+
+## Frågorna, besvarade
+
+- **Ett val eller ett per layout?** *Ett.* Argumentet för två var att raden är trängre än
+  kortet — och sidledsscrollen tog bort just den skillnaden innan väljaren byggdes. Kvar
+  blir "två saker att spara", vilket aldrig var argumentet *för*.
+- **Delar rubriken radens uppsättning?** *Ja, och `rollup` är skälet.* Brickan bredvid en
+  grupps namn och brickan på en rad är **samma egenskap**. Två uppsättningar hade fått
+  namnge den två gånger och kunnat säga emot varandra om raderna nedanför. `count` finns
+  bara i rubriken, och det är ingen invändning: `parent` säger ingenting under
+  parent-gruppering och `repo` ingenting under repo-gruppering.
+- **Vad kan aldrig stängas av?** Titeln, puck-glyfen och rubrikens swatch (bägge bär
+  repofärgen), ⚠, och arkivmärket. De två sista är samma regel från var sitt håll: en
+  driftsignal man kan gömma är ett fel man kan gömma, och märket är det enda klicket
+  tillbaka till korten det håller.
+- **Filter eller display?** Display, som förutspått — men gränsen visade sig ha en tredje
+  sida: `props=none` är ett val, inte frånvaron av ett. Automatiken gäller när nyckeln
+  *saknas*. En tom sträng kan inte bära det, för `viewsEqual` läser `(a[k] || "")` och ser
+  då ingen skillnad mot en saknad nyckel — därför den literala `none`.
+
+## Status, och regeln den drog med sig
+
+Jag deferrade status med motiveringen "den ritas inte redan, alltså är det ett nytt märke".
+Första ledet stämde, slutsatsen inte: att den *saknades* var skälet att den var viktigast av
+dem. Mätt under `group=repo` med arkivet på — en `now`-rad och en `done`-rad identiska i
+klass, opacity och text, med **131 av 175 pucker klara**. Väljaren skapade inte hålet, den
+gjorde det läsbart. Och märket fanns redan: `.status-pill` satt i rälen, paletten och
+blockerarlistan, den hade bara aldrig nått ett kort.
+
+**Regeln den drog med sig:** det grupperingen redan säger säger raden inte igen
+(`groupSays`) — samma regel som `autoDateField`, en egenskap bort, och en *default* som en
+bock slår. Under `group=repo` går repo-cellen och statuschippet kommer; under
+`group=status` tvärtom.
+
+`parent` gjorde redan precis det här, fast som en **override** inuti sin egen vakt: bockad
+eller ej försvann chippet under parent-gruppering. Det är felet filen namnger tre gånger.
+Nu är den en default.
+
+Och datumen ligger utanför regeln **strukturellt**, inte som ett omdöme: de går genom
+`dateFields()`/`autoDateField()` och når aldrig `propOn`. Min första kontroll för det var
+grön mot sitt eget sabotage, och skälet var värt mer än sabotaget — kvar står två
+automatiker som säger emot varandra om `target`, och den äldre och smalare har rätt:
+kolumnen hinkar per månad, raden säger "in 5 days". Kolumnen är grövre än raden.
+
+## Och sorteringen på status
+
+Samma form som egenskapen, en gång till: **mekanismen fanns redan en våning ned.**
+`childItems()` har hela tiden sorterat en parents delar `status → manuell rank → titel`,
+med kommentaren *"the order you'd work them"*. Den komparatorn hade bara aldrig nått
+toppnivån. Det ger också sorteringen dess rätta namn — `sort=status` är **tavlans egen
+läsordning, utplattad**: en lista grupperad på repo läser då varje repo precis som brädan
+skulle läsa det vänster till höger. Manuell rank som andra nyckel, inte `updated`, för
+`order` är puckens deklarerade plats *inom* sin kolumn, och det är vad brädan använder där.
+
+Den är inert under statusgruppering, och erbjuds ändå — en menyrad som försvinner under
+en teachar ingenting. Där råkar de två automatikerna vara överens: `groupSays` gömmer
+statusegenskapen i exakt det fallet.
+
+**En latent bugg på köpet.** `DATA.statuses.indexOf(status)` ger `-1` för en status
+nyttolastens stege inte nämner, och `-1` sorterar **först** — före `now`. Inte
+hypotetiskt: repots egen incheckade snapshot har fem statusar mot livetavlans sex, så en
+avbruten puck hade lett listan. `statusRank()` är en skrivare nu, och `childItems` bar
+samma flaw.
+
+## Hover fastnar på en telefon
+
+Rapporterat med en bild per kontroll: en mörk ruta runt precis det man nyss tryckte på.
+På touch finns ingen pekare som *lämnar*, så `:hover` står kvar efter tappet. Konventionen
+fanns redan i filen elva gånger — `@media (hover: hover)` — och listans fäll- och
+arkivkontroller hade missat den. Mätt med `(hover: hover)` falskt och framtvingad `:hover`:
+`.lh-toggle` och `.list-fold` målade `--panel-2`, medan `.list-row`, som hade guarden, inte
+gjorde det.
+
+Medvetet **inte** ett svep över alla 48 ovaktade hover-regler — de flesta sitter i ytor som
+tappet stänger, eller flyttar bara en textfärg. Det som skiljer de fyra är att de målar en
+bakgrund *och* står kvar under fingret.
+
+Kontrollen är däremot ett svep över listans kontroller, inte fyra namngivna regler — en
+uppräkning är precis det som missade en låda i rubrikfixen samma dag. Och den säger vad den
+*såg*: första versionen bytte fixtur och tappade tyst `.list-fold` ur svepet, alltså kunde
+den regelns sabotage inte längre fällas. Ett svep är bara så brett som det det fått svepa
+över, och det måste kontrollen själv påstå.
+
+## Axellåset tog halva en gest som webbläsaren redan ägde
+
+Rapporterat som "No parent-gruppen verkar inte vara skyddad" — och det var den inte, men
+inte för att gruppen var särskild. Jag mätte sex vägar över alla fem grupper och hittade
+ingen skillnad: dx 0 nedåt, dy 0 i sidled, rubriker fastnaglade, samma `touch-action`, en
+scroller. Det som avgjorde var Torbjörns beskrivning av *gesten*: "Jag skrollar ner. Sidan
+är i rörelse. Sätter ner fingret och drar igen."
+
+En `touchmove` är **inte avbrytbar** precis när webbläsaren redan bestämt sig för att
+scrolla. Den gamla raden frågade om det och drog fel slutsats — `if (e.cancelable)
+preventDefault()` och sedan `scrollLeft` ändå, som om flaggan vore konsolhygien i stället
+för webbläsaren som säger att den redan äger gesten. Att ta om en lista i rörelse gör de
+första pixlarna ryckiga, så 8px-tröskeln läser dem som sidled; vi tog x, kunde inte neka
+y, och fick båda.
+
+Mätt med en sidledsdragning där `cancelable` var enda skillnaden: avbrytbar → 10 av 10
+nekade och 200px x. Icke avbrytbar → **0 nekade och samma 200px**, med webbläsaren kvar på
+y. CDP:s beröringar är alltid avbrytbara, så det gick bara att se med syntetiska
+`TouchEvent` — riktiga gester genom riggen kan inte skilja fallen åt.
+
+Det lät som en egenskap hos `No parent` för att den är den enda gruppen som är hög nog —
+142 rader mot 8 i den näst största — för att fortfarande röra sig när man tar om.
+
+## Vad som blev kvar av tvåaxligheten, och varför det får stå
+
+Efter `overscroll-behavior-x: none` är kantfallet borta — listan går inte längre att dra
+förbi sin egen vänsterkant. Kvar finns att en **kedjad** gest (svep ned, sätt ner fingret
+igen medan den rör sig, dra) tar med sig lite sidled. Den halvan äger Safari: `touch-action`
+hindrar den från att *starta* en sidledspanorering men omprövar inte en scroll som redan är
+igång, och en icke avbrytbar `touchmove` går inte att neka. Mätt på enheten: 1 av 9
+avbrytbara, vi nekade noll och skrev ingen `scrollLeft`, och x reste ändå 138 med y 318.
+
+Rapporterat efteråt, och det låter som ett kvitto på just det: **läckan är riktad.** Snett
+upp åt vänster rör sig inte i sidled, snett åt höger gör det. Webbläsaren kan bara ta
+sidled där det *finns* sidled att ta — vid en kant i den riktningen blir gesten ren.
+
+Det får stå. Det enda som återstår är strukturellt — dela axlarna på två element — och
+`position: sticky` löser mot närmaste scrollcontainer, så gruppens rubrik tappar då sin
+lodräta fastnaglning igen. Det är precis felet `skalet-ar-en-fast-hojd` byggdes för att
+laga, och det bytet är inte värt tio pixlars drift.
+
+## Kvar
+- **Ordningen egenskaperna visas i** har redan en egen puck (`ordningen-egenskaperna-visas-i`).
+  `PROPS` ordning är radens spårordning i dag; den pucken är där ett handval hör hemma.
+
+## Tre fynd till från telefonen
+
+Skärmdumpar under bygget, och alla tre var på riktigt:
+
+- **Namnet gick in under arkivmärket.** "Bara namnet ger med sig" gjorde varje del av
+  rubriken styv och fångade därmed lådorna som *håller* namnet — `.lh-stub` och
+  `.lh-toggle` är barn till `h2`. Mätt på riktig data vid 390px: en stub 359px bred i ett
+  246px `h2`, med namnet 89px in under märket. En låda får ge med sig bara om namnet är
+  inuti den; första försöket missade den baksidan och la swatchen ovanpå titelns första
+  bokstav.
+- **Tavlan målade över foten.** `#board` är scrollcontainer i bägge axlarna och bidrar
+  därför nästan ingenting till sin rads höjd. Med `auto`-rader tog rad ett bara
+  överskottet (573px) medan brädan stod på 3019px, och skillnaden målades över foten.
+  Bara nåbart sedan skalet fick en bestämd höjd — det enda den ändringen kostade.
+- **Arkiverade parents stod kvar med arkivet av.** Och frågan som avgjorde det var
+  Torbjörns: *vad skiljer arkiverad och Done?* Ingenting — `TERMINAL` är `done` eller
+  `cancelled`, vilket växelns egen etikett säger. Fyra av sex rubriker var alltså
+  arkiverade pucker på en tavla som gömmer arkiverade pucker, och ingen av dem räknad i
+  vyns egna 32. En grupp lämnar med arkivet när den är arkiv *hela vägen upp*.
+
+Två av kontrollerna för det här var gröna mot sitt eget sabotage när de skrevs, och två
+till *hängde* i stället för att falla — en tom tavla är ett fel som ska säga en mening,
+inte vänta ut trettio sekunder. Det är samma lärdom som filen redan bär på ett ställe:
+kontrollen ska fällas, och den ska säga vad som saknades.
+
+## Codex-rundan: sex fynd, fyra i diffen
+
+Åtta trådar på PR #50, alla P2 utom en. Sex var på riktigt, och de fyra i den här
+ändringen är lagade:
+
+- **Väljaren bockade in tre datum när den bara ombads om ett.** Utan val går datumen inte
+  genom `propOn` alls — `autoDateField` väljer ett — så en bock som utgick från `propOn`
+  kopierade in `created`, `updated` *och* `target` i uppsättningen. Att bocka av Agent på
+  en standardtavla gjorde alltså om radens enda datum till tre, och kryssrutorna stod
+  ibockade över en rad som visade ett. `propShown()` är frågan väljaren ska ställa: vad
+  ritas *nu*.
+- **`props=none` ritade fyra spökkolumner.** `setProperty(namn, "")` tar bort
+  deklarationen, och en borttagen custom property är precis vad som får
+  `var(--list-tracks, …)` att gripa efter sitt reservvärde. Det tommaste valet på tavlan
+  kom alltså ut med `18px 220px 44px 108px 148px 92px` på en rad med två celler. Ett
+  mellanslag är ett tomt *värde*, vilket inte är samma sak som inget värde.
+- **En sparad vy med ett okänt namn läste som ändrad direkt.** Tavlan ritar det
+  `parseProps` kände igen; vyns egna parametrar bar strängen som skrevs. Samma fel som det
+  lagrade `etapps` hade, och samma botemedel: omskrivningen ligger i `effectiveParams`, den
+  enda normaliseraren bägge sidor går genom.
+- **Tre datum sprang ut ur kortet.** Listan reserverar ett bredare spår för ett andra
+  datum; kortet hade ingenting motsvarande, och `.card-meta` bryter inte. Mätt i tavlans
+  smalaste kolumn (280px): sista datumet 68px förbi kortets kant och in i nästa kolumn.
+- **Arkivstubben var den enda rubrik där rollup-bocken inte sa något.** `archivedOnly`
+  återvänder före raden som ritar den, så en levande förälder vars alla delar arkivet
+  håller fick ingen bricka — oavsett bock.
+
+Två stod jag emot, och bägge av samma skäl: de är sanna men inte den här diffens.
+
+- **Arkivräkningen tar med den arkiverade föräldern.** Den har ingen rubrik längre, så den
+  *är* en av de pucker `No parent` saknar — och den är det enda som kan rita ett märke när
+  ett helt träd är arkiverat och inget annat är det. Mätt: `5 archived` ger tillbaka fyra
+  rader och ett träd. Talet räknar pucker som hålls tillbaka, inte rader som tillkommer,
+  vilket är vad märket säger att det räknar.
+- **Kanban-brädan är inte längre sin egen scrollruta** — men den slutade vara det när
+  skalet fick en fast höjd, inte här. Mätt: brädan 4700px hög med `scrollHeight ===
+  clientHeight`, rubriken på −469 med portens kant på 113. Fixen är två CSS-rader och en
+  svans på tre ställen som alla antar att `.work` är porten, så den fick en egen puck:
+  `bradans-egen-scrollruta`.

@@ -196,6 +196,61 @@ export async function run({ open }) {
     eq(efter - före, 4, `ögat levererar det märket lovade (${före} → ${efter})`);
   }
 
+  group("arkiv hela vägen upp lämnar med arkivet");
+  {
+    // Rapporterat från en telefon: `Show done & cancelled` var av, och fyra av sex
+    // rubriker var pucker som själva var `done`. "Arkiverad" är ingen egen status —
+    // `TERMINAL` är `done` eller `cancelled`, vilket är precis vad växelns egen etikett
+    // säger — så en rubrik vars puck är done *är* en arkiverad puck ritad på en tavla som
+    // gömmer arkiverade pucker. Mätt på den riktiga tavlan: fyra av sex, och ingen av dem
+    // räknad i vyns egna 32.
+    //
+    // Samma regel som statusgrupperingen får gratis: en grupp som står kvar är en vars
+    // parent lever. Då är märket rätt — en levande parent, dess delar undanhållna.
+    const arkiveradHelaVägen = (d) => {
+      const rot = d.items.find((i) => i.slug === "a-parent");
+      const mitten = d.items.find((i) => i.slug === "b-member");
+      rot.title = LONG; rot.status = "done";
+      rot.children = ["beta/b-member"]; rot.progress = { done: 1, total: 1 };
+      mitten.status = "done";              // enda delen arkiverad → gruppen är bara arkiv
+      return d;
+    };
+    const av = await open("?layout=list&group=parent", { data: arkiveradHelaVägen });
+    const fAv = await form(av);
+    eq(fAv.filter((x) => x.head === LONG).length, 0,
+      `en arkiverad parent utan levande delar ritas inte alls: ${JSON.stringify(fAv.map((x) => x.head))}`);
+    // Och växeln är vägen tillbaka, precis som Done-kolumnen kommer tillbaka under
+    // statusgruppering. Ingen tyst borttagning: samma kontroll som redan finns.
+    const på = await open("?layout=list&group=parent&done=1", { data: arkiveradHelaVägen });
+    ok((await form(på)).some((x) => x.head === LONG),
+      "och växeln hämtar tillbaka den");
+
+    // Andra sidan av regeln, och den som gör den smal: en *levande* parent vars delar
+    // arkivet håller tillbaka behåller sin stump och sitt märke. Det är hela poängen med
+    // märket, och en regel som tog den med sig hade varit en tystnad i stället för en fix.
+    const levandeParent = (d) => {
+      const rot = d.items.find((i) => i.slug === "a-parent");
+      const mitten = d.items.find((i) => i.slug === "b-member");
+      rot.title = LONG; rot.status = "now";
+      rot.children = ["beta/b-member"]; rot.progress = { done: 1, total: 1 };
+      mitten.status = "done";
+      return d;
+    };
+    // Fångat, av samma skäl som "en rot som bara finns i arkivet" en bit upp: en regel som
+    // tar för mycket lämnar tavlan *tom*, och `open()` väntar då ut sin timeout i stället
+    // för att säga vad som saknades. Ett sabotage ska ge en mening, inte en stack trace.
+    const kvar = await open("?layout=list&group=parent", { data: levandeParent }).catch(() => null);
+    if (!kvar) {
+      ok(false, "tavlan ritade ingenting — regeln tog den levande parentens stump med sig");
+    } else {
+      const fKvar = await form(kvar);
+      const stump = fKvar.find((x) => x.head === LONG);
+      ok(stump, `en levande parent står kvar: ${JSON.stringify(fKvar.map((x) => x.head))}`);
+      eq(stump && stump.mark, "1 archived",
+        `med märket som säger vad den håller tillbaka: ${JSON.stringify(stump)}`);
+    }
+  }
+
   group("en fällning som filtret sprang ifrån låser inte raden");
   {
     // Codex, #46. Fäll en förälder, filtrera sedan bort alla dess delar: `shut` står kvar
@@ -388,6 +443,116 @@ export async function run({ open }) {
     ok(alla.length > 1, `det finns flera rubriker att mäta: ${JSON.stringify(alla)}`);
     eq(alla.filter((x) => x.swatch !== 10).length, 0,
       `och ingen av dem har en naggad prick: ${JSON.stringify(alla)}`);
+
+    // Baksidan av samma regel, och det första försöket gick rakt i den: en toggle som
+    // *inte* håller namnet (`.lh-toggle--split`, där namnet är dess syskon) håller bara
+    // karetet och swatchen. Låter man den krympa pressas 39px innehåll in i 28px och
+    // swatchen hamnar utanför sin egen låda, ovanpå titelns första bokstav.
+    const utanför = await p.evaluate(() => [...document.querySelectorAll(".lh-toggle")].map((t) => {
+      const sw = t.querySelector(".swatch");
+      if (!sw) return null;
+      return { delad: t.classList.contains("lh-toggle--split"),
+               utstick: Math.round(sw.getBoundingClientRect().right - t.getBoundingClientRect().right) };
+    }).filter(Boolean));
+    ok(utanför.length > 0, `det finns en toggle att mäta: ${JSON.stringify(utanför)}`);
+    eq(utanför.filter((x) => x.utstick > 0).length, 0,
+      `ingen swatch sticker ut ur sin toggle: ${JSON.stringify(utanför)}`);
+  }
+
+  group("ett långt namn ellipsisar i stället för att gå in under märket");
+  {
+    // Rapporterat från en telefon. Regeln ovan gjorde *varje* del av rubriken styv och
+    // fångade därmed också lådorna som håller namnet: `.lh-stub` och `.lh-toggle` är barn
+    // till `h2`. Styva behöll de sin innehållsbredd inne i en krympt förälder och rann ur
+    // den — mätt på riktig data vid 390px: en stub 359px bred inne i ett 246px `h2`, med
+    // namnet 89px in under arkivmärket. Stylesheeten bar redan en kommentar om att precis
+    // det överlappet var fixat en gång; det var det, en låda längre in, och regeln
+    // ovanför bröt det igen en låda längre ut.
+    //
+    // Egen fixtur, för `träd` har ingen stub: den kräver en parent vars *alla* delar är
+    // arkiverade, alltså den ena grenen som ritar en rubrik utan kontroll. Utan den var
+    // kontrollen grön mot sitt eget sabotage — samma tomma kontroll som fallit ut ur den
+    // här filen två gånger förut.
+    const stub = (d) => {
+      const rot = d.items.find((i) => i.slug === "a-parent");
+      const mitten = d.items.find((i) => i.slug === "b-member");
+      rot.title = LONG;
+      rot.children = ["beta/b-member"];
+      rot.progress = { done: 1, total: 1 };
+      mitten.status = "done"; // enda delen, arkiverad → gruppen blir en stubbe
+      return d;
+    };
+    const p = await open("?layout=list&group=parent", { data: stub, viewport: { width: 390, height: 780 } });
+    // Kort väntan och sedan vidare: gruppen påstår själv att det finns en stubbe att mäta,
+    // och en obegränsad `waitForSelector` gör det påståendet till en trettio sekunders
+    // timeout i stället för en mening. (En regel som tar bort stubben ska falla här med
+    // "det finns en stubbe att mäta", inte hänga filen.)
+    await p.waitForSelector(".lh-stub", { timeout: 5000 }).catch(() => {});
+    const m = await p.evaluate(() => [...document.querySelectorAll(".lh-inner")].map((inner) => {
+      const lbl = inner.querySelector(".lh-label");
+      const mark = inner.querySelector(".col-archived");
+      if (!lbl || !mark) return null;
+      return { rubrik: lbl.textContent.trim().slice(0, 16), stub: !!inner.querySelector(".lh-stub"),
+               överlapp: Math.round(lbl.getBoundingClientRect().right - mark.getBoundingClientRect().left) };
+    }).filter(Boolean));
+    ok(m.some((x) => x.stub), `det finns en stubbe att mäta: ${JSON.stringify(m)}`);
+    eq(m.filter((x) => x.överlapp > 0).length, 0,
+      `och inget namn går in under sitt märke: ${JSON.stringify(m)} (styv stubbe: 175px in)`);
+  }
+
+  group("ingen av listans kontroller målar hover på en telefon");
+  {
+    // Rapporterat från en telefon, en bild per kontroll: en mörk ruta runt precis det man
+    // nyss tryckte på. På touch finns ingen pekare som *lämnar*, så `:hover` fastnar efter
+    // tappet. Filen har redan konventionen — elva regler bakom `@media (hover: hover)` —
+    // och listans fäll- och arkivkontroller hade missat den.
+    //
+    // Ett svep, inte fyra namngivna regler: en uppräkning är precis det som missade en låda
+    // i "bara namnet ger med sig" tidigare i dag. Men ett svep är bara så brett som det det
+    // fått att svepa över, så det säger också *vad det såg* — annars smalnar en ändrad
+    // fixtur tyst av kontrollen tills den inte kan falla. Två brädor behövs för att alla
+    // fyra kontrolltyperna ska finnas på skärmen samtidigt.
+    //
+    // `isMobile`, inte bara `hasTouch`: det förra är vad som får `(hover: hover)` att svara
+    // falskt. Med bara `hasTouch` mäter kontrollen en skrivbordsdator och kan inte falla.
+    const sett = [], målar = [];
+    for (const data of [träd, arkiveratBarnbarn]) {
+      const p = await open("?layout=list&group=parent",
+        { data, viewport: { width: 390, height: 800 }, hasTouch: true, isMobile: true });
+      await p.waitForSelector(".lh-toggle");
+      eq(await p.evaluate(() => matchMedia("(hover: hover)").matches), false,
+        "mätningen görs i en vy utan pekare");
+      const cdp = await p.context().newCDPSession(p);
+      await cdp.send("DOM.enable");
+      await cdp.send("CSS.enable");
+      const { root } = await cdp.send("DOM.getDocument");
+      const { nodeIds } = await cdp.send("DOM.querySelectorAll", {
+        nodeId: root.nodeId, selector: ".list-group button, .list-group [role='button']",
+      });
+      for (let i = 0; i < nodeIds.length; i++) {
+        await cdp.send("DOM.setAttributeValue", { nodeId: nodeIds[i], name: "data-sweep", value: String(i) });
+        const läs = () => p.evaluate((m) => {
+          const e = document.querySelector('[data-sweep="' + m + '"]');
+          // Hela klasslistan, inte den första: arkivraden är `list-empty list-archived`,
+          // och den som bär hover-regeln är den andra.
+          return e ? { bg: getComputedStyle(e).backgroundColor, kl: e.className.trim() } : null;
+        }, i);
+        const före = await läs();
+        await cdp.send("CSS.forcePseudoState", { nodeId: nodeIds[i], forcedPseudoClasses: ["hover"] });
+        const efter = await läs();
+        await cdp.send("CSS.forcePseudoState", { nodeId: nodeIds[i], forcedPseudoClasses: [] });
+        if (!före || !efter) continue;
+        if (sett.indexOf(efter.kl) === -1) sett.push(efter.kl);
+        if (före.bg !== efter.bg) målar.push(efter.kl + ": " + före.bg + " → " + efter.bg);
+      }
+    }
+    // Vad svepet faktiskt fick syn på. Utan den här raden räckte det att en fixtur slutade
+    // rita en kontroll för att dess regel skulle sluta vara vaktad, tyst.
+    ["lh-toggle", "list-fold", "list-archived", "col-archived"].forEach(function (k) {
+      ok(sett.some((c) => c.split(" ").indexOf(k) !== -1),
+        `svepet nådde .${k}: ${JSON.stringify(sett)}`);
+    });
+    eq(målar, [], `ingen av dem får en bakgrund av :hover: ${JSON.stringify(målar)}`);
   }
 
   group("listan spränger inte sidbredden på en telefon");
