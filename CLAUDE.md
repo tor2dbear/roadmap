@@ -603,6 +603,30 @@ heading from one walk.
   the date the ordering is about — is the default when `props` is missing. It is not an
   override: sorting by created while `Updated` is ticked shows the update date, because the
   tick is the answer to the question the rule was guessing at.
+- **The chooser asks what is *drawn*, which is `propShown` and not `propOn`.** The dates are
+  the whole difference: absent a choice they never reach `propOn` at all, so it answers "on"
+  for all three while the row shows one. Seeding the first tick from it therefore copied
+  `created`, `updated` and `target` into the set — unticking *Agent* on a default board turned
+  one date into three, with the three boxes standing ticked over a row showing one. Every
+  other property answers the same to both, which is exactly why this was invisible.
+- **A card's dates get a box of their own as soon as there are two.** `.card-meta` is one
+  non-wrapping flex row and every date is `nowrap`, so `props=created,updated,target` on a
+  puck with a target ran the last one 68px past the card's right edge and into the next
+  column (measured in a 280px column, the board's narrowest). The list had already answered
+  this with a wider track; the card has no tracks, so the answer is a box that carries the
+  auto margin and wraps inside itself. `min-width: 0` is what lets it be narrower than what
+  it holds — a flex item's content width is how the row came to paint outside the card.
+- **An empty track list is a value, not a missing one.** `setProperty(name, "")` *removes*
+  the declaration, and a removed custom property is precisely what makes
+  `var(--list-tracks, …)` reach for the four tracks the stylesheet ships — so `props=none`,
+  the emptiest choice on the board, drew four phantom columns and reserved 392px for them.
+  A space is an empty value; an empty value is not the guaranteed-invalid one, so it
+  substitutes nothing and the fallback stays where it belongs.
+- **`props` is canonicalized in `effectiveParams`, beside `canonicalQuery`.** The board
+  renders from `parseProps`, which drops names it does not know, so a saved view carrying a
+  typo — or a key from a newer board — drew `repo` and compared `repo,newField`, and read as
+  *(edited)* the moment it opened. The same shape as the `etapps` rename, and the same cure:
+  one normaliser, which both a saved view's parameters and the live board's pass through.
 - **What the grouping already says, the row does not repeat** (`groupSays`) — the same rule
   one property over, and a *default* a tick beats. Under `group=repo` the repo cell goes and
   the status pill arrives; under `group=status` the reverse. `parent` used to do this as an
@@ -642,7 +666,10 @@ heading from one walk.
   and the badge on a row are the *same* property, so a heading with a set of its own would
   have named it twice and could then disagree with the rows beneath it. `count` is
   heading-only, and that is ordinary: `parent` says nothing under the parent grouping and
-  `repo` says nothing under the repo grouping either.
+  `repo` says nothing under the repo grouping either. *Every* heading, the archive stub
+  included — that branch returns early, so it was the one place where the tick governed
+  nothing at all. The stub's number is the puck's own `progress`, over its children in the
+  payload, which is why it stays true of a heading holding no rows.
 - **What is not in `PROPS` is what a puck cannot be read without**: the title, the puck glyph
   and the heading's swatch (both carry the repo colour), the ⚠ badge, and the archive mark.
   The last two are the same rule from opposite ends — a drift signal you can hide is a
@@ -703,7 +730,13 @@ it off showed PIA's 6 open pucks and dropped 39 landed ones in silence.
   archive when it is archive *all the way up*: its own puck terminal **and** no live part
   left. A live parent whose parts the archive holds keeps its stub and its mark — that is
   what the mark is for — and a terminal parent with one open part keeps its heading too,
-  since there is no way to draw the part without it.
+  since there is no way to draw the part without it. **The count keeps the puck the stub
+  gave up**, deliberately: with no heading anywhere it is one of the ones `No parent` is
+  short of, and it is the only thing that can draw a mark at all when a whole tree is
+  archived and nothing else is — uncounted, that board would have no eye, which is the
+  blank-board case `liftRoots`' `only` exists to prevent. It comes back as a heading rather
+  than as a row (measured: `5 archived` gives four rows and one tree), so the number counts
+  pucks held back, which is what the mark says it counts.
 - **The list layout was worse, and this is where it was found.** It has no tray at all, so
   `?layout=list` with the archive off simply had no Done section — in the *default*
   grouping — with nothing anywhere saying so. It therefore makes no exemption: the mark

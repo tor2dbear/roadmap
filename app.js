@@ -837,6 +837,18 @@
   }
   function effectiveParams(o) {
     if (o.view) o.view = canonicalView(o.view);
+    // `props` through its own parser and back, for the reason `canonicalQuery` is two
+    // lines away in `paramsOf`: this is the one normaliser both a saved view's parameters
+    // and the live board's pass through, and the board renders from `parseProps`, which
+    // drops names it does not know. A view committed by hand — or by a newer board — with
+    // `props: "repo,newField"` therefore drew `repo` and compared `repo,newField`, so it
+    // read as *(edited)* the moment it was opened. All names unknown is no choice at all
+    // (`parseProps` answers null), and the key goes rather than standing as a string the
+    // board is not following.
+    if (o.props != null && o.props !== "") {
+      var chosen = parseProps(o.props);
+      if (chosen) o.props = serializeProps(chosen); else delete o.props;
+    }
     var focus = o.view || "all";
     var layout = o.layout || DISPLAY_DEFAULTS.view;
     var cols = columnsForFocus(focus, o.done === "1");
@@ -1463,6 +1475,16 @@
     if (!state.props) return [autoDateField()];
     return DATE_PROPS.filter(function (k) { return state.props.has(k); });
   }
+  // What is *drawn* right now, which is not the same question as `propOn` — and the dates
+  // are the whole difference. Absent a choice they do not go through `propOn` at all
+  // (`autoDateField` picks exactly one), so asking `propOn` about them answers "on" for
+  // all three. The chooser is the one caller that must ask this instead: it seeds the
+  // first tick from what is on screen, and seeding it from `propOn` copied `created`,
+  // `updated` and `target` into the set — so unticking *Agent* on a default board turned
+  // its one date into three, and the three checkboxes stood ticked over a row showing one.
+  function propShown(key) {
+    return DATE_PROPS.indexOf(key) < 0 ? propOn(key) : dateFields().indexOf(key) >= 0;
+  }
   // One date element, in that field's own language. `label` is forced on whenever a view
   // shows more than one: two bare date strings side by side say nothing about which is
   // which, and `dateEl` used to hardcode *"Last updated"* into both its tooltip and its
@@ -1510,7 +1532,14 @@
   }
   function applyListTracks(node) {
     var t = listTracks();
-    node.style.setProperty("--list-tracks", t.tracks);
+    // A space, never the empty string. `setProperty(name, "")` *removes* the declaration,
+    // and a removed custom property is what makes `var(--list-tracks, …)` reach for the
+    // four tracks the stylesheet ships — so `props=none`, which is a choice and means "no
+    // metadata at all", came out with four phantom columns and 392px reserved for nothing
+    // (measured: `18px 220px 44px 108px 148px 92px` on a row holding two cells). An empty
+    // *value* is not the guaranteed-invalid one, so it substitutes nothing and the
+    // fallback stays where it belongs — the case where the board has not rendered yet.
+    node.style.setProperty("--list-tracks", t.tracks || " ");
     node.style.setProperty("--list-track-px", t.fixed + "px");
     node.style.setProperty("--list-gaps", String(t.gaps));
   }
@@ -1552,7 +1581,22 @@
       var f = PROP_BY_KEY[k];
       if (propOn(k) && f.has(item)) meta.appendChild(f.make(item));
     });
-    dateCells(item).forEach(function (d) { meta.appendChild(d); });
+    // The dates go in a box of their own as soon as there are two, and the list's date
+    // track is the reason to expect that: the row reserves a *wider* column for a second
+    // date, and the card had nothing of the sort. `.card-meta` is one non-wrapping flex
+    // row and every date is `nowrap`, so `props=created,updated,target` on a puck with a
+    // target ran the last one 68px past the card's right edge and into the next column
+    // (measured on a 280px column, the board's minimum). The box carries the auto margin
+    // the single date used to carry, so one date is laid out exactly as before, and wraps
+    // inside itself so the card grows downwards instead of sideways.
+    var dates = dateCells(item);
+    if (dates.length > 1) {
+      var box = el("span", "card-dates");
+      dates.forEach(function (d) { box.appendChild(d); });
+      meta.appendChild(box);
+    } else {
+      dates.forEach(function (d) { meta.appendChild(d); });
+    }
     c.appendChild(meta);
 
     // Row 3: tags (static badges).
@@ -4833,6 +4877,15 @@
       // never be holding one back"): a group that still stands is one whose parent is live,
       // and then the mark is right — a live parent, its parts held back, said out loud.
       // Archive all the way up leaves with the archive, and the toggle brings it back.
+      //
+      // The count keeps it, and that is deliberate rather than an oversight. Such a puck
+      // now has no heading at all, so it is one of the ones `No parent` is short of — and
+      // it is the *only* thing that can draw a mark when a whole tree is archived and
+      // nothing else is: uncounted, a board holding one dead parent and its parts would
+      // have no eye anywhere, which is the blank-board failure `liftRoots`' `only` exists
+      // to prevent. The cost is that this one returns as a heading rather than as a row
+      // (measured: `No parent · 5 archived` gives back 4 rows and one tree), so the number
+      // counts pucks held back and not rows added. That is what the mark says it counts.
       Object.keys(stubs).forEach(function (k) {
         var puck = itemById(k);
         if (puck && TERMINAL[puck.status]) delete stubs[k];
@@ -4913,6 +4966,15 @@
         inner.appendChild(h);
         if (warn.length) inner.appendChild(warnBadge(warn));
         inner.appendChild(archivedMark(archived.count[grp.key], grp.key));
+        // The same badge, in the same order, as the heading below — this branch returns
+        // before that line, so a stub was the one heading where `rollup` drew nothing and
+        // the tick therefore said nothing. The number is the puck's own (`progress`, over
+        // its children in the payload), not a count of the rows on screen, which is why it
+        // is still true of a heading holding none.
+        if (g.headExtra && propOn("rollup")) {
+          var shx = g.headExtra(grp.key);
+          if (shx) inner.appendChild(shx);
+        }
         section.appendChild(head);
         board.appendChild(section);
         return;
@@ -5943,9 +6005,10 @@
   function renderFieldChecks(pop, f) {
     var chosen = state.props;
     if (!chosen) {
-      // First tick starts from what is on screen, which is everything — so ticking one
-      // property off does that and nothing else. Starting from empty would read as the
-      // board throwing the row away because you touched one checkbox.
+      // First tick starts from what is on screen — so ticking one property off does that
+      // and nothing else. Starting from empty would read as the board throwing the row
+      // away because you touched one checkbox. "On screen" is `propShown`, not `propOn`:
+      // the dates are chosen for you one at a time until a view names them.
       var note = el("div", "dp-note",
         "Chosen for you: everything the grouping does not already say. Tick to take over.");
       pop.appendChild(note);
@@ -5954,11 +6017,11 @@
       var row = el("label", "fp-toggle");
       var cb = document.createElement("input");
       cb.type = "checkbox";
-      cb.checked = propOn(o.value);
+      cb.checked = propShown(o.value);
       cb.setAttribute("data-field", o.value);
       cb.addEventListener("change", function () {
         var next = new Set();
-        PROPS.forEach(function (g) { if (propOn(g.key)) next.add(g.key); });
+        PROPS.forEach(function (g) { if (propShown(g.key)) next.add(g.key); });
         if (cb.checked) next.add(o.value); else next.delete(o.value);
         setDisplay("props", next);
         renderDisplayValues(pop, f); // stay on the list: choosing a set is many clicks, not one

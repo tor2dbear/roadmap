@@ -1,8 +1,8 @@
 ---
 title: Vyn väljer sina egenskaper
-status: now
+status: done
 tags: [ui, product]
-updated: 2026-09-07
+updated: 2026-09-08
 created: 2026-09-04
 priority: high
 target: 2026-09-30
@@ -465,3 +465,43 @@ Två av kontrollerna för det här var gröna mot sitt eget sabotage när de skr
 till *hängde* i stället för att falla — en tom tavla är ett fel som ska säga en mening,
 inte vänta ut trettio sekunder. Det är samma lärdom som filen redan bär på ett ställe:
 kontrollen ska fällas, och den ska säga vad som saknades.
+
+## Codex-rundan: sex fynd, fyra i diffen
+
+Åtta trådar på PR #50, alla P2 utom en. Sex var på riktigt, och de fyra i den här
+ändringen är lagade:
+
+- **Väljaren bockade in tre datum när den bara ombads om ett.** Utan val går datumen inte
+  genom `propOn` alls — `autoDateField` väljer ett — så en bock som utgick från `propOn`
+  kopierade in `created`, `updated` *och* `target` i uppsättningen. Att bocka av Agent på
+  en standardtavla gjorde alltså om radens enda datum till tre, och kryssrutorna stod
+  ibockade över en rad som visade ett. `propShown()` är frågan väljaren ska ställa: vad
+  ritas *nu*.
+- **`props=none` ritade fyra spökkolumner.** `setProperty(namn, "")` tar bort
+  deklarationen, och en borttagen custom property är precis vad som får
+  `var(--list-tracks, …)` att gripa efter sitt reservvärde. Det tommaste valet på tavlan
+  kom alltså ut med `18px 220px 44px 108px 148px 92px` på en rad med två celler. Ett
+  mellanslag är ett tomt *värde*, vilket inte är samma sak som inget värde.
+- **En sparad vy med ett okänt namn läste som ändrad direkt.** Tavlan ritar det
+  `parseProps` kände igen; vyns egna parametrar bar strängen som skrevs. Samma fel som det
+  lagrade `etapps` hade, och samma botemedel: omskrivningen ligger i `effectiveParams`, den
+  enda normaliseraren bägge sidor går genom.
+- **Tre datum sprang ut ur kortet.** Listan reserverar ett bredare spår för ett andra
+  datum; kortet hade ingenting motsvarande, och `.card-meta` bryter inte. Mätt i tavlans
+  smalaste kolumn (280px): sista datumet 68px förbi kortets kant och in i nästa kolumn.
+- **Arkivstubben var den enda rubrik där rollup-bocken inte sa något.** `archivedOnly`
+  återvänder före raden som ritar den, så en levande förälder vars alla delar arkivet
+  håller fick ingen bricka — oavsett bock.
+
+Två stod jag emot, och bägge av samma skäl: de är sanna men inte den här diffens.
+
+- **Arkivräkningen tar med den arkiverade föräldern.** Den har ingen rubrik längre, så den
+  *är* en av de pucker `No parent` saknar — och den är det enda som kan rita ett märke när
+  ett helt träd är arkiverat och inget annat är det. Mätt: `5 archived` ger tillbaka fyra
+  rader och ett träd. Talet räknar pucker som hålls tillbaka, inte rader som tillkommer,
+  vilket är vad märket säger att det räknar.
+- **Kanban-brädan är inte längre sin egen scrollruta** — men den slutade vara det när
+  skalet fick en fast höjd, inte här. Mätt: brädan 4700px hög med `scrollHeight ===
+  clientHeight`, rubriken på −469 med portens kant på 113. Fixen är två CSS-rader och en
+  svans på tre ställen som alla antar att `.work` är porten, så den fick en egen puck:
+  `bradans-egen-scrollruta`.

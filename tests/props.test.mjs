@@ -95,6 +95,14 @@ export async function run({ open }) {
     // empty one as the same value — so an empty string would come back as "no choice".
     eq(await p.evaluate(() => location.search.indexOf("props=none") !== -1), true,
       "valet står kvar i URL:en och överlever därmed en delning");
+    // The cells are gone; the *tracks* are the second half, and they were not. An empty
+    // track string handed to `setProperty` removes the declaration, and a removed custom
+    // property is exactly what makes `var(--list-tracks, …)` reach for its fallback — so
+    // the emptiest choice on the board drew four columns nobody asked for and reserved
+    // 392px for them. Measured as the computed track list, since an empty-but-present
+    // column is invisible in the DOM.
+    const spår = await tracksOf(p);
+    eq(spår.split(" ").length, 2, `bara glyfen och namnet har spår: ${spår}`);
   }
 
   group("automatiken gäller bara i frånvaro av ett val");
@@ -191,6 +199,76 @@ export async function run({ open }) {
     const halv = await open("?layout=list&done=1&props=grönsak,repo");
     eq(await cellsOf(halv), ["puck-glyph", "list-name", "list-repo"],
       "medan ett känt namn bredvid ett okänt är valet");
+    // …och den sparade vyn är den svårare halvan. Tavlan ritar `repo` men vyns egna
+    // parametrar bar `grönsak,repo`, så `paramsOf()` jämförde ett värde mot ett annat och
+    // vyn läste som *(edited)* i samma stund den öppnades — samma fel som det lagrade
+    // `etapps` hade, och samma botemedel: omskrivningen ligger i `effectiveParams`, den
+    // ena normaliseraren bägge sidor går genom.
+    const nyareTavla = (d) => {
+      d.config = d.config || {};
+      d.config.views = [{ name: "Bara repo", props: "grönsak,repo", layout: "list" }];
+      return d;
+    };
+    const sv = await open("", { token: true, data: nyareTavla });
+    await sv.getByRole("button", { name: /Bara repo/ }).first().click();
+    await sv.waitForTimeout(300);
+    const sedd = await sv.evaluate(() => ({
+      props: new URLSearchParams(location.search).get("props"),
+      acts: [...document.querySelectorAll("#chipRow .fchip-acts button")].map((e) => e.textContent.trim()),
+      titel: (document.querySelector("#viewTitleBtn, #topTitleBtn") || {}).textContent.replace(/\s+/g, " ").trim(),
+    }));
+    eq(sedd.acts, [], `en vy med ett namn tavlan inte känner läser inte som ändrad: ${JSON.stringify(sedd)}`);
+    ok(!/edited/.test(sedd.titel), `och titeln säger inte att den är det: ${JSON.stringify(sedd.titel)}`);
+    eq(sedd.props, "repo", "parametern är den tavlan faktiskt följer");
+  }
+
+  group("en vy väljer ett datum, inte tre");
+  {
+    // Utan val går datumen inte genom `propOn` alls — `autoDateField` väljer *ett* — så en
+    // bock som utgick från `propOn` kopierade in `created`, `updated` och `target` i
+    // uppsättningen. Att bocka av Agent på en standardtavla gjorde alltså om radens enda
+    // datum till tre, och de tre kryssrutorna stod ibockade över en rad som visade ett.
+    const p = await open("?layout=list&done=1");
+    eq(await p.evaluate(() => document.querySelectorAll(".list-row")[0].querySelectorAll(".list-date").length), 1,
+      "standardtavlan visar ett datum");
+    await p.evaluate(() => document.getElementById("displayBtn").click());
+    await p.waitForTimeout(120);
+    await p.getByRole("button", { name: /Properties/ }).click();
+    await p.waitForTimeout(120);
+    const bockade = await p.evaluate(() =>
+      [...document.querySelectorAll('input[data-field]')].filter((c) => c.checked).map((c) => c.dataset.field));
+    eq(bockade.filter((k) => ["created", "updated", "target"].includes(k)), ["updated"],
+      `och kryssrutorna säger samma sak: ${JSON.stringify(bockade)}`);
+    await p.locator('input[data-field="agent"]').click();
+    await p.waitForTimeout(200);
+    eq(await p.evaluate(() => document.querySelectorAll(".list-row")[0].querySelectorAll(".list-date").length), 1,
+      "och en bock på en helt annan egenskap lämnar datumet i fred");
+    const url = await p.evaluate(() => new URLSearchParams(location.search).get("props"));
+    ok(url.indexOf("created") === -1 && url.indexOf("target") === -1,
+      `valet bär bara det som stod på skärmen: ${url}`);
+  }
+
+  group("flera datum ryms i kortet");
+  {
+    // Listan reserverar ett *bredare* spår för ett andra datum; kortet hade ingenting
+    // motsvarande. `.card-meta` är en flexrad som inte bryter och varje datum är `nowrap`,
+    // så tre datum på en puck med target sprang 68px förbi kortets högerkant och in i
+    // nästa kolumn — mätt i en 280px-kolumn, tavlans smalaste.
+    const p = await open("?props=created,updated,target", { viewport: { width: 1000, height: 700 } });
+    const kort = await p.evaluate(() => {
+      const out = [];
+      document.querySelectorAll(".card").forEach((c) => {
+        const d = [...c.querySelectorAll(".card-date")];
+        if (d.length < 2) return;
+        out.push({ titel: c.querySelector(".card-title").textContent, n: d.length,
+          sist: Math.round(d[d.length - 1].getBoundingClientRect().right),
+          kant: Math.round(c.getBoundingClientRect().right) });
+      });
+      return out;
+    });
+    ok(kort.length > 0, `det finns kort med flera datum att mäta: ${JSON.stringify(kort)}`);
+    const utanför = kort.filter((k) => k.sist > k.kant);
+    eq(utanför.length, 0, `inget datum målar utanför kortet: ${JSON.stringify(utanför)}`);
   }
 
   group("status är en egenskap, och den fattades");
@@ -280,6 +358,30 @@ export async function run({ open }) {
     // The same tick, one layout over: a board column head carries both marks too.
     const kol = await open("?done=1&props=repo");
     eq(await räknare(kol, ".col-head"), 0, "och kolumnrubriken följer samma val");
+    // Varje rubrik, också stubben. En levande förälder vars alla delar arkivet håller
+    // ritas bara genom `archivedOnly`-grenen, som återvänder *före* raden ovan — så den
+    // var den enda rubrik där bocken inte sa någonting alls.
+    const stubb = await open("?layout=list&group=parent&props=rollup", {
+      data: (d) => {
+        d.items.forEach((i) => { if (i.id === "beta/b-member") i.status = "done"; });
+        return d;
+      },
+    });
+    const stubbar = await stubb.evaluate(() =>
+      [...document.querySelectorAll(".list-head")].filter((h) => h.querySelector(".lh-stub"))
+        .map((h) => ({ namn: h.querySelector(".lh-label").textContent.trim(),
+          rollup: h.querySelector(".rollup")?.textContent.trim() || null })));
+    eq(stubbar.length, 1, `en arkivstubb att fråga: ${JSON.stringify(stubbar)}`);
+    ok(stubbar[0].rollup, `och den bär sin rollup som varje annan rubrik: ${JSON.stringify(stubbar)}`);
+    const utan = await open("?layout=list&group=parent&props=count", {
+      data: (d) => {
+        d.items.forEach((i) => { if (i.id === "beta/b-member") i.status = "done"; });
+        return d;
+      },
+    });
+    eq(await utan.evaluate(() => document.querySelectorAll(".lh-stub").length &&
+      document.querySelectorAll(".list-head .rollup").length), 0,
+      "avbockad ritar den ingen — bocken styr, inte grenen");
   }
 
   group("swatchen och arkivmärket är inga egenskaper");

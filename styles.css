@@ -902,6 +902,14 @@ body {
 .card-repo { display: inline-flex; align-items: center; gap: 5px; color: var(--ink-2); font-weight: var(--fw-semibold); white-space: nowrap; }
 .repo-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
 .card-date { margin-left: auto; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* Two or three dates, kept inside the card. `min-width: 0` is what lets the box be
+   narrower than the dates it holds — a flex item defaults to its content width, which is
+   how a nowrap row came to paint outside the card in the first place — and the wrap then
+   has somewhere to go. The auto margin moves here from `.card-date`, so the single-date
+   card is laid out by exactly the rule it always was; the inner one is cancelled, or each
+   date would push the next one to a line of its own. */
+.card-dates { margin-left: auto; min-width: 0; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 2px 8px; }
+.card-dates .card-date { margin-left: 0; }
 /* Row 3 — tags. Badges are STATIC (flat, rounded-rect, no border, default cursor);
    the round bordered pills in the filter bar (.chip) are the CLICKABLE ones. */
 .card-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
