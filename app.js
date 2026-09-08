@@ -1899,25 +1899,37 @@
     var box = el("div", "scroll-debug");
     box.setAttribute("aria-hidden", "true");
     document.body.appendChild(box);
-    var n = 0, kan = 0, nekade = 0, x0 = 0, y0 = 0;
+    var n = 0, kan = 0, nekade = 0, x0 = 0, y0 = 0, xLyft = 0, störst = 0, xFörra = 0;
+    var tak = function () { return Math.round(port.scrollWidth - port.clientWidth); };
     var visa = function (slut) {
       box.textContent =
         "moves " + n + " · cancelable " + kan + " · vi nekade " + nekade + "\n" +
-        "x " + x0 + " → " + Math.round(port.scrollLeft) + "   y " + y0 + " → " + Math.round(port.scrollTop) + "\n" +
+        "x " + x0 + " → " + Math.round(port.scrollLeft) + "  (tak " + tak() + ")\n" +
+        "y " + y0 + " → " + Math.round(port.scrollTop) + "\n" +
+        "x vid lyft " + xLyft + " · största steg " + störst + "\n" +
         "touch-action: " + getComputedStyle(port).touchAction + (slut ? "   [släppt]" : "");
     };
     port.addEventListener("touchstart", function () {
-      n = kan = nekade = 0;
+      n = kan = nekade = 0; störst = 0;
       x0 = Math.round(port.scrollLeft); y0 = Math.round(port.scrollTop);
+      xFörra = x0; xLyft = x0;
       visa(false);
     }, { passive: true });
     port.addEventListener("touchmove", function (e) {
       n++;
       if (e.cancelable) kan++;
       if (e.defaultPrevented) nekade++;
+      // The biggest single-move step in x, and the value at the lift. Together they say
+      // *when* the drift happened: during the drag (a pan), after it (a glide), or not at
+      // all — a ceiling equal to the landing value means nothing moved x and the offset it
+      // stood at had simply stopped being reachable.
+      var nu = Math.round(port.scrollLeft);
+      if (Math.abs(nu - xFörra) > Math.abs(störst)) störst = nu - xFörra;
+      xFörra = nu;
       visa(false);
     }, { passive: true });
     port.addEventListener("touchend", function () {
+      xLyft = Math.round(port.scrollLeft);
       // After the glide, not at the lift: the sideways fling keeps moving `scrollLeft`,
       // and a reading taken at `touchend` would miss exactly the travel being asked about.
       setTimeout(function () { visa(true); }, 900);
