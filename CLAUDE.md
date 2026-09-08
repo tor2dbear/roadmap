@@ -498,7 +498,13 @@ sideways is a scroll container in *both* axes, so before the change a group head
   only, because the vertical rubber band is the one a long list is read with; `none` rather
   than `contain`, because `contain` stops the chaining and keeps the local bounce, which is
   the part being removed. The property is not new here — the sheet has used it since
-  `overscroll-behavior: none` was what removed *its* bounce.
+  `overscroll-behavior: none` was what removed *its* bounce. What is left after it is
+  directional, reported from the device: a diagonal up-left takes no sideways travel, one to
+  the right does. The browser can only take sideways where there *is* sideways to take, so a
+  gesture aimed at an edge comes out clean. That residue stands. The only thing left is
+  structural — split the axes across two elements — and `position: sticky` resolves against
+  the nearest scroll container, so the group heading would lose its vertical pin again: the
+  exact bug the fixed-height shell was built to fix, traded for ten pixels of drift.
 - **The driven axis needs its own fling, and the phone needs no indicators.** Giving the
   sideways pan to JS also gave away its momentum, and 1:1-then-dead-stop reads as a broken
   scroller next to every other one on the device — so `armAxisLock` keeps a smoothed

@@ -419,6 +419,24 @@ y. CDP:s beröringar är alltid avbrytbara, så det gick bara att se med synteti
 Det lät som en egenskap hos `No parent` för att den är den enda gruppen som är hög nog —
 142 rader mot 8 i den näst största — för att fortfarande röra sig när man tar om.
 
+## Vad som blev kvar av tvåaxligheten, och varför det får stå
+
+Efter `overscroll-behavior-x: none` är kantfallet borta — listan går inte längre att dra
+förbi sin egen vänsterkant. Kvar finns att en **kedjad** gest (svep ned, sätt ner fingret
+igen medan den rör sig, dra) tar med sig lite sidled. Den halvan äger Safari: `touch-action`
+hindrar den från att *starta* en sidledspanorering men omprövar inte en scroll som redan är
+igång, och en icke avbrytbar `touchmove` går inte att neka. Mätt på enheten: 1 av 9
+avbrytbara, vi nekade noll och skrev ingen `scrollLeft`, och x reste ändå 138 med y 318.
+
+Rapporterat efteråt, och det låter som ett kvitto på just det: **läckan är riktad.** Snett
+upp åt vänster rör sig inte i sidled, snett åt höger gör det. Webbläsaren kan bara ta
+sidled där det *finns* sidled att ta — vid en kant i den riktningen blir gesten ren.
+
+Det får stå. Det enda som återstår är strukturellt — dela axlarna på två element — och
+`position: sticky` löser mot närmaste scrollcontainer, så gruppens rubrik tappar då sin
+lodräta fastnaglning igen. Det är precis felet `skalet-ar-en-fast-hojd` byggdes för att
+laga, och det bytet är inte värt tio pixlars drift.
+
 ## Kvar
 - **Ordningen egenskaperna visas i** har redan en egen puck (`ordningen-egenskaperna-visas-i`).
   `PROPS` ordning är radens spårordning i dag; den pucken är där ett handval hör hemma.

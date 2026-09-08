@@ -2744,12 +2744,3 @@ body.viewing-puck .detail-crumb { display: none; }
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .demo-ribbon { color: #140d08; } }
 .demo-ribbon b, .demo-ribbon strong { font-weight: var(--fw-semibold); }
-
-/* Temporary: the `?debug=scroll` readout. Removed with the finding it settles. */
-.scroll-debug {
-  position: fixed; left: 8px; right: 8px; bottom: 8px; z-index: 9999;
-  padding: 8px 10px; border-radius: var(--r-md);
-  background: rgba(0, 0, 0, .82); color: #fff;
-  font-family: var(--mono); font-size: 12px; line-height: 1.45;
-  white-space: pre; pointer-events: none;
-}
