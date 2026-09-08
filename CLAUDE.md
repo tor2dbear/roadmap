@@ -473,7 +473,19 @@ sideways is a scroll container in *both* axes, so before the change a group head
   gestures through CDP — and pick the angle deliberately: Chromium locks the axis itself
   up to ~36°, so only a steeper diagonal (measured: 352px of drift at 42°) can tell the
   rule from its absence, and `preventDefault` is observable only as `defaultPrevented`,
-  never as an offset, for the same reason.
+  never as an offset, for the same reason. **And a gesture the browser already owns is not
+  ours to take half of.** A touchmove is non-cancelable exactly when the browser has
+  committed to a scroll — the reported case word for word: the list is still moving, a
+  finger lands and drags again, and re-grabbing a moving list makes the first pixels erratic
+  enough for the 8px threshold to read them as sideways. The old line asked `if
+  (e.cancelable) preventDefault()` and then drove `scrollLeft` regardless, treating the flag
+  as console hygiene rather than as the browser saying it already owns the gesture. Measured
+  with a sideways drag whose only difference was the flag: cancelable → 10 of 10 refused and
+  200px of x; non-cancelable → 0 refused and the same 200px, with the browser still panning
+  y underneath. It hands over for the rest of the *gesture*, not the event — a later
+  cancelable move must not take the axis back — and drops the velocity, so nothing flings
+  out of a drag we stopped steering. It read as a property of `No parent` because that is
+  the only group tall enough (142 rows against 8) to still be moving when you re-grab.
 - **The driven axis needs its own fling, and the phone needs no indicators.** Giving the
   sideways pan to JS also gave away its momentum, and 1:1-then-dead-stop reads as a broken
   scroller next to every other one on the device — so `armAxisLock` keeps a smoothed

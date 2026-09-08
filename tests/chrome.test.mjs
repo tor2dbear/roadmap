@@ -745,6 +745,77 @@ export async function run({ open }) {
       "men en bit in, med rum åt det hållet, gör den det");
   }
 
+  group("en gest webbläsaren redan äger tar vi inte halva");
+  {
+    // Rapporterat från en telefon, ordagrant: "Jag skrollar ner. Sidan är i rörelse. Sätter
+    // ner fingret och drar igen. Sidan skrollar i både X och y."
+    //
+    // En touchmove är *inte avbrytbar* precis när webbläsaren redan bestämt sig för att
+    // scrolla — vilket är exakt det läget. Vi kunde alltså inte neka dess lodräta
+    // panorering, men körde vår sidled ändå. Att ta om en lista som rör sig gör de första
+    // pixlarna ryckiga, så 8px-tröskeln kan läsa det som sidled.
+    //
+    // `cancelable` är den enda skillnaden mellan de två gesterna här, och det är den enda
+    // vägen att mäta det: CDP:s beröringar är alltid avbrytbara, så en riktig gest genom
+    // riggen kan inte skilja fallen åt. Syntetiska `TouchEvent` når samma lyssnare med
+    // samma `passive: false`.
+    const p = await open("?layout=list&done=1", { viewport: { width: 390, height: 600 }, hasTouch: true });
+    await p.waitForSelector(".list-row");
+    const dra = (cancelable) => p.evaluate((cx) => {
+      const w = document.getElementById("work");
+      w.scrollLeft = 0; w.scrollTop = 0;
+      const el = document.elementFromPoint(200, 400);
+      const t = (x, y) => new Touch({ identifier: 1, target: el, clientX: x, clientY: y });
+      const send = (type, pt, can) => {
+        const ev = new TouchEvent(type, { bubbles: true, cancelable: can,
+          touches: pt ? [pt] : [], targetTouches: pt ? [pt] : [], changedTouches: pt ? [pt] : [] });
+        el.dispatchEvent(ev);
+        return ev.defaultPrevented;
+      };
+      send("touchstart", t(200, 400), true);
+      let nekade = 0;
+      for (let i = 1; i <= 10; i++) if (send("touchmove", t(200 - 20 * i, 400 - 2 * i), cx)) nekade++;
+      send("touchend", null, true);
+      return { x: Math.round(w.scrollLeft), nekade };
+    }, cancelable);
+
+    const vanlig = await dra(true);
+    ok(vanlig.x > 100, `en vanlig gest driver sidleds: ${JSON.stringify(vanlig)}`);
+    eq(vanlig.nekade, 10, "och nekar webbläsaren dess lodräta panorering hela vägen");
+
+    const ägd = await dra(false);
+    eq(ägd.nekade, 0, "en gest webbläsaren äger går inte att neka");
+    eq(ägd.x, 0, `så vi tar inte heller dess andra axel: ${JSON.stringify(ägd)} (utan regeln 200)`);
+
+    // Och överlämnandet gäller *gesten*, inte den enskilda händelsen — vilket är det
+    // blandade fallet: de första pixlarna hinner före webbläsarens beslut, resten inte.
+    // Två saker faller ut ur det, och ingen av dem syns i provet ovan: en avbrytbar
+    // händelse efter en icke avbrytbar får inte ta tillbaka axeln, och hastigheten som
+    // hann samlas får inte kastas iväg av ett `touchend` på en gest vi slutat styra.
+    const blandad = await p.evaluate(() => {
+      const w = document.getElementById("work");
+      w.scrollLeft = 0; w.scrollTop = 0;
+      const el = document.elementFromPoint(200, 400);
+      const t = (x, y) => new Touch({ identifier: 1, target: el, clientX: x, clientY: y });
+      const send = (type, pt, can) => el.dispatchEvent(new TouchEvent(type, { bubbles: true,
+        cancelable: can, touches: pt ? [pt] : [], targetTouches: pt ? [pt] : [], changedTouches: pt ? [pt] : [] }));
+      send("touchstart", t(200, 400), true);
+      for (let i = 1; i <= 5; i++) send("touchmove", t(200 - 20 * i, 400 - 2 * i), true);   // vi styr
+      const vidÖvertag = Math.round(w.scrollLeft);
+      for (let i = 6; i <= 10; i++) send("touchmove", t(200 - 20 * i, 400 - 2 * i), false); // webbläsaren tar över
+      send("touchmove", t(200 - 20 * 11, 400 - 2 * 11), true);                              // avbrytbar igen
+      const efterÖvertag = Math.round(w.scrollLeft);
+      send("touchend", null, true);
+      return { vidÖvertag, efterÖvertag };
+    });
+    ok(blandad.vidÖvertag > 50, `vi styrde tills webbläsaren tog över: ${JSON.stringify(blandad)}`);
+    eq(blandad.efterÖvertag, blandad.vidÖvertag,
+      `och tar inte tillbaka axeln när en avbrytbar händelse kommer igen: ${JSON.stringify(blandad)}`);
+    await p.waitForTimeout(700);
+    eq(await p.evaluate(() => Math.round(document.getElementById("work").scrollLeft)), blandad.vidÖvertag,
+      "och inget kast sjösätts ur en gest vi slutat styra");
+  }
+
   group("sidledsdragningen har ett kast");
   {
     // `touch-action: pan-y` ger bort webbläsarens sidledsscroll, och därmed dess momentum.

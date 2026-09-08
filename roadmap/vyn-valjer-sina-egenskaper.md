@@ -396,6 +396,29 @@ uppräkning är precis det som missade en låda i rubrikfixen samma dag. Och den
 den regelns sabotage inte längre fällas. Ett svep är bara så brett som det det fått svepa
 över, och det måste kontrollen själv påstå.
 
+## Axellåset tog halva en gest som webbläsaren redan ägde
+
+Rapporterat som "No parent-gruppen verkar inte vara skyddad" — och det var den inte, men
+inte för att gruppen var särskild. Jag mätte sex vägar över alla fem grupper och hittade
+ingen skillnad: dx 0 nedåt, dy 0 i sidled, rubriker fastnaglade, samma `touch-action`, en
+scroller. Det som avgjorde var Torbjörns beskrivning av *gesten*: "Jag skrollar ner. Sidan
+är i rörelse. Sätter ner fingret och drar igen."
+
+En `touchmove` är **inte avbrytbar** precis när webbläsaren redan bestämt sig för att
+scrolla. Den gamla raden frågade om det och drog fel slutsats — `if (e.cancelable)
+preventDefault()` och sedan `scrollLeft` ändå, som om flaggan vore konsolhygien i stället
+för webbläsaren som säger att den redan äger gesten. Att ta om en lista i rörelse gör de
+första pixlarna ryckiga, så 8px-tröskeln läser dem som sidled; vi tog x, kunde inte neka
+y, och fick båda.
+
+Mätt med en sidledsdragning där `cancelable` var enda skillnaden: avbrytbar → 10 av 10
+nekade och 200px x. Icke avbrytbar → **0 nekade och samma 200px**, med webbläsaren kvar på
+y. CDP:s beröringar är alltid avbrytbara, så det gick bara att se med syntetiska
+`TouchEvent` — riktiga gester genom riggen kan inte skilja fallen åt.
+
+Det lät som en egenskap hos `No parent` för att den är den enda gruppen som är hög nog —
+142 rader mot 8 i den näst största — för att fortfarande röra sig när man tar om.
+
 ## Kvar
 - **Ordningen egenskaperna visas i** har redan en egen puck (`ordningen-egenskaperna-visas-i`).
   `PROPS` ordning är radens spårordning i dag; den pucken är där ett handval hör hemma.

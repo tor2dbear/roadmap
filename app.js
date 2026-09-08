@@ -1814,9 +1814,28 @@
         axis = Math.abs(dx) > Math.abs(dy) && maxX > 1 && roomX ? "x" : "y";
       }
       if (axis !== "x") return;
-      // Not cancelable once the browser has committed to a scroll; the 8px threshold is
-      // what usually gets us in before that, and asking first keeps the console clean.
-      if (e.cancelable) e.preventDefault();
+      // If we cannot refuse the browser's pan, we must not add an axis on top of it. A
+      // touchmove is non-cancelable exactly when the browser has already committed to a
+      // scroll — which is the reported case, word for word: the list is still moving, a
+      // finger lands and drags again. Re-grabbing a moving list makes the first few pixels
+      // erratic, so the 8px threshold can read that jitter as sideways; we then claimed x,
+      // failed to refuse the vertical pan, and drove `scrollLeft` anyway. Measured with a
+      // sideways drag whose only difference was the flag: cancelable → 10 of 10 refused and
+      // 200px of x; non-cancelable → **0 refused and the same 200px**, with the browser
+      // still panning y underneath. Both axes, which is the one thing this lock exists to
+      // prevent.
+      //
+      // It also only shows up in a group tall enough to still be moving when you re-grab —
+      // 142 rows in `No parent` against 8 in the next largest — which is why it read as a
+      // property of that one group.
+      //
+      // The earlier version of this line asked the same question and drew the wrong
+      // conclusion: it treated `cancelable` as console hygiene rather than as the browser
+      // saying it already owns the gesture. Handed over for the rest of the drag, not just
+      // this event, and with the velocity dropped so nothing flings out of a gesture we
+      // did not steer.
+      if (!e.cancelable) { axis = "y"; vx = 0; return; }
+      e.preventDefault();
       var from = lastX;
       sample(t.clientX, e.timeStamp);
       port.scrollLeft -= t.clientX - from;
