@@ -158,6 +158,10 @@
   // stored key from a newer board must not become a property this one cannot draw.
   var savedProps;
   function saveDisplay(key, value) { try { localStorage.setItem("roadmap-" + key, value); } catch (e) {} }
+  // Read once, at boot. `writeUrl()` rebuilds the search from `VIEW_KEYS` and drops
+  // everything else, so a parameter that is not a view key is gone by the first render —
+  // asking `location.search` later finds nothing.
+  var DEBUG_SCROLL = /(^|[?&])debug=scroll(&|$)/.test(location.search);
 
   // ── auto-status ──
   // The harvester computes the flags (item.signals, discrete types) so the JSON,
@@ -1688,7 +1692,12 @@
       detailPane = document.getElementById("detailPane");
       detailContent = document.getElementById("detailContent");
       workEl = document.getElementById("work");
-      if (workEl) { armAxisLock(workEl); armChromeWheel(workEl); }
+      if (workEl) {
+        armAxisLock(workEl);
+        armChromeWheel(workEl);
+        // After the lock, so its `preventDefault` is visible as `defaultPrevented`.
+        if (DEBUG_SCROLL) armScrollDebug(workEl);
+      }
     }
   }
 
@@ -1875,6 +1884,47 @@
   // a long query wraps it — so the walk asks each box on the way up whether it has room
   // in the direction being asked for, and only forwards what nobody wanted.
   var wheelArmed = false;
+  // ── a readout for the one device the rig cannot see ─────────────────────────
+  // Temporary, behind `?debug=scroll`, and to be removed with the finding it settles.
+  // Everything measurable through Chromium says the axis lock holds; a real iPhone says
+  // otherwise, and the gap between those two is not something more emulation can close.
+  // So this reports, from the device itself, the four numbers that separate the
+  // candidates: how many touchmoves arrived, how many were cancelable, how many *we*
+  // refused, and what the two offsets did. Plus the computed `touch-action`, because if
+  // the rule never matched there — `:has()` is Safari 15.4 — the JS was never the story.
+  //
+  // Registered *after* `armAxisLock` on the same element and phase, which is the only way
+  // to observe our own `preventDefault`: `defaultPrevented` is readable, the call is not.
+  function armScrollDebug(port) {
+    var box = el("div", "scroll-debug");
+    box.setAttribute("aria-hidden", "true");
+    document.body.appendChild(box);
+    var n = 0, kan = 0, nekade = 0, x0 = 0, y0 = 0;
+    var visa = function (slut) {
+      box.textContent =
+        "moves " + n + " · cancelable " + kan + " · vi nekade " + nekade + "\n" +
+        "x " + x0 + " → " + Math.round(port.scrollLeft) + "   y " + y0 + " → " + Math.round(port.scrollTop) + "\n" +
+        "touch-action: " + getComputedStyle(port).touchAction + (slut ? "   [släppt]" : "");
+    };
+    port.addEventListener("touchstart", function () {
+      n = kan = nekade = 0;
+      x0 = Math.round(port.scrollLeft); y0 = Math.round(port.scrollTop);
+      visa(false);
+    }, { passive: true });
+    port.addEventListener("touchmove", function (e) {
+      n++;
+      if (e.cancelable) kan++;
+      if (e.defaultPrevented) nekade++;
+      visa(false);
+    }, { passive: true });
+    port.addEventListener("touchend", function () {
+      // After the glide, not at the lift: the sideways fling keeps moving `scrollLeft`,
+      // and a reading taken at `touchend` would miss exactly the travel being asked about.
+      setTimeout(function () { visa(true); }, 900);
+    }, { passive: true });
+    visa(true);
+  }
+
   function armChromeWheel(port) {
     if (wheelArmed) return;
     var col = port.parentElement;
