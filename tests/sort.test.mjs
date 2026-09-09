@@ -81,9 +81,13 @@ export async function run({ open }) {
       ["status", "status"],
       ["target", "target"],
       ["title", "title"],
-      ["updated-desc", "updated-desc"],
+      // Sedan riktningen blev en kontroll skrivs den bara ut när den *inte* är fältets
+      // förval, så `updated-desc` kortas till `updated`. Det är samma nyckel under ett
+      // annat namn — bägge stavningarna läses till samma kedja, vilket är hela villkoret
+      // för att en redan skickad länk ska rita samma tavla.
+      ["updated-desc", "updated"],
       ["updated-asc", "updated-asc"],
-      ["created-desc", "created-desc"],
+      ["created-desc", "created"],
       ["created-asc", "created-asc"],
     ];
     for (const [gammal, kedja] of fall) {
@@ -115,59 +119,187 @@ export async function run({ open }) {
       "och en kedja utan giltiga nycklar är standarden, inte tomhet");
   }
 
-  group("menyn bygger kedjan, och ordningen är dess innehåll");
+  group("varje fält har en riktning, inte bara datumen");
+  {
+    // Före det här var katalogen nio poster: tre datumfält × två riktningar som egna
+    // nycklar, och riktningen inbakad i namnet på de fyra andra (`Priority (high→low)`,
+    // `Title A–Z`). Alltså gick `priority` låg→hög och `title` Ö→A inte att be om alls.
+    const fram = await open("?layout=list&sort=priority", { data: fyra });
+    eq(await titlar(fram), ["C", "D", "A", "B"], "priority: hög först");
+    const bak = await open("?layout=list&sort=priority-desc", { data: fyra });
+    eq(await titlar(bak), ["A", "B", "C", "D"], "priority-desc: låg först — nytt");
+
+    const az = await open("?layout=list&sort=title", { data: fyra });
+    eq(await titlar(az), ["A", "B", "C", "D"], "title: A→Ö");
+    const za = await open("?layout=list&sort=title-desc", { data: fyra });
+    eq(await titlar(za), ["D", "C", "B", "A"], "title-desc: Ö→A — nytt");
+
+    // Och stavningen är kortast när riktningen är fältets förval, åt bägge hållen: `title`
+    // är förvalet asc, `updated` är förvalet desc. Det är det som gör att gamla länkar med
+    // `updated-desc` läser samma kedja som en meny som just skrivit `updated`.
+    eq(await bak.evaluate(() => new URLSearchParams(location.search).get("sort")), "priority-desc",
+      "en vänd riktning skrivs ut");
+    const kort = await open("?layout=list&sort=updated-desc", { data: fyra });
+    eq(await kort.evaluate(() => new URLSearchParams(location.search).get("sort")), "updated",
+      "en riktning som är förvalet skrivs inte ut");
+  }
+
+  group("ett fält kan bara stå en gång i kedjan");
+  {
+    // `updated,updated-asc` är två svar på en fråga, och det andra kunde aldrig nås ändå.
+    const p = await open("?layout=list&sort=updated,updated-asc,order", { data: fyra });
+    eq(await p.evaluate(() => new URLSearchParams(location.search).get("sort")), "updated,order",
+      "andra förekomsten av samma fält faller bort, riktning eller ej");
+  }
+
+  const öppnaMenyn = async (p) => {
+    await p.locator("#displayBtn").click();
+    await p.waitForSelector(".pop, .sheet");
+    await p.locator(".pop, .sheet").getByText("Ordering", { exact: true }).click();
+    await p.waitForTimeout(200);
+  };
+  const rader = (p) => p.evaluate(() =>
+    [...document.querySelectorAll(".dp-sort")].map((r) => ({
+      fält: r.querySelector(".dp-sort-field span").textContent.trim(),
+      riktning: r.querySelector(".dp-sort-dir span").textContent.trim(),
+      upp: !!r.querySelector('.dp-sort-act[title^="Move"]'),
+    })));
+
+  group("menyn är en lista, inte två — och behöver därför ingen förklarande text");
   {
     const p = await open("", { data: fyra, token: true });
-    const öppna = async () => {
-      await p.locator("#displayBtn").click();
-      await p.waitForSelector(".pop, .sheet");
-      await p.locator(".pop, .sheet").getByText("Ordering", { exact: true }).click();
-      await p.waitForTimeout(200);
-    };
-    await öppna();
-    const start = await p.evaluate(() =>
-      [...document.querySelectorAll(".dp-chain-label")].map((e) => e.textContent.trim()));
-    eq(start, ["Manual", "Recently updated"], "standarden står utskriven som två nycklar");
+    await öppnaMenyn(p);
 
-    // Att välja en nyckel lägger till den sist — den bryter de oavgjorda de ovanför lämnar.
-    await p.locator(".pop, .sheet").getByText("Priority (high→low)", { exact: true }).click();
+    eq(await rader(p), [
+      { fält: "Manual", riktning: "first → last", upp: false },
+      { fält: "Updated", riktning: "newest → oldest", upp: true },
+    ], "standarden står som två rader med fält och riktning var");
+
+    // Klagomålet som startade det här: när en yta behöver en mening som förklarar vilka
+    // rader som är vilka har strukturen misslyckats. Katalogen ligger bakom `Add a key`,
+    // det finns en lista kvar, och meningen har inget att göra.
+    eq(await p.evaluate(() => document.querySelectorAll(".pop .dp-note, .sheet .dp-note").length), 0,
+      "ingen not i ordningsytan");
+
+    // Första raden har ingen `↑` — men den har en lucka lika bred, annars stegar
+    // fältnamnen 24px åt vänster på rad ett och kolumnen läses som ett fel.
+    eq(await p.evaluate(() => document.querySelectorAll(".dp-sort-gap").length), 1,
+      "en lucka, på den enda rad som saknar ↑");
+  }
+
+  group("riktningen är en växel på raden");
+  {
+    const p = await open("", { data: fyra, token: true });
+    await öppnaMenyn(p);
+    await p.evaluate(() => document.querySelectorAll(".dp-sort")[1].querySelector(".dp-sort-dir").click());
     await p.waitForTimeout(250);
-    eq(url(p), "?sort=order,updated-desc,priority", "vald nyckel hamnar sist i kedjan");
+    eq(url(p), "?sort=order,updated-asc", "ett tryck vänder nyckeln");
+    eq((await rader(p))[1].riktning, "oldest → newest", "och raden säger vad den nu är");
 
-    // `↑` flyttar upp den, och det är den enda vägen till en annan ordning: en kryssruta
-    // kan säga att `priority` är med, aldrig att den kommer före `updated`.
-    await p.evaluate(() => {
-      const rows = [...document.querySelectorAll(".dp-chain")];
-      rows[2].querySelector(".dp-chain-act").click(); // första knappen på raden är ↑
-    });
+    // Två alternativ är en växel, inte en väljare: en chevron hade lovat en lista med två
+    // rader i och kostat ett tryck till för samma sak.
+    await p.evaluate(() => document.querySelectorAll(".dp-sort")[1].querySelector(".dp-sort-dir").click());
     await p.waitForTimeout(250);
-    eq(url(p), "?sort=order,priority,updated-desc", "↑ flyttar nyckeln uppåt i kedjan");
+    eq(url(p), "", "och tillbaka igen — standarden skrivs inte ut alls");
+  }
 
-    // Och `✕` tar bort — utom på den sista kvarvarande, för `parseSort` svarar med
-    // standarden på en tom kedja och menyn får aldrig visa en kedja tavlan inte följer.
-    const kvar = await p.evaluate(() => {
-      const rows = [...document.querySelectorAll(".dp-chain")];
-      return { rader: rows.length, knappar: rows.map((r) => r.querySelectorAll(".dp-chain-act").length) };
+  group("fältet byts på plats");
+  {
+    const p = await open("", { data: fyra, token: true });
+    await öppnaMenyn(p);
+    // Förut fanns ingen väg att ändra *första* nyckeln: man fick ta bort den (kedjan blev
+    // en kortare) och lägga till den igen, där den hamnade sist.
+    await p.evaluate(() => document.querySelectorAll(".dp-sort")[0].querySelector(".dp-sort-field").click());
+    await p.waitForTimeout(200);
+    const val = await p.evaluate(() =>
+      [...document.querySelectorAll(".pop .row, .sheet .row")].map((r) => r.getAttribute("data-value")));
+    eq(val, ["order", "status", "priority", "target", "created", "title"],
+      "fält som redan står i kedjan erbjuds inte — utom raden man står i");
+
+    await p.locator(".pop, .sheet").getByText("Priority", { exact: true }).click();
+    await p.waitForTimeout(250);
+    eq(url(p), "?sort=priority,updated", "fältet byts, platsen behålls");
+    eq((await rader(p))[0].riktning, "high → low",
+      "och det nya fältet tar sin egen riktning — `newest → oldest` är inget priority kan vara");
+  }
+
+  group("lägg till och nollställ");
+  {
+    const p = await open("?sort=title", { data: fyra, token: true });
+    await öppnaMenyn(p);
+    await p.locator(".pop, .sheet").getByText("Add a key", { exact: true }).click();
+    await p.waitForTimeout(200);
+    await p.locator(".pop, .sheet").getByText("Status", { exact: true }).click();
+    await p.waitForTimeout(250);
+    eq(url(p), "?sort=title,status", "vald nyckel hamnar sist — den bryter de oavgjorda de ovanför lämnar");
+
+    // En smal nollställning, och den behöver vara smal: Displays egen "Reset to default"
+    // sätter tillbaka alla sju display-nycklarna.
+    await p.locator(".pop, .sheet").getByText("Reset ordering", { exact: true }).click();
+    await p.waitForTimeout(250);
+    eq(url(p), "", "ordningen tillbaka till standarden, och inget annat rört");
+    eq(await p.evaluate(() =>
+      [...document.querySelectorAll(".pop, .sheet")].some((s) => /Reset ordering/.test(s.textContent))), false,
+      "och raden står inte kvar när kedjan redan *är* standarden");
+  }
+
+  group("raden håller på en telefon — det var där felet rapporterades");
+  {
+    // Hela ändringen kom från en skärmdump på 390px, så formen mäts där. `target` har
+    // katalogens längsta riktningsetikett (`soonest → latest`), och `Manual` ligger bredvid
+    // den — så det här är den bredaste rad menyn kan rita.
+    const p = await open("?sort=target,order", {
+      data: fyra, token: true, viewport: { width: 390, height: 844 }, hasTouch: true,
     });
-    eq(kvar.rader, 3, "tre nycklar i kedjan");
-    eq(kvar.knappar, [1, 2, 2], "första raden har ingen ↑ — den är redan överst");
+    await öppnaMenyn(p);
+    const mått = await p.evaluate(() => {
+      const rows = [...document.querySelectorAll(".dp-sort")];
+      return rows.map((r) => {
+        const dir = r.querySelector(".dp-sort-dir");
+        const acts = [...r.querySelectorAll(".dp-sort-act, .dp-sort-gap")];
+        return {
+          spill: r.scrollWidth - r.clientWidth,
+          fält: Math.round(r.querySelector(".dp-sort-field").getBoundingClientRect().width),
+          riktning: dir.textContent.trim(),
+          riktningKapad: dir.scrollWidth > dir.clientWidth + 1,
+          kontroller: acts.map((a) => Math.round(a.getBoundingClientRect().width)),
+        };
+      });
+    });
+    eq(mått.map((m) => m.spill), [0, 0], "ingen rad spiller ur lådan");
+    eq(mått[0].riktning, "soonest → latest", "den längsta etiketten står oklippt");
+    eq(mått.map((m) => m.riktningKapad), [false, false], "och ellipsiseras inte heller");
+    // Ikonkontrollerna är fasta märken: fältnamnet och riktningen får ge, aldrig de. Det
+    // är listrubrikernas regel en yta bort — där kostade den fyra bortslipade pixlar innan
+    // någon såg det, så den frågar varje rad och inte bara den trängsta.
+    eq(mått.map((m) => m.kontroller), [[34, 34], [34, 34]],
+      "↑/lucka och ✕ behåller sina 34px på en tumyta");
+    ok(mått.every((m) => m.fält >= 60), "och fältnamnet har plats kvar: " +
+      JSON.stringify(mått.map((m) => m.fält)));
   }
 
   group("den sista nyckeln kan inte tas bort");
   {
     const p = await open("?layout=list&sort=title", { data: fyra, token: true });
-    await p.locator("#displayBtn").click();
-    await p.waitForSelector(".pop, .sheet");
-    await p.locator(".pop, .sheet").getByText("Ordering", { exact: true }).click();
-    await p.waitForTimeout(200);
+    await öppnaMenyn(p);
     const en = await p.evaluate(() => {
-      const rows = [...document.querySelectorAll(".dp-chain")];
-      return { rader: rows.length, knappar: rows[0].querySelectorAll(".dp-chain-act").length };
+      const rows = [...document.querySelectorAll(".dp-sort")];
+      return { rader: rows.length, knappar: rows[0].querySelectorAll(".dp-sort-act").length };
     });
     eq(en.rader, 1, "en nyckel i kedjan");
     eq(en.knappar, 0,
-      "och den har varken ↑ eller ✕ — en kontroll som bara misslyckas när man trycker är inte spärrad, den är dekorerad");
+      "varken ↑ eller ✕ — en kontroll som bara misslyckas när man trycker är inte spärrad, den är dekorerad");
   }
+
+  group("↑ flyttar nyckeln uppåt");
+  {
+    const p = await open("?sort=order,updated,priority", { data: fyra, token: true });
+    await öppnaMenyn(p);
+    await p.evaluate(() => document.querySelectorAll(".dp-sort")[2].querySelector(".dp-sort-act").click());
+    await p.waitForTimeout(250);
+    eq(url(p), "?sort=order,priority,updated", "↑ byter plats med raden ovanför");
+  }
+
 
   // Ingen kontroll för `manualRank()` här, och det är avsiktligt: dess enda konsument är
   // rank-släppet *inom* en kolumn, som bara finns som en `dragover`-lyssnare — det syns

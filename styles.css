@@ -1937,37 +1937,59 @@ body.preload * { transition: none !important; }
 .fp-cur { margin-left: auto; color: var(--ink-3); }
 .dp-rule { height: 1px; background: var(--line); margin: 2px 0; }
 /* ── the ordering chain ─────────────────────────────────────────────────────── */
-/* A chosen key sits at the same rhythm as a `.row` — same padding, same gap — but is
-   a <div> rather than a button: the row itself is not the target, its two controls
-   are. Making the whole thing pressable would have meant inventing a meaning for
-   "press the key you are already sorting by".
-   The number is the setting: it says this key is asked *third*, which a list of
-   ticks could never say. Tabular figures so 1 and 10 take the same width and the
-   labels beside them stay in one column. */
-.dp-chain { display: flex; align-items: center; gap: 8px; padding: 7px 9px; font-size: var(--fs-md); }
-.dp-chain-n {
-  flex: none; width: 16px; text-align: right; color: var(--ink-3);
-  font-variant-numeric: tabular-nums;
+/* One row per key — `[↑] Field  direction  ✕` — at the same rhythm as a `.row`, but a
+   <div>: the row is not the target, its three controls are. There is no meaning to
+   invent for "press the key you are already sorting by".
+   The row's *position* is the setting — it says this key is asked third — which is
+   why there are no ordinals any more: with one list instead of two, the order is
+   readable from the stack itself, and a number was a second way of saying it. */
+.dp-sort { display: flex; align-items: center; gap: 6px; padding: 5px 9px; font-size: var(--fs-md); }
+/* The field name gives first and the direction second: a name is what the row is
+   *about*, a direction is what it does. Both may ellipsise — `soonest → latest` is
+   the longest thing in here — but neither may squeeze the two icon controls, which
+   are fixed marks. That is the list headings' rule, one surface over. */
+.dp-sort-field, .dp-sort-dir {
+  display: inline-flex; align-items: center; gap: 4px; min-width: 0;
+  padding: 3px 6px; border: 0; border-radius: var(--r-sm);
+  background: none; font: inherit; text-align: left; cursor: pointer;
 }
-/* The label is the only part that may give: the number and the two controls are
-   fixed marks, and a long key name pressed against a narrow sheet would otherwise
-   squeeze them instead of ellipsising itself — the squeeze the list headings paid
-   for once already. */
-.dp-chain-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dp-chain-act {
+.dp-sort-field { flex: 1 1 auto; color: var(--ink); }
+.dp-sort-dir { flex: 0 1 auto; color: var(--ink-3); }
+.dp-sort-field > span, .dp-sort-dir > span {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.dp-sort-chev { flex: none; width: 11px; height: 11px; color: var(--ink-3); }
+.dp-sort-act {
   flex: none; display: inline-flex; align-items: center; justify-content: center;
   width: 24px; height: 24px; padding: 0; border: 0; border-radius: var(--r-sm);
   background: none; color: var(--ink-3); cursor: pointer;
 }
+/* The first row has no `↑`, so it gets this instead — the same width, no target.
+   Without it the field names stepped 24px left on row one and the column read as a
+   mistake rather than as a control that is missing on purpose. Its own class, not the
+   control's: sharing one put a <span> into every set that asks a row what controls it
+   has. */
+.dp-sort-gap { flex: none; width: 24px; }
 /* `(hover: hover)` because on a phone a tap leaves the state stuck under your finger
    — the rule the list's own controls were swept into. */
-@media (hover: hover) { .dp-chain-act:hover { background: var(--panel-2); color: var(--ink); } }
-.dp-chain-act .icn { width: 13px; height: 13px; }
+@media (hover: hover) {
+  .dp-sort-act:hover, .dp-sort-field:hover, .dp-sort-dir:hover {
+    background: var(--panel-2); color: var(--ink);
+  }
+}
+.dp-sort-act .icn { width: 13px; height: 13px; }
+/* `＋ Add a key` and `🗑 Reset ordering` are ordinary rows — they belong to the list
+   rather than to any key in it, and drawing them as anything else would have made
+   them read as a third kind of thing in a surface that just got down to one. */
+.dp-sort-add { color: var(--ink-3); }
+.dp-sort-add .icn { width: 13px; height: 13px; flex: none; }
 @media (max-width: 639px) {
   /* A sheet is a thumb surface: the controls grow with its rows, like every other
      target in here. */
-  .sheet .dp-chain { font-size: var(--fs-xl); min-height: 40px; }
-  .sheet .dp-chain-act { width: 34px; height: 34px; }
+  .sheet .dp-sort { font-size: var(--fs-xl); min-height: 40px; }
+  .sheet .dp-sort-act { width: 34px; height: 34px; }
+  .sheet .dp-sort-gap { width: 34px; }
+  .sheet .dp-sort-field, .sheet .dp-sort-dir { padding: 6px; }
 }
 /* ── .resetbtn — put this back the way it was ───────────────────────────────── */
 /* There were two of these and they wore different colours: the Display menu's in

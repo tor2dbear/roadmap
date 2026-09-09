@@ -31,6 +31,20 @@ async function välj(p, fält, värde) {
   await p.waitForTimeout(150);
 }
 
+// Ordningen är inte ett värde ur en lista längre: den är en kedja, och en nyckel läggs
+// till bakom `Add a key`. Sedan `sorteringsmenyn-ar-en-lista-inte-tva` heter raderna sitt
+// *fält* — riktningen är en egen kontroll — så `Title A–Z` finns inte att klicka på.
+async function läggTillNyckel(p, fält) {
+  await p.locator("#displayBtn").click();
+  await p.waitForSelector(".pop, .sheet");
+  await p.locator(".pop, .sheet").getByText("Ordering", { exact: true }).click();
+  await p.locator(".pop, .sheet").getByText("Add a key", { exact: true }).click();
+  await p.locator(".pop, .sheet").getByText(fält, { exact: true }).click();
+  await p.waitForTimeout(250);
+  await p.keyboard.press("Escape");
+  await p.waitForTimeout(150);
+}
+
 async function gåTill(p, namn) {
   await p.getByRole("button", { name: new RegExp("^" + namn) }).first().click();
   await p.waitForTimeout(250);
@@ -65,11 +79,11 @@ export async function run({ open, origin }) {
     // som `goToView` redan för om filtret.
     const p = await open("", { token: true });
     // Ordningen är en kedja sedan `sortering-ar-en-kedja`, så att välja en nyckel *lägger
-    // till* den sist i stället för att byta läge — standarden `order,updated-desc` står
-    // kvar framför. Det är kedjan som mäts på riktigt i `tests/sort.test.mjs`; här är den
-    // bara ett andra vred, så att gruppen inte är en kopia av den ovanför.
-    await välj(p, "Ordering", "Title A–Z");
-    eq(url(p), "?sort=order,updated-desc,title", "sorteringen sitter i All pucks");
+    // till* den sist i stället för att byta läge — standarden `order,updated` står kvar
+    // framför. Det är kedjan som mäts på riktigt i `tests/sort.test.mjs`; här är den bara
+    // ett andra vred, så att gruppen inte är en kopia av den ovanför.
+    await läggTillNyckel(p, "Title");
+    eq(url(p), "?sort=order,updated,title", "sorteringen sitter i All pucks");
     await gåTill(p, "Inbox");
     eq(url(p), "?view=inbox", "Inbox ärver den inte");
     await gåTill(p, "Standalone");
@@ -168,7 +182,7 @@ export async function run({ open, origin }) {
     await p.waitForTimeout(300);
     eq(JSON.parse((await minne(p)) || "{}").ready, undefined, "att gå in i den skriver inget");
 
-    await välj(p, "Ordering", "Title A–Z");
+    await läggTillNyckel(p, "Title");
     eq(JSON.parse((await minne(p)) || "{}").ready, undefined,
       "och att ändra i den skriver inte heller — Update är vägen");
     await gåTill(p, "Ready");

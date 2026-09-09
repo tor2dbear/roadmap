@@ -683,7 +683,7 @@ heading from one walk.
 
 ## UI: the ordering is a chain
 
-`sort` is a list of keys — `sort=priority,target,updated-desc` — walked in order until one
+`sort` is a list of keys — `sort=priority,target,updated` — walked in order until one
 of them answers. **Manual rank is therefore a key among the others rather than a mode that
 excludes them**, which is the whole complaint the puck opened with: `order:` felt clumsy not
 because it is the wrong idea but because it was the default *and the only one*, so choosing
@@ -698,12 +698,12 @@ views already carry, because the query language spells alternatives with commas 
   privately can never be *first* in a chain — the keys behind it would never be reached.
   `title` closes every chain instead, whether or not it is in it, since two pucks equal on
   every chosen key still have to land somewhere stable.
-- **`sort=default` is written out as `order,updated-desc`.** It always *was* "order first,
-  then updated"; saying so is what lets you move `order` down the chain or drop it.
+- **`sort=default` is written out as `order,updated`.** It always *was* "order first, then
+  updated"; saying so is what lets you move `order` down the chain or drop it.
 - **`default` is the only word that expands, and round-tripping is why.** Three old modes
   were chains written as one word — `priority` was "priority then updated", `status` was
   "status then order" — but those two words are also *key names*. Expanding them means the
-  chain `priority` can never be written down: the menu removes `updated-desc`, serializes
+  chain `priority` can never be written down: the menu removes `updated`, serializes
   `priority`, and the next read puts it straight back. A control that silently undoes itself
   is worse than a tiebreak that moved, so those two are read as the keys they name and their
   old second key becomes `title`. `default` is the only one of the three that is not a key,
@@ -721,28 +721,69 @@ views already carry, because the query language spells alternatives with commas 
   needs and a second rule about which control may be drawn. Re-pointing a word is free while
   nothing reads it, and that is the argument to check *first* the next time this shape comes
   up — the guard is worth writing only once something would break without it.
-- **`manualRank()` is a question about rank, not mode**: `order` *first* means the list is in
-  the order you put it in, and dragging moves you within it. Further down the chain `order`
-  still breaks ties, but the list is not manually ordered any more and a drop would land
-  where the fields decide rather than where you let go. Cross-column dragging writes
-  `status`, not rank, and is untouched.
-- **`autoDateField` takes the first date key in the chain**, not the first key. Reading only
+- **`autoDateField` takes the first date key in the chain**, not the first key. Which date a
+  key is about is the field's own business (`SORT_FIELDS[…].date`), not a second table keyed
+  by spelling — that table had a row per key *and direction*. Reading only
   `[0]` answers "updated" for the common `order,created-desc` — which is exactly the
   shuffled-looking column that rule exists to prevent.
 - **An unknown key is dropped, and an empty chain is the default.** Same as `parseProps`, and
   `sort` is canonicalized in `effectiveParams` beside it, so a saved view carrying the old
   `default` compares against the board actually drawn instead of reading as *(edited)*.
-- **The menu shows two lists, not one list of ticks, because the order is the setting.** A
-  checkbox can say `priority` is in the chain but never that it comes before `target` — and
-  that is the difference between "sort by priority" and "priority within each horizon".
-  Reordering is `↑` per row and deliberately **not** a drag: the list lives inside a bottom
-  sheet that is itself draggable, so a row drag would compete with its own container for the
-  same finger.
-- **Choosing a key appends it**; the note says so ("it breaks the ties the ones above
-  leave"). Adding a tiebreak is therefore one tap — the thing that was impossible before —
-  and narrowing to a single key costs one tap plus a `✕` per key you drop. The last key keeps
-  no `✕` at all, since `parseSort` answers with the default for an empty value and a menu
-  must never show a chain the board is not drawing.
+- **Direction is a property of the key, not part of its name.** The catalogue was nine
+  entries: three date fields × two directions as separate keys (`Recently updated`, `Oldest
+  updated`), and the direction baked into the label of the other four (`Priority (high→low)`,
+  `Title A–Z`). So one question had two catalogue rows, and `Priority low→high`, `Title Z–A`,
+  `Status done→now`, `Target latest→soonest` could not be asked at all. `SORT_FIELDS` is
+  seven fields, each with a default direction and both labels; `sortCmp` puts a sign on the
+  answer. **The labels are the values** (`high → low`, `newest → oldest`), not
+  "ascending"/"descending" — that text was already in the old key names, and moving it from
+  the name to a control is the whole change.
+- **A key is `field`, or `field-asc`/`field-desc` when the direction is not the field's
+  default.** The shortest spelling is the ordinary one, so `order`, `status`, `priority`,
+  `target` and `title` are unchanged and `updated-desc`/`created-desc` shorten to
+  `updated`/`created` — the same key by another name, since both parse to the same chain.
+  `DEFAULT_SORT` is therefore spelled `order,updated`. And **one key per field**:
+  `updated,updated-asc` is two answers to one question, and the second could never be reached.
+- **`manualRank()` is a question about rank, not mode**: `order` *first* means the list is in
+  the order you put it in, and dragging moves you within it. Further down the chain `order`
+  still breaks ties, but the list is not manually ordered any more and a drop would land where
+  the fields decide rather than where you let go. Cross-column dragging writes `status`, not
+  rank, and is untouched. It also means `order` **forward**: reversed the list still reads by
+  rank, but a drop would write a rank meaning the opposite of where the finger let go — and
+  the canonical spelling makes that free, since a reversed key is `order-desc` and simply is
+  not the string being compared.
+- **The menu is one list, which is why it needs no sentence.** It was two — the chain, then
+  the whole catalogue beneath it — distinguished only by a small ordinal and icons at the far
+  edge. Nine near-identical rows on a phone, so the surface carried a note explaining which
+  were which. **A note that says what the structure should have said is a diagnosis, not
+  copy.** The catalogue moved behind `＋ Add a key`, one list was left, and the note had
+  nothing to do. The ordinals went with it: with one list the position *is* readable from the
+  stack, and a number was a second way of saying it.
+- **A row, not a card, because the row survives both presentations.** Notion (the reference
+  for this) gives the phone a three-row card per key and the desktop a single row; that split
+  is available to us only by breaking `openSurface`'s promise that the builder never learns
+  which shell it got. The row — `[↑] Field  direction  ✕` — is the shape that reads in an
+  anchored popover *and* a bottom sheet. For the same reason reordering stays `↑` in both:
+  drag would work in the popover, which is not draggable, and one mechanism that is
+  second-best on the desktop costs less than the first crack in that rule.
+- **The field is swappable in place**, which is what makes `↑` a rarity rather than the main
+  path. Before it, changing the *first* key meant removing it — leaving a chain one shorter —
+  and adding it back, where it landed last. A swapped-in field takes its own default
+  direction: `newest → oldest` is not a thing `priority` can be. Re-picking the field already
+  there is a no-op on purpose, or a tap that looked like nothing would reset a direction you
+  had flipped.
+- **Direction is a toggle, not a picker.** Two options, so a chevron would promise a list with
+  two rows in it and cost a second tap for the same answer.
+- **`Reset ordering` is narrow on purpose.** Display's own "Reset to default" restores all
+  seven display keys, so there was no way to drop an ordering without also dropping the
+  grouping, the layout and the properties you had just set. It is drawn only when the chain
+  is not already the default.
+- **Choosing a key appends it.** Adding a tiebreak is one tap — the thing that was impossible
+  before — and narrowing to a single key costs a `✕` per key you drop. The last key keeps no
+  `✕` at all, since `parseSort` answers with the default for an empty value and a menu must
+  never show a chain the board is not drawing. The first row keeps no `↑`, and gets a spacer
+  with **its own class**: sharing `.dp-sort-act` put a `<span>` into every set that asks a row
+  what controls it has.
 
 ## UI: the display belongs to the view it was set in
 
