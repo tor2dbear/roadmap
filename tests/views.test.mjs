@@ -123,15 +123,29 @@ export async function run({ open }) {
     eq(new URL(p.url()).search, "?view=ready",
       `och den skrivs inte till URL:en där den inte gör något (${new URL(p.url()).search})`);
 
-    // Dropping it from the URL must not drop the setting, or the fix trades a false
-    // "changed" for a real lost preference. `state.showDone` is what carries it through
-    // a navigation, so stepping back has to bring the archive with you.
-    // (localStorage is *not* what does it here: `roadmap-done` is written when you flip
-    // the switch, not when a link sets it — which is why this asserts the round trip
-    // rather than the stored key.)
+    // Att den försvinner ur URL:en får inte betyda att inställningen är borta — annars
+    // byter fixen en falsk "ändrad" mot en verklig förlorad preferens. Vad som *bär*
+    // den genom en navigering skrevs om av `vyn-minns-sin-egen-display`: `state` gjorde
+    // det förr, för alla vyer på en gång, vilket var precis den smittan. Nu är det vyns
+    // eget minne — och en flagga som kom från en länk står inte i det, för en länk
+    // skriver aldrig ditt minne ("someone else's view shouldn't quietly become yours").
     await p.getByRole("button", { name: /^All pucks/ }).first().click();
     await p.waitForTimeout(250);
-    eq(new URL(p.url()).search, "?done=1", "och den kommer tillbaka i en vy som kan använda den");
+    eq(new URL(p.url()).search, "", "en flagga man bara fick i en länk följer inte med tillbaka");
+
+    // Fälld i Display-menyn är den din, och då kommer den tillbaka. Det är den halvan
+    // som säger att den fortfarande är en *inställning* och inte ett filter.
+    await p.getByRole("button", { name: /Display/ }).first().click();
+    await p.waitForTimeout(200);
+    await p.locator("label.fp-toggle").filter({ hasText: "Show done" }).click();
+    await p.waitForTimeout(250);
+    await p.keyboard.press("Escape");
+    eq(new URL(p.url()).search, "?done=1", "växeln slår igenom på All pucks");
+    await p.getByRole("button", { name: /^Ready/ }).first().click();
+    await p.waitForTimeout(250);
+    await p.getByRole("button", { name: /^All pucks/ }).first().click();
+    await p.waitForTimeout(250);
+    eq(new URL(p.url()).search, "?done=1", "och den kommer tillbaka i den vy den gjordes i");
     eq((await acts(p)).acts, ["Save view"], "med sin knapp igen");
   }
 

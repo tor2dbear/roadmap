@@ -1119,9 +1119,13 @@ export async function run({ open }) {
     await p.waitForTimeout(800);
     const efterByte = await p.evaluate(() => ({
       x: Math.round(document.getElementById("work").scrollLeft),
-      rader: document.querySelectorAll(".list-row").length,
+      rader: document.querySelectorAll(".list-row, .card").length,
     }));
-    ok(efterByte.rader > 0, `den nya listan är ritad: ${JSON.stringify(efterByte)}`);
+    // Kort *eller* rader: layouten hör till vyn sedan `vyn-minns-sin-egen-display`, och
+    // `?layout=list` kom från länken — alltså skrevs den aldrig in i Readys minne, och
+    // Ready öppnar som bräda. Det kontrollen är om är att tavlan byttes ut under glidet,
+    // inte vilken av de två som ritades.
+    ok(efterByte.rader > 0, `den nya tavlan är ritad: ${JSON.stringify(efterByte)}`);
     ok(efterByte.x - vidByte < 15, `och glidet flyttar den inte: ${vidByte} → ${efterByte.x}`);
   }
 
@@ -1298,9 +1302,12 @@ export async function run({ open }) {
     await q2.waitForTimeout(500);
     const efterLäst = await q2.evaluate(() => {
       const w = document.getElementById("work");
-      return { x: Math.round(w.scrollLeft), y: Math.round(w.scrollTop), rader: document.querySelectorAll(".list-row").length };
+      return { x: Math.round(w.scrollLeft), y: Math.round(w.scrollTop),
+               rader: document.querySelectorAll(".list-row, .card").length };
     });
-    ok(efterLäst.rader > 0, `den nya listan är ritad: ${JSON.stringify(efterLäst)}`);
+    // Samma skäl som ovan: Ready har inget eget minne, så den öppnar som bräda. Frågan
+    // här är om läsarens offset från pucken följde med in i den.
+    ok(efterLäst.rader > 0, `den nya tavlan är ritad: ${JSON.stringify(efterLäst)}`);
     eq(efterLäst.y, 0, `och börjar överst, inte där pucken lästes: ${JSON.stringify(efterLäst)}`);
   }
 
