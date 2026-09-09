@@ -369,6 +369,29 @@ export async function run({ open }) {
     eq(mått[0].riktning, "soonest → latest", "den längsta etiketten står oklippt");
     eq(mått.map((m) => m.riktningKapad), [false, false], "och ellipsiseras inte heller");
     eq(mått[1].riktning, null, "Manual-raden har ingen riktningsruta alls");
+
+    // En textkolumn genom hela ytan, båda nivåerna. Rapporterat med marginalerna påritade:
+    // väljarens värden stod på 22, kedjans fältnamn på 37 och åtgärdsradernas ikoner på 22 —
+    // tre kolumner i en meny. Talen kommer ur `--pad`/`--sheet-gap` och inte ur en literal,
+    // så kontrollen frågar om *samma* kolumn snarare än om ett visst tal.
+    const vänster = async () => p.evaluate(() => {
+      const L = (e) => Math.round(e.getBoundingClientRect().left);
+      return {
+        fält: [...document.querySelectorAll(".dp-sort-field span")].map(L),
+        åtgärd: [...document.querySelectorAll(".dp-sort-add .icn")].map(L),
+      };
+    });
+    const v2 = await vänster();
+    const kolumn = v2.fält[0];
+    ok(v2.fält.every((x) => x === kolumn) && v2.åtgärd.every((x) => x === kolumn),
+      `nivå två står i en kolumn: ${JSON.stringify(v2)}`);
+
+    await p.locator(".pop, .sheet").getByText("Add a key", { exact: true }).click();
+    await p.waitForTimeout(250);
+    const v3 = await p.evaluate(() => [...document.querySelectorAll('.surface-body > .row[data-value] span')]
+      .map((e) => Math.round(e.getBoundingClientRect().left)));
+    ok(v3.length && v3.every((x) => x === kolumn),
+      `och nivå tre står i samma: ${JSON.stringify(v3)} mot ${kolumn}`);
     // Ikonkontrollerna är fasta märken: fältnamnet och riktningen får ge, aldrig de. Det
     // är listrubrikernas regel en yta bort — där kostade den fyra bortslipade pixlar innan
     // någon såg det, så den frågar varje rad och inte bara den trängsta.

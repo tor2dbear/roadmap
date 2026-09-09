@@ -1953,7 +1953,10 @@ body.preload * { transition: none !important; }
   padding: 3px 6px; border: 0; border-radius: var(--r-sm);
   background: none; font: inherit; text-align: left; cursor: pointer;
 }
-.dp-sort-field { flex: 1 1 auto; color: var(--ink); }
+/* Pulled back by its own padding, so the *label* starts on the content line and the hover
+   wash still has room around it. Without this the field name sat 15px right of every other
+   value label in the surface — the picker's rows one level down begin exactly there. */
+.dp-sort-field { flex: 1 1 auto; color: var(--ink); margin-left: -6px; }
 .dp-sort-dir { flex: 0 1 auto; color: var(--ink-3); }
 .dp-sort-field > span, .dp-sort-dir > span {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -1986,7 +1989,15 @@ body.preload * { transition: none !important; }
 @media (max-width: 639px) {
   /* A sheet is a thumb surface: the controls grow with its rows, like every other
      target in here. */
-  .sheet .dp-sort { font-size: var(--fs-xl); min-height: 40px; }
+  /* Bled to the scroller's clip edge and re-inset, exactly like `.sheet .row` — the same
+     two edges for the same reason: the text is content and belongs on the content line,
+     while the box may reach further out. Without it the chain rows kept a 9px inset the
+     rows above and below them do not take, and the surface had three text columns. */
+  .sheet .dp-sort {
+    font-size: var(--fs-xl); min-height: 40px;
+    margin-inline: calc(var(--sheet-gap) - var(--pad));
+    padding-inline: calc(var(--pad) - var(--sheet-gap));
+  }
   .sheet .dp-sort-act { width: 34px; height: 34px; }
   .sheet .dp-sort-gap { width: 34px; }
   .sheet .dp-sort-field, .sheet .dp-sort-dir { padding: 6px; }
@@ -2465,6 +2476,19 @@ body.preload * { transition: none !important; }
        --fs-xl and not --fs-lg: the rows inside a sheet step up to --fs-xl, and a
        heading that sets smaller than the list it heads is not a heading. */
   }
+  /* The way back sits *on the title line*, not in a row of its own below it — the shape
+     every native sheet uses, and the one a phone reported the absence of: a back row inside
+     the body is labelled with the level you are standing in, which reads "you are here",
+     and its label can never line up with the rows beneath it because it sits one chevron in.
+     Absolute like the `?`, so the title stays centred in the *head* rather than in whatever
+     space a flex sibling leaves it. */
+  .sheet-back {
+    position: absolute; left: 2px; width: 30px; height: 30px; padding: 0;
+    border: 0; background: none; color: var(--ink-2); cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: var(--r-sm);
+  }
+  .sheet-back .icn { width: 1.15em; height: 1.15em; }
   .sheet-help {
     position: absolute; left: 12px; width: 22px; height: 22px; border-radius: 50%;
     border: 1px solid var(--line); color: var(--ink-3); font-size: var(--fs-base);

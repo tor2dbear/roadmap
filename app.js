@@ -2410,7 +2410,15 @@
       // from the list, though — capture retargets the compatibility mouse events
       // too, so a tap on a row would resolve its click against the sheet and the
       // row's own handler would never run.
-      if (!fromBody) { try { root.setPointerCapture(e.pointerId); } catch (err) { /* older engines */ } }
+      // Nor from a *control* in the chrome, for the very reason the list is excluded: the
+      // back chevron sits in the head, so it is chrome by position and a button by purpose,
+      // and the capture has to follow purpose. Captured, its click resolved against the
+      // sheet and its handler never ran — the sheet drew a way back that did nothing, which
+      // is the same class of failure as a control that only fails when you press it.
+      var onControl = e.target && e.target.closest && e.target.closest("button, a, input, select, textarea");
+      if (!fromBody && !onControl) {
+        try { root.setPointerCapture(e.pointerId); } catch (err) { /* older engines */ }
+      }
     }
     function move(e) {
       if (!pending && !dragging) return;
@@ -2725,6 +2733,47 @@
 
   //   opts: { title, anchorWrap, cls, help, onClose, build(body, api) }
   //   → { close }
+  // A level inside a surface says two things: what it is called, and how to leave it. Where
+  // those are *drawn* is the shell's business and not the builder's — which is the promise
+  // `openSurface` has always made, and the reason this is a function rather than a branch at
+  // each call site.
+  //
+  // A sheet has a head, so the name becomes its title and the way back becomes a chevron
+  // beside it. That is the fix for what a phone reported: the way back used to be a row in
+  // the body labelled with the level you were *standing in*, which reads as "you are here"
+  // rather than "go back" — and it could never line up with the rows under it, since its
+  // label sits one chevron in. A popover has no head, so the same two facts stay a row at
+  // the top of the body, exactly as before.
+  //
+  // Called *after* the builder clears the body, because that is what the builders do.
+  // `title` omitted means level one: the surface's own name comes back and the way back goes.
+  function surfaceLevel(body, title, onBack) {
+    var sheet = body.closest && body.closest(".sheet");
+    if (sheet) {
+      var head = sheet.querySelector(".sheet-head");
+      if (!head) return;
+      var h3 = head.querySelector(".sheet-title");
+      if (h3) h3.textContent = title || head.dataset.title || "";
+      var old = head.querySelector(".sheet-back");
+      if (old) old.remove();
+      if (!onBack) return;
+      var b = el("button", "sheet-back");
+      b.type = "button";
+      b.title = "Back";
+      b.setAttribute("aria-label", "Back");
+      b.appendChild(icon("chev-left"));
+      b.addEventListener("click", onBack);
+      head.appendChild(b);
+      return;
+    }
+    if (!onBack) return;
+    var row = el("button", "fp-back");
+    row.type = "button";
+    row.appendChild(icon("chev-left", "fp-chev"));
+    row.appendChild(el("span", null, title || ""));
+    row.addEventListener("click", onBack);
+    body.insertBefore(row, body.firstChild);
+  }
   function openSurface(opts) {
     var phone = isPhone();
     var scrim = null;
@@ -2849,6 +2898,7 @@
         h.title = "What is this field?";
         head.appendChild(h);
       }
+      head.dataset.title = opts.title || ""; // level 1 restores this without knowing it
       head.appendChild(el("h3", "sheet-title", opts.title || ""));
       root.appendChild(head);
       root.appendChild(body);
@@ -6242,6 +6292,7 @@
   // grown two ways to reach a sub-list, and only one of them could be reversed.
   function renderDisplayRoot(pop) {
     pop.innerHTML = "";
+    surfaceLevel(pop); // level one: the surface's own name back in the head, no way back
     var seg = segmented(
       [["list", "List", "list"], ["board", "Board", "grid"]],
       state.view,
@@ -6340,12 +6391,7 @@
     if (f.chain) { renderSortChain(pop, f); return; }
 
     pop.innerHTML = "";
-    var back = el("button", "fp-back");
-    back.type = "button";
-    back.appendChild(icon("chev-left", "fp-chev"));
-    back.appendChild(el("span", null, f.label));
-    back.addEventListener("click", function () { renderDisplayRoot(pop); });
-    pop.appendChild(back);
+    surfaceLevel(pop, f.label, function () { renderDisplayRoot(pop); });
 
     if (f.multi) { renderFieldChecks(pop, f); return; }
 
@@ -6405,12 +6451,7 @@
   // call site is not a convention.
   function renderSortChain(pop, f) {
     pop.innerHTML = "";
-    var top = el("button", "fp-back");
-    top.type = "button";
-    top.appendChild(icon("chev-left", "fp-chev"));
-    top.appendChild(el("span", null, f.label));
-    top.addEventListener("click", function () { renderDisplayRoot(pop); });
-    pop.appendChild(top);
+    surfaceLevel(pop, f.label, function () { renderDisplayRoot(pop); });
 
     var chain = parseSort(state.sort);
     function apply(next) {
@@ -6420,28 +6461,6 @@
     chain.forEach(function (k, i) {
       var field = sortField(k), dir = sortDir(k), spec = SORT_FIELDS[field];
       var row = el("div", "dp-sort");
-
-      // The first row has no `↑`, and gets a spacer instead of a disabled button: a
-      // control that answers nothing is worse than no control, but the fields still have
-      // to line up down the column. The spacer carries its *own* class rather than the
-      // control's — it shared `.dp-sort-act` first, which made "how many controls does
-      // this row have" a question with the wrong answer, and put a non-control in the set
-      // anything asking that question would collect.
-      if (i > 0) {
-        var up = el("button", "dp-sort-act");
-        up.type = "button";
-        up.title = "Move " + spec.label + " up";
-        up.setAttribute("aria-label", up.title);
-        up.appendChild(icon("arrow-up"));
-        up.addEventListener("click", function () {
-          var next = chain.slice();
-          next.splice(i - 1, 0, next.splice(i, 1)[0]);
-          apply(next);
-        });
-        row.appendChild(up);
-      } else {
-        row.appendChild(el("span", "dp-sort-gap"));
-      }
 
       // The field, swappable in place. Before this the only way to change the *first* key
       // was to remove it — leaving a chain of one fewer — and add it again, where it landed
@@ -6473,6 +6492,31 @@
           apply(next);
         });
         row.appendChild(flip);
+      }
+
+      // Both controls sit at the *end* of the row, which is what lets every name in the
+      // surface start on one line. `↑` used to lead the row, from when there was an ordinal
+      // beside it to be near; the ordinals went when the menu became one list, and the arrow
+      // was left indenting the field name 46px past every other row in the sheet — reported
+      // from a phone, with the margins drawn on. The first row has no `↑` and gets a spacer
+      // instead of a disabled button: a control that answers nothing is worse than no
+      // control, but `✕` still has to land in one column. The spacer carries its *own* class
+      // rather than the control's — it shared `.dp-sort-act` first, which made "how many
+      // controls does this row have" a question with the wrong answer.
+      if (i > 0) {
+        var up = el("button", "dp-sort-act");
+        up.type = "button";
+        up.title = "Move " + spec.label + " up";
+        up.setAttribute("aria-label", up.title);
+        up.appendChild(icon("arrow-up"));
+        up.addEventListener("click", function () {
+          var next = chain.slice();
+          next.splice(i - 1, 0, next.splice(i, 1)[0]);
+          apply(next);
+        });
+        row.appendChild(up);
+      } else {
+        row.appendChild(el("span", "dp-sort-gap"));
       }
 
       if (chain.length > 1) {
@@ -6519,12 +6563,9 @@
   function renderSortPick(pop, f, idx) {
     pop.innerHTML = "";
     var chain = parseSort(state.sort);
-    var back = el("button", "fp-back");
-    back.type = "button";
-    back.appendChild(icon("chev-left", "fp-chev"));
-    back.appendChild(el("span", null, idx == null ? "Add a key" : "Change key"));
-    back.addEventListener("click", function () { renderSortChain(pop, f); });
-    pop.appendChild(back);
+    surfaceLevel(pop, idx == null ? "Add a key" : "Change key", function () {
+      renderSortChain(pop, f);
+    });
 
     var fields = chain.map(sortField);
     SORT_ORDER.forEach(function (field) {
@@ -7349,6 +7390,7 @@
   // popover never grows a third column on a phone.
   function renderFieldList(pop) {
     pop.innerHTML = "";
+    surfaceLevel(pop); // level one: the surface's own name back in the head, no way back
     pop.appendChild(el("div", "fp-label", "Add filter"));
     FILTER_FIELDS.forEach(function (f) {
       if (!reachableValues(f).length) return; // nothing here could change this view
@@ -7364,12 +7406,7 @@
   }
   function renderValueList(pop, f) {
     pop.innerHTML = "";
-    var back = el("button", "fp-back");
-    back.type = "button";
-    back.appendChild(icon("chev-left", "fp-chev"));
-    back.appendChild(el("span", null, f.label));
-    back.addEventListener("click", function () { renderFieldList(pop); });
-    pop.appendChild(back);
+    surfaceLevel(pop, f.label, function () { renderFieldList(pop); });
 
     var all = reachableValues(f);
     var box = el("div", "fp-values");

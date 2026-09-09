@@ -26,6 +26,74 @@ async function openSheet(page, name) {
 }
 
 export async function run({ open }) {
+
+  group("en nivå säger vad den heter — och arket ritar det på titelraden");
+  {
+    // Rapporterat från en telefon, med marginalerna påritade. Vägen tillbaka var en *rad i
+    // kroppen* märkt med den nivå man stod i, vilket läses som "du är här" och inte som "gå
+    // tillbaka" — och dess etikett kunde aldrig linjera med raderna under, eftersom den
+    // sitter en chevron in. Nu säger nivån bara vad den heter och hur man lämnar den;
+    // *var* det ritas är skalets sak, vilket är löftet `openSurface` alltid gett.
+    const p = await open("", { token: true, viewport: PHONE, hasTouch: true });
+    await p.locator("#displayBtn").click();
+    await p.waitForSelector(".sheet .surface-body");
+    await p.waitForTimeout(200);
+    const läge = () => p.evaluate(() => ({
+      titel: document.querySelector(".sheet-title").textContent.trim(),
+      back: !!document.querySelector(".sheet-back"),
+      bakRadIKroppen: document.querySelectorAll(".sheet .surface-body .fp-back").length,
+    }));
+    eq(await läge(), { titel: "Display", back: false, bakRadIKroppen: 0 },
+      "nivå ett: ytans eget namn, ingen väg tillbaka");
+
+    await p.locator(".sheet").getByText("Ordering", { exact: true }).click();
+    await p.waitForTimeout(250);
+    eq(await läge(), { titel: "Ordering", back: true, bakRadIKroppen: 0 },
+      "nivå två: titeln är den nivå man står i, och vägen tillbaka står bredvid den");
+
+    await p.locator(".sheet").getByText("Add a key", { exact: true }).click();
+    await p.waitForTimeout(250);
+    eq((await läge()).titel, "Add a key", "nivå tre likaså");
+
+    // Och knappen fungerar. Den sitter i `.sheet-head`, som är draghandtagets zon
+    // (`touch-action: none`) — så att den *ritas* rätt bevisar inte att den svarar.
+    await p.locator(".sheet-back").click();
+    await p.waitForTimeout(250);
+    eq((await läge()).titel, "Ordering", "bakåt från nivå tre lämnar nivå två");
+    await p.locator(".sheet-back").click();
+    await p.waitForTimeout(250);
+    eq(await läge(), { titel: "Display", back: false, bakRadIKroppen: 0 },
+      "och därifrån hela vägen ut till ytans eget namn");
+
+    // Samma regel i den andra ytan som har nivåer, för det var "överallt" som rapporterades.
+    await p.keyboard.press("Escape");
+    await p.waitForTimeout(200);
+    await p.locator("#filterBtn").click();
+    await p.waitForSelector(".sheet .surface-body");
+    await p.waitForTimeout(200);
+    await p.locator(".sheet .row, .sheet .fp-row").first().click();
+    await p.waitForTimeout(250);
+    eq(await p.evaluate(() => ({
+      back: !!document.querySelector(".sheet-back"),
+      bakRadIKroppen: document.querySelectorAll(".sheet .surface-body .fp-back").length,
+    })), { back: true, bakRadIKroppen: 0 }, "filterpanelens nivå gör likadant");
+  }
+
+  group("popovern har inget huvud, så samma nivå blir en rad — och byggaren vet inte vilket");
+  {
+    // Halva poängen: byggaren skriver nivån *en* gång. Skepnaden avgör var den hamnar.
+    const p = await open("", { token: true, viewport: { width: 1400, height: 900 } });
+    await p.locator("#displayBtn").click();
+    await p.waitForSelector(".pop");
+    await p.locator(".pop").getByText("Ordering", { exact: true }).click();
+    await p.waitForTimeout(250);
+    eq(await p.evaluate(() => ({
+      sheet: document.querySelectorAll(".sheet").length,
+      bakRad: document.querySelectorAll(".pop .fp-back").length,
+      etikett: document.querySelector(".pop .fp-back span")?.textContent.trim(),
+    })), { sheet: 0, bakRad: 1, etikett: "Ordering" },
+      "i popovern står vägen tillbaka kvar som en rad, precis som förut");
+  }
   // Three variants deliberately, not two: Filter and Display are built from `.fp-*`
   // rows, and a first draft that measured only those never touched `.sheet .row` at
   // all — the rule those two sabotages were written for. The puck's ⋯ is the sheet

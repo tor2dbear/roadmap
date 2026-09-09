@@ -227,6 +227,29 @@ and decides the shell: an **anchored popover at ≥640px, a bottom sheet below i
 The builder writes a list, a calendar or a form once and never learns which it got.
 Adding a surface means calling it, never hand-rolling a ninth popover.
 
+**A level inside a surface says two things — what it is called and how to leave — and where
+those are drawn is the shell's business.** `surfaceLevel(body, title, onBack)` is the whole
+API: a sheet has a head, so the name becomes its title and the way back becomes a chevron
+beside it; a popover has none, so the same two facts stay a row at the top of the body.
+Reported from a phone with the margins drawn on, and it was two faults in one: the way back
+was a row *inside the body* labelled with the level you were standing in — which reads "you
+are here", not "go back" — and its label could never line up with the rows beneath it,
+because it sits one chevron in. Calling it is what a builder does after clearing the body;
+omitting the title means level one, and the surface's own name comes back.
+
+- **One text column through the whole surface.** Measured at 390px before: the picker's
+  values at 22, the sort chain's field names at 37, the action rows' icons at 22 — three
+  columns in one menu. `.sheet .dp-sort` now bleeds and re-insets exactly like `.sheet .row`
+  (the box may reach the scroller's clip edge; the text belongs on the content line), and
+  `.dp-sort-field` is pulled back by its own padding so the label, not the button, sits on
+  that line.
+- **The pointer capture follows purpose, not position.** `down()` captures when a drag starts
+  on the sheet's chrome, and deliberately not from the list — because capture retargets the
+  compatibility mouse events, so a tap would resolve its click against the sheet and the
+  row's own handler would never run. The back chevron sits in the *head*: chrome by position,
+  a button by purpose. Captured, it drew a way back that did nothing. Controls in the chrome
+  are excluded now, which is the same rule the list already had.
+
 Two rules the pucks paid for:
 
 - **Search-and-create only where the value set is open** (labels, pucks). `status`
