@@ -679,6 +679,70 @@ heading from one walk.
   and nothing threw. The properties are `PROPS` and the key is `props`, so "field" means one
   thing in the file.
 
+## UI: the display belongs to the view it was set in
+
+The grouping, the ordering, the properties, the folds and the two whole-board toggles used
+to belong to the *board*. Setting `All pucks` to group by repo regrouped Ready and Inbox
+with it — and in Inbox the URL could not even say so, because `effectiveParams` drops a
+`group` the view has already fixed (one status column, so `status` and `repo` draw the same
+board). A setting invisible in the link and visible on the screen is the hardest kind to
+find.
+
+The rule was already written one storey down, in `goToView`, about the filter: *"Navigation
+is a fresh start […] leaving one has to leave all of it, or the rows in the sidebar stop
+meaning what they say."* The display was the half still riding along. And the strongest clue
+was in the file too: a saved view carries all of `VIEW_KEYS` and `applySavedView` restores
+every one of them, so half the views on the board could already do this. The question was
+never whether display can be per view but why only the saved ones had it.
+
+> **Three levels, and the order is the contract: the URL wins, then the view's memory, then
+> the board's defaults.**
+
+- **What it settles.** "Display preferences persist (they're settings, not a transient
+  filter)" stands — *narrowed*, not dropped. A setting still persists; what it persists to
+  is the view. Nothing here is transient and nothing is nulled on navigation.
+- **Seven keys: `VIEW_KEYS` minus the two that are not display.** `view` is the view's own
+  identity — it is what the memory is keyed *by* — and `q` is the filter, which navigation
+  clears rather than remembers. `layout` is in, though it is the one that reads as a
+  preference about the *device*: leaving it out would have made the built-in views differ
+  from the saved ones in exactly one key, and `setDisplay` moves the layout by itself when
+  you pick the hierarchy anyway.
+- **A view you have never set up opens at the defaults, not at the last view's.**
+  Inheritance would be softer and still contagious, and worst on a first visit — the one
+  time nothing on screen can correct you.
+- **One store, `roadmap-display`, an object keyed by view.** One key per view *and* setting
+  is a lot of keys; this is one thing to read and one to migrate. The old flat keys
+  (`roadmap-group`, `roadmap-sort`, …) are read once into `all` — that is the view they
+  were made in, since it is the board you land on — and removed as they are read. An empty
+  object is written rather than nothing, so a present-but-empty store stops the migration
+  running twice and handing back a memory you have since reset.
+- **`rememberDisplay` stores what the board *is*, never the key that just moved.** The
+  settings decide each other — picking the hierarchy picks the list layout, changing the
+  grouping drops the folds — so a per-key write would store a board that never existed.
+  `viewParamObject` has already dropped whatever this view cannot act on, so the memory
+  only holds what the view can draw, and a view at the defaults holds no entry at all.
+- **Which is also where the link rule gets its edge.** Loading `?group=agent` writes
+  nothing — that is what keeps someone else's view from quietly becoming yours. Turning one
+  knob on that board stores the grouping too, because the tuple is what is stored. **A link
+  you only look at writes nothing; a knob you turn adopts the board you turned it on.**
+- **Silent inside a saved view.** A saved view is its own record, in `board.config.json`,
+  and the way to persist a change to it is `Update "<name>"`. A local memory laid over it
+  would win on the way back in and the view would read as *(edited)* the moment it opened —
+  the same shape as the `etapps` rename bug. Nor may it fall through to the built-in view
+  underneath: tweaking a saved view whose scope is Ready is not a statement about Ready.
+- **A place is not a view.** `goToPlace` sets `focus = "all"`, so a repo or an agent is the
+  `all` view with a filter and restores `all`'s memory. A memory per repo is more than
+  anyone asked for — and `state.focus` is the memory's key, so *anything* that moves it has
+  to move the display with it. That is the half that is easy to miss, and `restoreDisplay`
+  is why both navigations go through one function.
+- **`collapsed` was the worst case, and it is why a navigation needed this at all.** The
+  keys are the grouping's own values, so a fold made under one grouping carried into a view
+  grouping by something else — where it matched nothing, or worse, matched that grouping's
+  `NO_VALUE` bucket. `setDisplay` already cleared the folds when the *grouping* changed, for
+  exactly that reason; navigation had no equivalent.
+- **"Reset to default" forgets the view** rather than storing a copy of the defaults, since
+  `rememberDisplay` deletes an entry with nothing non-default left in it.
+
 ## UI: one thing, one place
 
 Cards leave the board three ways — the `Filter` panel, a column's `⋯`, and Display's

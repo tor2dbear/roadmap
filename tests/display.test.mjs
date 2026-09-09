@@ -1,0 +1,216 @@
+// Display hör till den vy man gjorde den i. Grupperingen, ordningen, egenskaperna,
+// fällningarna och de två helbrädesväxlarna följde förr med överallt: ställde man om
+// `All pucks` till gruppering på repo blev Ready och Inbox omgrupperade med den — och i
+// Inbox kunde URL:en inte ens säga det, för `effectiveParams` stryker en `group` som vyn
+// redan har låst. En inställning osynlig i länken och synlig på skärmen.
+//
+// Tre nivåer, och ordningen är kontraktet: **URL:en vinner, sedan vyns minne, sedan
+// tavlans standard.** Kontrollerna nedan är en per nivå plus en per gräns mellan dem.
+//
+// Allt här sker på *en* sida. `open()` ger varje anrop en egen browser-kontext, alltså
+// en egen localStorage — så ett minne som ska överleva en omladdning måste laddas om med
+// `page.goto` i samma sida, och en navigering mellan vyer måste vara ett riktigt klick i
+// sidomenyn. Det är dessutom den väg som *skriver*, vilket är halva poängen.
+import { group, eq, ok } from "./assert.mjs";
+
+const url = (p) => new URL(p.url()).search;
+const kolumner = (p) => p.evaluate(() =>
+  [...document.querySelectorAll(".board > .column:not(.hidden-cols) .col-head h2")]
+    .map((e) => e.textContent.trim()));
+const minne = (p) => p.evaluate(() => localStorage.getItem("roadmap-display"));
+
+// Display → <fält> → <värde>. Menyn stängs inte av ett val (man vill ofta ändra mer än
+// en sak), så nästa nivå plockas i samma öppna yta.
+async function välj(p, fält, värde) {
+  await p.locator("#displayBtn").click();
+  await p.waitForSelector(".pop, .sheet");
+  await p.locator(".pop, .sheet").getByText(fält, { exact: true }).click();
+  await p.locator(".pop, .sheet").getByText(värde, { exact: true }).first().click();
+  await p.waitForTimeout(250);
+  await p.keyboard.press("Escape");
+  await p.waitForTimeout(150);
+}
+
+async function gåTill(p, namn) {
+  await p.getByRole("button", { name: new RegExp("^" + namn) }).first().click();
+  await p.waitForTimeout(250);
+}
+
+export async function run({ open, origin }) {
+  group("en gruppering gjord i en vy följer inte med till nästa");
+  {
+    // Reproduktionen ur pucken, ordagrant — och med Display-menyn, inte med en länk,
+    // eftersom det är den vägen som sparar.
+    const p = await open("", { token: true });
+    await välj(p, "Grouping", "Repo");
+    eq(url(p), "?group=repo", "grupperingen slår igenom på All pucks");
+    const repoKol = await kolumner(p);
+    ok(repoKol.length > 1 && repoKol.indexOf("Now") === -1,
+      `och tavlan är repokolumner: ${JSON.stringify(repoKol)}`);
+
+    await gåTill(p, "Ready");
+    eq(url(p), "?view=ready", "Ready öppnar utan den");
+    eq(await kolumner(p), ["Now", "Next"], "med sina egna statuskolumner");
+
+    // Och tillbaka: en inställning är fortfarande en inställning, den hör bara till en vy.
+    await gåTill(p, "All pucks");
+    eq(url(p), "?group=repo", "All pucks minns sin egen");
+    eq(await kolumner(p), repoKol, "och ritar samma kolumner som när man lämnade den");
+  }
+
+  group("en vy man aldrig ställt in öppnar på standard, inte på den senaste");
+  {
+    // Arv vore mjukare men fortfarande smittsamt, och värst just första gången — det är
+    // den enda gång det inte finns något på skärmen som kan rätta en. Samma resonemang
+    // som `goToView` redan för om filtret.
+    const p = await open("", { token: true });
+    await välj(p, "Ordering", "Title A–Z");
+    eq(url(p), "?sort=title", "sorteringen sitter i All pucks");
+    await gåTill(p, "Inbox");
+    eq(url(p), "?view=inbox", "Inbox ärver den inte");
+    await gåTill(p, "Standalone");
+    eq(url(p), "?view=standalone", "och inte Standalone heller");
+  }
+
+  group("URL:en vinner över minnet — och skrivs inte in i det");
+  {
+    // Den delade länken är hela produktens kontrakt: den måste rita samma tavla för den
+    // som öppnar den. Men den får inte bli ditt minne, för då hade någon annans vy tyst
+    // blivit din.
+    const p = await open("", { token: true });
+    await välj(p, "Grouping", "Repo");
+    eq(JSON.parse(await minne(p)).all.group, "repo", "minnet står i store:n");
+
+    await p.goto(origin + "/index.html?view=all&group=agent");
+    await p.waitForSelector(".board");
+    await p.waitForTimeout(250);
+    const kol = await kolumner(p);
+    ok(kol.indexOf("Now") === -1, `länken vinner över minnet: ${JSON.stringify(kol)}`);
+    eq(JSON.parse(await minne(p)).all.group, "repo", "men den skriver inte om det");
+
+    // Ren omladdning: nu är det minnet som gäller igen.
+    await p.goto(origin + "/index.html");
+    await p.waitForSelector(".board");
+    await p.waitForTimeout(250);
+    eq(url(p), "?group=repo", "och en bar adress öppnar på det som är ditt");
+  }
+
+  group("en fällning hör till grupperingen den gjordes i");
+  {
+    // Pucken kallade det värsta fallet, och det är det: nycklarna är grupperingens egna
+    // värden, så en fällning gjord under en gruppering bär över till en vy som grupperar
+    // på något annat — där den matchar ingenting, eller värre, matchar `NO_VALUE`-hinken.
+    // `setDisplay` nollade redan vid grupperingsbyte av exakt det skälet; en navigering
+    // hade ingen motsvarighet.
+    const p = await open("?layout=list&done=1", { token: true });
+    await p.waitForSelector(".list-group");
+    await p.evaluate(() => document.querySelector("[data-fold]").click());
+    await p.waitForTimeout(250);
+    const fälld = await p.evaluate(() =>
+      new URLSearchParams(location.search).get("collapsed"));
+    ok(fälld, `en grupp är fälld: ${JSON.stringify(fälld)}`);
+
+    await gåTill(p, "Ready");
+    eq(await p.evaluate(() => new URLSearchParams(location.search).get("collapsed")), null,
+      "Ready får den inte med sig");
+  }
+
+  group("en plats är ingen vy — den landar i All pucks och läser dess minne");
+  {
+    // `goToPlace` sätter `focus = "all"` och är navigering på samma sätt. Ett minne per
+    // repo vore mer än någon bett om; det som ska hända är att man landar på `all`.
+    const p = await open("", { token: true });
+    await välj(p, "Grouping", "Priority");
+    eq(url(p), "?group=priority", "grupperingen sitter i All pucks");
+    await gåTill(p, "Inbox");
+    eq(url(p), "?view=inbox", "Inbox är ren");
+    const repo = await p.evaluate(() =>
+      (document.querySelector(".chip.repo") || {}).textContent);
+    ok(repo, `sidomenyn har en repo-rad att gå till: ${JSON.stringify(repo)}`);
+    await p.evaluate(() => document.querySelector(".chip.repo").click());
+    await p.waitForTimeout(300);
+    const efter = await p.evaluate(() => new URLSearchParams(location.search).get("group"));
+    eq(efter, "priority",
+      "en plats öppnar med All pucks minne, inte med den vy man kom från");
+  }
+
+  group("Reset glömmer vyn, den lagrar ingen kopia av standarden");
+  {
+    const p = await open("", { token: true });
+    await välj(p, "Grouping", "Repo");
+    ok(await minne(p), "något är lagrat");
+    await p.locator("#displayBtn").click();
+    await p.waitForSelector(".pop, .sheet");
+    await p.locator(".pop, .sheet").getByRole("button", { name: /Reset to default/ }).click();
+    await p.waitForTimeout(300);
+    eq(url(p), "", "brädan är tillbaka på standard");
+    eq(JSON.parse(await minne(p)).all, undefined,
+      "och vyn har ingen post kvar — en tom post vore ett minne av att inte ha ändrat något");
+  }
+
+  group("en sparad vy är sin egen post och skriver inget lokalt minne");
+  {
+    // En sparad vy ligger i `board.config.json`, och vägen att spara en ändring i den är
+    // `Update "<namn>"` i chip-raden. Ett lokalt minne ovanpå skulle vinna på vägen in
+    // och vyn läste som *(edited)* i samma stund den öppnades — samma form som
+    // `etapps`-buggen. Det får inte heller falla igenom till den inbyggda vyn under.
+    const sparad = (d) => {
+      d.config = d.config || {};
+      d.config.views = [{ name: "Redo per repo", view: "ready", group: "repo" }];
+      return d;
+    };
+    const p = await open("", { token: true, data: sparad });
+    await p.getByRole("button", { name: /Redo per repo/ }).first().click();
+    await p.waitForTimeout(300);
+    eq(JSON.parse((await minne(p)) || "{}").ready, undefined, "att gå in i den skriver inget");
+
+    await välj(p, "Ordering", "Title A–Z");
+    eq(JSON.parse((await minne(p)) || "{}").ready, undefined,
+      "och att ändra i den skriver inte heller — Update är vägen");
+    await gåTill(p, "Ready");
+    eq(url(p), "?view=ready", "den inbyggda vyn under är orörd");
+  }
+
+  group("det gamla platta formatet läses in en gång, in i All pucks");
+  {
+    // Annars tappar alla sin nuvarande inställning vid uppgraderingen. In i `all`: det är
+    // den vy de gjordes i, eftersom det är brädan man landar på — att så alla sex vore
+    // att frysa en olycka till sex minnen, vilket är smittan som tas bort.
+    const p = await open("", { token: true });
+    await p.evaluate(() => {
+      localStorage.clear();
+      localStorage.setItem("roadmap-group", "repo");
+      localStorage.setItem("roadmap-view", "list");
+      localStorage.setItem("roadmap-done", "0"); // ett lagrat "av" är inget minne
+    });
+    await p.goto(origin + "/index.html");
+    await p.waitForSelector(".board");
+    await p.waitForTimeout(250);
+    eq(url(p), "?group=repo&layout=list", "de gamla nycklarna blev All pucks minne");
+    const efter = await p.evaluate(() => ({
+      store: JSON.parse(localStorage.getItem("roadmap-display")),
+      gamla: ["group", "view", "done"].map((k) => localStorage.getItem("roadmap-" + k)),
+    }));
+    eq(efter.store, { all: { layout: "list", group: "repo" } },
+      `bara det som skiljer sig från standard: ${JSON.stringify(efter.store)}`);
+    eq(efter.gamla, [null, null, null], "och de gamla nycklarna är borta, så inget kan läsa dem igen");
+
+    // Och den smittar inte vidare: migreringen är ett minne för `all`, inte en global
+    // preferens under ett nytt namn.
+    await gåTill(p, "Ready");
+    eq(url(p), "?view=ready", "Ready ärver inget ur migreringen");
+
+    // Kör den inte en andra gång heller. Ett tomt objekt är en riktig store, inte en
+    // saknad — annars hade en nollställd vy fått tillbaka sitt gamla minne vid nästa
+    // laddning.
+    await gåTill(p, "All pucks");
+    await p.locator("#displayBtn").click();
+    await p.waitForSelector(".pop, .sheet");
+    await p.locator(".pop, .sheet").getByRole("button", { name: /Reset to default/ }).click();
+    await p.waitForTimeout(300);
+    await p.goto(origin + "/index.html");
+    await p.waitForSelector(".board");
+    await p.waitForTimeout(250);
+    eq(url(p), "", "en nollställd vy står kvar nollställd över en omladdning");
+  }
+}

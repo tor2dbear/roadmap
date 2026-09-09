@@ -192,13 +192,20 @@ export async function run({ open }) {
       kort: document.querySelectorAll(".card").length,
       kvar: document.querySelectorAll(".col-archived").length,
       url: location.search,
-      lagrat: localStorage.getItem("roadmap-done"),
+      lagrat: localStorage.getItem("roadmap-display"),
     }));
     eq(before, 7, "sju kort med arkivet av");
     eq(after.kort, 11, "elva efter ett klick");
     eq(after.kvar, 0, "och inga märken kvar att trycka på");
     eq(after.url, "?group=repo&done=1", "växeln syns i URL:en");
-    eq(after.lagrat, "1", "och skrivs till samma localStorage-nyckel som Display-menyn");
+    // Written to the same place the Display menu writes, which is now the *view's*
+    // memory rather than one flat key. And written whole: the board arrived with
+    // `group=repo` in a link, and pressing the mark adopted it. That is deliberate and it
+    // is the line between the two rules — a link you only look at writes nothing, a knob
+    // you turn adopts the board you turned it on. Storing just the key that moved would
+    // store a board that never existed, since the settings decide each other.
+    eq(after.lagrat, '{"all":{"group":"repo","done":"1"}}',
+      "och skrivs som hela brädan, in i den vy man står i");
   }
 
   group("listläget var tyst i varje gruppering");

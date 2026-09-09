@@ -1,8 +1,8 @@
 ---
 title: Vyn minns sin egen display
-status: inbox
+status: done
 tags: [ui, product]
-updated: 2026-09-08
+updated: 2026-09-09
 created: 2026-09-08
 priority: high
 owner: tor2dbear
@@ -65,24 +65,38 @@ grupperingens egna värden, så en fällning gjord under `group=parent` i `All p
 matchar `NO_VALUE`-hinken i en annan gruppering. `setDisplay` nollar den redan när
 *grupperingen* byts, av exakt det skälet; navigering mellan vyer har ingen motsvarighet.
 
-## Open questions
+## Beslut
 
-- **Vilka nycklar är per vy?** Gruppering, ordning, egenskaper och `collapsed` känns
-  självklara. `layout` (bräda/lista) är tveksam — den är nästan en preferens om *enheten*
-  snarare än om vyn, och att byta till lista i en vy och tillbaka till bräda i nästa kan
-  bli rastlöst. Arkivväxeln (`done`) gäller redan bara i `ARCHIVABLE`-vyer, alltså finns
-  där redan ett vy-beroende att bygga vidare på.
-- **Vad gäller för en vy man aldrig ställt in?** Ärva den senaste (mjukt, men då är det
-  fortfarande smittsamt första gången) eller tavlans standard (rent, men glömmer det man
-  nyss valde när man går till en ny vy). Antagligen standard, med samma resonemang som
-  `goToView` redan för om filtret.
-- **Var lagras det?** En nyckel per vy och inställning blir många; ett objekt under
-  `roadmap-display` med vyn som nyckel är en sak att migrera och en att läsa. Det senare,
-  förmodligen — men det gamla formatet måste kunna läsas in en gång, annars tappar alla
-  sin nuvarande inställning vid uppgraderingen.
-- **Vinner länken fortfarande?** Ja, det måste den — en delad URL är hela produktens
-  kontrakt. Men då finns tre nivåer i stället för två (URL > vyns minne > standard), och
-  ordningen mellan dem ska stå skriven innan den byggs.
-- **Räknas en *plats* som en vy?** `goToPlace` (repo, agent) sätter `focus = "all"` men är
-  navigering på samma sätt. Om repo-vyer får eget minne blir det ett minne per repo, och
-  det är förmodligen mer än någon bett om.
+Frågorna nedan var pucken's egna, och de är avgjorda i den ordning den bad om — skrivna
+innan bygget, som den krävde. Regeln i en mening: **navigering nollar filtret och
+återställer displayen.**
+
+- **Alla sju nycklarna är per vy** — `VIEW_KEYS` minus de två som inte är display. `view`
+  är vyns identitet (det är den minnet nycklas *av*) och `q` är filtret, som navigering
+  nollar snarare än minns. `layout` följde med trots tveksamheten: att lämna den utanför
+  hade gjort de inbyggda vyerna olika de sparade i exakt en nyckel, och `setDisplay`
+  flyttar layouten på egen hand när man väljer hierarkin ändå.
+- **En vy man aldrig ställt in öppnar på standard.** Arv vore mjukare och fortfarande
+  smittsamt, och värst första gången — den enda gång inget på skärmen kan rätta en. Samma
+  resonemang som `goToView` redan för om filtret.
+- **En store, `roadmap-display`, ett objekt med vyn som nyckel.** De gamla platta nycklarna
+  läses in en gång, in i `all` (den vy de gjordes i, för det är brädan man landar på) och
+  tas bort på vägen. Ett tomt objekt skrivs i stället för ingenting, så en store som finns
+  men är tom hindrar migreringen från att köra en andra gång.
+- **Länken vinner, och skriver inte minnet.** Tre nivåer: URL > vyns minne > standard. Men
+  gränsen behövde en egen mening, för `rememberDisplay` lagrar hela brädan och inte den
+  nyckel som rörde sig (inställningarna avgör varandra): **en länk man bara tittar på
+  skriver ingenting; ett vred man vrider adopterar brädan man vred det på.**
+- **En plats är ingen vy.** `goToPlace` sätter `focus = "all"`, så ett repo är `all` med ett
+  filter och läser `all`:s minne. Ett minne per repo vore mer än någon bett om — men
+  `state.focus` *är* minnets nyckel, så allt som flyttar den måste flytta displayen med
+  sig, och det är den halvan som var lätt att missa.
+- **En sparad vy får inget lokalt minne.** Den är sin egen post i `board.config.json`, och
+  vägen att spara en ändring i den är `Update "<namn>"`. Ett lokalt minne ovanpå hade
+  vunnit på vägen in och vyn läst som *(edited)* i samma stund den öppnades — samma form
+  som `etapps`-buggen. Det får inte falla igenom till den inbyggda vyn under heller.
+
+`restoreDisplay` är därför den ena vägen in och `rememberDisplay` den enda vägen ut, och
+"Reset to default" *glömmer* vyn i stället för att lagra en kopia av standarden.
+Kontrollerna ligger i `tests/display.test.mjs`; tre befintliga mätte det gamla beslutet och
+är omskrivna med skälet i klartext.
