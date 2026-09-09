@@ -243,6 +243,11 @@ omitting the title means level one, and the surface's own name comes back.
   (the box may reach the scroller's clip edge; the text belongs on the content line), and
   `.dp-sort-field` is pulled back by its own padding so the label, not the button, sits on
   that line.
+- **The sheet is named by its heading, not by a copy of it.** `aria-label` was taken from
+  `opts.title` once, and the heading is not: entering a level rewrote it to `Ordering` while
+  a screen reader went on announcing the surface as `Display`. `aria-labelledby` points at
+  the heading, so the accessible name *is* the visible one and there is no second writer to
+  fall behind — which is how two writers for one fact always end.
 - **The pointer capture follows purpose, not position.** `down()` captures when a drag starts
   on the sheet's chrome, and deliberately not from the list — because capture retargets the
   compatibility mouse events, so a tap would resolve its click against the sheet and the

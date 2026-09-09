@@ -2774,6 +2774,7 @@
     row.addEventListener("click", onBack);
     body.insertBefore(row, body.firstChild);
   }
+  var surfaceSeq = 0; // ids for the sheet headings that name their own dialog
   function openSurface(opts) {
     var phone = isPhone();
     var scrim = null;
@@ -2887,7 +2888,6 @@
       document.body.appendChild(scrim);
       root.setAttribute("role", "dialog");
       root.setAttribute("aria-modal", "true");
-      if (opts.title) root.setAttribute("aria-label", opts.title);
       root.tabIndex = -1; // focus lands on the sheet itself, never on a text field:
                           // that would raise the keyboard before anyone asked
       root.appendChild(el("div", "sheet-grip"));
@@ -2899,7 +2899,19 @@
         head.appendChild(h);
       }
       head.dataset.title = opts.title || ""; // level 1 restores this without knowing it
-      head.appendChild(el("h3", "sheet-title", opts.title || ""));
+      var h3 = el("h3", "sheet-title", opts.title || "");
+      // **Named by the heading, not by a copy of it.** An `aria-label` taken from
+      // `opts.title` is written once, and the heading is not: entering a level rewrites it
+      // to `Ordering` or `Add a key` while a screen reader went on announcing the surface
+      // as `Display`. Pointing at the heading means the accessible name *is* the visible
+      // one, with no second thing to keep in sync — the alternative is two writers for one
+      // fact, which is how they come to disagree. The id is per surface, since sheets can
+      // stack.
+      if (opts.title) {
+        h3.id = "sheet-title-" + (++surfaceSeq);
+        root.setAttribute("aria-labelledby", h3.id);
+      }
+      head.appendChild(h3);
       root.appendChild(head);
       root.appendChild(body);
       document.body.appendChild(root);

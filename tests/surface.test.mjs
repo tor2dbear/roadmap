@@ -65,6 +65,24 @@ export async function run({ open }) {
     eq(await läge(), { titel: "Display", back: false, bakRadIKroppen: 0 },
       "och därifrån hela vägen ut till ytans eget namn");
 
+    // Och namnet en skärmläsare hör är samma namn som syns. `aria-label` togs ur
+    // `opts.title` *en* gång medan rubriken skrivs om vid varje nivå, så ytan hette
+    // fortfarande "Display" när den visade "Add a key". Två skrivare för ett faktum är
+    // hur de kommer att säga emot varandra; `aria-labelledby` pekar på rubriken, så det
+    // finns bara ett.
+    const namn = () => p.evaluate(() => {
+      const sheet = document.querySelector(".sheet");
+      if (sheet.getAttribute("aria-label")) return "!aria-label: " + sheet.getAttribute("aria-label");
+      const id = sheet.getAttribute("aria-labelledby");
+      return id ? document.getElementById(id)?.textContent.trim() ?? "!ingen rubrik" : "!inget namn";
+    });
+    eq(await namn(), "Display", "tillbaka på nivå ett heter ytan sitt eget namn");
+    await p.locator(".sheet").getByText("Ordering", { exact: true }).click();
+    await p.waitForTimeout(250);
+    eq(await namn(), "Ordering", "och namnet följer nivån utan att skrivas en andra gång");
+    await p.locator(".sheet-back").click();
+    await p.waitForTimeout(250);
+
     // Samma regel i den andra ytan som har nivåer, för det var "överallt" som rapporterades.
     await p.keyboard.press("Escape");
     await p.waitForTimeout(200);
