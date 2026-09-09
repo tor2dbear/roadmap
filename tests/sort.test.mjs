@@ -144,6 +144,19 @@ export async function run({ open }) {
       "en riktning som är förvalet skrivs inte ut");
   }
 
+  group("Manual har ingen riktning, och suffixet ignoreras");
+  {
+    // Skälet är inte symmetri: en vänd manuell rank hade tyst *stängt av dragningen*,
+    // eftersom `manualRank()` frågar efter exakt nyckeln `order` först i kedjan. En kontroll
+    // vars enda synliga verkan är att slå av en annan kontroll är sämre än ingen kontroll.
+    const p = await open("?layout=list&sort=order-desc", { data: fyra });
+    eq(await p.evaluate(() => new URLSearchParams(location.search).get("sort")), "order",
+      "`order-desc` läses tillbaka som `order` — inte ens en handskriven länk kan be om den");
+    // Och tavlan ritas framlänges: rank 10 (D, B) före rank 20 (C, A), titeln avgör inom
+    // varje rank. Vänd hade gett C, A, D, B.
+    eq(await titlar(p), ["B", "D", "A", "C"], "och brädan står framlänges");
+  }
+
   group("ett fält kan bara stå en gång i kedjan");
   {
     // `updated,updated-asc` är två svar på en fråga, och det andra kunde aldrig nås ändå.
@@ -161,7 +174,7 @@ export async function run({ open }) {
   const rader = (p) => p.evaluate(() =>
     [...document.querySelectorAll(".dp-sort")].map((r) => ({
       fält: r.querySelector(".dp-sort-field span").textContent.trim(),
-      riktning: r.querySelector(".dp-sort-dir span").textContent.trim(),
+      riktning: r.querySelector(".dp-sort-dir span")?.textContent.trim() ?? null,
       upp: !!r.querySelector('.dp-sort-act[title^="Move"]'),
     })));
 
@@ -171,9 +184,9 @@ export async function run({ open }) {
     await öppnaMenyn(p);
 
     eq(await rader(p), [
-      { fält: "Manual", riktning: "first → last", upp: false },
+      { fält: "Manual", riktning: null, upp: false },
       { fält: "Updated", riktning: "newest → oldest", upp: true },
-    ], "standarden står som två rader med fält och riktning var");
+    ], "standarden står som två rader — och Manual har ingen riktning att vända");
 
     // Klagomålet som startade det här: när en yta behöver en mening som förklarar vilka
     // rader som är vilka har strukturen misslyckats. Katalogen ligger bakom `Add a key`,
@@ -260,8 +273,8 @@ export async function run({ open }) {
         return {
           spill: r.scrollWidth - r.clientWidth,
           fält: Math.round(r.querySelector(".dp-sort-field").getBoundingClientRect().width),
-          riktning: dir.textContent.trim(),
-          riktningKapad: dir.scrollWidth > dir.clientWidth + 1,
+          riktning: dir ? dir.textContent.trim() : null,
+          riktningKapad: !!dir && dir.scrollWidth > dir.clientWidth + 1,
           kontroller: acts.map((a) => Math.round(a.getBoundingClientRect().width)),
         };
       });
@@ -269,6 +282,7 @@ export async function run({ open }) {
     eq(mått.map((m) => m.spill), [0, 0], "ingen rad spiller ur lådan");
     eq(mått[0].riktning, "soonest → latest", "den längsta etiketten står oklippt");
     eq(mått.map((m) => m.riktningKapad), [false, false], "och ellipsiseras inte heller");
+    eq(mått[1].riktning, null, "Manual-raden har ingen riktningsruta alls");
     // Ikonkontrollerna är fasta märken: fältnamnet och riktningen får ge, aldrig de. Det
     // är listrubrikernas regel en yta bort — där kostade den fyra bortslipade pixlar innan
     // någon såg det, så den frågar varje rad och inte bara den trängsta.

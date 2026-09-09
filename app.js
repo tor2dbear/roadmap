@@ -1314,6 +1314,11 @@
     "chev-down": ["m3.75 5.625 3.75 3.75 3.75 -3.75"],
     check: ["M12.5 3.75 5.625 10.625l-3.125 -3.125"],
     "chev-up": ["m11.25 9.375 -3.75 -3.75 -3.75 3.75"],
+    // A chevron is a direction; an arrow is a *move*. The set had all four chevrons and no
+    // arrow at all, so "move this key up" was drawn with the glyph that everywhere else
+    // means "there is more above" — a fold, a caret, a menu. Same 15 grid, same 1px stroke:
+    // the chevron's own head, on a shaft that runs the full height.
+    "arrow-up": ["M7.5 13.125 7.5 1.875", "m3.75 5.625 3.75 -3.75 3.75 3.75"],
     // refresh-cw — ask CI for a fresher harvest. Scaled from Feather's 24 grid by the
     // same 0.625 as its neighbour `reset` (rotate-ccw), which is the nearest glyph in
     // the set: that one undoes an arrangement, this one goes and gets something. They
@@ -5321,7 +5326,12 @@
   // the whole change. `asc`/`desc` stay the spelling in the URL, where they mean the
   // literal order of the underlying value.
   var SORT_FIELDS = {
-    order: { label: "Manual", def: "asc", asc: "first → last", desc: "last → first",
+    // `order` is the one field with no direction, and the reason is not symmetry: reversing
+    // it would silently switch **dragging** off, since `manualRank()` asks for the exact key
+    // `order` at the head of the chain. A control whose only visible effect is to disable a
+    // different control is worse than a missing one. And "manual, backwards" is not a second
+    // opinion about the rank — the rank *is* the order you put them in.
+    order: { label: "Manual", def: "asc",
       rank: function (i) { return i.order == null ? Infinity : i.order; } },
     status: { label: "Status", def: "asc", asc: "now → done", desc: "done → now",
       rank: function (i) { return statusRank(i.status); } },
@@ -5344,12 +5354,17 @@
   // the same key by another name — they parse identically, so a link that carries the long
   // form still draws the board it always drew.
   function sortField(k) { return k.replace(/-(asc|desc)$/, ""); }
+  // Both labels or neither: a field that names its two directions can be turned, one that
+  // does not cannot. The suffix is then not merely unused but *ignored* — `order-desc` reads
+  // back as `order`, so a hand-written link cannot ask for a board the menu has no control
+  // for, nor switch dragging off from the address bar.
+  function reversible(field) { return !!SORT_FIELDS[field].asc; }
   function sortDir(k) {
-    var m = /-(asc|desc)$/.exec(k);
-    return m ? m[1] : SORT_FIELDS[sortField(k)].def;
+    var f = sortField(k), m = /-(asc|desc)$/.exec(k);
+    return m && reversible(f) ? m[1] : SORT_FIELDS[f].def;
   }
   function sortKeyName(field, dir) {
-    return dir === SORT_FIELDS[field].def ? field : field + "-" + dir;
+    return reversible(field) && dir !== SORT_FIELDS[field].def ? field + "-" + dir : field;
   }
   // Each key answers about **itself alone** and returns 0 for "these two are equal on me" —
   // the chain is the tiebreak. `byDate` already took a direction; the ranked and textual
@@ -6349,7 +6364,7 @@
         up.type = "button";
         up.title = "Move " + spec.label + " up";
         up.setAttribute("aria-label", up.title);
-        up.appendChild(icon("chev-up"));
+        up.appendChild(icon("arrow-up"));
         up.addEventListener("click", function () {
           var next = chain.slice();
           next.splice(i - 1, 0, next.splice(i, 1)[0]);
@@ -6375,16 +6390,22 @@
       // promise a list with two rows in it and cost a second tap to say the same thing.
       // The label is the *values* — `high → low`, `newest → oldest` — because that is what
       // the old key names said before the direction became a control.
-      var flip = el("button", "dp-sort-dir");
-      flip.type = "button";
-      flip.title = "Reverse " + spec.label;
-      flip.appendChild(el("span", null, spec[dir]));
-      flip.addEventListener("click", function () {
-        var next = chain.slice();
-        next[i] = sortKeyName(field, dir === "asc" ? "desc" : "asc");
-        apply(next);
-      });
-      row.appendChild(flip);
+      //
+      // `Manual` draws none, and the ragged row that leaves is the honest shape: there is no
+      // question to answer there, and a disabled control or a dead label would both claim
+      // otherwise.
+      if (reversible(field)) {
+        var flip = el("button", "dp-sort-dir");
+        flip.type = "button";
+        flip.title = "Reverse " + spec.label;
+        flip.appendChild(el("span", null, spec[dir]));
+        flip.addEventListener("click", function () {
+          var next = chain.slice();
+          next[i] = sortKeyName(field, dir === "asc" ? "desc" : "asc");
+          apply(next);
+        });
+        row.appendChild(flip);
+      }
 
       if (chain.length > 1) {
         var rm = el("button", "dp-sort-act");

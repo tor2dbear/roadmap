@@ -79,6 +79,18 @@ Tre saker föll ut av jämförelsen:
 - **Fältet byts på plats**, och tar då sitt eget förval: `newest → oldest` är inget
   `priority` kan vara. Att välja om det fält som redan står där är medvetet en no-op — annars
   hade ett tryck som såg ut som ingenting nollat en riktning man just vänt.
+- **`Manual` får ingen riktning**, och skälet är inte symmetri: en vänd manuell rank hade
+  tyst stängt av *dragningen*, eftersom `manualRank()` frågar efter exakt nyckeln `order`
+  först i kedjan. En kontroll vars enda synliga verkan är att slå av en annan kontroll är
+  sämre än ingen kontroll. Suffixet ignoreras därför i stället för att bara vara oanvänt:
+  `order-desc` läses tillbaka som `order`, så inte ens en handskriven länk kan be om det.
+  Den ojämna raden som blir kvar är den ärliga formen — det finns ingen fråga att svara på
+  där, och både en spärrad kontroll och en död etikett hade påstått motsatsen.
+- **`arrow-up` läggs till i ikonuppsättningen.** En chevron är en *riktning*, en pil är en
+  *förflyttning*. Uppsättningen hade alla fyra chevroner och ingen pil alls, så "flytta upp
+  den här nyckeln" ritades med samma tecken som överallt annars betyder "det finns mer
+  ovanför" — en vikning, en caret, en meny. Formen kontrollerades i bägge skepnaderna innan
+  den påstods hålla: lådan på 390px och popovern på 282px, noll spill på varje rad.
 - **`Reset ordering`** är en smal nollställning. Displays egen "Reset to default" sätter
   tillbaka alla sju display-nycklarna, så det fanns ingen väg att släppa en ordning utan att
   också släppa grupperingen, layouten och egenskaperna man just satt. Ritas bara när kedjan

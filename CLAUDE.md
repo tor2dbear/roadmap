@@ -774,6 +774,18 @@ views already carry, because the query language spells alternatives with commas 
   had flipped.
 - **Direction is a toggle, not a picker.** Two options, so a chevron would promise a list with
   two rows in it and cost a second tap for the same answer.
+- **`Manual` has no direction at all, and that is not about symmetry.** Reversing it would
+  silently switch *dragging* off, since `manualRank()` asks for the exact key `order` at the
+  head of the chain — a control whose only visible effect is to disable a different control.
+  So `order` carries no direction labels, `reversible()` reads that as "cannot be turned", and
+  the suffix is **ignored** rather than merely unused: `order-desc` parses back to `order`, so
+  a hand-written link cannot ask for a board the menu has no control for. The ragged row it
+  leaves is the honest shape — there is no question to answer there, and a disabled control or
+  a dead label would both claim otherwise.
+- **`arrow-up`, because a chevron is a direction and an arrow is a move.** The icon set had all
+  four chevrons and no arrow at all, so "move this key up" was drawn with the glyph that
+  everywhere else means "there is more above" — a fold, a caret, a menu. Same 15 grid, same
+  1px stroke: the chevron's own head on a shaft that runs the full height.
 - **`Reset ordering` is narrow on purpose.** Display's own "Reset to default" restores all
   seven display keys, so there was no way to drop an ordering without also dropping the
   grouping, the layout and the properties you had just set. It is drawn only when the chain
