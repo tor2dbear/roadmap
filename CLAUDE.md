@@ -639,11 +639,12 @@ heading from one walk.
   ("Sep 2026") while the row says "in 5 days". The column is coarser than the row.
 - **Sorting by status is the board's reading order, flattened.** `childItems()` has ordered
   a parent's parts by the status ladder, then manual rank, then title all along — "the order
-  you'd work them" — and `sort=status` is that comparator one level up, so a list groups
+  you'd work them" — and `sort=status,order` is that comparator one level up, so a list groups
   by anything and still reads each group the way the kanban board reads left to right. Manual
   rank rather than `updated` as the second key, because `order` is the puck's declared place
-  *within* its column, which is what the board uses there. Since the ordering became a chain
-  the word is the chain `status,order`, which is what it always meant. Inert under the status grouping,
+  *within* its column, which is what the board uses there. It is spelled as two keys since
+  the ordering became a chain; it used to be the one word `status`, and writing it out is the
+  whole migration. Inert under the status grouping,
   and offered there anyway (a menu row that vanishes under you teaches nothing) — where the
   two automations happen to agree, since `groupSays` hides the status property in exactly
   that case. `statusRank()` is the one writer: `DATA.statuses.indexOf` answers -1 for a
@@ -699,27 +700,27 @@ views already carry, because the query language spells alternatives with commas 
   every chosen key still have to land somewhere stable.
 - **`sort=default` is written out as `order,updated-desc`.** It always *was* "order first,
   then updated"; saying so is what lets you move `order` down the chain or drop it.
-- **All three old words still expand, and the one-key chain gets a spelling of its own.**
-  Three of the nine modes were chains written as one word — `default` was "order then
-  updated", `priority` "priority then updated", `status` "status then order" — and they are
-  in links that have been sent and in `board.config.json` entries that have been committed.
-  Quietly re-ordering someone's saved view is the one cost this refactor may not have, so
-  all three keep their meaning. The difficulty is that two of the words are also *key
-  names*: with `priority` expanding, the chain of just `priority` has no spelling left — the
-  menu drops `updated-desc`, serializes `priority`, and the next read puts it straight back,
-  which is a control that silently undoes itself. The way out is not to stop expanding but
-  to spell that chain unambiguously. `title` closes every chain anyway, so appending it
-  changes no ordering at all: `serializeSort` writes a one-key `priority` as
-  **`priority,title`**, which cannot be read as the word. Which words need that is *asked*
-  (`parseSort(k) !== [k]`) rather than listed, so a legacy spelling added later cannot forget
-  to be handled.
-- **A `✕` is drawn only where pressing it lands on a different chain**, which turns out to be
-  one rule covering two cases: the last key cannot go (an empty chain reads back as the
-  default, so the menu would show an ordering the board is not drawing), and neither can the
-  `title` that makes a one-key `priority`/`status` chain spellable, since the spelling puts
-  it straight back. It is asked as `parseSort(serializeSort(rest))` — what the *next read*
-  gets — rather than stated as two conditions, because that is the question both cases are
-  really asking. A control that only fails when you press it is not gated, it is decorated.
+- **`default` is the only word that expands, and round-tripping is why.** Three old modes
+  were chains written as one word — `priority` was "priority then updated", `status` was
+  "status then order" — but those two words are also *key names*. Expanding them means the
+  chain `priority` can never be written down: the menu removes `updated-desc`, serializes
+  `priority`, and the next read puts it straight back. A control that silently undoes itself
+  is worse than a tiebreak that moved, so those two are read as the keys they name and their
+  old second key becomes `title`. `default` is the only one of the three that is not a key,
+  so it is the only one that can expand without eating a spelling. The cost is real and
+  visible in one place: `sort=status` used to mean the board's reading order flattened, and
+  that is now spelled `sort=status,order` — which is the migration, not a loss.
+- **The compatible alternative was built, measured and taken back out.** Codex read the
+  re-pointing as a breaking change (PR #52, P1): keep all three expansions, it said, and give
+  the one-key chain an unambiguous spelling — `priority,title`, since `title` closes every
+  chain anyway and appending it changes no ordering. It works, and the `✕` rule generalises
+  with it ("a `✕` only where pressing lands on a different chain", one condition covering
+  both the last key and the `title` the spelling would put back). It was reverted because the
+  compatibility has **no instance**: neither saved view in `board.config.json` carries a
+  `sort` at all, and no doc names the words' meanings. What it cost was a spelling nobody
+  needs and a second rule about which control may be drawn. Re-pointing a word is free while
+  nothing reads it, and that is the argument to check *first* the next time this shape comes
+  up — the guard is worth writing only once something would break without it.
 - **`manualRank()` is a question about rank, not mode**: `order` *first* means the list is in
   the order you put it in, and dragging moves you within it. Further down the chain `order`
   still breaks ties, but the list is not manually ordered any more and a drop would land

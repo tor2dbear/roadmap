@@ -36,10 +36,7 @@ export async function run({ open }) {
     // avslutning), och lägger man `order` efter den avgör den inom varje par i stället.
     // Att bägge kedjorna ritas av *samma* fyra puckar är vad som gör skillnaden till ett
     // svar om kedjan och inte om datan.
-    // `priority,title` och inte bara `priority`: ordet ensamt är den gamla stavningen och
-    // expanderar (se `LEGACY_SORT`). Det är just därför en enkelnyckel-kedja har en egen,
-    // otvetydig stavning — annars hade den inte gått att skriva ner här heller.
-    const ettLed = await open("?layout=list&sort=priority,title", { data: fyra });
+    const ettLed = await open("?layout=list&sort=priority", { data: fyra });
     eq(await titlar(ettLed), ["C", "D", "A", "B"],
       "bara priority: paren faller igenom till titeln");
 
@@ -71,15 +68,17 @@ export async function run({ open }) {
 
   group("de nio gamla lägena ritar samma tavla som förut");
   {
-    // De ligger i länkar som redan är skickade och i sparade vyer som redan är committade,
-    // så en deploy som tyst ordnar om dem är det enda den här refaktoreringen inte får
-    // kosta. Sex av nio var redan en enda nyckel under samma stavning; tre var kedjor
-    // skrivna som ett ord, och de tre skrivs ut. `sort=default` *var* "order först, sedan
-    // updated"; `priority` var "priority sedan updated" och `status` "status sedan order".
+    // De ligger i länkar som kan vara skickade och i sparade vyer som kan vara committade.
+    // Sex av nio var redan en enda nyckel under samma stavning; tre var kedjor skrivna som
+    // ett ord, och de skrivs ut. `sort=default` *var* "order först, sedan updated".
     const fall = [
       ["default", "order,updated-desc"],
-      ["priority", "priority,updated-desc"],
-      ["status", "status,order"],
+      // `priority` och `status` är nyckelnamn, så de expanderar *inte* — se `LEGACY_SORT`.
+      // Deras gamla andra nyckel blir kedjans egen avslutning, titeln. Det är priset för
+      // att kedjan `priority` alls ska gå att skriva ner, och det kostar ingenting här: den
+      // här brädans sparade vyer bär inget `sort` alls.
+      ["priority", "priority"],
+      ["status", "status"],
       ["target", "target"],
       ["title", "title"],
       ["updated-desc", "updated-desc"],
@@ -103,70 +102,13 @@ export async function run({ open }) {
       "inuti en kedja är `priority` nyckeln, inte det gamla läget");
   }
 
-  group("ett ord som också är en nyckel behåller sin gamla betydelse");
-  {
-    // Granskningsfyndet, och den svåraste halvan av migreringen. `priority` och `status` är
-    // *både* gamla lägen och nyckelnamn. Expanderar man dem inte tappar redan skickade
-    // länkar och committade sparade vyer sin ordning; expanderar man dem har enkelnyckel-
-    // kedjan `priority` ingen stavning kvar. Bägge sidorna mäts här, på samma fyra puckar.
-    const gammal = await open("?layout=list&sort=priority", { data: fyra });
-    eq(await titlar(gammal), ["D", "C", "B", "A"],
-      "ordet `priority` är fortfarande priority → updated-desc");
-
-    // `title` avslutar varje kedja ändå, så att skriva ut den ändrar ingen ordning alls —
-    // den ger bara enkelnyckel-kedjan ett namn som inte går att läsa som ordet.
-    const kedja = await open("?layout=list&sort=priority,title", { data: fyra });
-    eq(await titlar(kedja), ["C", "D", "A", "B"],
-      "kedjan `priority` ensam är en annan tavla, och den går att skriva ner");
-    eq(await kedja.evaluate(() => new URLSearchParams(location.search).get("sort")), "priority,title",
-      "och stavningen står kvar orörd — annars vore rundgången bruten igen");
-  }
-
-  group("menyn kan skriva den kedjan, och inte ångra den åt en");
-  {
-    const p = await open("?sort=priority", { data: fyra, token: true });
-    await p.locator("#displayBtn").click();
-    await p.waitForSelector(".pop, .sheet");
-    await p.locator(".pop, .sheet").getByText("Ordering", { exact: true }).click();
-    await p.waitForTimeout(200);
-    // Det gamla läget står utskrivet som de två nycklar det var.
-    eq(await p.evaluate(() =>
-      [...document.querySelectorAll(".dp-chain-label")].map((e) => e.textContent.trim())),
-      ["Priority (high→low)", "Recently updated"], "ordet visas som kedjan det betyder");
-
-    // Tar man bort den andra nyckeln blir det den stavning URL:en kan bära tillbaka.
-    await p.evaluate(() => {
-      const rows = [...document.querySelectorAll(".dp-chain")];
-      const knappar = rows[1].querySelectorAll(".dp-chain-act");
-      knappar[knappar.length - 1].click(); // sista knappen på raden är ✕
-    });
-    await p.waitForTimeout(250);
-    eq(url(p), "?sort=priority,title", "kedjan `priority` skrivs otvetydigt");
-
-    const rader = await p.evaluate(() => {
-      const rows = [...document.querySelectorAll(".dp-chain")];
-      return {
-        namn: rows.map((r) => r.querySelector(".dp-chain-label").textContent.trim()),
-        knappar: rows.map((r) => r.querySelectorAll(".dp-chain-act").length),
-      };
-    });
-    eq(rader.namn, ["Priority (high→low)", "Title A–Z"], "avslutningen står synlig i kedjan");
-    // Och den går inte att ta bort: stavningen sätter tillbaka den, och en kontroll som
-    // bara misslyckas när man trycker är inte spärrad, den är dekorerad. Samma regel som
-    // den sista nyckeln, en rad ner.
-    eq(rader.knappar, [1, 1], "titeln har ↑ men inget ✕ — den går inte att stryka");
-  }
-
   group("en okänd nyckel faller bort, en tom kedja finns inte");
   {
     // Samma regel som `parseProps`: en lagrad kedja från en nyare tavla får inte jämföras
     // olika mot den som faktiskt ritas. Och kedjan kan aldrig tömmas — `parseSort` svarar
     // med standarden — så menyn aldrig visar en kedja tavlan inte följer.
     const p = await open("?layout=list&sort=priority,ingenting", { data: fyra });
-    // Kvar blir enkelnyckel-kedjan, och den skrivs i sin otvetydiga stavning — hade den
-    // skrivits som ordet `priority` hade nästa läsning satt tillbaka `updated-desc`, alltså
-    // hade strykningen av ett okänt namn tyst bytt ordning på tavlan.
-    eq(await p.evaluate(() => new URLSearchParams(location.search).get("sort")), "priority,title",
+    eq(await p.evaluate(() => new URLSearchParams(location.search).get("sort")), "priority",
       "namnet tavlan inte känner stryks");
     const tom = await open("?layout=list&sort=ingenting-alls", { data: fyra });
     eq(await tom.evaluate(() => new URLSearchParams(location.search).get("sort")), null,

@@ -77,11 +77,12 @@ export async function run({ open }) {
       sätt("a-now", 30); sätt("a-now-2", 10); sätt("a-next", 20); sätt("a-parent", 40);
       return d;
     };
-    // `sort=status` står kvar ordagrant sedan innan `sortering-ar-en-kedja`, och det är
-    // hela poängen: ordet *var* kedjan `status,order` skriven som ett ord, och det betyder
-    // fortfarande det. Raden är därmed också kontrollen att en redan skickad länk ritar
-    // samma tavla efter refaktoreringen som före.
-    const p = await open("?layout=list&group=repo&done=1&sort=status", { data: ordnad });
+    // `sort=status,order` och inte `sort=status`: sedan `sortering-ar-en-kedja` är ordningen
+    // en kedja, och det gamla läget `status` *var* den här kedjan skriven som ett ord.
+    // Migreringen är att skriva ut den — regeln står kvar, den syns bara nu. (`status` ensam
+    // är ett giltigt val och betyder status → titel; att det inte expanderar är vad som gör
+    // kedjan `status` skrivbar alls, se `LEGACY_SORT`.)
+    const p = await open("?layout=list&group=repo&done=1&sort=status,order", { data: ordnad });
     const rader = await p.evaluate(() => {
       const data = window.__ROADMAP__.items;
       return [...document.querySelectorAll(".list-group")[0].querySelectorAll(".list-row")].map((r) => {

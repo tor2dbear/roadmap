@@ -5323,22 +5323,23 @@
   // so the migration is to say so — and saying so is what lets you move `order` down the
   // chain or drop it, which was impossible while it was spelled as one word.
   var DEFAULT_SORT = "order,updated-desc";
-  // Three of the nine old modes were chains written as one word, and all three still mean
-  // what they meant: they are in links that have been sent and in `board.config.json`
-  // entries that have been committed, and a deploy that quietly re-orders someone's saved
-  // view is the one cost this refactor may not have.
+  // `default` is the only word that expands, and round-tripping is why. Three of the nine
+  // old modes were chains written as one word — `priority` was "priority then updated",
+  // `status` was "status then order" — but those two words are *also* key names, so
+  // expanding them means the chain `priority` can never be written down: the menu removes
+  // `updated-desc`, serializes `priority`, and the next read puts it straight back. A
+  // control that silently undoes itself is worse than a tiebreak that moved, so those two
+  // are read as the keys they name and their old second key becomes `title`, the chain's
+  // own ending. `default` is the only one of the three that is not a key, so it is the only
+  // one that can expand without eating a spelling.
   //
-  // Two of the three words are *also* key names, which is the whole difficulty: expand
-  // `priority` and the one-key chain `priority` can no longer be written down — the menu
-  // drops `updated-desc`, serializes `priority`, and the next read puts it straight back. A
-  // control that silently undoes itself is worse than a tiebreak that moved. The way out is
-  // not to stop expanding but to **spell the one-key chain unambiguously** (`serializeSort`),
-  // so the word keeps its old meaning and the chain still has a name of its own.
-  var LEGACY_SORT = {
-    default: DEFAULT_SORT,
-    priority: "priority,updated-desc",
-    status: "status,order",
-  };
+  // The alternative was measured and rejected: keep all three expansions and give the
+  // one-key chain an unambiguous spelling (`priority,title`). It works, and it buys a
+  // compatibility this board has no instance of — no saved view in `board.config.json`
+  // carries a `sort` at all — at the price of a spelling nobody needs and a second rule
+  // about which `✕` may be drawn. Re-pointing the words costs nothing while nothing reads
+  // them, and this is the cheapest moment it will ever be.
+  var LEGACY_SORT = { default: DEFAULT_SORT };
   function parseSort(v) {
     var raw = String(v == null ? "" : v).trim();
     if (LEGACY_SORT[raw]) raw = LEGACY_SORT[raw];
@@ -5354,16 +5355,7 @@
   }
   // In the chain's *own* order, not the catalogue's: the order is the meaning here, unlike
   // `props`, where the set is what matters and a stable spelling is all that is wanted.
-  //
-  // One case has to be spelled around: a chain of just `priority` or just `status` would be
-  // written as the very word that expands into the old two-key mode. `title` closes every
-  // chain anyway — appending it changes no ordering at all — so `priority,title` names the
-  // same board in a spelling that cannot be read as the word. Which words need it is *asked*
-  // rather than listed, so a legacy spelling added later cannot forget to be handled.
-  function serializeSort(keys) {
-    if (keys.length === 1 && parseSort(keys[0]).join(",") !== keys[0]) return keys[0] + ",title";
-    return keys.join(",");
-  }
+  function serializeSort(keys) { return keys.join(","); }
   function sortComparator() {
     var chain = parseSort(state.sort).map(function (k) { return SORT_KEYS[k].cmp; });
     return function (a, b) {
@@ -6294,20 +6286,18 @@
         });
         row.appendChild(up);
       }
-      // A `✕` only where pressing it lands on a chain that differs from this one — which is
-      // the same rule twice. The last key cannot go, since an empty chain reads back as the
-      // default and the menu would be showing an ordering the board is not drawing; nor can
-      // the `title` that makes a one-key `priority`/`status` chain spellable, since the
-      // spelling puts it straight back. A control that only fails when you press it is not
-      // gated, it is decorated.
-      var without = chain.filter(function (o) { return o !== k; });
-      if (without.length && serializeSort(parseSort(serializeSort(without))) !== serializeSort(chain)) {
+      // No `✕` on the last key: `parseSort` answers with the default for an empty value, so
+      // the menu would be showing a chain the board is not drawing. A control that only
+      // fails when you press it is not gated, it is decorated.
+      if (chain.length > 1) {
         var rm = el("button", "dp-chain-act");
         rm.type = "button";
         rm.title = "Remove " + SORT_KEYS[k].label;
         rm.setAttribute("aria-label", rm.title);
         rm.appendChild(icon("x"));
-        rm.addEventListener("click", function () { apply(without); });
+        rm.addEventListener("click", function () {
+          apply(chain.filter(function (o) { return o !== k; }));
+        });
         row.appendChild(rm);
       }
       pop.appendChild(row);
