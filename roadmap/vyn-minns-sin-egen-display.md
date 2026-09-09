@@ -100,3 +100,33 @@ innan bygget, som den krävde. Regeln i en mening: **navigering nollar filtret o
 "Reset to default" *glömmer* vyn i stället för att lagra en kopia av standarden.
 Kontrollerna ligger i `tests/display.test.mjs`; tre befintliga mätte det gamla beslutet och
 är omskrivna med skälet i klartext.
+
+## Delivered
+- **`restoreDisplay(focus)` och `rememberDisplay()`** — en väg in, en väg ut. Boot-läsningen
+  av localStorage är borta ur toppen av `app.js`: vilket minne som ska återställas är en
+  fråga bara vyn kan svara på, och på den raden finns ingen vy. `readUrl` ordnar de tre
+  nivåerna i stället, efter att ha läst `view` ur adressen.
+- **`clearDisplay()`**, utbruten ur `applyParams`s reset-gren, eftersom `goToPlace` behöver
+  just den halvan utan den andra: nollställ displayen, behåll frågan. Den kombinationen
+  kunde reset-grenen inte uttrycka.
+- **`roadmap-display`** — ett objekt med vyn som nyckel, med `DISPLAY_KEYS` = `VIEW_KEYS`
+  minus `view` och `q`. `migrateDisplay()` läser de sex gamla platta nycklarna en gång in i
+  `all` och tar bort dem; ett tomt objekt skrivs i stället för ingenting, så migreringen
+  inte kan köra en andra gång och lämna tillbaka ett minne man nollställt.
+- **Hela brädan lagras, aldrig nyckeln som rörde sig.** Det gav länkregeln en gräns som
+  pucken inte förutsåg och som nu står skriven: *en länk man bara tittar på skriver
+  ingenting; ett vred man vrider adopterar brädan man vred det på.* Alternativet lagrar en
+  gruppering och en layout som aldrig stått på skärmen samtidigt.
+- **`saveDisplay` är borta**, och med den `setDisplay`s tredje argument `storeAs` — den
+  namngav den platta nyckeln, och det finns inga kvar. Även den döda `GROUPS[state.group]`-
+  vakten, som fanns för ett värde bara den gamla läsningen kunde sätta.
+- **`tests/display.test.mjs`**, 30 kontroller: en per nivå och en per gräns, migreringen
+  inklusive att den inte kör två gånger, och fällningen som pucken kallade värsta fallet.
+
+**Medvetet utelämnat:**
+- **Inget minne per repo eller agent.** En plats är `all` med ett filter, inget annat.
+- **Inget lokalt minne för sparade vyer.** De är sin egen post; `Update "<namn>"` är vägen.
+- **Inget arv från senaste vyn.** Mjukare, men fortfarande smittsamt — och värst första
+  gången, då inget på skärmen kan rätta en.
+- **Ingen ny nyckel i URL:en.** De sju finns redan där; minnet är en tredje nivå under dem,
+  inte ett tionde `VIEW_KEYS`-fält.
