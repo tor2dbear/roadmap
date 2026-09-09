@@ -189,6 +189,49 @@ export async function run({ open, origin }) {
     eq(url(p), "?view=ready", "den inbyggda vyn under är orörd");
   }
 
+  group("lagrade sorteringsord uppgraderas en gång, inte varje gång");
+  {
+    // Codex, tredje varvet på samma fynd — och det första med en riktig instans. `priority`
+    // och `status` var hela värden i den *släppta* menyn, så en webbläsare som varit här
+    // förut kan ha dem i `roadmap-display`. Sedan ordningen blev en kedja betyder de inte
+    // längre sina gamla kedjor, så tavlan hade tyst bytt tiebreak under en återvändare.
+    //
+    // Kompatibiliteten ligger i migreringen och inte i `parseSort`: en migrering körs en
+    // gång och sedan är grammatiken ren, medan en expansion i parsern är för alltid — och
+    // tar enkelnyckel-kedjans stavning med sig.
+    const p = await open("", { token: true });
+    await p.evaluate(() => {
+      localStorage.clear();
+      localStorage.setItem("roadmap-display", JSON.stringify({ all: { sort: "priority" } }));
+    });
+    await p.goto(origin + "/index.html");
+    await p.waitForSelector(".board");
+    await p.waitForTimeout(250);
+    eq(url(p), "?sort=priority,updated", "det lagrade ordet betyder fortfarande sin gamla kedja");
+    eq(await p.evaluate(() => JSON.parse(localStorage.getItem("roadmap-display"))),
+      { all: { sort: "priority,updated" }, __v: 2 }, "och skrivs tillbaka stämplad");
+
+    // Stämpeln är hela poängen: utan den hade en kedja man *avsiktligt* smalnat av till bara
+    // `priority` skrivits om vid nästa laddning — rundgångsbuggen en våning upp.
+    await p.evaluate(() => {
+      localStorage.setItem("roadmap-display", JSON.stringify({ all: { sort: "priority" }, __v: 2 }));
+    });
+    await p.goto(origin + "/index.html");
+    await p.waitForSelector(".board");
+    await p.waitForTimeout(250);
+    eq(url(p), "?sort=priority", "en redan uppgraderad butik rörs inte");
+
+    // Och den gamla platta nyckeln bär samma två ord.
+    await p.evaluate(() => {
+      localStorage.clear();
+      localStorage.setItem("roadmap-sort", "status");
+    });
+    await p.goto(origin + "/index.html");
+    await p.waitForSelector(".board");
+    await p.waitForTimeout(250);
+    eq(url(p), "?sort=status,order", "roadmap-sort med `status` blir kedjan den betydde");
+  }
+
   group("en rads siffra är vad klicket landar i, inte vad brädan står på");
   {
     // Codex, #51. Både `viewCounts` och `placeCounts` säger i sina egna kommentarer att
@@ -244,7 +287,7 @@ export async function run({ open, origin }) {
       store: JSON.parse(localStorage.getItem("roadmap-display")),
       gamla: ["group", "view", "done"].map((k) => localStorage.getItem("roadmap-" + k)),
     }));
-    eq(efter.store, { all: { layout: "list", group: "repo" } },
+    eq(efter.store, { all: { layout: "list", group: "repo" }, __v: 2 },
       `bara det som skiljer sig från standard: ${JSON.stringify(efter.store)}`);
     eq(efter.gamla, [null, null, null], "och de gamla nycklarna är borta, så inget kan läsa dem igen");
 

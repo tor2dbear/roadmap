@@ -964,6 +964,32 @@
   // the whole argument: the built-in views were the only ones that could not.
   var DISPLAY_KEYS = ["group", "layout", "sort", "done", "empty", "collapsed", "props"];
   var displayMem = null;
+  // The two words the *released* board wrote into storage as whole sort values. They stopped
+  // meaning their old chains when the ordering became one, so a returning browser holding
+  // either would have its ties silently re-decided — priority by title instead of updated,
+  // status by title instead of manual rank. That is the instance the earlier rounds looked
+  // for and could not find: not a link and not a saved view, but `roadmap-display` itself,
+  // written by the shipped UI on this very board.
+  //
+  // The compatibility belongs **here and not in `parseSort`**. A migration runs once and
+  // then the grammar is clean; an expansion in the parser is forever, and takes the spelling
+  // of the one-key chain with it — which is what made the first attempt cost a `priority,title`
+  // nobody needed. Stamped, because without the stamp it would run on every read, and then
+  // deliberately narrowing the chain to just `priority` in the new menu would be rewritten
+  // back on the next load: the round-trip bug again, one storey up.
+  var STORED_SORT_V = 2;
+  var STORED_SORT_WAS = { priority: "priority,updated", status: "status,order" };
+  function upgradeStoredSort(store) {
+    if (!store || store.__v >= STORED_SORT_V) return false;
+    Object.keys(store).forEach(function (view) {
+      var mem = store[view];
+      if (mem && typeof mem === "object" && STORED_SORT_WAS[mem.sort]) {
+        mem.sort = STORED_SORT_WAS[mem.sort];
+      }
+    });
+    store.__v = STORED_SORT_V;
+    return true;
+  }
   function displayStore() {
     if (displayMem) return displayMem;
     var raw = null;
@@ -971,7 +997,12 @@
     if (raw) {
       try {
         var o = JSON.parse(raw);
-        if (o && typeof o === "object") return (displayMem = o);
+        if (o && typeof o === "object") {
+          displayMem = o;
+          // Written back, or the stamp never lands and the upgrade runs again next load.
+          if (upgradeStoredSort(o)) writeDisplayStore(o);
+          return displayMem;
+        }
       } catch (e) {} // unreadable is the same as absent, and migrating over it is right
     }
     return (displayMem = migrateDisplay());
@@ -1003,12 +1034,14 @@
     });
     var mem = {};
     if (old.view === "list") mem.layout = "list";
-    if (old.sort && old.sort !== DISPLAY_DEFAULTS.sort) mem.sort = old.sort;
+    // The flat key was written by the same released UI, so it carries the same two words.
+    if (old.sort && old.sort !== DISPLAY_DEFAULTS.sort) mem.sort = STORED_SORT_WAS[old.sort] || old.sort;
     if (old.group && old.group !== DISPLAY_DEFAULTS.group) mem.group = old.group;
     if (old.done === "1") mem.done = "1";
     if (old.empty === "0") mem.empty = "0";
     if (old.props) mem.props = old.props;
     var store = Object.keys(mem).length ? { all: mem } : {};
+    store.__v = STORED_SORT_V; // already in the new spelling, so it must not be upgraded again
     writeDisplayStore(store);
     return store;
   }

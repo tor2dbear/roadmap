@@ -197,7 +197,9 @@ export async function run({ open }) {
       kort: document.querySelectorAll(".card").length,
       kvar: document.querySelectorAll(".col-archived").length,
       url: location.search,
-      lagrat: localStorage.getItem("roadmap-display"),
+      // Tolkat och inte som sträng: butiken bär också migreringsstämpeln `__v`, och en
+      // strängjämförelse hade gjort kontrollen känslig för nyckelordningen i JSON.
+      lagrat: JSON.parse(localStorage.getItem("roadmap-display") || "null"),
     }));
     eq(before, 7, "sju kort med arkivet av");
     eq(after.kort, 11, "elva efter ett klick");
@@ -209,7 +211,7 @@ export async function run({ open }) {
     // is the line between the two rules — a link you only look at writes nothing, a knob
     // you turn adopts the board you turned it on. Storing just the key that moved would
     // store a board that never existed, since the settings decide each other.
-    eq(after.lagrat, '{"all":{"group":"repo","done":"1"}}',
+    eq(after.lagrat, { __v: 2, all: { group: "repo", done: "1" } },
       "och skrivs som hela brädan, in i den vy man står i");
   }
 

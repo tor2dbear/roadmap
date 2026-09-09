@@ -710,6 +710,17 @@ views already carry, because the query language spells alternatives with commas 
   so it is the only one that can expand without eating a spelling. The cost is real and
   visible in one place: `sort=status` used to mean the board's reading order flattened, and
   that is now spelled `sort=status,order` — which is the migration, not a loss.
+- **The one real instance was in `localStorage`, and it is migrated rather than parsed.**
+  `priority` and `status` were whole sort *values* in the released menu, so a returning
+  browser can hold either in `roadmap-display` (or the legacy flat `roadmap-sort`) — written
+  by the shipped UI on this very board. Two review rounds looked for a consumer in links and
+  saved views and found none; the third found this one. `upgradeStoredSort` rewrites the two
+  words to the chains they meant, **once**, stamped with `__v`. The compatibility belongs
+  there and not in `parseSort`: a migration runs once and then the grammar is clean, whereas
+  an expansion in the parser is forever and takes the one-key chain's spelling with it. The
+  stamp is not bookkeeping — without it, deliberately narrowing the chain to just `priority`
+  in the new menu would be rewritten back on the next load, which is the round-trip bug one
+  storey up.
 - **The compatible alternative was built, measured and taken back out.** Codex read the
   re-pointing as a breaking change (PR #52, P1): keep all three expansions, it said, and give
   the one-key chain an unambiguous spelling — `priority,title`, since `title` closes every
