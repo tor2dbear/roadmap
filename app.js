@@ -6285,6 +6285,10 @@
   // closing the menu — a display choice is rarely the only one you came to make, and
   // the Display menu holds five.
   function renderDisplayValues(pop, f) {
+    // The chain draws its *own* surface, back row included, so it is delegated to before
+    // this one clears anything — see the invariant on `renderSortChain`.
+    if (f.chain) { renderSortChain(pop, f); return; }
+
     pop.innerHTML = "";
     var back = el("button", "fp-back");
     back.type = "button";
@@ -6294,7 +6298,6 @@
     pop.appendChild(back);
 
     if (f.multi) { renderFieldChecks(pop, f); return; }
-    if (f.chain) { renderSortChain(pop, f); return; }
 
     var cur = f.current();
     f.options().forEach(function (o) {
@@ -6339,15 +6342,30 @@
   // value, so a menu that let you remove the last key would show a chain the board is not
   // drawing. The last row keeps its `✕` off rather than refusing the press — a control that
   // only fails when you press it is not gated, it is decorated.
+  //
+  // **A renderer anything can jump back into owns its surface.** This one clears and draws
+  // its own way back, rather than trusting a caller to have done it — which is not style but
+  // the fix for a bug that shipped twice. The first time, `apply()` called this function
+  // directly and appended a second copy of the chain under the first: three clicks, seven
+  // rows. That was patched by routing `apply()` through `renderDisplayValues`, which clears —
+  // and the patch held only while this function had exactly one caller. Adding level 3 gave
+  // it three more (the picker's back row, and its two ways of choosing a field), and the bug
+  // came back in the shape reported from a phone: pressing `‹ Add a key` drew the chain
+  // *below* the picker, twice, three times. A convention that has to be remembered at every
+  // call site is not a convention.
   function renderSortChain(pop, f) {
+    pop.innerHTML = "";
+    var top = el("button", "fp-back");
+    top.type = "button";
+    top.appendChild(icon("chev-left", "fp-chev"));
+    top.appendChild(el("span", null, f.label));
+    top.addEventListener("click", function () { renderDisplayRoot(pop); });
+    pop.appendChild(top);
+
     var chain = parseSort(state.sort);
     function apply(next) {
       setDisplay("sort", serializeSort(next));
-      // Through `renderDisplayValues`, not straight back into this function: that one
-      // clears the surface and re-draws the way back. Calling this directly appended a
-      // second copy of the chain under the first and left the header behind — measured,
-      // three clicks gave seven rows.
-      renderDisplayValues(pop, f); // stay on the list: building a chain is many clicks, not one
+      renderSortChain(pop, f); // stay on the list: building a chain is many clicks, not one
     }
     chain.forEach(function (k, i) {
       var field = sortField(k), dir = sortDir(k), spec = SORT_FIELDS[field];

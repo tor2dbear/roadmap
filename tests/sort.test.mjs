@@ -236,6 +236,62 @@ export async function run({ open }) {
       "och det nya fältet tar sin egen riktning — `newest → oldest` är inget priority kan vara");
   }
 
+  group("varje väg genom ytan lämnar exakt en yta");
+  {
+    // Rapporterat från en telefon, med skärmdump: `‹ Add a key` ritade kedjan *under*
+    // väljaren i stället för att ersätta den, och en gång till för varje tryck. Samma fel
+    // som `apply()` hade före — `renderSortChain` rensade inte, utan litade på att den som
+    // anropade den hade gjort det. Den lappen höll så länge funktionen hade en anropare;
+    // nivå 3 gav den tre till.
+    //
+    // Kontrollen frågar därför inte om just den knappen utan om *invarianten*: efter varje
+    // steg finns det precis en bakåtrad och kedjan står ritad en gång. En konvention som
+    // måste kommas ihåg på varje anropsställe är ingen konvention.
+    const p = await open("?sort=order,updated", { data: fyra, token: true });
+    const yta = () => p.evaluate(() => ({
+      bak: document.querySelectorAll(".pop .fp-back, .sheet .fp-back").length,
+      rader: document.querySelectorAll(".dp-sort").length,
+      val: document.querySelectorAll('.pop .row[data-value], .sheet .row[data-value]').length,
+    }));
+    await öppnaMenyn(p);
+    eq(await yta(), { bak: 1, rader: 2, val: 0 }, "kedjan: en bakåtrad, två nycklar");
+
+    await p.locator(".pop, .sheet").getByText("Add a key", { exact: true }).click();
+    await p.waitForTimeout(200);
+    eq(await yta(), { bak: 1, rader: 0, val: 5 }, "väljaren *ersätter* kedjan");
+
+    // Vägen tillbaka, som var det som rapporterades.
+    await p.locator(".pop, .sheet").getByText("Add a key", { exact: true }).click();
+    await p.waitForTimeout(200);
+    eq(await yta(), { bak: 1, rader: 2, val: 0 }, "och bakåt ersätter väljaren");
+
+    // Två varv till, eftersom felet växte per tryck och ett enda varv hade sett rätt ut
+    // även med den gamla koden på det första steget.
+    for (let i = 0; i < 2; i++) {
+      await p.locator(".pop, .sheet").getByText("Add a key", { exact: true }).click();
+      await p.waitForTimeout(150);
+      await p.locator(".pop, .sheet").getByText("Add a key", { exact: true }).click();
+      await p.waitForTimeout(150);
+    }
+    eq(await yta(), { bak: 1, rader: 2, val: 0 }, "och tre varv staplar ingenting");
+
+    // Den andra vägen ut ur väljaren: att faktiskt välja ett fält.
+    await p.locator(".pop, .sheet").getByText("Add a key", { exact: true }).click();
+    await p.waitForTimeout(200);
+    await p.locator(".pop, .sheet").getByText("Status", { exact: true }).click();
+    await p.waitForTimeout(250);
+    eq(await yta(), { bak: 1, rader: 3, val: 0 }, "ett valt fält lämnar också en yta");
+    eq(url(p), "?sort=order,updated,status", "och hamnar sist i kedjan");
+
+    // Och bakåtraden längst upp går till Displays rot, inte till väljaren.
+    await p.locator(".pop, .sheet").getByText("Ordering", { exact: true }).click();
+    await p.waitForTimeout(200);
+    // Rotens rader är `.fp-row`, inte `.row` — det är två olika radformer i samma meny.
+    eq(await p.evaluate(() =>
+      [...document.querySelectorAll(".pop .fp-row, .sheet .fp-row")].some((r) => /Grouping/.test(r.textContent))),
+      true, "kedjans egen bakåtrad når Displays rot");
+  }
+
   group("lägg till och nollställ");
   {
     const p = await open("?sort=title", { data: fyra, token: true });

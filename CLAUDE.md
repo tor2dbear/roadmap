@@ -766,6 +766,16 @@ views already carry, because the query language spells alternatives with commas 
   anchored popover *and* a bottom sheet. For the same reason reordering stays `↑` in both:
   drag would work in the popover, which is not draggable, and one mechanism that is
   second-best on the desktop costs less than the first crack in that rule.
+- **A renderer anything can jump back into owns its surface**, and this one shipped broken
+  twice for want of that rule. `renderSortChain` did not clear `pop`; it trusted
+  `renderDisplayValues` to have done so. The first failure was `apply()` calling it directly —
+  three clicks, seven rows — patched by routing `apply()` through the clearing caller, which
+  held only while the function had *one* caller. Level 3 gave it three more (the picker's back
+  row and its two ways of choosing a field), and the bug returned in the shape reported from a
+  phone: `‹ Add a key` drew the chain *below* the picker, again per press, and `Add a key`
+  then matched two elements so the control stopped answering at all. It clears and draws its
+  own way back now, and `renderDisplayValues` delegates to it *before* clearing anything. A
+  convention that has to be remembered at every call site is not a convention.
 - **The field is swappable in place**, which is what makes `↑` a rarity rather than the main
   path. Before it, changing the *first* key meant removing it — leaving a chain one shorter —
   and adding it back, where it landed last. A swapped-in field takes its own default

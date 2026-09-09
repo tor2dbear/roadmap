@@ -104,6 +104,18 @@ Tre saker föll ut av jämförelsen:
   raden" till en fråga med fel svar, och la en `<span>` i varje mängd som ställer den.
   Hittades av en kontroll som räknade knappar på den sista kvarvarande nyckeln och fick 1
   där svaret är 0. Egen klass nu.
+- **Samma fel som `apply()` hade, en funktion senare — och den här gången rapporterat från
+  en telefon med skärmdump.** `renderSortChain` rensade inte `pop`, utan litade på att
+  `renderDisplayValues` gjort det. Första gången var det `apply()` som anropade den direkt
+  (tre klick, sju rader); lappen var att gå via den anropare som rensar — och den höll bara
+  så länge funktionen hade *en* anropare. Nivå 3 gav den tre till (väljarens bakåtrad och
+  dess två sätt att välja fält), så `‹ Add a key` ritade kedjan *under* väljaren, en gång
+  till per tryck, och `Add a key` matchade sedan två element så kontrollen slutade svara
+  alls. Backad ur för kontroll: `{bak:1, rader:2, val:5}` mot `{bak:1, rader:2, val:0}` —
+  väljarens fem fältrader och kedjans två på skärmen samtidigt, precis som i skärmdumpen.
+  Fixen är en regel, inte en lapp: **en renderare som vad som helst kan hoppa tillbaka in i
+  äger sin yta.** En konvention som måste kommas ihåg på varje anropsställe är ingen
+  konvention.
 - **En kontroll som mätte fel sak, igen.** Testsonden frågade `.dp-sort-act .icn` för att se
   om raden hade en `↑` — men `✕` är också en `.dp-sort-act` med en ikon, så rad ett svarade
   ja. Frågar `[title^="Move"]` nu.
