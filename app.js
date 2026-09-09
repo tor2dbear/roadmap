@@ -5495,12 +5495,17 @@
   // ending. `default` is the only one of the three that is not a field, so it is the only
   // one that can expand without eating a spelling.
   //
-  // The alternative was measured and rejected: keep all three expansions and give the
-  // one-key chain an unambiguous spelling (`priority,title`). It works, and it buys a
-  // compatibility this board has no instance of — no saved view in `board.config.json`
-  // carries a `sort` at all — at the price of a spelling nobody needs and a second rule
-  // about which `✕` may be drawn. Re-pointing the words costs nothing while nothing reads
-  // them, and this is the cheapest moment it will ever be.
+  // The alternative was measured and rejected: keep all three expansions and give the one-key
+  // chain an unambiguous spelling (`priority,title`). It works, at the price of a spelling
+  // nobody needs and a second rule about which `✕` may be drawn.
+  //
+  // It was rejected on the premise that the compatibility had no instance, and **that premise
+  // was wrong** — twice over. A doc did name the old meaning, and, the one that mattered, the
+  // released menu wrote these words into `roadmap-display` as whole values. So the
+  // compatibility is real and lives in `upgradeStoredSort` instead: a migration runs once and
+  // then the grammar here is clean, whereas an expansion in this map is forever and takes the
+  // one-key chain's spelling with it. Before concluding that nothing reads a value, ask what
+  // the *running app* writes — searching the repo answered no twice, and was wrong twice.
   var LEGACY_SORT = { default: DEFAULT_SORT };
   function parseSort(v) {
     var raw = String(v == null ? "" : v).trim();

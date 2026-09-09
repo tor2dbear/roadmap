@@ -87,17 +87,29 @@ beskrivning alls, eftersom den läses som brädans sanning.
   är en nyckel. Priset är synligt på ett ställe och fångades av brädans egen befintliga
   kontroll: `sort=status` betydde "brädans läsordning utplattad" och stavas `sort=status,order`
   nu. Det är migreringen, inte en förlust.
-- **Codex läste om det som en brytande ändring, och den kompatibla vägen byggdes innan den
-  togs bort igen.** P1 på PR #52: behåll alla tre expansionerna och ge enkelnyckel-kedjan en
-  otvetydig stavning i stället — `priority,title`, eftersom `title` avslutar varje kedja ändå
-  och att skriva ut den ändrar ingen ordning. Det *fungerar*, och menyns `✕`-regel
-  generaliserar med den till ett villkor som täcker bägge fallen. Den revertades ändå, för
-  kompatibiliteten har **ingen instans**: ingen av brädans två sparade vyer i
-  `board.config.json` bär något `sort` alls, och inget dokument namnger vad orden betyder.
-  Kvar hade blivit en stavning ingen behöver och en andra regel om vilken kontroll som får
-  ritas. Att peka om ett ord är gratis så länge ingenting läser det — och att kontrollera
-  *det* först är lärdomen, inte att fyndet var fel: premissen var det. Samma instinkt som
-  arkivmärkets vakt, som skrevs först och togs bort när sabotage inte kunde fälla den.
+- **Kompatibiliteten togs tre varv att placera rätt, och det är hela lärdomen.** Codex läste
+  re-pekningen av `priority`/`status` som en brytande ändring (P1 på PR #52) och föreslog att
+  behålla expansionerna plus en otvetydig stavning för enkelnyckel-kedjan — `priority,title`,
+  eftersom `title` avslutar varje kedja ändå. Den vägen byggdes, fungerade, och revertades på
+  premissen att kompatibiliteten inte hade någon instans.
+
+  **Premissen var fel, och den var min.** Varv två visade att `vyn-valjer-sina-egenskaper`
+  namngav vad `sort=status` betyder — jag hade grep:at och sett raden, men läst den som ett
+  omnämnande i stället för som en definition. Den stavningen är rättad där. Varv tre hittade
+  den riktiga konsumenten, och den låg där ingen av oss hade letat: `roadmap-display` i
+  webbläsaren, skriven av den *släppta* menyn, där `priority` och `status` var hela värden.
+  Varken en länk eller en sparad vy — vilket är precis varför två varv sökte i repot och drog
+  fel slutsats.
+
+  **Så kompatibiliteten finns, men i migreringen och inte i parsern.** `upgradeStoredSort`
+  skriver om de två orden till de kedjor de betydde, en gång, stämplat med `__v`. Det är den
+  placering som håller: en migrering körs en gång och sedan är grammatiken ren, medan en
+  expansion i `parseSort` är för alltid och tar enkelnyckel-kedjans stavning med sig — vilket
+  var vad första försöket kostade.
+
+  Lärdomen är alltså inte "peka om ord är gratis". Den är: **innan man påstår att ingenting
+  läser ett värde, räcker det inte att söka i repot — man måste fråga vad den körande appen
+  skriver.**
 - **Fixturen kunde inte se skillnad på nyckel två och titeln.** `tests/sort.test.mjs` gav
   rank 10 åt samma puck som titeln satte först, så `priority,order` och `priority,title`
   ritade samma rad — hela gruppen "nyckel två avgör där nyckel ett är lika" mätte ingenting.

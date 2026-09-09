@@ -744,17 +744,19 @@ views already carry, because the query language spells alternatives with commas 
   stamp is not bookkeeping — without it, deliberately narrowing the chain to just `priority`
   in the new menu would be rewritten back on the next load, which is the round-trip bug one
   storey up.
-- **The compatible alternative was built, measured and taken back out.** Codex read the
-  re-pointing as a breaking change (PR #52, P1): keep all three expansions, it said, and give
-  the one-key chain an unambiguous spelling — `priority,title`, since `title` closes every
-  chain anyway and appending it changes no ordering. It works, and the `✕` rule generalises
-  with it ("a `✕` only where pressing lands on a different chain", one condition covering
-  both the last key and the `title` the spelling would put back). It was reverted because the
-  compatibility has **no instance**: neither saved view in `board.config.json` carries a
-  `sort` at all, and no doc names the words' meanings. What it cost was a spelling nobody
-  needs and a second rule about which control may be drawn. Re-pointing a word is free while
-  nothing reads it, and that is the argument to check *first* the next time this shape comes
-  up — the guard is worth writing only once something would break without it.
+- **Placing that compatibility took three review rounds, and the placing is the lesson.**
+  Codex read the re-pointing as a breaking change (PR #52, P1) and proposed keeping all three
+  expansions plus an unambiguous spelling for the one-key chain — `priority,title`, since
+  `title` closes every chain anyway. That was built, it worked, and it was reverted on the
+  premise that the compatibility had no instance. **The premise was wrong.** Round two showed
+  a doc did name the meaning (`vyn-valjer-sina-egenskaper`, corrected there); round three
+  found the actual consumer, in the place nobody had looked — `roadmap-display` in the
+  browser, written by the *released* menu, where `priority` and `status` were whole values.
+  Neither a link nor a saved view, which is exactly why two rounds of searching the repo drew
+  the wrong conclusion. So the compatibility exists, in `upgradeStoredSort` rather than in
+  `parseSort`: a migration runs once and then the grammar is clean, while an expansion in the
+  parser is forever and takes the one-key chain's spelling with it. **Before claiming nothing
+  reads a value, searching the repo is not enough — ask what the running app writes.**
 - **`autoDateField` takes the first date key in the chain**, not the first key. Which date a
   key is about is the field's own business (`SORT_FIELDS[…].date`), not a second table keyed
   by spelling — that table had a row per key *and direction*. Reading only
