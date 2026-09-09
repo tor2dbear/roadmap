@@ -157,6 +157,36 @@ export async function run({ open }) {
     eq(await titlar(p), ["B", "D", "A", "C"], "och brädan står framlänges");
   }
 
+  group("saknat värde ligger sist åt bägge hållen");
+  {
+    // Codex, P2 på #52, och ett riktigt fel. Ett tecken på svaret räcker inte: sentinelrangen
+    // för "ingen prioritet" blev *minst* när kedjan vändes, så en opriorterad puck hamnade
+    // först under en kontroll vars egen etikett lovar "low → high". `byDate` har alltid haft
+    // regeln — odaterade puckar ligger sist åt bägge håll — och de rangordnade fälten hade
+    // den inte. Ett saknat värde är inte skalans ytterände, det ligger utanför skalan.
+    //
+    // `group=repo` i bägge fallen, inte den förvalda statusgrupperingen: annars mäter
+    // "sist i listan" vilken *grupp* pucken hamnade i och inte hur kedjan ordnade den.
+    // Första utkastet gjorde exakt det och föll på alla fyra av fel skäl.
+    const utanPrio = (d) => { const f = fyra(d); f.items[3].priority = null; return f; };
+    eq(await titlar(await open("?layout=list&group=repo&sort=priority", { data: utanPrio })),
+      ["C", "D", "B", "A"], "utan prioritet sist framlänges");
+    eq(await titlar(await open("?layout=list&group=repo&sort=priority-desc", { data: utanPrio })),
+      ["B", "C", "D", "A"], "och sist baklänges också — inte först");
+
+    // Två kända statusar, så vändningen syns, plus en som nyttolasten inte namnger.
+    const okändStatus = (d) => {
+      const f = fyra(d);
+      f.items[1].status = "done";               // C
+      f.items[3].status = "ingen-sådan-status"; // A
+      return f;
+    };
+    eq(await titlar(await open("?layout=list&group=repo&done=1&sort=status", { data: okändStatus })),
+      ["B", "D", "C", "A"], "okänd status sist framlänges, done efter now");
+    eq(await titlar(await open("?layout=list&group=repo&done=1&sort=status-desc", { data: okändStatus })),
+      ["C", "B", "D", "A"], "vänt kommer done först — och den okända ligger kvar sist");
+  }
+
   group("ett fält kan bara stå en gång i kedjan");
   {
     // `updated,updated-asc` är två svar på en fråga, och det andra kunde aldrig nås ändå.

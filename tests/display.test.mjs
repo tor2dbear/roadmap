@@ -32,8 +32,8 @@ async function välj(p, fält, värde) {
 }
 
 // Ordningen är inte ett värde ur en lista längre: den är en kedja, och en nyckel läggs
-// till bakom `Add a key`. Sedan `sorteringsmenyn-ar-en-lista-inte-tva` heter raderna sitt
-// *fält* — riktningen är en egen kontroll — så `Title A–Z` finns inte att klicka på.
+// till bakom `Add a key`. Raderna heter dessutom sitt *fält* sedan riktningen blev en egen
+// kontroll, så `Title A–Z` finns inte att klicka på.
 async function läggTillNyckel(p, fält) {
   await p.locator("#displayBtn").click();
   await p.waitForSelector(".pop, .sheet");

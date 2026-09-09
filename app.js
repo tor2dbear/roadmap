@@ -5332,11 +5332,19 @@
     // different control is worse than a missing one. And "manual, backwards" is not a second
     // opinion about the rank — the rank *is* the order you put them in.
     order: { label: "Manual", def: "asc",
-      rank: function (i) { return i.order == null ? Infinity : i.order; } },
+      rank: function (i) { return i.order == null ? null : i.order; } },
     status: { label: "Status", def: "asc", asc: "now → done", desc: "done → now",
-      rank: function (i) { return statusRank(i.status); } },
+      rank: function (i) {
+        // `statusRank` answers Infinity for a status the payload does not name, and that
+        // sentinel must not reach the comparator — see `sortCmp`.
+        var r = statusRank(i.status);
+        return r === Infinity ? null : r;
+      } },
     priority: { label: "Priority", def: "asc", asc: "high → low", desc: "low → high",
-      rank: function (i) { return i.priority ? PRIORITY_RANK[i.priority] : 9; } },
+      rank: function (i) {
+        var r = i.priority ? PRIORITY_RANK[i.priority] : null;
+        return r == null ? null : r;
+      } },
     target: { label: "Target", def: "asc", asc: "soonest → latest", desc: "latest → soonest",
       date: "target" },
     updated: { label: "Updated", def: "desc", asc: "oldest → newest", desc: "newest → oldest",
@@ -5369,15 +5377,24 @@
   // Each key answers about **itself alone** and returns 0 for "these two are equal on me" —
   // the chain is the tiebreak. `byDate` already took a direction; the ranked and textual
   // fields get theirs the same way, by a sign on the answer rather than a second entry in
-  // the catalogue. Equal ranks return 0 *before* the sign is applied, so two pucks with no
-  // `order` at all (both Infinity, whose difference is NaN) settle honestly rather than by
-  // arithmetic accident.
+  // the catalogue.
+  //
+  // **A puck with no value for the field goes last in *both* directions**, which is the one
+  // thing a plain sign cannot express — and `byDate` has said so all along, pushing undated
+  // pucks to the end whichever way the dates run. A missing value is not the far end of the
+  // scale, it is outside the scale: reversing `high → low` must not promote "no priority" to
+  // the top, and `status-desc` must not lead with a status the payload does not name (which
+  // `statusRank` deliberately ranks last). Measured before the guard, with the sentinel rank
+  // carried through the sign: `priority-desc` put the unprioritised puck first, ahead of Low,
+  // under a control whose own label promised "low → high". `rank` therefore answers `null`
+  // for absent rather than a sentinel number, so absence cannot be compared by accident.
   function sortCmp(k) {
     var f = SORT_FIELDS[sortField(k)], sign = sortDir(k) === "desc" ? -1 : 1;
     if (f.date) return byDate(f.date, sign);
     if (f.text) return function (a, b) { return sign * f.text(a).localeCompare(f.text(b)); };
     return function (a, b) {
       var ra = f.rank(a), rb = f.rank(b);
+      if (ra == null || rb == null) return ra == null && rb == null ? 0 : (ra == null ? 1 : -1);
       return ra === rb ? 0 : (ra < rb ? -sign : sign);
     };
   }
