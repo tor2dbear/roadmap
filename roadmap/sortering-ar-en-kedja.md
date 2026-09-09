@@ -63,18 +63,34 @@ likadant och ryms i den `sort`-nyckel URL:en och sparade vyer redan bär.
 - **Menyn visar två listor** — kedjan i ordning, sedan nycklarna som inte är med. Ordningen
   *är* inställningen, och en kryssruta kan aldrig säga att `priority` kommer före `target`.
   `↑` per rad, inte drag: listan sitter i en bottenlåda som själv är dragbar.
-- **`tests/sort.test.mjs`**, 24 kontroller: att kedjan kedjar, att de nio gamla stavningarna
+- **De tre gamla orden expanderar alla tre**, och enkelnyckel-kedjan `priority` respektive
+  `status` skrivs `priority,title` / `status,title` — `title` avslutar varje kedja ändå, så
+  stavningen ändrar ingen ordning men kan inte läsas som det gamla ordet.
+- **`tests/sort.test.mjs`**, 31 kontroller: att kedjan kedjar, att de nio gamla stavningarna
   fortfarande går att läsa, att en okänd nyckel stryks, och att menyn bygger kedjan.
 
 ## Granskningsfynd och egna fel
-- **Legacy-expansionen bröt rundgången.** Första utkastet expanderade `priority` →
-  `priority,updated-desc` och `status` → `status,order` för att bevara de gamla länkarna
-  exakt. Men bägge orden är *nyckelnamn*: menyn kunde bygga kedjan `priority`, serialisera
-  den som `priority`, och nästa läsning satte tillbaka `updated-desc`. En kontroll som tyst
-  ångrar sig är värre än en oavgjord som flyttat, så bara `default` expanderar — det är det
-  enda av de tre orden som inte också är en nyckel. Priset är synligt på ett ställe och
-  fångades av brädans egen befintliga kontroll: `sort=status` betydde "brädans läsordning
-  utplattad" och stavas `sort=status,order` nu. Det är migreringen, inte en förlust.
+- **Legacy-expansionen bröt rundgången, och den första utvägen var fel utväg.** Expanderar
+  man `priority` → `priority,updated-desc` och `status` → `status,order` bevaras de gamla
+  länkarna exakt — men bägge orden är *nyckelnamn*, så menyn kunde bygga kedjan `priority`,
+  serialisera den som `priority`, och nästa läsning satte tillbaka `updated-desc`. En
+  kontroll som tyst ångrar sig är värre än en oavgjord som flyttat. Första svaret var att
+  låta bara `default` expandera, eftersom det är det enda av de tre orden som inte också är
+  en nyckel. **Codex fångade vad det kostade** (P1 på PR #52): redan skickade länkar och
+  redan committade sparade vyer i `board.config.json` bär de orden, så en deploy hade tyst
+  ordnat om någon annans vy. Det är den enda kostnaden den här refaktoreringen inte får ha.
+  Utvägen är inte att sluta expandera utan att **ge enkelnyckel-kedjan en egen stavning**:
+  `title` avslutar varje kedja ändå, så `priority,title` är samma ordning i en stavning som
+  inte kan läsas som ordet. Vilka ord som behöver det *frågas* (`parseSort(k) !== [k]`), inte
+  räknas upp. Och menyns `✕` ritas nu bara där ett tryck landar i en annan kedja än den man
+  står i — samma regel som redan gällde den sista nyckeln, ställd som en fråga i stället för
+  som två villkor, vilket täcker bägge fallen. `sort=status` betyder alltså fortfarande
+  "brädans läsordning utplattad", och brädans egen befintliga kontroll står orörd sedan före
+  refaktoreringen — vilket är kontrollen att en gammal länk ritar samma tavla som förut.
+- **Fixturen kunde inte se skillnad på nyckel två och titeln.** `tests/sort.test.mjs` gav
+  rank 10 åt samma puck som titeln satte först, så `priority,order` och `priority,title`
+  ritade samma rad — hela gruppen "nyckel två avgör där nyckel ett är lika" mätte ingenting.
+  Hittades när Codex-fixen tvingade fram en riktig skillnad mellan de två kedjorna.
 - **Menyn ritade om utan att rensa.** `apply()` anropade `renderSortChain` direkt i stället
   för `renderDisplayValues`, som är den som tömmer ytan och ritar vägen tillbaka. Mätt: tre
   klick gav sju rader och ingen rubrik.
