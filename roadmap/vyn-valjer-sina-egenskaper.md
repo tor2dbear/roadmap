@@ -362,10 +362,15 @@ kolumnen hinkar per månad, raden säger "in 5 days". Kolumnen är grövre än r
 Samma form som egenskapen, en gång till: **mekanismen fanns redan en våning ned.**
 `childItems()` har hela tiden sorterat en parents delar `status → manuell rank → titel`,
 med kommentaren *"the order you'd work them"*. Den komparatorn hade bara aldrig nått
-toppnivån. Det ger också sorteringen dess rätta namn — `sort=status` är **tavlans egen
+toppnivån. Det ger också sorteringen dess rätta namn — `sort=status,order` är **tavlans egen
 läsordning, utplattad**: en lista grupperad på repo läser då varje repo precis som brädan
 skulle läsa det vänster till höger. Manuell rank som andra nyckel, inte `updated`, för
 `order` är puckens deklarerade plats *inom* sin kolumn, och det är vad brädan använder där.
+
+*(Stavningen rättad i #52: när ordningen blev en kedja skrevs ordet `status` ut som de två
+nycklar det alltid betydde. Det här stycket är den enda plats i repot som namngav vad ordet
+betyder, vilket Codex hittade — och en `done`-puck som beskriver ett borttaget beteende är
+lika fel som en som beskriver ett mellanläge.)*
 
 Den är inert under statusgruppering, och erbjuds ändå — en menyrad som försvinner under
 en teachar ingenting. Där råkar de två automatikerna vara överens: `groupSays` gömmer

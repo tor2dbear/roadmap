@@ -47,24 +47,36 @@ likadant och ryms i den `sort`-nyckel URL:en och sparade vyer redan bär.
   är värd att behålla oavsett vad som händer med `order`.
 
 ## Delivered
-- **`SORT_KEYS`** — nio nycklar, var och en en komparator som svarar om *sig själv* och
-  returnerar 0 för oavgjort. `sortComparator()` är en loop över kedjan; `title` avslutar
-  varje kedja vare sig den står i den eller inte.
+
+Beskriver vad som faktiskt skeppade. Menyn byggdes om i samma PR (#52) efter att den här
+kedjan visat sig ha rätt modell men fel yta, så posterna nedan är slutläget och inte det
+mellanläge kedjan passerade — en `done`-puck som beskriver ett mellanläge är sämre än ingen
+beskrivning alls, eftersom den läses som brädans sanning.
+
+- **`SORT_FIELDS`** — sju fält, var och en med ett förval och bägge riktningsetiketterna.
+  `sortCmp` sätter ett tecken på svaret; `sortComparator()` är en loop över kedjan, och
+  `title` avslutar varje kedja vare sig den står i den eller inte.
 - **`byDate` avgör inte längre sina egna oavgjorda.** Det är den enda strukturella
   ändringen: en nyckel som avslutar med titeln själv kan aldrig stå *först* i en kedja,
   för då nås aldrig nyckeln bakom.
-- **`sort=default` skrivs ut som `order,updated-desc`** — det var vad den betydde, och att
-  säga det är vad som gör `order` flyttbar och strykbar.
-- **`manualRank()`** frågar om rang, inte läge: `order` först betyder att listan står i den
-  ordning du lagt den. **`autoDateField()`** tar kedjans *första datumnyckel*, inte första
-  nyckeln — annars svarar den "updated" för den vanliga `order,created-desc`.
+- **Ett saknat värde ligger sist åt bägge hållen**, som `byDate` alltid gjort med odaterade
+  puckar. `rank` svarar `null` för frånvaro; ett sentinelnummer gick att jämföra av misstag
+  och satte opriorterade puckar först så fort kedjan vändes.
+- **`sort=default` skrivs ut som `order,updated`** — det var vad den betydde, och att säga
+  det är vad som gör `order` flyttbar och strykbar.
+- **En nyckel är `field`, eller `field-asc`/`field-desc`** när riktningen inte är fältets
+  förval. `manualRank()` frågar om rang, inte läge — och om `order` *framlänges*.
+  **`autoDateField()`** tar kedjans *första datumnyckel*, inte första nyckeln.
 - **`sort` normaliseras i `effectiveParams`**, bredvid `props`, så en sparad vy med det
   gamla `default` jämförs mot brädan som faktiskt ritas.
-- **Menyn visar två listor** — kedjan i ordning, sedan nycklarna som inte är med. Ordningen
-  *är* inställningen, och en kryssruta kan aldrig säga att `priority` kommer före `target`.
-  `↑` per rad, inte drag: listan sitter i en bottenlåda som själv är dragbar.
-- **`tests/sort.test.mjs`**, 24 kontroller: att kedjan kedjar, att de nio gamla stavningarna
-  fortfarande går att läsa, att en okänd nyckel stryks, och att menyn bygger kedjan.
+- **Menyn är en lista**, inte två: en rad per nyckel — `[↑] Fält riktning ✕` — med katalogen
+  bakom `＋ Add a key`. Ordningen *är* inställningen, och en kryssruta kan aldrig säga att
+  `priority` kommer före `target`. `↑` per rad, inte drag: listan sitter i en bottenlåda som
+  själv är dragbar.
+- **`tests/sort.test.mjs`**, 58 kontroller: att kedjan kedjar, riktning per fält, saknat
+  värde sist åt bägge hållen, att de gamla stavningarna fortfarande går att läsa, att en
+  okänd nyckel stryks, att menyn bygger kedjan, och att varje väg genom ytan lämnar exakt
+  en yta.
 
 ## Granskningsfynd och egna fel
 - **Legacy-expansionen bröt rundgången.** Expanderar man `priority` → `priority,updated-desc`
