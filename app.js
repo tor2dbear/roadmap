@@ -1040,6 +1040,17 @@
     else delete store[state.focus];
     writeDisplayStore(store);
   }
+  // Whether the archive would be *on* once you landed in `focus` — that view's remembered
+  // `done`, since `restoreDisplay` starts from the defaults and lays the memory over them.
+  //
+  // The sidebar's counts need this and it is not a detail: both `viewCounts` and
+  // `placeCounts` say, in their own comments, that a row's number is what clicking it
+  // shows. That held for free while `showDone` was one value for the whole board — the
+  // current value *was* every destination's value. Per view it is not, and reading
+  // `state.showDone` for a row you are not standing in makes the number a promise the
+  // click immediately breaks. Which is the very failure `goToPlace` already names one
+  // screen down, about clearing the agent while landing on a repo.
+  function willShowDone(focus) { return displayMemory(focus).done === "1"; }
   // Put the board's display back to what `focus` was left in, over the board's defaults
   // for whatever it was never given. A view you have never set up therefore opens at the
   // defaults rather than inheriting the last one: inheritance is the contagion being
@@ -5437,15 +5448,20 @@
   // counted with that view's query, not with the source's grand total. The old
   // number came straight from the harvester and counted the archive too, so "PIA
   // 52" landed you on six cards. Same rule the views already hold themselves to.
-  // Archive-aware for the same reason the view counts are: `goToPlace()` keeps
-  // `state.showDone`, so with the toggle on a repo click shows its landed cards
-  // while the chip's number excluded them. A place counts what its click shows.
+  // Archive-aware for the same reason the view counts are: a repo click used to keep
+  // `state.showDone`, so with the toggle on it showed its landed cards while the chip's
+  // number excluded them. A place counts what its click shows.
+  //
+  // What it shows is now `all`'s memory, not the live value — a place is not a view of
+  // its own, it is `all` with a filter, and `goToPlace` restores `all` accordingly. Read
+  // from the board you are standing in, a repo row inside Inbox counted against Inbox's
+  // archive setting and landed on All pucks'.
   // Siffran är vad klicket visar — och ett klick på ett repo behåller en aktiv
   // disciplinkö (goToPlace byter bara den dimension man klickade i). Så varje
   // dimension räknas *inuti* den andra: annars kunde ett repo säga 20 och landa på
   // de 3 som är routade till den valda disciplinen.
   function placeCounts() {
-    var base = parseQuery(VIEWS.all).concat(state.showDone ? [] : [NOT_DONE]);
+    var base = parseQuery(VIEWS.all).concat(willShowDone("all") ? [] : [NOT_DONE]);
     // The *other* active place, read out of the query rather than hand-built: one
     // producer for what a place term looks like, so the two can't drift.
     function withOthers(skip) {
@@ -5641,7 +5657,13 @@
     // flipped; two different numbers for one view are never explained.
     Object.keys(VIEWS).forEach(function (k) {
       c[k] = 0;
-      qs[k] = parseQuery(VIEWS[k]).concat(ARCHIVABLE[k] && !state.showDone ? [NOT_DONE] : []);
+      // `willShowDone(k)` and not `state.showDone`: every row is a *different*
+      // destination now, each with its own remembered archive setting. Standing in Ready
+      // with All pucks holding `done: "1"`, the current value said "off" and the All
+      // pucks row advertised a number its own click would not produce — and
+      // `viewsShown` gates on these, so a row could vanish while its memory would have
+      // filled it.
+      qs[k] = parseQuery(VIEWS[k]).concat(ARCHIVABLE[k] && !willShowDone(k) ? [NOT_DONE] : []);
     });
     DATA.items.forEach(function (it) {
       Object.keys(qs).forEach(function (k) { if (runQuery(it, qs[k])) c[k]++; });

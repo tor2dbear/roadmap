@@ -171,6 +171,41 @@ export async function run({ open, origin }) {
     eq(url(p), "?view=ready", "den inbyggda vyn under är orörd");
   }
 
+  group("en rads siffra är vad klicket landar i, inte vad brädan står på");
+  {
+    // Codex, #51. Både `viewCounts` och `placeCounts` säger i sina egna kommentarer att
+    // en rads siffra är vad klicket visar. Det höll gratis så länge `showDone` var *ett*
+    // värde för hela brädan — det aktuella värdet var varje destinations värde. Per vy är
+    // det inte det, och att läsa `state.showDone` för en rad man inte står på gör siffran
+    // till ett löfte klicket omedelbart bryter. Precis det fel `goToPlace` redan namnger
+    // en skärm ner, om att nolla disciplinen när man landar på ett repo.
+    const p = await open("", { token: true });
+    await p.locator("#displayBtn").click();
+    await p.waitForSelector(".pop, .sheet");
+    await p.locator("label.fp-toggle").filter({ hasText: "Show done" }).click();
+    await p.waitForTimeout(250);
+    await p.keyboard.press("Escape");
+    await p.waitForTimeout(150);
+    const räknat = (p) => p.evaluate(() => ({
+      all: Number((document.querySelector(".focusbtn.focus-all .focus-n") || {}).textContent || 0),
+      repo: [...document.querySelectorAll(".chip.repo .n")].map((e) => Number(e.textContent)),
+    }));
+    const medArkiv = await räknat(p);
+    ok(medArkiv.all > 0, `All pucks räknar med arkivet på: ${JSON.stringify(medArkiv)}`);
+
+    await gåTill(p, "Ready");
+    const iReady = await räknat(p);
+    eq(iReady.all, medArkiv.all,
+      "All pucks-raden räknar med sitt eget arkivminne, inte med Readys");
+    eq(iReady.repo, medArkiv.repo,
+      "och repo-raderna med `all`:s — det är dit de landar, en plats är ingen egen vy");
+
+    // Och löftet infrias: raden sa ett tal, klicket ger det.
+    await gåTill(p, "All pucks");
+    eq(await p.evaluate(() => document.querySelectorAll(".card").length), medArkiv.all,
+      "klicket ger precis så många kort som raden lovade");
+  }
+
   group("det gamla platta formatet läses in en gång, in i All pucks");
   {
     // Annars tappar alla sin nuvarande inställning vid uppgraderingen. In i `all`: det är

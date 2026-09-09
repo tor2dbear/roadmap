@@ -742,6 +742,17 @@ never whether display can be per view but why only the saved ones had it.
   exactly that reason; navigation had no equivalent.
 - **"Reset to default" forgets the view** rather than storing a copy of the defaults, since
   `rememberDisplay` deletes an entry with nothing non-default left in it.
+- **The sidebar's counts had to follow, and that is the part a reviewer caught.** Both
+  `viewCounts` and `placeCounts` state in their own comments that a row's number is what
+  clicking it shows. That held for free while `showDone` was one value for the whole board:
+  the current value *was* every destination's value. Per view it is not, so both now ask
+  `willShowDone(focus)` — the destination's remembered `done` — instead of `state.showDone`.
+  Measured on the fixture, standing in Ready with the archive remembered on in All pucks:
+  the row advertised **7** where its own click gives **11**, and the repo chips `[5,2,0]`
+  against `[7,3,1]`. `viewsShown` gates rows on these counts, so a view could also vanish
+  while its own memory would have filled it. A place asks `all`'s memory, because that is
+  where `goToPlace` lands it. It is the failure `goToPlace` already names one screen down —
+  a number that is a promise the click immediately breaks.
 
 ## UI: one thing, one place
 

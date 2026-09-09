@@ -130,3 +130,17 @@ Kontrollerna ligger i `tests/display.test.mjs`; tre befintliga mätte det gamla 
   gången, då inget på skärmen kan rätta en.
 - **Ingen ny nyckel i URL:en.** De sju finns redan där; minnet är en tredje nivå under dem,
   inte ett tionde `VIEW_KEYS`-fält.
+
+## Granskningsfynd
+- **Sidomenyns siffror räknade från fel bräda** (Codex, PR #51). `viewCounts` och
+  `placeCounts` säger bägge i sina egna kommentarer att en rads siffra är vad klicket
+  visar. Det höll gratis så länge `showDone` var *ett* värde för hela brädan — det
+  aktuella värdet var varje destinations värde. Per vy är det inte det, och att läsa
+  `state.showDone` för en rad man inte står på gör siffran till ett löfte klicket
+  omedelbart bryter. Mätt på fixturen, stående i Ready med arkivet ihågkommet på i All
+  pucks: raden lovade **7** där klicket ger **11**, och repo-chipparna `[5,2,0]` mot
+  `[7,3,1]`. `viewsShown` grindar dessutom rader på siffrorna, så en vy kunde försvinna
+  medan dess eget minne skulle ha fyllt den. `willShowDone(focus)` är svaret, och en plats
+  frågar `all`:s minne eftersom det är dit `goToPlace` landar den. Precis det fel
+  `goToPlace` redan namnger en skärm ner, om att nolla disciplinen när man landar på ett
+  repo — jag införde det en våning upp och såg det inte.
