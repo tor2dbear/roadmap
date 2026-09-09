@@ -64,8 +64,12 @@ export async function run({ open, origin }) {
     // den enda gång det inte finns något på skärmen som kan rätta en. Samma resonemang
     // som `goToView` redan för om filtret.
     const p = await open("", { token: true });
+    // Ordningen är en kedja sedan `sortering-ar-en-kedja`, så att välja en nyckel *lägger
+    // till* den sist i stället för att byta läge — standarden `order,updated-desc` står
+    // kvar framför. Det är kedjan som mäts på riktigt i `tests/sort.test.mjs`; här är den
+    // bara ett andra vred, så att gruppen inte är en kopia av den ovanför.
     await välj(p, "Ordering", "Title A–Z");
-    eq(url(p), "?sort=title", "sorteringen sitter i All pucks");
+    eq(url(p), "?sort=order,updated-desc,title", "sorteringen sitter i All pucks");
     await gåTill(p, "Inbox");
     eq(url(p), "?view=inbox", "Inbox ärver den inte");
     await gåTill(p, "Standalone");

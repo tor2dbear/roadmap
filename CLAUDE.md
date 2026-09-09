@@ -639,10 +639,12 @@ heading from one walk.
   ("Sep 2026") while the row says "in 5 days". The column is coarser than the row.
 - **Sorting by status is the board's reading order, flattened.** `childItems()` has ordered
   a parent's parts by the status ladder, then manual rank, then title all along — "the order
-  you'd work them" — and `sort=status` is that comparator one level up, so a list groups by
-  anything and still reads each group the way the kanban board reads left to right. Manual
+  you'd work them" — and `sort=status,order` is that comparator one level up, so a list groups
+  by anything and still reads each group the way the kanban board reads left to right. Manual
   rank rather than `updated` as the second key, because `order` is the puck's declared place
-  *within* its column, which is what the board uses there. Inert under the status grouping,
+  *within* its column, which is what the board uses there. It is spelled as two keys since
+  the ordering became a chain; it used to be the one word `status`, and writing it out is the
+  whole migration. Inert under the status grouping,
   and offered there anyway (a menu row that vanishes under you teaches nothing) — where the
   two automations happen to agree, since `groupSays` hides the status property in exactly
   that case. `statusRank()` is the one writer: `DATA.statuses.indexOf` answers -1 for a
@@ -678,6 +680,58 @@ heading from one walk.
   filter was written, and the redeclaration blanked it: no term matched, twelve checks fell,
   and nothing threw. The properties are `PROPS` and the key is `props`, so "field" means one
   thing in the file.
+
+## UI: the ordering is a chain
+
+`sort` is a list of keys — `sort=priority,target,updated-desc` — walked in order until one
+of them answers. **Manual rank is therefore a key among the others rather than a mode that
+excludes them**, which is the whole complaint the puck opened with: `order:` felt clumsy not
+because it is the wrong idea but because it was the default *and the only one*, so choosing
+any real field threw the hand-placed positions away.
+
+Nothing is scrapped. `order:` stays a valid convention in every source repo; it stops being
+the thing you cannot combine with anything. And it fits the `sort` key the URL and saved
+views already carry, because the query language spells alternatives with commas too.
+
+- **A key answers about itself alone and returns 0 for a tie.** That is the one structural
+  change: `byDate` used to close its own ties with `title`, and a key that settles ties
+  privately can never be *first* in a chain — the keys behind it would never be reached.
+  `title` closes every chain instead, whether or not it is in it, since two pucks equal on
+  every chosen key still have to land somewhere stable.
+- **`sort=default` is written out as `order,updated-desc`.** It always *was* "order first,
+  then updated"; saying so is what lets you move `order` down the chain or drop it.
+- **`default` is the only word that expands, and round-tripping is why.** Three old modes
+  were chains written as one word — `priority` was "priority then updated", `status` was
+  "status then order" — but those two words are also *key names*. Expanding them means the
+  chain `priority` can never be written down: the menu removes `updated-desc`, serializes
+  `priority`, and the next read puts it straight back. A control that silently undoes itself
+  is worse than a tiebreak that moved, so those two are read as the keys they name and their
+  old second key becomes `title`. `default` is the only one of the three that is not a key,
+  so it is the only one that can expand without eating a spelling. The cost is real and
+  visible in one place: `sort=status` used to mean the board's reading order flattened, and
+  that is now spelled `sort=status,order` — which is the migration, not a loss.
+- **`manualRank()` is a question about rank, not mode**: `order` *first* means the list is in
+  the order you put it in, and dragging moves you within it. Further down the chain `order`
+  still breaks ties, but the list is not manually ordered any more and a drop would land
+  where the fields decide rather than where you let go. Cross-column dragging writes
+  `status`, not rank, and is untouched.
+- **`autoDateField` takes the first date key in the chain**, not the first key. Reading only
+  `[0]` answers "updated" for the common `order,created-desc` — which is exactly the
+  shuffled-looking column that rule exists to prevent.
+- **An unknown key is dropped, and an empty chain is the default.** Same as `parseProps`, and
+  `sort` is canonicalized in `effectiveParams` beside it, so a saved view carrying the old
+  `default` compares against the board actually drawn instead of reading as *(edited)*.
+- **The menu shows two lists, not one list of ticks, because the order is the setting.** A
+  checkbox can say `priority` is in the chain but never that it comes before `target` — and
+  that is the difference between "sort by priority" and "priority within each horizon".
+  Reordering is `↑` per row and deliberately **not** a drag: the list lives inside a bottom
+  sheet that is itself draggable, so a row drag would compete with its own container for the
+  same finger.
+- **Choosing a key appends it**; the note says so ("it breaks the ties the ones above
+  leave"). Adding a tiebreak is therefore one tap — the thing that was impossible before —
+  and narrowing to a single key costs one tap plus a `✕` per key you drop. The last key keeps
+  no `✕` at all, since `parseSort` answers with the default for an empty value and a menu
+  must never show a chain the board is not drawing.
 
 ## UI: the display belongs to the view it was set in
 

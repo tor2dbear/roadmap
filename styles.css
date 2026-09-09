@@ -1936,6 +1936,39 @@ body.preload * { transition: none !important; }
    way, or the two autos would split the free space and park the value mid-row. */
 .fp-cur { margin-left: auto; color: var(--ink-3); }
 .dp-rule { height: 1px; background: var(--line); margin: 2px 0; }
+/* ── the ordering chain ─────────────────────────────────────────────────────── */
+/* A chosen key sits at the same rhythm as a `.row` — same padding, same gap — but is
+   a <div> rather than a button: the row itself is not the target, its two controls
+   are. Making the whole thing pressable would have meant inventing a meaning for
+   "press the key you are already sorting by".
+   The number is the setting: it says this key is asked *third*, which a list of
+   ticks could never say. Tabular figures so 1 and 10 take the same width and the
+   labels beside them stay in one column. */
+.dp-chain { display: flex; align-items: center; gap: 8px; padding: 7px 9px; font-size: var(--fs-md); }
+.dp-chain-n {
+  flex: none; width: 16px; text-align: right; color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+/* The label is the only part that may give: the number and the two controls are
+   fixed marks, and a long key name pressed against a narrow sheet would otherwise
+   squeeze them instead of ellipsising itself — the squeeze the list headings paid
+   for once already. */
+.dp-chain-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dp-chain-act {
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; padding: 0; border: 0; border-radius: var(--r-sm);
+  background: none; color: var(--ink-3); cursor: pointer;
+}
+/* `(hover: hover)` because on a phone a tap leaves the state stuck under your finger
+   — the rule the list's own controls were swept into. */
+@media (hover: hover) { .dp-chain-act:hover { background: var(--panel-2); color: var(--ink); } }
+.dp-chain-act .icn { width: 13px; height: 13px; }
+@media (max-width: 639px) {
+  /* A sheet is a thumb surface: the controls grow with its rows, like every other
+     target in here. */
+  .sheet .dp-chain { font-size: var(--fs-xl); min-height: 40px; }
+  .sheet .dp-chain-act { width: 34px; height: 34px; }
+}
 /* ── .resetbtn — put this back the way it was ───────────────────────────────── */
 /* There were two of these and they wore different colours: the Display menu's in
    `--ink-3`, Settings' sidebar-width one in the accent red. Neither is destructive —
