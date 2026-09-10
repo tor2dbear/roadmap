@@ -603,6 +603,47 @@ hidden by default, restored at container widths 560 and 720). They must stay *af
 whole mechanism, and putting them beside `.list-row` cost a round of two-line rows with
 the date wrapped under the title.
 
+## UI: the grouping with no values
+
+`group=none` is the list with no grouping at all: one bucket, no heading. It carries **no
+`field`**, and that is the whole integration — `columnTerm`, `termAboutGroup` and
+`groupConstrained` each open with `if (!g.field) return …`, and every optional member
+(`cls`, `tint`, `headExtra`, `write`) was already guarded — so a fieldless grouping needed
+no new branch in the query language, the tray or the chip row.
+
+- **`LIST_ONLY = { parent: 1, none: 1 }`** — the groupings that require the list, as a
+  table rather than a second `=== "parent"` test. `parent` is a hierarchy and cannot be
+  columns; `none` is the absence of columns, which is the same statement from the other
+  end. `groupUsable` and `effectiveParams` both ask the table, so `group=none&layout=board`
+  drops out of the link exactly as `group=parent` always has. A second hard-coded test is
+  precisely how the first one came to be forgotten in `effectiveParams`.
+- **The heading is drawn only when the archive has something to say, and then carries only
+  the mark** (`headless`). A heading reading `All pucks` above the whole list is a label
+  that repeats the page — but with no heading at all the archive falls silent, and that
+  silence is the exact bug the mark was written for (see *one thing, one place*). So: no
+  swatch (there is no column colour), no name, no fold control (there is no second group to
+  fold this one away from). The same shape as the archive-only stub one branch down, minus
+  the two parts that name a group.
+- **`archivedMark(n, key, where)`** — the mark names the place the pucks are missing from.
+  "in this column" pointed at something that is not drawn anywhere on the page here.
+- **A grouping may propose an ordering, and this is the only one with an opinion.** `order:`
+  is the puck's declared place *within its column*, so with the columns gone the default
+  chain interleaves a `now` puck ranked 20 between two `done` ones ranked 10 and 30, by a
+  number that never meant anything across that boundary. `GROUPS.none.sort` is
+  `status,order` — the board's own reading order flattened — and `sortChain()` applies it
+  **in the absence of a choice, never over one**, which is `autoDateField`'s rule one storey
+  up. The absence is `state.sort === DEFAULT_SORT`, the same test `effectiveParams` and
+  `rememberDisplay` already use to decide whether a sort is worth writing down; the
+  proposal therefore rides in the link as `group=none` alone, since it follows from the
+  grouping rather than from anything stored.
+- **One function, not a branch per consumer, because the menu reads it too.** A menu showing
+  a chain the board is not drawing is the failure the last key's missing `✕` exists to
+  prevent, and a proposal the chooser could not see would be that same failure one storey
+  up. `Reset ordering` therefore compares against `proposedSort()`: against the constant it
+  drew a reset on an untouched chain whose press lands back on the very same rows, and a
+  control that does nothing is worse than one that is missing. Reset still writes
+  `DEFAULT_SORT` — the proposal is not a choice, and storing it would end it.
+
 ## UI: the view chooses its properties
 
 `props` is the ninth key in `VIEW_KEYS`, so a chosen set of properties rides in the URL,
@@ -840,7 +881,11 @@ views already carry, because the query language spells alternatives with commas 
 - **`Reset ordering` is narrow on purpose.** Display's own "Reset to default" restores all
   seven display keys, so there was no way to drop an ordering without also dropping the
   grouping, the layout and the properties you had just set. It is drawn only when the chain
-  is not already the default.
+  is not the one the board would draw with no choice at all — which under a grouping that
+  proposes its own ordering is not `DEFAULT_SORT`; see *the grouping with no values*.
+- **The chain the board draws is `sortChain()`, and every consumer asks it** — the
+  comparator, `autoDateField`, `manualRank` and the menu alike. A grouping may propose an
+  ordering, and the proposal yields to any choice.
 - **Choosing a key appends it.** Adding a tiebreak is one tap — the thing that was impossible
   before — and narrowing to a single key costs a `✕` per key you drop. The last key keeps no
   `✕` at all, since `parseSort` answers with the default for an empty value and a menu must
@@ -987,6 +1032,10 @@ it off showed PIA's 6 open pucks and dropped 39 landed ones in silence.
   goes on every head, and a group the archive emptied entirely comes back as a plain
   heading in its own place, carrying only the mark. That heading is a `<span>`, not a
   control: there is nothing under it to expand until the toggle lifts.
+- **A grouping with no heading needs one drawn for it.** Under `group=none` there is no
+  head to speak from, and the rule would simply stop applying — the silence it was written
+  to end. The head is drawn when there is something to say and carries only the mark; see
+  *the grouping with no values*.
 - **`liftArchive()` is the one writer**, shared with the tray's eye. Two callers writing
   `roadmap-done` differently is how the Display menu and the sidebar counts would come to
   disagree with the board they describe.

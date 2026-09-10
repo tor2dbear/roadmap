@@ -852,12 +852,14 @@
     var layout = o.layout || DISPLAY_DEFAULTS.view;
     var cols = columnsForFocus(focus, o.done === "1");
     var eff = function (k) { return k !== "status" || cols.length > 1 ? k : "repo"; };
-    // A hierarchy grouping cannot be drawn as columns, so `group=parent&layout=board` is
-    // not a view: the layout wins and the grouping is dropped, which is the same shape
-    // as `empty` and `collapsed` below. Dropped rather than kept, so the parameters say
-    // what is actually drawn — a stored view that keeps a setting the board ignores is
-    // how an untouched view came to read as *(edited)*.
-    if (o.group === "parent" && layout !== "list") delete o.group;
+    // A grouping that cannot be drawn as columns is not a view together with the board
+    // layout: the layout wins and the grouping is dropped, the same shape as `empty` and
+    // `collapsed` below. Two of them (`LIST_ONLY`) — `parent` is a hierarchy, `none` is
+    // the absence of columns, which is the same statement from the other end. Dropped
+    // rather than kept, so the parameters say what is actually drawn — a stored view that
+    // keeps a setting the board ignores is how an untouched view came to read as
+    // *(edited)*.
+    if (LIST_ONLY[o.group] && layout !== "list") delete o.group;
     if (o.group && eff(o.group) === eff(DISPLAY_DEFAULTS.group)) delete o.group;
     if (o.done && !ARCHIVABLE[focus]) delete o.done;
     if (o.empty && layout !== "board") delete o.empty;
@@ -1678,7 +1680,7 @@
   function autoDateField() {
     if (state.group === "target") return "target";
     var hit = null;
-    parseSort(state.sort).forEach(function (k) {
+    sortChain().forEach(function (k) {
       var d = SORT_FIELDS[sortField(k)].date;
       if (!hit && d) hit = d;
     });
@@ -4361,7 +4363,33 @@
       labelOf: function (k) { return k === NO_VALUE ? "No priority" : (PRIORITY_LABEL[k] || k); },
       write: function (item, k) { changePriority(item, k === NO_VALUE ? null : k); },
     },
+    // No grouping at all: one bucket, no heading. It carries **no `field`**, and that is
+    // the whole integration — `columnTerm`, `termAboutGroup` and `groupConstrained` each
+    // open with `if (!g.field) return …`, so a fieldless group is a shape this file
+    // already foresaw. Every optional member is guarded too (`cls`, `tint`, `headExtra`,
+    // `write`), so leaving them out is not a special case either.
+    none: {
+      label: "None",
+      headless: true, // the heading is drawn only when the archive has something to say
+      keyOf: function () { return NO_VALUE; },
+      keys: function (items) { return items.length ? [NO_VALUE] : []; },
+      labelOf: function () { return "All pucks"; },
+      // The ordering a grouping *proposes*, and `none` is the only one with an opinion —
+      // because it is the only one that takes the columns away. `order:` is the puck's
+      // declared place **within its column**, so with the columns gone the default chain
+      // interleaves a `now` puck ranked 20 between two `done` ones ranked 10 and 30, by a
+      // number that never meant anything across that boundary. `status,order` is the
+      // board's own reading order flattened — left to right, top to bottom — which is
+      // exactly what a board with no columns is. A proposal, not a write: it applies only
+      // while the chain is untouched (see `sortChain`).
+      sort: "status,order",
+    },
   };
+  // The groupings that need the list. `parent` is a hierarchy and cannot be columns;
+  // `none` is the absence of columns, which is the same thing said the other way. One
+  // table rather than two `=== "parent"` tests, because the second one is exactly how the
+  // first came to be forgotten in `effectiveParams`.
+  var LIST_ONLY = { parent: 1, none: 1 };
   // Grouping by a field the view has already fixed makes one group named after the
   // view — "INBOX 11" under a header that says "Inbox 11". Derived from the columns
   // the view can show rather than from the view's name, so a future single-status
@@ -4387,7 +4415,7 @@
   // because a row that vanishes depending on the layout teaches nothing.
   function groupOffered(k) { return k !== "status" || columnsForFocus().length > 1; }
   function groupUsable(k, layout) {
-    if (k === "parent") return (layout || state.view) === "list";
+    if (LIST_ONLY[k]) return (layout || state.view) === "list";
     return groupOffered(k);
   }
   function effectiveGroup() {
@@ -4407,7 +4435,7 @@
   // drop would have to write a rank that means the opposite of where the finger let go, so
   // it is not manual ordering any more. The canonical spelling makes that free: a reversed
   // key is `order-desc` and simply is not this string.
-  function manualRank() { return parseSort(state.sort)[0] === "order"; }
+  function manualRank() { return sortChain()[0] === "order"; }
 
   // Bucket the visible pucks by the active grouping. Returns [{ key, label, items }]
   // in the group's own order — the one thing both renderers consume.
@@ -4848,10 +4876,13 @@
   // pressing it lifted the archive into a section that stayed closed. A control labelled
   // "Show 3 archived pucks in this column" that visibly shows nothing. Unfolding is part
   // of the repair, not a second click for the reader to find.
-  function archivedMark(n, key) {
+  // `where` names the place the pucks are missing from, and it exists because one
+  // grouping has no columns: under `group=none` the mark stands over the whole list, and
+  // "in this column" would name a thing that is not drawn anywhere on the page.
+  function archivedMark(n, key, where) {
     var b = el("button", "col-archived");
     b.type = "button";
-    b.title = "Show " + n + " archived " + (n === 1 ? "puck" : "pucks") + " in this column";
+    b.title = "Show " + n + " archived " + (n === 1 ? "puck" : "pucks") + " in " + (where || "this column");
     b.setAttribute("aria-label", b.title);
     b.appendChild(el("span", "count", String(n) + " archived"));
     b.appendChild(icon("eye"));
@@ -5208,6 +5239,34 @@
       if (!grp.items.length && !grp.archivedOnly && !grp.emptyParent) return;
       var section = el("section", "list-group" + (tree ? " is-tree" : "") + (g.cls ? " " + g.cls(grp.key) : " col-plain"));
       if (g.tint && g.tint(grp.key)) section.style.setProperty("--tint", g.tint(grp.key));
+      // A grouping with no values has nothing to name, so it draws no heading at all —
+      // the rows *are* the answer, and a lone `All pucks` above them would be a label
+      // that repeats the page. The archive is the one thing that still has to speak: its
+      // rule is to say what it is holding back **in the head of the column short of it**,
+      // and a group with no head is exactly the silence that rule was written to end. So
+      // the head is drawn only when there is something to say, and carries only the mark
+      // — no swatch (there is no column colour), no name, no fold control (there is no
+      // second group to fold this one away from). Same shape as the archive-only stub one
+      // branch down, minus the two parts that name a group.
+      if (g.headless) {
+        var bare = grp.archivedOnly
+          ? archived.count[grp.key]
+          : (archived ? (archived.count[grp.key] || 0) - grp.items.length : 0);
+        if (bare > 0) {
+          // `lh-bare` names the shape rather than carrying style of its own — the same way
+          // `dp-row`/`dp-label` stayed on the markup when the layout switch became a
+          // `.segmented`. It is the one heading with no `h2` in it, and reaching that from
+          // CSS otherwise costs a `:not(:has(h2))` that says nothing about why.
+          var bhead = el("div", "list-head lh-bare");
+          var binner = el("div", "lh-inner");
+          binner.appendChild(archivedMark(bare, grp.key, "this list"));
+          bhead.appendChild(binner);
+          section.appendChild(bhead);
+        }
+        grp.items.forEach(function (it) { section.appendChild(listRow(it)); });
+        board.appendChild(section);
+        return;
+      }
       var shut = state.collapsed.has(grp.key);
       if (shut) section.classList.add("shut");
       // The heading is two boxes, and the inner one is why: a sticky box cannot be
@@ -5540,8 +5599,26 @@
   // In the chain's *own* order, not the catalogue's: the order is the meaning here, unlike
   // `props`, where the set is what matters and a stable spelling is all that is wanted.
   function serializeSort(keys) { return keys.join(","); }
+  // The chain the board is actually drawing — the chosen one, except where the grouping
+  // proposes its own and nothing has been chosen. Same rule as `autoDateField` one storey
+  // down: **automation applies in the absence of a choice, never over one.** The absence
+  // is `state.sort === DEFAULT_SORT`, the same test `effectiveParams` and
+  // `rememberDisplay` already use to decide whether a sort is worth writing down.
+  //
+  // One function rather than a branch per consumer, because the *menu* reads it too: a
+  // menu showing a chain the board is not drawing is the failure the last key's missing
+  // `✕` exists to prevent, and a proposal the chooser could not see would be that same
+  // failure one storey up. Turn any knob on it and the proposal becomes a choice — the
+  // same bargain `rememberDisplay` strikes with a link you only looked at.
+  function proposedSort() {
+    var g = GROUPS[effectiveGroup()];
+    return (g && g.sort) || DEFAULT_SORT;
+  }
+  function sortChain() {
+    return parseSort(state.sort === DEFAULT_SORT ? proposedSort() : state.sort);
+  }
   function sortComparator() {
-    var chain = parseSort(state.sort).map(sortCmp);
+    var chain = sortChain().map(sortCmp);
     return function (a, b) {
       for (var i = 0; i < chain.length; i++) {
         var n = chain[i](a, b);
@@ -6274,7 +6351,7 @@
     // half you glance at this row to check.
     { key: "sort", label: "Ordering", chain: true,
       current: function () {
-        var c = parseSort(state.sort);
+        var c = sortChain();
         return SORT_FIELDS[sortField(c[0])].label + (c.length > 1 ? " +" + (c.length - 1) : "");
       },
       options: function () {
@@ -6470,7 +6547,7 @@
     pop.innerHTML = "";
     surfaceLevel(pop, f.label, function () { renderDisplayRoot(pop); });
 
-    var chain = parseSort(state.sort);
+    var chain = sortChain();
     function apply(next) {
       setDisplay("sort", serializeSort(next));
       renderSortChain(pop, f); // stay on the list: building a chain is many clicks, not one
@@ -6561,7 +6638,12 @@
     // A narrow reset, and it needs to be narrow: Display's own "Reset to default" puts back
     // every one of the seven display keys, so there was no way to drop an ordering without
     // also dropping the grouping, the layout and the properties you had just set.
-    if (serializeSort(chain) !== DEFAULT_SORT) {
+    // Against what the grouping *proposes*, not against `DEFAULT_SORT` — under a grouping
+    // with a proposal those differ, and comparing to the constant drew a Reset on an
+    // untouched chain whose press would land back on the very same rows. A control that
+    // does nothing is worse than one that is missing. Reset writes the default rather than
+    // the proposal, because the proposal is not a choice and storing it would end it.
+    if (serializeSort(chain) !== proposedSort()) {
       var res = el("button", "row dp-sort-add");
       res.type = "button";
       res.appendChild(icon("trash"));
@@ -6579,7 +6661,7 @@
   // the row being rewritten is the exception, where it stands as the current answer.
   function renderSortPick(pop, f, idx) {
     pop.innerHTML = "";
-    var chain = parseSort(state.sort);
+    var chain = sortChain();
     surfaceLevel(pop, idx == null ? "Add a key" : "Change key", function () {
       renderSortChain(pop, f);
     });
