@@ -31,6 +31,20 @@ async function välj(p, fält, värde) {
   await p.waitForTimeout(150);
 }
 
+// Ordningen är inte ett värde ur en lista längre: den är en kedja, och en nyckel läggs
+// till bakom `Add a key`. Raderna heter dessutom sitt *fält* sedan riktningen blev en egen
+// kontroll, så `Title A–Z` finns inte att klicka på.
+async function läggTillNyckel(p, fält) {
+  await p.locator("#displayBtn").click();
+  await p.waitForSelector(".pop, .sheet");
+  await p.locator(".pop, .sheet").getByText("Ordering", { exact: true }).click();
+  await p.locator(".pop, .sheet").getByText("Add a key", { exact: true }).click();
+  await p.locator(".pop, .sheet").getByText(fält, { exact: true }).click();
+  await p.waitForTimeout(250);
+  await p.keyboard.press("Escape");
+  await p.waitForTimeout(150);
+}
+
 async function gåTill(p, namn) {
   await p.getByRole("button", { name: new RegExp("^" + namn) }).first().click();
   await p.waitForTimeout(250);
@@ -64,8 +78,12 @@ export async function run({ open, origin }) {
     // den enda gång det inte finns något på skärmen som kan rätta en. Samma resonemang
     // som `goToView` redan för om filtret.
     const p = await open("", { token: true });
-    await välj(p, "Ordering", "Title A–Z");
-    eq(url(p), "?sort=title", "sorteringen sitter i All pucks");
+    // Ordningen är en kedja sedan `sortering-ar-en-kedja`, så att välja en nyckel *lägger
+    // till* den sist i stället för att byta läge — standarden `order,updated` står kvar
+    // framför. Det är kedjan som mäts på riktigt i `tests/sort.test.mjs`; här är den bara
+    // ett andra vred, så att gruppen inte är en kopia av den ovanför.
+    await läggTillNyckel(p, "Title");
+    eq(url(p), "?sort=order,updated,title", "sorteringen sitter i All pucks");
     await gåTill(p, "Inbox");
     eq(url(p), "?view=inbox", "Inbox ärver den inte");
     await gåTill(p, "Standalone");
@@ -164,11 +182,54 @@ export async function run({ open, origin }) {
     await p.waitForTimeout(300);
     eq(JSON.parse((await minne(p)) || "{}").ready, undefined, "att gå in i den skriver inget");
 
-    await välj(p, "Ordering", "Title A–Z");
+    await läggTillNyckel(p, "Title");
     eq(JSON.parse((await minne(p)) || "{}").ready, undefined,
       "och att ändra i den skriver inte heller — Update är vägen");
     await gåTill(p, "Ready");
     eq(url(p), "?view=ready", "den inbyggda vyn under är orörd");
+  }
+
+  group("lagrade sorteringsord uppgraderas en gång, inte varje gång");
+  {
+    // Codex, tredje varvet på samma fynd — och det första med en riktig instans. `priority`
+    // och `status` var hela värden i den *släppta* menyn, så en webbläsare som varit här
+    // förut kan ha dem i `roadmap-display`. Sedan ordningen blev en kedja betyder de inte
+    // längre sina gamla kedjor, så tavlan hade tyst bytt tiebreak under en återvändare.
+    //
+    // Kompatibiliteten ligger i migreringen och inte i `parseSort`: en migrering körs en
+    // gång och sedan är grammatiken ren, medan en expansion i parsern är för alltid — och
+    // tar enkelnyckel-kedjans stavning med sig.
+    const p = await open("", { token: true });
+    await p.evaluate(() => {
+      localStorage.clear();
+      localStorage.setItem("roadmap-display", JSON.stringify({ all: { sort: "priority" } }));
+    });
+    await p.goto(origin + "/index.html");
+    await p.waitForSelector(".board");
+    await p.waitForTimeout(250);
+    eq(url(p), "?sort=priority,updated", "det lagrade ordet betyder fortfarande sin gamla kedja");
+    eq(await p.evaluate(() => JSON.parse(localStorage.getItem("roadmap-display"))),
+      { all: { sort: "priority,updated" }, __v: 2 }, "och skrivs tillbaka stämplad");
+
+    // Stämpeln är hela poängen: utan den hade en kedja man *avsiktligt* smalnat av till bara
+    // `priority` skrivits om vid nästa laddning — rundgångsbuggen en våning upp.
+    await p.evaluate(() => {
+      localStorage.setItem("roadmap-display", JSON.stringify({ all: { sort: "priority" }, __v: 2 }));
+    });
+    await p.goto(origin + "/index.html");
+    await p.waitForSelector(".board");
+    await p.waitForTimeout(250);
+    eq(url(p), "?sort=priority", "en redan uppgraderad butik rörs inte");
+
+    // Och den gamla platta nyckeln bär samma två ord.
+    await p.evaluate(() => {
+      localStorage.clear();
+      localStorage.setItem("roadmap-sort", "status");
+    });
+    await p.goto(origin + "/index.html");
+    await p.waitForSelector(".board");
+    await p.waitForTimeout(250);
+    eq(url(p), "?sort=status,order", "roadmap-sort med `status` blir kedjan den betydde");
   }
 
   group("en rads siffra är vad klicket landar i, inte vad brädan står på");
@@ -226,7 +287,7 @@ export async function run({ open, origin }) {
       store: JSON.parse(localStorage.getItem("roadmap-display")),
       gamla: ["group", "view", "done"].map((k) => localStorage.getItem("roadmap-" + k)),
     }));
-    eq(efter.store, { all: { layout: "list", group: "repo" } },
+    eq(efter.store, { all: { layout: "list", group: "repo" }, __v: 2 },
       `bara det som skiljer sig från standard: ${JSON.stringify(efter.store)}`);
     eq(efter.gamla, [null, null, null], "och de gamla nycklarna är borta, så inget kan läsa dem igen");
 

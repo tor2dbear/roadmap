@@ -227,6 +227,34 @@ and decides the shell: an **anchored popover at ≥640px, a bottom sheet below i
 The builder writes a list, a calendar or a form once and never learns which it got.
 Adding a surface means calling it, never hand-rolling a ninth popover.
 
+**A level inside a surface says two things — what it is called and how to leave — and where
+those are drawn is the shell's business.** `surfaceLevel(body, title, onBack)` is the whole
+API: a sheet has a head, so the name becomes its title and the way back becomes a chevron
+beside it; a popover has none, so the same two facts stay a row at the top of the body.
+Reported from a phone with the margins drawn on, and it was two faults in one: the way back
+was a row *inside the body* labelled with the level you were standing in — which reads "you
+are here", not "go back" — and its label could never line up with the rows beneath it,
+because it sits one chevron in. Calling it is what a builder does after clearing the body;
+omitting the title means level one, and the surface's own name comes back.
+
+- **One text column through the whole surface.** Measured at 390px before: the picker's
+  values at 22, the sort chain's field names at 37, the action rows' icons at 22 — three
+  columns in one menu. `.sheet .dp-sort` now bleeds and re-insets exactly like `.sheet .row`
+  (the box may reach the scroller's clip edge; the text belongs on the content line), and
+  `.dp-sort-field` is pulled back by its own padding so the label, not the button, sits on
+  that line.
+- **The sheet is named by its heading, not by a copy of it.** `aria-label` was taken from
+  `opts.title` once, and the heading is not: entering a level rewrote it to `Ordering` while
+  a screen reader went on announcing the surface as `Display`. `aria-labelledby` points at
+  the heading, so the accessible name *is* the visible one and there is no second writer to
+  fall behind — which is how two writers for one fact always end.
+- **The pointer capture follows purpose, not position.** `down()` captures when a drag starts
+  on the sheet's chrome, and deliberately not from the list — because capture retargets the
+  compatibility mouse events, so a tap would resolve its click against the sheet and the
+  row's own handler would never run. The back chevron sits in the *head*: chrome by position,
+  a button by purpose. Captured, it drew a way back that did nothing. Controls in the chrome
+  are excluded now, which is the same rule the list already had.
+
 Two rules the pucks paid for:
 
 - **Search-and-create only where the value set is open** (labels, pucks). `status`
@@ -639,10 +667,12 @@ heading from one walk.
   ("Sep 2026") while the row says "in 5 days". The column is coarser than the row.
 - **Sorting by status is the board's reading order, flattened.** `childItems()` has ordered
   a parent's parts by the status ladder, then manual rank, then title all along — "the order
-  you'd work them" — and `sort=status` is that comparator one level up, so a list groups by
-  anything and still reads each group the way the kanban board reads left to right. Manual
+  you'd work them" — and `sort=status,order` is that comparator one level up, so a list groups
+  by anything and still reads each group the way the kanban board reads left to right. Manual
   rank rather than `updated` as the second key, because `order` is the puck's declared place
-  *within* its column, which is what the board uses there. Inert under the status grouping,
+  *within* its column, which is what the board uses there. It is spelled as two keys since
+  the ordering became a chain; it used to be the one word `status`, and writing it out is the
+  whole migration. Inert under the status grouping,
   and offered there anyway (a menu row that vanishes under you teaches nothing) — where the
   two automations happen to agree, since `groupSays` hides the status property in exactly
   that case. `statusRank()` is the one writer: `DATA.statuses.indexOf` answers -1 for a
@@ -678,6 +708,145 @@ heading from one walk.
   filter was written, and the redeclaration blanked it: no term matched, twelve checks fell,
   and nothing threw. The properties are `PROPS` and the key is `props`, so "field" means one
   thing in the file.
+
+## UI: the ordering is a chain
+
+`sort` is a list of keys — `sort=priority,target,updated` — walked in order until one
+of them answers. **Manual rank is therefore a key among the others rather than a mode that
+excludes them**, which is the whole complaint the puck opened with: `order:` felt clumsy not
+because it is the wrong idea but because it was the default *and the only one*, so choosing
+any real field threw the hand-placed positions away.
+
+Nothing is scrapped. `order:` stays a valid convention in every source repo; it stops being
+the thing you cannot combine with anything. And it fits the `sort` key the URL and saved
+views already carry, because the query language spells alternatives with commas too.
+
+- **A key answers about itself alone and returns 0 for a tie.** That is the one structural
+  change: `byDate` used to close its own ties with `title`, and a key that settles ties
+  privately can never be *first* in a chain — the keys behind it would never be reached.
+  `title` closes every chain instead, whether or not it is in it, since two pucks equal on
+  every chosen key still have to land somewhere stable.
+- **`sort=default` is written out as `order,updated`.** It always *was* "order first, then
+  updated"; saying so is what lets you move `order` down the chain or drop it.
+- **`default` is the only word that expands, and round-tripping is why.** Three old modes
+  were chains written as one word — `priority` was "priority then updated", `status` was
+  "status then order" — but those two words are also *key names*. Expanding them means the
+  chain `priority` can never be written down: the menu removes `updated`, serializes
+  `priority`, and the next read puts it straight back. A control that silently undoes itself
+  is worse than a tiebreak that moved, so those two are read as the keys they name and their
+  old second key becomes `title`. `default` is the only one of the three that is not a key,
+  so it is the only one that can expand without eating a spelling. The cost is real and
+  visible in one place: `sort=status` used to mean the board's reading order flattened, and
+  that is now spelled `sort=status,order` — which is the migration, not a loss.
+- **The one real instance was in `localStorage`, and it is migrated rather than parsed.**
+  `priority` and `status` were whole sort *values* in the released menu, so a returning
+  browser can hold either in `roadmap-display` (or the legacy flat `roadmap-sort`) — written
+  by the shipped UI on this very board. Two review rounds looked for a consumer in links and
+  saved views and found none; the third found this one. `upgradeStoredSort` rewrites the two
+  words to the chains they meant, **once**, stamped with `__v`. The compatibility belongs
+  there and not in `parseSort`: a migration runs once and then the grammar is clean, whereas
+  an expansion in the parser is forever and takes the one-key chain's spelling with it. The
+  stamp is not bookkeeping — without it, deliberately narrowing the chain to just `priority`
+  in the new menu would be rewritten back on the next load, which is the round-trip bug one
+  storey up.
+- **Placing that compatibility took three review rounds, and the placing is the lesson.**
+  Codex read the re-pointing as a breaking change (PR #52, P1) and proposed keeping all three
+  expansions plus an unambiguous spelling for the one-key chain — `priority,title`, since
+  `title` closes every chain anyway. That was built, it worked, and it was reverted on the
+  premise that the compatibility had no instance. **The premise was wrong.** Round two showed
+  a doc did name the meaning (`vyn-valjer-sina-egenskaper`, corrected there); round three
+  found the actual consumer, in the place nobody had looked — `roadmap-display` in the
+  browser, written by the *released* menu, where `priority` and `status` were whole values.
+  Neither a link nor a saved view, which is exactly why two rounds of searching the repo drew
+  the wrong conclusion. So the compatibility exists, in `upgradeStoredSort` rather than in
+  `parseSort`: a migration runs once and then the grammar is clean, while an expansion in the
+  parser is forever and takes the one-key chain's spelling with it. **Before claiming nothing
+  reads a value, searching the repo is not enough — ask what the running app writes.**
+- **`autoDateField` takes the first date key in the chain**, not the first key. Which date a
+  key is about is the field's own business (`SORT_FIELDS[…].date`), not a second table keyed
+  by spelling — that table had a row per key *and direction*. Reading only
+  `[0]` answers "updated" for the common `order,created-desc` — which is exactly the
+  shuffled-looking column that rule exists to prevent.
+- **An unknown key is dropped, and an empty chain is the default.** Same as `parseProps`, and
+  `sort` is canonicalized in `effectiveParams` beside it, so a saved view carrying the old
+  `default` compares against the board actually drawn instead of reading as *(edited)*.
+- **Direction is a property of the key, not part of its name.** The catalogue was nine
+  entries: three date fields × two directions as separate keys (`Recently updated`, `Oldest
+  updated`), and the direction baked into the label of the other four (`Priority (high→low)`,
+  `Title A–Z`). So one question had two catalogue rows, and `Priority low→high`, `Title Z–A`,
+  `Status done→now`, `Target latest→soonest` could not be asked at all. `SORT_FIELDS` is
+  seven fields, each with a default direction and both labels; `sortCmp` puts a sign on the
+  answer. **The labels are the values** (`high → low`, `newest → oldest`), not
+  "ascending"/"descending" — that text was already in the old key names, and moving it from
+  the name to a control is the whole change.
+- **A key is `field`, or `field-asc`/`field-desc` when the direction is not the field's
+  default.** The shortest spelling is the ordinary one, so `order`, `status`, `priority`,
+  `target` and `title` are unchanged and `updated-desc`/`created-desc` shorten to
+  `updated`/`created` — the same key by another name, since both parse to the same chain.
+  `DEFAULT_SORT` is therefore spelled `order,updated`. And **one key per field**:
+  `updated,updated-asc` is two answers to one question, and the second could never be reached.
+- **`manualRank()` is a question about rank, not mode**: `order` *first* means the list is in
+  the order you put it in, and dragging moves you within it. Further down the chain `order`
+  still breaks ties, but the list is not manually ordered any more and a drop would land where
+  the fields decide rather than where you let go. Cross-column dragging writes `status`, not
+  rank, and is untouched. It also means `order` **forward**: reversed the list still reads by
+  rank, but a drop would write a rank meaning the opposite of where the finger let go — and
+  the canonical spelling makes that free, since a reversed key is `order-desc` and simply is
+  not the string being compared.
+- **The menu is one list, which is why it needs no sentence.** It was two — the chain, then
+  the whole catalogue beneath it — distinguished only by a small ordinal and icons at the far
+  edge. Nine near-identical rows on a phone, so the surface carried a note explaining which
+  were which. **A note that says what the structure should have said is a diagnosis, not
+  copy.** The catalogue moved behind `＋ Add a key`, one list was left, and the note had
+  nothing to do. The ordinals went with it: with one list the position *is* readable from the
+  stack, and a number was a second way of saying it.
+- **A row, not a card, because the row survives both presentations.** Notion (the reference
+  for this) gives the phone a three-row card per key and the desktop a single row; that split
+  is available to us only by breaking `openSurface`'s promise that the builder never learns
+  which shell it got. The row — `[↑] Field  direction  ✕` — is the shape that reads in an
+  anchored popover *and* a bottom sheet. For the same reason reordering stays `↑` in both:
+  drag would work in the popover, which is not draggable, and one mechanism that is
+  second-best on the desktop costs less than the first crack in that rule.
+- **A renderer anything can jump back into owns its surface**, and this one shipped broken
+  twice for want of that rule. `renderSortChain` did not clear `pop`; it trusted
+  `renderDisplayValues` to have done so. The first failure was `apply()` calling it directly —
+  three clicks, seven rows — patched by routing `apply()` through the clearing caller, which
+  held only while the function had *one* caller. Level 3 gave it three more (the picker's back
+  row and its two ways of choosing a field), and the bug returned in the shape reported from a
+  phone: `‹ Add a key` drew the chain *below* the picker, again per press, and `Add a key`
+  then matched two elements so the control stopped answering at all. It clears and draws its
+  own way back now, and `renderDisplayValues` delegates to it *before* clearing anything. A
+  convention that has to be remembered at every call site is not a convention.
+- **The field is swappable in place**, which is what makes `↑` a rarity rather than the main
+  path. Before it, changing the *first* key meant removing it — leaving a chain one shorter —
+  and adding it back, where it landed last. A swapped-in field takes its own default
+  direction: `newest → oldest` is not a thing `priority` can be. Re-picking the field already
+  there is a no-op on purpose, or a tap that looked like nothing would reset a direction you
+  had flipped.
+- **Direction is a toggle, not a picker.** Two options, so a chevron would promise a list with
+  two rows in it and cost a second tap for the same answer.
+- **`Manual` has no direction at all, and that is not about symmetry.** Reversing it would
+  silently switch *dragging* off, since `manualRank()` asks for the exact key `order` at the
+  head of the chain — a control whose only visible effect is to disable a different control.
+  So `order` carries no direction labels, `reversible()` reads that as "cannot be turned", and
+  the suffix is **ignored** rather than merely unused: `order-desc` parses back to `order`, so
+  a hand-written link cannot ask for a board the menu has no control for. The ragged row it
+  leaves is the honest shape — there is no question to answer there, and a disabled control or
+  a dead label would both claim otherwise.
+- **`arrow-up`, because a chevron is a direction and an arrow is a move.** The icon set had all
+  four chevrons and no arrow at all, so "move this key up" was drawn with the glyph that
+  everywhere else means "there is more above" — a fold, a caret, a menu. Same 15 grid, same
+  1px stroke: the chevron's own head on a shaft that runs the full height.
+- **`Reset ordering` is narrow on purpose.** Display's own "Reset to default" restores all
+  seven display keys, so there was no way to drop an ordering without also dropping the
+  grouping, the layout and the properties you had just set. It is drawn only when the chain
+  is not already the default.
+- **Choosing a key appends it.** Adding a tiebreak is one tap — the thing that was impossible
+  before — and narrowing to a single key costs a `✕` per key you drop. The last key keeps no
+  `✕` at all, since `parseSort` answers with the default for an empty value and a menu must
+  never show a chain the board is not drawing. The first row keeps no `↑`, and gets a spacer
+  with **its own class**: sharing `.dp-sort-act` put a `<span>` into every set that asks a row
+  what controls it has.
 
 ## UI: the display belongs to the view it was set in
 

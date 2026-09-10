@@ -77,7 +77,12 @@ export async function run({ open }) {
       sätt("a-now", 30); sätt("a-now-2", 10); sätt("a-next", 20); sätt("a-parent", 40);
       return d;
     };
-    const p = await open("?layout=list&group=repo&done=1&sort=status", { data: ordnad });
+    // `sort=status,order` och inte `sort=status`: sedan `sortering-ar-en-kedja` är ordningen
+    // en kedja, och det gamla läget `status` *var* den här kedjan skriven som ett ord.
+    // Migreringen är att skriva ut den — regeln står kvar, den syns bara nu. (`status` ensam
+    // är ett giltigt val och betyder status → titel; att det inte expanderar är vad som gör
+    // kedjan `status` skrivbar alls, se `LEGACY_SORT`.)
+    const p = await open("?layout=list&group=repo&done=1&sort=status,order", { data: ordnad });
     const rader = await p.evaluate(() => {
       const data = window.__ROADMAP__.items;
       return [...document.querySelectorAll(".list-group")[0].querySelectorAll(".list-row")].map((r) => {
@@ -192,7 +197,9 @@ export async function run({ open }) {
       kort: document.querySelectorAll(".card").length,
       kvar: document.querySelectorAll(".col-archived").length,
       url: location.search,
-      lagrat: localStorage.getItem("roadmap-display"),
+      // Tolkat och inte som sträng: butiken bär också migreringsstämpeln `__v`, och en
+      // strängjämförelse hade gjort kontrollen känslig för nyckelordningen i JSON.
+      lagrat: JSON.parse(localStorage.getItem("roadmap-display") || "null"),
     }));
     eq(before, 7, "sju kort med arkivet av");
     eq(after.kort, 11, "elva efter ett klick");
@@ -204,7 +211,7 @@ export async function run({ open }) {
     // is the line between the two rules — a link you only look at writes nothing, a knob
     // you turn adopts the board you turned it on. Storing just the key that moved would
     // store a board that never existed, since the settings decide each other.
-    eq(after.lagrat, '{"all":{"group":"repo","done":"1"}}',
+    eq(after.lagrat, { __v: 2, all: { group: "repo", done: "1" } },
       "och skrivs som hela brädan, in i den vy man står i");
   }
 
