@@ -646,6 +646,16 @@ no new branch in the query language, the tray or the chip row.
   filtered `Object.keys(GROUPS)`, so the palette needed no branch of its own. It sits
   **first** in that table for the same reason it is special: it is not a field among the
   fields.
+- **Making `groupOffered` read `state.view` made the layout segment repaint the whole level.**
+  It used to repaint only the wholesale toggles, which was right while the layout governed
+  nothing else in that menu. The staleness is not where a reviewer looked for it: level 2
+  calls `f.options()` on entry, so the *submenu* reads the layout you are standing in — but
+  level 1's rows are drawn once and their value is `displayLabel(f)`. Measured: standing in
+  the list under `group=none` and pressing Board left the row reading `Grouping · None` over
+  a board drawing Now / Next / Later, which is the ordering menu's missing-`✕` failure one
+  key over. Rebuilding costs the pressed segment its focus, so it is put back — found by
+  `aria-pressed`, since `segmented()` sets no `data-value` and the first attempt reached for
+  one that was not there.
 - **`LIST_ONLY = { parent: 1, none: 1 }`** — the groupings that require the list, as a
   table rather than a second `=== "parent"` test. `parent` is a hierarchy and cannot be
   columns; `none` is the absence of columns, which is the same statement from the other

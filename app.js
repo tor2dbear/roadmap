@@ -6540,7 +6540,29 @@
       state.view,
       function (v) {
         setDisplay("view", v);
-        paintWholesale(); // the empty-columns row is board-only
+        // The **whole** level, not just the wholesale block. That targeted repaint was
+        // right while the layout only governed the empty-columns row; it stopped being
+        // right when `groupOffered` started reading `state.view`, and the staleness landed
+        // one storey above where a reviewer looked for it. The submenu is fine — level 2
+        // calls `f.options()` on entry, so it reads the layout you are standing in — but
+        // *this* level's rows are drawn once, and their value is `displayLabel(f)`.
+        // Measured: standing in the list under `group=none` and pressing Board left the
+        // row reading `Grouping · None` over a board drawing Now / Next / Later. A menu
+        // claiming a grouping the board is not drawing is the same failure the ordering
+        // menu's missing `✕` exists to prevent, one key over.
+        //
+        // Rebuilding costs the pressed segment its focus, so it is put back — the button
+        // is gone by then, and the new one for the same value takes its place.
+        var wasSeg = document.activeElement && document.activeElement.closest
+          && document.activeElement.closest(".dp-seg");
+        renderDisplayRoot(pop);
+        if (wasSeg) {
+          // By `aria-pressed`, which is what `segmented()` actually emits — the first
+          // attempt reached for a `data-value` the helper does not set, so the branch
+          // matched nothing and quietly did not restore anything.
+          var again = pop.querySelector('.dp-seg [aria-pressed="true"]');
+          if (again && again.focus) again.focus();
+        }
       });
     seg.classList.add("dp-seg");
     [].forEach.call(seg.children, function (c) { c.classList.add("dp-segbtn"); });

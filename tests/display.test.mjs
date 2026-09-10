@@ -357,6 +357,41 @@ export async function run({ open, origin }) {
     eq(await prick(p), false, "och pricken slocknar med den");
   }
 
+  group("ett layoutbyte i en öppen meny gör om nivån, inte bara växlarna");
+  {
+    // Codex P2. `groupOffered` läser `state.view` sedan None togs bort från brädet, och
+    // layout-återanropet ritade bara om helhetsväxlarna. Undermenyn klarar sig — nivå 2
+    // kallar `f.options()` när man går *in* i den — men den här nivåns rader ritas en gång,
+    // och deras värde är `displayLabel(f)`. Mätt: stod man i listan under `group=none` och
+    // tryckte Board sa raden `Grouping · None` över en bräda som ritade Now / Next / Later.
+    // En meny som påstår en gruppering brädan inte ritar är samma fel som den saknade `✕`
+    // i sorteringsmenyn finns för att förhindra, en nyckel bort.
+    const p = await open("?layout=list&group=none", { token: true });
+    await p.locator("#displayBtn").click();
+    await p.waitForSelector(".pop, .sheet");
+    const rad = () => p.evaluate(() => {
+      const r = [...document.querySelectorAll(".dp-row")].find((e) => /Grouping/.test(e.textContent));
+      return r ? r.textContent.replace(/\s+/g, " ").trim() : null;
+    });
+    eq(await rad(), "GroupingNone", "i listan säger raden None");
+
+    await p.locator(".pop, .sheet").getByText("Board", { exact: true }).click();
+    await p.waitForTimeout(350);
+    eq(await rad(), "GroupingStatus", "efter Board säger den vad brädan ritar");
+    eq(await p.evaluate(() =>
+      [...document.querySelectorAll(".board > .column:not(.hidden-cols) .col-head h2")]
+        .map((e) => e.textContent.trim())), ["Now", "Next", "Later"],
+      "och brädan ritar det");
+
+    // Ombyggnaden kostar den tryckta knappen sin fokus, så den läggs tillbaka — på den
+    // knapp `segmented()` faktiskt märker, inte på ett `data-value` hjälparen inte sätter.
+    eq(await p.evaluate(() => {
+      const a = document.activeElement;
+      return { text: a && a.textContent.trim(), iSegmentet: !!(a && a.closest && a.closest(".dp-seg")) };
+    }), { text: "Board", iSegmentet: true }, "och fokus står kvar på segmentet man tryckte");
+    await p.keyboard.press("Escape");
+  }
+
   group("växeln definierar ordet märkena använder");
   {
     // Det finns ingen `archived`-status — `TERMINAL` är `done` eller `cancelled` — så
