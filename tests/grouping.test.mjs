@@ -117,6 +117,66 @@ export async function run({ open }) {
       "uttryckligt `status,order` ritar samma lista som förslaget");
   }
 
+  group("en fallning under en huvudlos gruppering betyder ingenting");
+  {
+    // Codex P2. `effectiveParams` slapper igenom `collapsed` for varje listlayout, och den
+    // har grenen laser aldrig `state.collapsed` — sa en handskriven lank kunde bara pasta
+    // att grupper var fallda medan alla rader stod oppna, utan kontroll att angra det med.
+    // NUL ar nyckeln till "ingen"-hinken (`NO_VALUE`), alltsa den enda som ens kunde
+    // matcha den har grupperingens enda grupp.
+    const p = await open("?layout=list&group=none&collapsed=" + encodeURIComponent("\u0000"));
+    eq(url(p), "?group=none&layout=list", "collapsed foljer inte med i lanken");
+    eq((await titlar(p)).length, 7, "och ingenting ar fallt");
+
+    // Regressionsvakt: fallningar under en gruppering som *har* rubriker ar ororda.
+    const g = await open("?layout=list&group=status&collapsed=now");
+    eq(url(g), "?layout=list&collapsed=now", "en riktig fallning star kvar i lanken");
+    eq(await g.locator(".list-group.shut").count(), 1, "gruppen ar falld");
+    eq(await g.locator(".list-group.shut .list-row").count(), 0, "och tom");
+  }
+
+  group("ett val som rakar vara forvalet ar anda ett val");
+  {
+    // Codex P2, och det var forslaget som svalde det: franvaron av ett val stavades
+    // `DEFAULT_SORT`, sa `order,updated` gick inte att be om under den har grupperingen —
+    // menyn skrev kedjan, kedjan lastes som "inget valt", och forslaget kom tillbaka.
+    // Frånvaron ar `null` nu, precis som `props` redan gor det.
+    const p = await open("?layout=list&group=none");
+    const kedjan = () => p.evaluate(() =>
+      [...document.querySelectorAll(".dp-sort-field")].map((e) => e.textContent.trim()));
+    await p.locator("#displayBtn").click();
+    await p.waitForSelector(".pop, .sheet");
+    await p.locator(".pop, .sheet").getByText("Ordering", { exact: true }).click();
+    eq(await kedjan(), ["Status", "Manual"], "forslaget ritas nar inget ar valt");
+
+    await p.locator(".dp-sort").first().locator("button.dp-sort-act").last().click();
+    await p.waitForTimeout(150);
+    eq(await kedjan(), ["Manual"], "kryss pa Status lamnar Manual");
+    await p.locator(".pop, .sheet").getByText("Add a key", { exact: true }).click();
+    await p.locator(".pop, .sheet").getByText("Updated", { exact: true }).click();
+    await p.waitForTimeout(200);
+    eq(await kedjan(), ["Manual", "Updated"], "och Updated stannar kvar i kedjan");
+    eq(url(p), "?group=none&layout=list&sort=order,updated", "valet star i lanken");
+
+    // Lanken ar darmed reproducerbar — den ritar det den sager.
+    const l = await open("?layout=list&group=none&sort=order,updated");
+    eq(await statusar(l), ["Now", "Later", "Next", "Now", "Now", "Later", "Next"],
+      "rank forst, inte statusstegen");
+    eq(url(l), "?group=none&layout=list&sort=order,updated", "och lanken behaller sitt sort");
+
+    // `Reset ordering` aterstaller till *inget val*, inte till forvalskedjan — att lagra
+    // forslaget ar precis vad som skulle avsluta det.
+    await l.locator("#displayBtn").click();
+    await l.waitForSelector(".pop, .sheet");
+    await l.locator(".pop, .sheet").getByText("Ordering", { exact: true }).click();
+    await l.locator(".pop, .sheet").getByText("Reset ordering", { exact: true }).click();
+    await l.waitForTimeout(200);
+    eq(url(l), "?group=none&layout=list", "sort forsvinner ur lanken");
+    eq(await l.evaluate(() =>
+      [...document.querySelectorAll(".dp-sort-field")].map((e) => e.textContent.trim())),
+      ["Status", "Manual"], "och forslaget ar tillbaka");
+  }
+
   group("menyn visar kedjan som ritas, inte den som lagras");
   {
     // En meny som visar en kedja tavlan inte ritar är exakt det fel den saknade `✕` på

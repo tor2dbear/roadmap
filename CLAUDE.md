@@ -632,17 +632,40 @@ no new branch in the query language, the tray or the chip row.
   number that never meant anything across that boundary. `GROUPS.none.sort` is
   `status,order` — the board's own reading order flattened — and `sortChain()` applies it
   **in the absence of a choice, never over one**, which is `autoDateField`'s rule one storey
-  up. The absence is `state.sort === DEFAULT_SORT`, the same test `effectiveParams` and
-  `rememberDisplay` already use to decide whether a sort is worth writing down; the
-  proposal therefore rides in the link as `group=none` alone, since it follows from the
-  grouping rather than from anything stored.
+  up. The proposal therefore rides in the link as `group=none` alone, since it follows from
+  the grouping rather than from anything stored.
+- **The absence is `null`, not `DEFAULT_SORT`** — and getting that wrong is what a reviewer
+  caught. `props` two keys up has drawn this distinction since it was written (`null` = no
+  choice, an empty Set = the empty choice); `sort` spelled its absence as the default chain,
+  which meant that under a grouping with a proposal the chain `order,updated` **could not be
+  asked for at all**. Measured in the menu: building `[Manual]` and adding `Updated` handed
+  back `[Status, Manual]` and dropped `sort` from the URL, and `?group=none&sort=order,updated`
+  drew `status,order` — a control that silently undoes itself, and a link that does not say
+  what it draws. A default that is also a legal choice cannot double as the absence of one.
+- **What is written down is what the board would not have drawn by itself**, and that too is
+  measured against the *grouping's* proposal rather than the constant. `effectiveParams`
+  drops `sort` when it equals `proposedSort(o.group)` — the foreign object's grouping, not
+  the one you happen to be standing in — and `viewParamObject` emits on the same test, so a
+  saved view and the live board still agree about which strings are absent. Against the
+  constant instead, three checks in `sort.test.mjs` fell: `?sort=default` and a
+  flipped-and-unflipped direction both left the default chain sitting in the URL.
 - **One function, not a branch per consumer, because the menu reads it too.** A menu showing
   a chain the board is not drawing is the failure the last key's missing `✕` exists to
   prevent, and a proposal the chooser could not see would be that same failure one storey
-  up. `Reset ordering` therefore compares against `proposedSort()`: against the constant it
-  drew a reset on an untouched chain whose press lands back on the very same rows, and a
-  control that does nothing is worse than one that is missing. Reset still writes
-  `DEFAULT_SORT` — the proposal is not a choice, and storing it would end it.
+  up. `Reset ordering` asks the same question — is the drawn chain the proposal? — and resets
+  to *no choice* rather than to a chain, since storing the proposal is exactly what would end
+  it. Neither `!== DEFAULT_SORT` (a reset offered on an untouched board) nor `state.sort != null`
+  (one offered for a chain deliberately re-picked to equal the proposal) says it.
+- **A fold under a headless grouping is a preference about nothing**, and the link could
+  still carry one: `effectiveParams` passes `collapsed` through for any list layout, and this
+  branch never reads `state.collapsed`. Measured,
+  `?layout=list&group=none&collapsed=<NO_VALUE>` kept the key in the URL and lit the Display
+  dot while all seven rows stood open — a fold nobody can see, undo, or have made.
+  `headlessGroup()` is asked in two domains: `effectiveParams` drops the key from a foreign
+  params object, and `applyParams` clears `state.collapsed` outright. The second is the gap
+  this file already named — *"`setDisplay` already cleared the folds when the grouping
+  changed; navigation had no equivalent"* — closed where it is worst, since a headless
+  grouping has no control to undo the fold with.
 
 ## UI: the view chooses its properties
 
@@ -886,6 +909,10 @@ views already carry, because the query language spells alternatives with commas 
 - **The chain the board draws is `sortChain()`, and every consumer asks it** — the
   comparator, `autoDateField`, `manualRank` and the menu alike. A grouping may propose an
   ordering, and the proposal yields to any choice.
+- **`state.sort` is `null` when nothing has been chosen**, the same distinction `props`
+  draws. `DEFAULT_SORT` is a chain like any other and therefore a value someone can pick;
+  using it as the absence made it unpickable wherever a grouping proposes something else.
+  See *the grouping with no values* for the measurement.
 - **Choosing a key appends it.** Adding a tiebreak is one tap — the thing that was impossible
   before — and narrowing to a single key costs a `✕` per key you drop. The last key keeps no
   `✕` at all, since `parseSort` answers with the default for an empty value and a menu must

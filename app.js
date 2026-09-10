@@ -119,9 +119,16 @@
     showDone: false,
     focus: "all", // "all" | "ready" (unblocked now/next) | "inbox" (triage) | "attention" (flagged)
     view: "board", // "board" (kanban columns) | "list" (one column, grouped)
-    // The ordering, as a chain of keys — see SORT_FIELDS. Always canonical: `applyParams`
+    // The ordering, as a chain of keys — see SORT_FIELDS. Canonical when set: `applyParams`
     // runs every value through `parseSort`, so a legacy one-word mode never reaches here.
-    sort: "order,updated-desc",
+    // `null` means *no choice made*, which is the same distinction `props` draws two keys
+    // down, and for the same reason: a grouping may propose an ordering (`sortChain`), and
+    // an automation that applies in the absence of a choice needs an absence to read. It
+    // was spelled `DEFAULT_SORT` before, which conflated the two — so under a grouping with
+    // a proposal the chain `order,updated` could not be asked for at all. Measured on
+    // `group=none`: building `[Manual]` and adding `Updated` gave back `[Status, Manual]`
+    // and dropped `sort` from the URL, and `?sort=order,updated` drew `status,order`.
+    sort: null,
     group: "status", // which field becomes the columns — see GROUPS
     showEmpty: true, // board only: keep a column that has no pucks (it's a drop target)
     // List-only: which groups are folded shut. A folded group is a *display*
@@ -842,12 +849,16 @@
     // `parseSort`, so a stored `sort: "default"` — the spelling every saved view and every
     // shared link used before the chain — drew `order,updated-desc` and compared `default`,
     // and read as *(edited)* the moment it opened. One normaliser, both sides of the
-    // comparison. Dropped when it is the default, since `viewParamObject` only emits a
-    // non-default and the two have to agree about which strings those are.
-    if (o.sort) {
-      o.sort = serializeSort(parseSort(o.sort));
-      if (o.sort === DEFAULT_SORT) delete o.sort;
-    }
+    // comparison.
+    //
+    // Dropped when it is what the board would draw anyway — which is the grouping's own
+    // proposal and not the constant. That is the whole correction: measured against
+    // `DEFAULT_SORT`, `order,updated` was deleted under `group=none` too, where it is a
+    // different board from the proposal, so the chain could not be asked for at all. The
+    // drop itself stays, since `viewParamObject` still emits only what the board would not
+    // have drawn by itself and the two sides have to agree about which strings those are.
+    // Below the group lines, because it is the *settled* grouping that proposes.
+    if (o.sort) o.sort = serializeSort(parseSort(o.sort));
     var focus = o.view || "all";
     var layout = o.layout || DISPLAY_DEFAULTS.view;
     var cols = columnsForFocus(focus, o.done === "1");
@@ -864,6 +875,13 @@
     if (o.done && !ARCHIVABLE[focus]) delete o.done;
     if (o.empty && layout !== "board") delete o.empty;
     if (o.collapsed && layout !== "list") delete o.collapsed;
+    // …and a grouping with no heading has no fold control either. `collapsed` is keyed by
+    // the grouping's own values, so under a headless one it names buckets that are never
+    // drawn: measured, `?layout=list&group=none&collapsed=<NO_VALUE>` kept the key in the
+    // URL and lit the Display dot while all seven rows stood open — a parameter claiming a
+    // fold nobody can see, undo, or have made. Same sentence as the line above it.
+    if (o.collapsed && headlessGroup(o.group)) delete o.collapsed;
+    if (o.sort === proposedSort(o.group || DISPLAY_DEFAULTS.group)) delete o.sort;
     return o;
   }
   function viewParamObject() {
@@ -875,7 +893,10 @@
     // reproducible, and the fallback is derived from wherever it lands.
     if (state.group !== DISPLAY_DEFAULTS.group) o.group = state.group;
     if (state.view !== DISPLAY_DEFAULTS.view) o.layout = state.view;
-    if (state.sort !== DISPLAY_DEFAULTS.sort) o.sort = state.sort;
+    // Not `!== DISPLAY_DEFAULTS.sort`: a chain equal to what this grouping proposes is a
+    // choice the board would have made for you, and writing it down would freeze it — the
+    // proposal is meant to follow the grouping, not to be captured by the first link.
+    if (state.sort != null && state.sort !== proposedSort()) o.sort = state.sort;
     if (state.showDone) o.done = "1";
     if (!state.showEmpty) o.empty = "0";
     // Sorted, not in click order: the same set of folded groups has to serialize to
@@ -1180,6 +1201,10 @@
     // nothing to say about keys it does not carry.
     if (got.props != null) state.props = parseProps(got.props);
     if (GROUPS[got.group]) state.group = got.group;
+    // `setDisplay` clears the folds when the grouping changes, for the reason written
+    // there; a link arriving with both had no equivalent. A headless grouping is the case
+    // where it matters most, because there is no control to undo the fold with.
+    if (headlessGroup(state.group)) state.collapsed.clear();
     if (got.layout === "list" || got.layout === "board") state.view = got.layout;
     // Through the parser, so `state.sort` is always a canonical chain — a legacy one-word
     // mode expands here and never has to be recognised again downstream.
@@ -4426,6 +4451,10 @@
     return groupUsable("status") ? "status" : "repo";
   }
   function activeGroup() { return GROUPS[effectiveGroup()] || GROUPS.status; }
+  // A grouping that draws no heading draws no fold control, so a fold under it is a
+  // preference about nothing. Asked by `effectiveParams` about a foreign params object and
+  // by `applyParams` about the live state — two domains, one question.
+  function headlessGroup(k) { return !!(GROUPS[k] && GROUPS[k].headless); }
   // Whether a hand-placed position is what the eye is reading — which, now that the
   // ordering is a chain, is a question about *rank* and not about mode: `order` first means
   // the list is in the order you put it in, and dragging moves you within it. Further down
@@ -5601,21 +5630,25 @@
   function serializeSort(keys) { return keys.join(","); }
   // The chain the board is actually drawing — the chosen one, except where the grouping
   // proposes its own and nothing has been chosen. Same rule as `autoDateField` one storey
-  // down: **automation applies in the absence of a choice, never over one.** The absence
-  // is `state.sort === DEFAULT_SORT`, the same test `effectiveParams` and
-  // `rememberDisplay` already use to decide whether a sort is worth writing down.
+  // down: **automation applies in the absence of a choice, never over one.** The absence is
+  // `state.sort == null`, its own value rather than a string that could also be chosen —
+  // `props` draws the same distinction, and skipping it here made `order,updated` unaskable
+  // under any grouping with a proposal.
   //
   // One function rather than a branch per consumer, because the *menu* reads it too: a
   // menu showing a chain the board is not drawing is the failure the last key's missing
   // `✕` exists to prevent, and a proposal the chooser could not see would be that same
   // failure one storey up. Turn any knob on it and the proposal becomes a choice — the
   // same bargain `rememberDisplay` strikes with a link you only looked at.
-  function proposedSort() {
-    var g = GROUPS[effectiveGroup()];
+  // `k` är valfritt: `effectiveParams` normaliserar ett *främmande* params-objekt — en
+  // sparad vy vars gruppering inte är brädans — och måste fråga om den grupperingen, inte
+  // om den man råkar stå i. Utan argumentet är det den man står i.
+  function proposedSort(k) {
+    var g = GROUPS[k || effectiveGroup()];
     return (g && g.sort) || DEFAULT_SORT;
   }
   function sortChain() {
-    return parseSort(state.sort === DEFAULT_SORT ? proposedSort() : state.sort);
+    return parseSort(state.sort == null ? proposedSort() : state.sort);
   }
   function sortComparator() {
     var chain = sortChain().map(sortCmp);
@@ -6280,7 +6313,7 @@
   // answers *which* pucks — the two never overlap. Filter shows what it's doing
   // with chips/a count; Display shows a dot when anything differs from default,
   // because "showing more" must never read as "you have narrowed something".
-  var DISPLAY_DEFAULTS = { view: "board", sort: DEFAULT_SORT, group: "status", showDone: false, showEmpty: true };
+  var DISPLAY_DEFAULTS = { view: "board", sort: null, group: "status", showDone: false, showEmpty: true };
   var displayBtn = document.getElementById("displayBtn");
   var displayDot = document.getElementById("displayDot");
   function displayDirty() {
@@ -6638,17 +6671,21 @@
     // A narrow reset, and it needs to be narrow: Display's own "Reset to default" puts back
     // every one of the seven display keys, so there was no way to drop an ordering without
     // also dropping the grouping, the layout and the properties you had just set.
-    // Against what the grouping *proposes*, not against `DEFAULT_SORT` — under a grouping
-    // with a proposal those differ, and comparing to the constant drew a Reset on an
-    // untouched chain whose press would land back on the very same rows. A control that
-    // does nothing is worse than one that is missing. Reset writes the default rather than
-    // the proposal, because the proposal is not a choice and storing it would end it.
+    // Drawn when the chain differs from what the board would draw with no choice at all —
+    // the grouping's proposal, not `DEFAULT_SORT`. Against the constant it offered a Reset
+    // on an untouched board whose press landed back on the very same rows; against
+    // `state.sort != null` it offers one for a chain deliberately re-picked to equal the
+    // proposal, which is the same empty promise one step further in. It resets to *no
+    // choice* rather than to a chain, because storing the proposal is what would end it.
     if (serializeSort(chain) !== proposedSort()) {
       var res = el("button", "row dp-sort-add");
       res.type = "button";
       res.appendChild(icon("trash"));
       res.appendChild(el("span", null, "Reset ordering"));
-      res.addEventListener("click", function () { apply(parseSort(DEFAULT_SORT)); });
+      res.addEventListener("click", function () {
+        setDisplay("sort", null);
+        renderSortChain(pop, f);
+      });
       pop.appendChild(res);
     }
   }

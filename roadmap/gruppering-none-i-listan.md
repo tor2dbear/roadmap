@@ -75,7 +75,34 @@ att falla tillbaka i tavlan.
 - **`Reset ordering` jämför mot förslaget**, inte mot `DEFAULT_SORT`. Mot konstanten
   ritades en återställning på en orörd kedja vars tryck landat på samma rader — en
   kontroll som inte gör något är värre än en som saknas.
-- **`tests/grouping.test.mjs`** — 19 kontroller. Varje fix backades ur och rätt kontroll
+- **Frånvaron av ett sorteringsval är `null`**, inte `DEFAULT_SORT` — samma distinktion
+  `props` redan gör. Det var granskningsfyndet: en förvalskedja som också är ett giltigt
+  val kan inte dubbla som frånvaron av ett, så under den här grupperingen gick
+  `order,updated` inte att be om alls. Vad som *skrivs ner* mäts på samma sätt mot
+  grupperingens förslag i stället för mot konstanten, så en sparad vy och den levande
+  brädan är fortsatt överens om vilka strängar som är frånvarande.
+- **En fällning under en huvudlös gruppering betyder ingenting**, och länken kunde ändå bära
+  en. `headlessGroup()` frågas i två domäner: `effectiveParams` stryker nyckeln ur ett
+  främmande params-objekt, `applyParams` tömmer `state.collapsed`. Det senare stänger den
+  lucka filen redan namngav — *"`setDisplay` rensade redan fällningarna när grupperingen
+  ändrades; navigeringen hade ingen motsvarighet"*.
+- **`tests/grouping.test.mjs`** — 32 kontroller. Varje fix backades ur och rätt kontroll
   föll: huvudet återkom med namn och fällkontroll, märket sa "column" igen, brädet ritade
-  `All pucks` som enda kolumn, ordningen blev `Now Later Next Now …`, och återställningen
-  dök upp på en orörd kedja.
+  `All pucks` som enda kolumn, ordningen blev `Now Later Next Now …`, återställningen dök
+  upp på en orörd kedja, `collapsed=%00` blev kvar i länken, och `order,updated` föll
+  tillbaka till `[Status, Manual]`.
+
+## Granskningsfynd
+
+Två P2 från Codex, bägge reproducerade i webbläsaren före fix och saboterade efter.
+
+1. **`collapsed` under en huvudlös gruppering.** `?layout=list&group=none&collapsed=<NUL>`
+   behöll nyckeln i URL:en och tände Display-pricken medan alla sju rader stod öppna.
+2. **Ett val som råkar vara förvalet.** `state.sort === DEFAULT_SORT` var både "förvalet"
+   och "inget valt", så `order,updated` gick inte att be om under grupperingen: menyn skrev
+   kedjan, kedjan lästes som frånvaro, förslaget kom tillbaka. Fixen är `props`-mönstret
+   (`null` = inget val) — men **första försöket gick för långt**: att sluta stryka
+   `DEFAULT_SORT` ur URL:en helt fällde tre kontroller i `sort.test.mjs` (`?sort=default`
+   och en riktning vänd fram och tillbaka lämnade bägge förvalskedjan i länken). Regeln var
+   rätt hela tiden — skriv inte ner det brädan ritar ändå — men mätt mot fel förval. Den
+   mäter mot `proposedSort()` nu.
