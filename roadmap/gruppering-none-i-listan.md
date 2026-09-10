@@ -86,7 +86,7 @@ att falla tillbaka i tavlan.
   främmande params-objekt, `applyParams` tömmer `state.collapsed`. Det senare stänger den
   lucka filen redan namngav — *"`setDisplay` rensade redan fällningarna när grupperingen
   ändrades; navigeringen hade ingen motsvarighet"*.
-- **`tests/grouping.test.mjs`** — 35 kontroller (plus 3 i `sort.test.mjs`). Varje fix backades ur och rätt kontroll
+- **`tests/grouping.test.mjs`** — 41 kontroller (plus 3 i `sort.test.mjs`). Varje fix backades ur och rätt kontroll
   föll: huvudet återkom med namn och fällkontroll, märket sa "column" igen, brädet ritade
   `All pucks` som enda kolumn, ordningen blev `Now Later Next Now …`, återställningen dök
   upp på en orörd kedja, `collapsed=%00` blev kvar i länken, och `order,updated` föll
@@ -110,7 +110,16 @@ Två P2 från Codex, bägge reproducerade i webbläsaren före fix och saboterad
    `displayDirty` går igenom `DISPLAY_DEFAULTS` med identitet, så strängen `order,updated`
    läste som ändrad mot ett `null`-förval för alltid. Vänd en riktning och vänd tillbaka på
    förvalsbrädet: URL:en tom, `Reset ordering` borta, pricken kvar. `sortChosen()` är frågan
-   nu och alla tre ytorna ställer den. Det andra föreslagna botemedlet — normalisera en vald
-   kedja till `null` vid skrivning — förkastades och saboterades för att visa varför: då
-   överlever inte ett uttryckligt `order,updated` ett byte till `group=none`, och
-   automatiken har kört över ett val.
+   nu och alla tre ytorna ställer den.
+4. **En kedja lika med förslaget höll bara till nästa omladdning** — och det här är fyndet
+   som vände ett beslut jag hade försvarat i skrift en runda tidigare. Jag förkastade först
+   normalisering med argumentet att ett uttryckligt `order,updated` måste överleva ett
+   grupperingsbyte. Argumentet lät rätt och höll inte: det tillståndet går inte att skilja
+   från "inget val" — inte på skärmen, inte i länken, inte i en sparad vy — så samma länk och
+   samma klick gav två brädor beroende på om man laddat om. Vilket är exakt det fel
+   `state`-kommentaren högst upp i `app.js` redan dömt av: *"samma URL ritade två olika
+   chrome beroende på om man klickade eller laddade om."* Ett beteende som bara håller till
+   nästa F5 är en kapplöpning med webbläsaren, inte ett beteende. `normalizeSort()` kör i
+   `applyParams` och i `setDisplay`; att sabotera bort den andra fällde först ingenting, för
+   `sortChosen()` håller länken ren av sig själv i det steget — skillnaden syns ett byte
+   senare, på vägen tillbaka. Kontrollen mäter rundturen av det skälet.

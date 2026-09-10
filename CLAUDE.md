@@ -663,13 +663,28 @@ no new branch in the query language, the tray or the chip row.
   default board — flip a direction and flip it back: URL `""`, `Reset ordering` gone, dot
   still lit. `props` is not in that table at all for the same reason; `sort` is skipped in
   the loop and asked properly after it.
-- **The choice is not normalized away at write time**, which was the other repair available
-  and is the wrong one. Collapsing a chosen chain back to `null` whenever it equals the
-  proposal would also give one writer — and would throw the choice out: an explicit
-  `order,updated` picked under `group=status` (where the URL rightly drops it, being what
-  the board draws anyway) has to survive a switch to `group=none`, where the proposal
-  differs. Sabotaged to prove it: normalizing turns that switch into `status,order`, and the
-  automation has overridden a choice — the one thing this whole rule forbids.
+- **A chain equal to the proposal is normalized to `null` the moment it is set**, and this
+  is the one thing here that was argued the other way first and had to be reversed. The
+  claim was that an explicit `order,updated` picked under `group=status` must survive a
+  switch to `group=none` — automation never overriding a choice. It sounds right and it
+  does not hold, because that state is not distinguishable from having chosen nothing:
+  nothing on screen separates them, `sortChosen()` keeps it out of the link (the board's
+  older rule that the default chain is never written down has three checks behind it), and a
+  saved view normalizes it away. Kept anyway, it survived in memory and not through a
+  reload — so the **same link and the same click gave two boards**:
+  `?group=none&sort=status,order` then Grouping → Status gave `sort=status,order` live and
+  `order,updated` after F5. That is precisely the failure `state`'s own comment at the top
+  of `app.js` was written about — *"the same URL drew two different chromes depending on
+  whether you clicked or reloaded"* — and it had already been ruled on there: stop keeping
+  the state you cannot tell apart. A behaviour that only holds until a refresh is a race
+  with the browser, not a behaviour.
+- **`normalizeSort()` runs in two places, and the second one is easy to miss.**
+  `applyParams` covers a link; `setDisplay` covers a *grouping* change, where the chain
+  stands still and the proposal moves under it. Sabotaging the second changed nothing that
+  any check could see, because `sortChosen()` keeps the link clean by itself at that step —
+  the divergence appears one switch later, on the way back: without it, Status → None →
+  Status gives `?sort=status,order` live against `?layout=list` reloaded. The check measures
+  the round trip for that reason.
 - **A fold under a headless grouping is a preference about nothing**, and the link could
   still carry one: `effectiveParams` passes `collapsed` through for any list layout, and this
   branch never reads `state.collapsed`. Measured,

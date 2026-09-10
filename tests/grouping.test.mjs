@@ -177,25 +177,72 @@ export async function run({ open }) {
       ["Status", "Manual"], "och forslaget ar tillbaka");
   }
 
-  group("ett val overlever ett grupperingsbyte");
+  group("samma lank och samma klick ger samma brada, med eller utan omladdning");
   {
-    // Skalet till att fixen for foregaende fynd *inte* normaliserar en vald kedja till
-    // `null` vid skrivning. Det hade ocksa varit en skrivare — och hade kastat bort valet:
-    // ett uttryckligt `order,updated` valt dar det rakar vara forvalet maste overleva ett
-    // byte till en gruppering som foreslar nagot annat. Automatik galler i franvaron av ett
-    // val, aldrig over det; normalisering hade raderat franvarons motsats.
-    const p = await open("?layout=list&sort=order,updated");
-    eq(url(p), "?layout=list", "under status skrivs det inte ner — det ar vad bradan ritar anda");
-    await p.locator("#displayBtn").click();
-    await p.waitForSelector(".pop, .sheet");
-    await p.locator(".pop, .sheet").getByText("Grouping", { exact: true }).click();
-    await p.locator(".pop, .sheet").getByText("None", { exact: true }).first().click();
-    await p.waitForTimeout(300);
-    await p.keyboard.press("Escape");
-    await p.waitForTimeout(150);
-    eq(url(p), "?group=none&layout=list&sort=order,updated", "men det foljer med hit");
-    eq(await statusar(p), ["Now", "Later", "Next", "Now", "Now", "Later", "Next"],
-      "och vinner over forslaget — rank forst, inte statusstegen");
+    // Det har ersatter en kontroll som stod har och pastod motsatsen — att en uttrycklig
+    // kedja lika med forslaget overlever ett grupperingsbyte. Den holl bara till nasta
+    // omladdning, vilket inte ar ett beteende utan en kapplopning med webblasaren:
+    //
+    //   utan omladdning:  ?layout=list&sort=status,order
+    //   med omladdning:   ?layout=list          (dvs order,updated)
+    //
+    // En kedja lika med vad grupperingen foreslar gar inte att skilja fran inget val alls —
+    // inte pa skarmen, inte i lanken, inte i en sparad vy — sa den halls inte som ett.
+    // Samma bot som `state`-kommentaren hogst upp i app.js beskriver: sluta halla ett
+    // tillstand som inte gar att skilja fran ett annat.
+    const byt = async (p, till) => {
+      await p.locator("#displayBtn").click();
+      await p.waitForSelector(".pop, .sheet");
+      await p.locator(".pop, .sheet").getByText("Grouping", { exact: true }).click();
+      await p.locator(".pop, .sheet").getByText(till, { exact: true }).first().click();
+      await p.waitForTimeout(300);
+      await p.keyboard.press("Escape");
+      await p.waitForTimeout(150);
+    };
+
+    const a = await open("?layout=list&group=none&sort=status,order");
+    eq(url(a), "?group=none&layout=list", "forslagslika kedjan skrivs inte ner");
+    await byt(a, "Status");
+    const utan = url(a);
+
+    const b = await open("?layout=list&group=none&sort=status,order");
+    await b.reload();
+    await b.waitForSelector(".board", { state: "attached" });
+    await b.waitForTimeout(200);
+    await byt(b, "Status");
+    eq(utan, url(b), "grupperingsbytet ger samma lank bagge vagarna");
+    eq(utan, "?layout=list", "och det ar Status egen ordning, inte den forra grupperingens");
+
+    // En kedja som *inte* ar forslaget ar daremot ett val, och foljer med.
+    const c = await open("?layout=list&group=none&sort=title");
+    eq(url(c), "?group=none&layout=list&sort=title", "ett riktigt val star i lanken");
+    await byt(c, "Status");
+    eq(url(c), "?layout=list&sort=title", "och overlever bytet");
+
+    // Andra hallet, och det ar den halva `setDisplay` svarar for: kedjan star still och
+    // *grupperingen* flyttar forslaget under den. `status,order` ar ett val under Status
+    // och forslaget under None.
+    //
+    // Att bara ga dit racker inte som kontroll — `sortChosen()` haller lanken ren av sig
+    // sjalv dar. Skillnaden syns forst ett byte till: utan normaliseringen star
+    // `state.sort` kvar som "status,order" och vagen tillbaka ger `?sort=status,order`,
+    // medan den omladdade vagen ger `?layout=list`. Hittat genom att sabotera bort anropet
+    // och se att ingenting foll — kontrollen matte for kort.
+    const d = await open("?layout=list&sort=status,order");
+    eq(url(d), "?layout=list&sort=status,order", "under Status ar det ett val");
+    await byt(d, "None");
+    eq(url(d), "?group=none&layout=list", "under None ar samma kedja forslaget, och stryks");
+    await byt(d, "Status");
+    const fram = url(d);
+
+    const e = await open("?layout=list&sort=status,order");
+    await byt(e, "None");
+    await e.reload();
+    await e.waitForSelector(".board", { state: "attached" });
+    await e.waitForTimeout(200);
+    await byt(e, "Status");
+    eq(fram, url(e), "vagen tillbaka ger samma lank med och utan omladdning");
+    eq(fram, "?layout=list", "och kedjan ar inte kvar fran den forra grupperingen");
   }
 
   group("menyn visar kedjan som ritas, inte den som lagras");

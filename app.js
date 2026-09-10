@@ -1209,6 +1209,7 @@
     // Through the parser, so `state.sort` is always a canonical chain — a legacy one-word
     // mode expands here and never has to be recognised again downstream.
     if (got.sort) state.sort = serializeSort(parseSort(got.sort));
+    normalizeSort();
     if (got.view) got.view = canonicalView(got.view);
     if (VIEWS[got.view]) state.focus = got.view;
     if (!got.q) return;
@@ -5665,6 +5666,27 @@
   // a switch to `group=none`, where the proposal differs. Automation applies in the absence
   // of a choice, never over one — normalizing would erase the absence's opposite.
   function sortChosen() { return serializeSort(sortChain()) !== proposedSort(); }
+  // A chain equal to what the grouping proposes is not a distinguishable state. Nothing on
+  // screen separates it from having chosen nothing, the link cannot carry it (the URL is
+  // written from `sortChosen()`, and the board's older rule that the default chain is never
+  // written down has three checks behind it), and a saved view normalizes it away. Kept as
+  // a choice anyway, it survived in memory but not through a reload — so the *same link*
+  // and the *same click* gave two boards: `?group=none&sort=status,order` then Grouping →
+  // Status gave `sort=status,order` live and `order,updated` after F5.
+  //
+  // That is the exact failure `state`'s own comment at the top of this file was written
+  // about — "the same URL drew two different chromes depending on whether you clicked or
+  // reloaded" — and the cure there was the same: stop keeping the state that cannot be
+  // told apart. So a proposal-equal chain collapses to "no choice" the moment it is set,
+  // not one reload later.
+  //
+  // It costs the reading that an explicit `order,updated` picked under `group=status`
+  // travels to `group=none` as itself. That reading was defended here and it was wrong:
+  // it only ever held until a refresh, which is not a behaviour but a race with the
+  // browser.
+  function normalizeSort() {
+    if (state.sort != null && state.sort === proposedSort()) state.sort = null;
+  }
   function sortComparator() {
     var chain = sortChain().map(sortCmp);
     return function (a, b) {
@@ -6361,6 +6383,10 @@
     // never took effect. The write below carries it, so the switch is as durable as if
     // you had pressed List yourself.
     if (key === "group" && !groupUsable(value)) state.view = "list";
+    // After the layout, because `effectiveGroup()` reads it — and for a `group` change too,
+    // not only a `sort` one: moving the grouping moves the proposal under a chain that did
+    // not change.
+    normalizeSort();
     // One write, of the whole board, into the view you are standing in — see
     // `rememberDisplay`. It replaces a `saveDisplay(key, value)` per setting, and the
     // line above is why that shape had to go: picking the hierarchy moves the *layout*
