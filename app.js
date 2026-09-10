@@ -858,7 +858,10 @@
     // drop itself stays, since `viewParamObject` still emits only what the board would not
     // have drawn by itself and the two sides have to agree about which strings those are.
     // Below the group lines, because it is the *settled* grouping that proposes.
-    if (o.sort) o.sort = serializeSort(parseSort(o.sort));
+    if (o.sort) {
+      var okeys = parseSortKeys(o.sort);
+      if (okeys.length) o.sort = serializeSort(okeys); else delete o.sort;
+    }
     var focus = o.view || "all";
     var layout = o.layout || DISPLAY_DEFAULTS.view;
     var cols = columnsForFocus(focus, o.done === "1");
@@ -1225,7 +1228,10 @@
     if (got.layout === "list" || got.layout === "board") state.view = got.layout;
     // Through the parser, so `state.sort` is always a canonical chain — a legacy one-word
     // mode expands here and never has to be recognised again downstream.
-    if (got.sort) state.sort = serializeSort(parseSort(got.sort));
+    if (got.sort) {
+      var gkeys = parseSortKeys(got.sort);
+      state.sort = gkeys.length ? serializeSort(gkeys) : null;
+    }
     normalizeSort();
     if (got.view) got.view = canonicalView(got.view);
     if (VIEWS[got.view]) state.focus = got.view;
@@ -5641,7 +5647,11 @@
   // one-key chain's spelling with it. Before concluding that nothing reads a value, ask what
   // the *running app* writes — searching the repo answered no twice, and was wrong twice.
   var LEGACY_SORT = { default: DEFAULT_SORT };
-  function parseSort(v) {
+  // The keys a value actually names — **possibly none**, which is the whole reason this is
+  // split out from `parseSort`. A reader that always hands back a chain cannot tell "this
+  // said nothing I understand" from "this said the default", and the two are different
+  // answers now that the absence of a choice is its own state.
+  function parseSortKeys(v) {
     var raw = String(v == null ? "" : v).trim();
     if (LEGACY_SORT[raw]) raw = LEGACY_SORT[raw];
     var out = [], seen = {};
@@ -5657,7 +5667,20 @@
       seen[f] = 1;
       out.push(sortKeyName(f, sortDir(k)));
     });
-    return out.length ? out : parseSort(DEFAULT_SORT);
+    return out;
+  }
+  // The chain to *draw*, which always exists: the comparator has to be handed something.
+  // An unreadable value therefore reads as the default here — and the callers that decide
+  // whether a **choice** was made ask `parseSortKeys` instead, or an unknown key would be
+  // promoted to one. Caught by a reviewer, and the rule was already written one key over:
+  // "a name the board does not know falls back to *no* choice rather than the empty one".
+  // Measured before the split: `?group=none&sort=futureField` drew `order,updated` — manual
+  // rank across status boundaries, the exact ordering the proposal exists to prevent — and
+  // rewrote the URL to claim it, while the same link with no `sort` at all drew the
+  // proposal.
+  function parseSort(v) {
+    var out = parseSortKeys(v);
+    return out.length ? out : parseSortKeys(DEFAULT_SORT);
   }
   // In the chain's *own* order, not the catalogue's: the order is the meaning here, unlike
   // `props`, where the set is what matters and a stable spelling is all that is wanted.

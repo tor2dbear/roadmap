@@ -887,6 +887,16 @@ views already carry, because the query language spells alternatives with commas 
 - **An unknown key is dropped, and an empty chain is the default.** Same as `parseProps`, and
   `sort` is canonicalized in `effectiveParams` beside it, so a saved view carrying the old
   `default` compares against the board actually drawn instead of reading as *(edited)*.
+- **But an unreadable value is not a choice**, and telling those apart needs two readers.
+  `parseSort` must always hand back a chain — the comparator has to be given one — so on its
+  own it turns `sort=futureField` into `order,updated`, which under a grouping with a
+  proposal is a *different board* and gets written into the URL as though someone had asked
+  for it. Measured: `?group=none&sort=futureField` drew manual rank across status
+  boundaries, the exact ordering the proposal exists to prevent, while the same link with no
+  `sort` drew the proposal. `parseSortKeys` is the half allowed to answer nothing, and the
+  callers that decide whether a choice was *made* — `applyParams`, `effectiveParams` — ask
+  that one. The rule was already written one key over, about `props`: a name the board does
+  not know falls back to *no* choice rather than the empty one.
 - **Direction is a property of the key, not part of its name.** The catalogue was nine
   entries: three date fields × two directions as separate keys (`Recently updated`, `Oldest
   updated`), and the direction baked into the label of the other four (`Priority (high→low)`,

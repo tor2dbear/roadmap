@@ -226,6 +226,24 @@ export async function run({ open }) {
       ["Status", "Manual"], "och forslaget ar tillbaka");
   }
 
+  group("en olaslig sortering ar inget val");
+  {
+    // Codex P2. `parseSort` maste alltid lamna en kedja — komparatorn ska ha nagot — och
+    // det gjorde att en nyckel bradan inte kanner igen befordrades till ett *val*:
+    // `order,updated` skiljer sig fran forslaget, sa den beholls och skrevs in i lanken.
+    // Regeln stod redan skriven en nyckel bort, om `props`: ett namn bradan inte kanner
+    // faller till *inget* val, inte till det tomma. `parseSortKeys` ar den halvan som far
+    // svara ingenting.
+    const p = await open("?layout=list&group=none&sort=futureField");
+    eq(url(p), "?group=none&layout=list", "den okanda nyckeln skrivs inte in i lanken");
+    eq(await statusar(p), ["Now", "Now", "Now", "Next", "Next", "Later", "Later"],
+      "och forslaget galler, som om inget sort stod dar");
+
+    // Men en giltig nyckel bland ogiltiga ar fortfarande ett val.
+    const h = await open("?layout=list&group=none&sort=futureField,title");
+    eq(url(h), "?group=none&layout=list&sort=title", "en giltig nyckel overlever sallskapet");
+  }
+
   group("samma lank och samma klick ger samma brada, med eller utan omladdning");
   {
     // Det har ersatter en kontroll som stod har och pastod motsatsen — att en uttrycklig
