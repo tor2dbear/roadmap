@@ -987,6 +987,19 @@ never whether display can be per view but why only the saved ones had it.
   preference about the *device*: leaving it out would have made the built-in views differ
   from the saved ones in exactly one key, and `setDisplay` moves the layout by itself when
   you pick the hierarchy anyway.
+- **That concession has since been narrowed, and the dot is where it showed.** The layout is
+  *remembered* per view and rides in the link and in a saved view — but it is not an
+  arrangement of this board, it is a choice about how you read it, and the menu says so with
+  its shape: a segmented control at the top, above and apart from the field rows. Reported
+  from the board, board → list lit the Display dot. So `displayDirty` skips `view` and
+  **"Reset to default" leaves it alone** — one decision, not two, because the invariant
+  written beside the folds binds them: reset what the dot ignores and the press changes
+  something the dot had just called default. `clearDisplay` still resets it, since applying
+  a *saved view* runs through that same function and a view with no `layout` means the
+  default one; the Reset handler restores it afterwards rather than exempting it there.
+  What moved with the rule is one existing check: a reset view now reloads to
+  `?layout=list`, not `""`, and it still proves the thing it was written for — a re-run
+  migration would put `group=repo` back.
 - **A view you have never set up opens at the defaults, not at the last view's.**
   Inheritance would be softer and still contagious, and worst on a first visit — the one
   time nothing on screen can correct you.
@@ -1102,6 +1115,14 @@ it off showed PIA's 6 open pucks and dropped 39 landed ones in silence.
   head to speak from, and the rule would simply stop applying — the silence it was written
   to end. The head is drawn when there is something to say and carries only the mark; see
   *the grouping with no values*.
+- **The toggle is where "archived" is defined, because it is the only place that can be.**
+  There is no `archived` status — `TERMINAL` is `done` or `cancelled` — so every mark on the
+  board names a category the data does not have, and a reader who has never opened the
+  Display menu has nothing to check it against. The toggle reads **"Show archived (done &
+  cancelled)"**, which lets each mark stay the short `137 archived 👁` and still be
+  answerable. Length was not what decided it: spelling the statuses out on the marks
+  themselves *fits* — 148px against 92px, with 41px still spare in the tightest column head
+  at 390px — so the choice was one lookup against repeating the definition on every column.
 - **`liftArchive()` is the one writer**, shared with the tray's eye. Two callers writing
   `roadmap-done` differently is how the Display menu and the sidebar counts would come to
   disagree with the board they describe.

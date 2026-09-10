@@ -6375,7 +6375,18 @@
       // default is `null` and this loop compares by identity, so every chosen chain reads
       // as changed — including one deliberately returned to what the board draws anyway.
       // `sortChosen()` is the question the URL writer and the ordering menu already ask.
-      if (k !== "sort" && state[k] !== DISPLAY_DEFAULTS[k]) return true;
+      //
+      // `view` — the layout — is skipped because it is not an *arrangement* of this board
+      // but a choice about how you read it, and the menu already says so with its shape:
+      // a segmented control at the top, above and apart from the field rows. This file
+      // conceded as much when the display became per-view ("the one that reads as a
+      // preference about the device"), and kept it in only so the built-in views would
+      // not differ from the saved ones by exactly one key. The dot lighting for
+      // board → list was that concession showing on screen. It stays in the URL, in a
+      // saved view and in the view's memory — only these two controls stop calling it a
+      // change. Skipping it here **requires** the reset below to leave it alone, per the
+      // rule stated two lines down.
+      if (k !== "sort" && k !== "view" && state[k] !== DISPLAY_DEFAULTS[k]) return true;
     }
     if (sortChosen()) return true;
     // Not in DISPLAY_DEFAULTS because its default is `null` and the loop above compares by
@@ -6529,7 +6540,18 @@
     function paintWholesale() {
       wholeHost.innerHTML = "";
       var rows = [];
-      if (ARCHIVABLE[state.focus]) rows.push(["showDone", "Show done & cancelled", null]);
+      // The toggle is where "archived" is *defined*, because it is the only place that
+      // can be. There is no `archived` status — `TERMINAL` is `done` or `cancelled` — so
+      // the marks scattered across the board ("137 archived 👁") name a category the data
+      // does not have, and a reader who has never opened this menu has nothing to check it
+      // against. Naming the statuses here lets every mark stay short and still be
+      // answerable: one definition, in the control that acts on it.
+      //
+      // The alternative was measured rather than argued: spelling it out on the marks
+      // themselves fits (148px against 92px, still 41px of room in the tightest column
+      // head at 390px), so length was not what decided this — keeping one short mark that
+      // can be looked up beat repeating the definition on every column.
+      if (ARCHIVABLE[state.focus]) rows.push(["showDone", "Show archived (done & cancelled)", null]);
       if (state.view === "board") {
         rows.push(["showEmpty", "Show empty columns", "An empty column is still a drop target."]);
       }
@@ -6537,6 +6559,11 @@
       wholeHost.appendChild(el("div", "dp-rule"));
       rows.forEach(function (w) {
         var row = el("label", "fp-toggle");
+        // The state key on the markup, as a hook — the same reason `dp-row`/`dp-label`
+        // carry theirs. Without it the only handle on this row is its own label text, so
+        // rewording the copy broke a check about the *sidebar's counts*, which is a test
+        // reaching for the wrong thing rather than a rule changing.
+        row.dataset.key = w[0];
         var cb = document.createElement("input");
         cb.type = "checkbox"; cb.checked = state[w[0]];
         cb.addEventListener("change", function () { setDisplay(w[0], cb.checked); });
@@ -6557,7 +6584,15 @@
     reset.appendChild(icon("reset"));
     reset.appendChild(el("span", null, "Reset to default"));
     reset.addEventListener("click", function () {
+      // The layout is not what this button resets — see `displayDirty`. The two are one
+      // decision, not two: reset it while the dot ignores it and the press would change
+      // something the dot had just called default, which is the invariant the folds are
+      // held to one function up. `clearDisplay` still puts it back, because applying a
+      // *saved view* goes through the same function and a view with no `layout` means the
+      // default one; so it is restored here rather than exempted there.
+      var layout = state.view;
       clearDisplay();
+      state.view = layout;
       // Which also *forgets* this view: `rememberDisplay` deletes an entry that has
       // nothing non-default left in it, so a reset view opens at the defaults next time
       // rather than at a stored copy of them. Reset is per view, like everything else

@@ -243,7 +243,7 @@ export async function run({ open, origin }) {
     const p = await open("", { token: true });
     await p.locator("#displayBtn").click();
     await p.waitForSelector(".pop, .sheet");
-    await p.locator("label.fp-toggle").filter({ hasText: "Show done" }).click();
+    await p.locator('label.fp-toggle[data-key="showDone"]').click();
     await p.waitForTimeout(250);
     await p.keyboard.press("Escape");
     await p.waitForTimeout(150);
@@ -307,6 +307,69 @@ export async function run({ open, origin }) {
     await p.goto(origin + "/index.html");
     await p.waitForSelector(".board");
     await p.waitForTimeout(250);
-    eq(url(p), "", "en nollställd vy står kvar nollställd över en omladdning");
+    // `?layout=list`, inte `""`: Reset återställer inte längre vytypen (se gruppen nedan),
+    // så det migrerade som ska vara borta är *grupperingen*. Beviset är oförändrat — hade
+    // migreringen kört en andra gång vore `group=repo` tillbaka — men strängen flyttade med
+    // regeln, och att inte flytta den hade varit att låta en check koda ett övergivet
+    // beteende.
+    eq(url(p), "?layout=list", "det migrerade kommer inte tillbaka vid nästa laddning");
+  }
+
+  group("layouten är inte en display-ändring, varken för pricken eller för Reset");
+  {
+    // Rapporterat: pricken tändes av board → list. Layouten är inget *arrangemang* av
+    // brädan utan ett val om hur man läser den — menyn säger det redan med sin form, en
+    // segmentkontroll överst, ovanför och skild från fältraderna. Filen medgav det när
+    // displayen blev per vy ("den som läses som en inställning om enheten") och behöll den
+    // ändå, bara för att de inbyggda vyerna inte skulle skilja sig från de sparade i exakt
+    // en nyckel.
+    //
+    // Pricken och Reset är *ett* beslut, inte två: koden skriver ut invarianten själv en
+    // rad ner — "annars skulle Reset to default ändra något pricken nyss kallade förval".
+    // Kontrollen mäter därför bägge, och sabotaget måste fälla bägge halvorna var för sig.
+    const prick = (p) => p.evaluate(() => !document.getElementById("displayDot")?.hidden);
+
+    const p = await open("");
+    eq(await prick(p), false, "förvalsbrädet: ingen prick");
+
+    await p.locator("#displayBtn").click();
+    await p.waitForSelector(".pop, .sheet");
+    await p.locator(".pop, .sheet").getByText("List", { exact: true }).click();
+    await p.waitForTimeout(300);
+    await p.keyboard.press("Escape");
+    await p.waitForTimeout(150);
+    eq(url(p), "?layout=list", "layouten står i länken");
+    eq(await prick(p), false, "men tänder inte pricken");
+
+    // En riktig display-ändring gör det fortfarande.
+    await välj(p, "Grouping", "Repo");
+    eq(url(p), "?group=repo&layout=list", "grupperingen står också i länken");
+    eq(await prick(p), true, "och den tänder pricken");
+
+    // Och Reset släpper grupperingen men behåller vytypen.
+    await p.locator("#displayBtn").click();
+    await p.waitForSelector(".pop, .sheet");
+    await p.locator(".dp-reset").click();
+    await p.waitForTimeout(300);
+    await p.keyboard.press("Escape");
+    await p.waitForTimeout(150);
+    eq(url(p), "?layout=list", "Reset behåller layouten och slänger grupperingen");
+    eq(await prick(p), false, "och pricken slocknar med den");
+  }
+
+  group("växeln definierar ordet märkena använder");
+  {
+    // Det finns ingen `archived`-status — `TERMINAL` är `done` eller `cancelled` — så
+    // märkena ("137 archived 👁") namnger en kategori datan inte har. Växeln är det enda
+    // stället som kan definiera den, och gör det nu, så varje märke kan stanna kort och
+    // ändå gå att slå upp.
+    const p = await open("");
+    await p.locator("#displayBtn").click();
+    await p.waitForSelector(".pop, .sheet");
+    const txt = await p.evaluate(() =>
+      [...document.querySelectorAll(".pop, .sheet")].map((e) => e.textContent).join(" "));
+    ok(/Show archived \(done & cancelled\)/.test(txt),
+      "växeln namnger statusarna: " + JSON.stringify((txt.match(/Show [^A-Z]{0,40}/) || [])[0]));
+    await p.keyboard.press("Escape");
   }
 }

@@ -137,7 +137,7 @@ export async function run({ open }) {
     // som säger att den fortfarande är en *inställning* och inte ett filter.
     await p.getByRole("button", { name: /Display/ }).first().click();
     await p.waitForTimeout(200);
-    await p.locator("label.fp-toggle").filter({ hasText: "Show done" }).click();
+    await p.locator('label.fp-toggle[data-key="showDone"]').click();
     await p.waitForTimeout(250);
     await p.keyboard.press("Escape");
     eq(new URL(p.url()).search, "?done=1", "växeln slår igenom på All pucks");
