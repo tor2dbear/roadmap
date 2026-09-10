@@ -4289,6 +4289,32 @@
     });
   }
   var GROUPS = {
+    // No grouping at all: one bucket, no heading. **First in the table, which is what the
+    // menus read** — both the Display list and ⌘K walk `Object.keys(GROUPS)`. "None" is the
+    // one entry that is not a field to bucket by but the absence of one, so it belongs at
+    // the top of that list rather than sorted in among them.
+    //
+    // It carries **no `field`**, and that is
+    // the whole integration — `columnTerm`, `termAboutGroup` and `groupConstrained` each
+    // open with `if (!g.field) return …`, so a fieldless group is a shape this file
+    // already foresaw. Every optional member is guarded too (`cls`, `tint`, `headExtra`,
+    // `write`), so leaving them out is not a special case either.
+    none: {
+      label: "None",
+      headless: true, // the heading is drawn only when the archive has something to say
+      keyOf: function () { return NO_VALUE; },
+      keys: function (items) { return items.length ? [NO_VALUE] : []; },
+      labelOf: function () { return "All pucks"; },
+      // The ordering a grouping *proposes*, and `none` is the only one with an opinion —
+      // because it is the only one that takes the columns away. `order:` is the puck's
+      // declared place **within its column**, so with the columns gone the default chain
+      // interleaves a `now` puck ranked 20 between two `done` ones ranked 10 and 30, by a
+      // number that never meant anything across that boundary. `status,order` is the
+      // board's own reading order flattened — left to right, top to bottom — which is
+      // exactly what a board with no columns is. A proposal, not a write: it applies only
+      // while the chain is untouched (see `sortChain`).
+      sort: "status,order",
+    },
     status: {
       label: "Status",
       field: "status",
@@ -4389,27 +4415,6 @@
       labelOf: function (k) { return k === NO_VALUE ? "No priority" : (PRIORITY_LABEL[k] || k); },
       write: function (item, k) { changePriority(item, k === NO_VALUE ? null : k); },
     },
-    // No grouping at all: one bucket, no heading. It carries **no `field`**, and that is
-    // the whole integration — `columnTerm`, `termAboutGroup` and `groupConstrained` each
-    // open with `if (!g.field) return …`, so a fieldless group is a shape this file
-    // already foresaw. Every optional member is guarded too (`cls`, `tint`, `headExtra`,
-    // `write`), so leaving them out is not a special case either.
-    none: {
-      label: "None",
-      headless: true, // the heading is drawn only when the archive has something to say
-      keyOf: function () { return NO_VALUE; },
-      keys: function (items) { return items.length ? [NO_VALUE] : []; },
-      labelOf: function () { return "All pucks"; },
-      // The ordering a grouping *proposes*, and `none` is the only one with an opinion —
-      // because it is the only one that takes the columns away. `order:` is the puck's
-      // declared place **within its column**, so with the columns gone the default chain
-      // interleaves a `now` puck ranked 20 between two `done` ones ranked 10 and 30, by a
-      // number that never meant anything across that boundary. `status,order` is the
-      // board's own reading order flattened — left to right, top to bottom — which is
-      // exactly what a board with no columns is. A proposal, not a write: it applies only
-      // while the chain is untouched (see `sortChain`).
-      sort: "status,order",
-    },
   };
   // The groupings that need the list. `parent` is a hierarchy and cannot be columns;
   // `none` is the absence of columns, which is the same thing said the other way. One
@@ -4439,7 +4444,18 @@
   // So the rule is: **flat facets group the board, the one hierarchy groups the list**.
   // The menus keep offering Parent — `setDisplay` switches the layout with it, visibly —
   // because a row that vanishes depending on the layout teaches nothing.
-  function groupOffered(k) { return k !== "status" || columnsForFocus().length > 1; }
+  //
+  // `none` is the exception to that last sentence, and the difference is what the row
+  // *names*. `Parent` names a thing to bucket by; the board cannot draw it as columns, so
+  // picking it there is a real request the layout switch honours. `None` names the absence
+  // of the board's own organising principle — a kanban board with no grouping is not a
+  // board with a setting changed, it is a list. So the row is not a grouping you can ask
+  // the board for, and offering it would make the layout switch the *whole* effect of
+  // pressing it. It comes back the moment you are in the list, where it means something.
+  function groupOffered(k) {
+    if (k === "none") return state.view === "list";
+    return k !== "status" || columnsForFocus().length > 1;
+  }
   function groupUsable(k, layout) {
     if (LIST_ONLY[k]) return (layout || state.view) === "list";
     return groupOffered(k);

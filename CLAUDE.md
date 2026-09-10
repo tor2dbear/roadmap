@@ -611,6 +611,16 @@ the date wrapped under the title.
 (`cls`, `tint`, `headExtra`, `write`) was already guarded — so a fieldless grouping needed
 no new branch in the query language, the tray or the chip row.
 
+- **It is offered only in the list, and it leads that menu.** `Parent` names a thing to
+  bucket by, so picking it from the board is a real request the layout switch honours —
+  which is why the rule one section down says a row that vanishes with the layout teaches
+  nothing. `none` is the exception, because of what the row *names*: the absence of the
+  board's own organising principle. A kanban with no grouping is not a board with a setting
+  changed, it is a list, so the layout switch would be the whole effect of pressing it.
+  `groupOffered` holds that, and both menus read it — the Display list and ⌘K walk the same
+  filtered `Object.keys(GROUPS)`, so the palette needed no branch of its own. It sits
+  **first** in that table for the same reason it is special: it is not a field among the
+  fields.
 - **`LIST_ONLY = { parent: 1, none: 1 }`** — the groupings that require the list, as a
   table rather than a second `=== "parent"` test. `parent` is a hierarchy and cannot be
   columns; `none` is the absence of columns, which is the same statement from the other

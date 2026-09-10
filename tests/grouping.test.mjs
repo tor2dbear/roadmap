@@ -26,6 +26,55 @@ const huvuden = (p) => p.evaluate(() =>
   [...document.querySelectorAll(".list-head")].map((h) => h.textContent.replace(/\s+/g, " ").trim()));
 
 export async function run({ open }) {
+  group("None erbjuds bara dar den betyder nagot, och star forst");
+  {
+    // `Parent` namnger en *sak* att gruppera pa — bradan kan inte rita den som kolumner,
+    // sa att valja den darifran ar en riktig begaran som layoutbytet uppfyller. `None`
+    // namnger fravaron av bradans egen organiserande princip: en kanban utan gruppering ar
+    // inte en brada med en andrad instalining, den ar en lista. Raden vore alltsa ingen
+    // gruppering man kan be bradan om, och layoutbytet vore *hela* effekten av att trycka.
+    //
+    // Och forst i listan, for den ar den enda posten som inte ar ett falt bland andra.
+    // Bagge ytorna gar genom `groupOffered`, sa palettens rader foljer utan egen gren —
+    // vilket kontrollen mater i stallet for att anta.
+    const rader = async (p) => {
+      await p.locator("#displayBtn").click();
+      await p.waitForSelector(".pop, .sheet");
+      await p.locator(".pop, .sheet").getByText("Grouping", { exact: true }).click();
+      await p.waitForTimeout(150);
+      const r = await p.evaluate(() =>
+        [...document.querySelectorAll(".pop .row, .sheet .row")]
+          .map((e) => e.textContent.replace(/\s+/g, " ").trim()).filter(Boolean));
+      await p.keyboard.press("Escape");
+      await p.waitForTimeout(150);
+      return r;
+    };
+    const palett = async (p) => {
+      await p.keyboard.press("Meta+k");
+      await p.waitForTimeout(250);
+      await p.keyboard.type("Group by");
+      await p.waitForTimeout(300);
+      const r = await p.evaluate(() =>
+        [...document.querySelectorAll("#cmdkOverlay .row")]
+          .map((e) => e.textContent.replace(/\s+/g, " ").trim()).filter(Boolean));
+      await p.keyboard.press("Escape");
+      await p.waitForTimeout(150);
+      return r;
+    };
+
+    const b = await open("");
+    eq(await rader(b), ["Status", "Agent", "Repo", "Target", "Parent", "Priority"],
+      "bradet erbjuder ingen None — men behaller Parent, som byter layout med sig");
+    ok(!(await palett(b)).some((t) => /Group by none/.test(t)),
+      "och paletten inte heller, via samma predikat");
+
+    const l = await open("?layout=list");
+    eq(await rader(l), ["None", "Status", "Agent", "Repo", "Target", "Parent", "Priority"],
+      "listan erbjuder den, forst");
+    eq((await palett(l))[0].replace(/Display$/, ""), "Group by none",
+      "och den leder palettens grupperingsrader dar ocksa");
+  }
+
   group("ingen gruppering ritar en lista utan rubrik");
   {
     // Arkivet på, så det inte har något att säga: då ska huvudet inte finnas alls. Det
