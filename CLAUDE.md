@@ -1118,11 +1118,15 @@ it off showed PIA's 6 open pucks and dropped 39 landed ones in silence.
 - **The toggle is where "archived" is defined, because it is the only place that can be.**
   There is no `archived` status — `TERMINAL` is `done` or `cancelled` — so every mark on the
   board names a category the data does not have, and a reader who has never opened the
-  Display menu has nothing to check it against. The toggle reads **"Show archived (done &
-  cancelled)"**, which lets each mark stay the short `137 archived 👁` and still be
-  answerable. Length was not what decided it: spelling the statuses out on the marks
-  themselves *fits* — 148px against 92px, with 41px still spare in the tightest column head
-  at 390px — so the choice was one lookup against repeating the definition on every column.
+  Display menu has nothing to check it against. One definition, in the control that acts on
+  it, lets each mark stay the short `137 archived 👁` and still be answerable — and it sits
+  in the **tooltip**, not in the label: `Show archived`, titled *"Done and cancelled
+  pucks."* Spelling the statuses out inline read as a parenthesis explaining a word the
+  interface had just chosen, and the row beside it already carries its own footnote the same
+  way. The label is the name; the title is what the name means. Length decided none of this
+  — putting the statuses on the marks themselves fits too, 148px against 92px with 41px
+  spare in the tightest column head at 390px — so what is left is where a definition
+  belongs, and it is not in the middle of a control's name.
 - **`liftArchive()` is the one writer**, shared with the tray's eye. Two callers writing
   `roadmap-done` differently is how the Display menu and the sidebar counts would come to
   disagree with the board they describe.

@@ -366,10 +366,12 @@ export async function run({ open, origin }) {
     const p = await open("");
     await p.locator("#displayBtn").click();
     await p.waitForSelector(".pop, .sheet");
-    const txt = await p.evaluate(() =>
-      [...document.querySelectorAll(".pop, .sheet")].map((e) => e.textContent).join(" "));
-    ok(/Show archived \(done & cancelled\)/.test(txt),
-      "växeln namnger statusarna: " + JSON.stringify((txt.match(/Show [^A-Z]{0,40}/) || [])[0]));
+    const rad = await p.evaluate(() => {
+      const r = document.querySelector('label.fp-toggle[data-key="showDone"]');
+      return r ? { text: r.textContent.trim(), title: r.title } : null;
+    });
+    eq(rad, { text: "Show archived", title: "Done and cancelled pucks." },
+      "etiketten är namnet, tooltipen är vad namnet betyder");
     await p.keyboard.press("Escape");
   }
 }

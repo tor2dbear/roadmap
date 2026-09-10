@@ -6544,14 +6544,17 @@
       // can be. There is no `archived` status — `TERMINAL` is `done` or `cancelled` — so
       // the marks scattered across the board ("137 archived 👁") name a category the data
       // does not have, and a reader who has never opened this menu has nothing to check it
-      // against. Naming the statuses here lets every mark stay short and still be
-      // answerable: one definition, in the control that acts on it.
+      // against. One definition, in the control that acts on it, is what lets every mark
+      // stay short and still be answerable.
       //
-      // The alternative was measured rather than argued: spelling it out on the marks
-      // themselves fits (148px against 92px, still 41px of room in the tightest column
-      // head at 390px), so length was not what decided this — keeping one short mark that
-      // can be looked up beat repeating the definition on every column.
-      if (ARCHIVABLE[state.focus]) rows.push(["showDone", "Show archived (done & cancelled)", null]);
+      // It sits in the **tooltip**, not in the label. Spelling the statuses out inline read
+      // as a parenthesis explaining a word the interface had just chosen, and the row next
+      // to it already carries its own footnote the same way. The label is the name; the
+      // title is what the name means. Length never decided any of this — putting the
+      // statuses on the marks themselves fits too (148px against 92px, 41px still spare in
+      // the tightest column head at 390px) — so what is left is where a definition belongs,
+      // and it is not in the middle of a control's name.
+      if (ARCHIVABLE[state.focus]) rows.push(["showDone", "Show archived", "Done and cancelled pucks."]);
       if (state.view === "board") {
         rows.push(["showEmpty", "Show empty columns", "An empty column is still a drop target."]);
       }
