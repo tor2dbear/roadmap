@@ -431,6 +431,45 @@ export async function run({ open }) {
   // Standardkedjan har `order` först, så brädans befintliga dragkontroller täcker det
   // fallet; grenen där `order` ligger längre ner är en medveten lucka.
 
+  group("en kedja tillbaka på förvalet är ren på alla tre ytorna");
+  {
+    // Codex P2, och den var självförvållad: när frånvaron blev `null` fortsatte
+    // `displayDirty` att jämföra `state.sort` mot `DISPLAY_DEFAULTS.sort` med identitet, så
+    // strängen `order,updated` läste som ändrad för alltid. Vänd en riktning och vänd
+    // tillbaka: URL:en tömdes, `Reset ordering` försvann, och pricken satt kvar. Tre ytor,
+    // en fråga — `sortChosen()` är den nu, och kontrollen ställer den till alla tre.
+    const p = await open(""); // förvalsbrädet: sorteringen är den enda ändring som kan ske
+    const läge = async () => {
+      await p.keyboard.press("Escape");
+      await p.waitForTimeout(150);
+      const url = new URL(p.url()).search;
+      const prick = await p.evaluate(() => !document.getElementById("displayDot")?.hidden);
+      await p.locator("#displayBtn").click();
+      await p.waitForSelector(".pop, .sheet");
+      await p.locator(".pop, .sheet").getByText("Ordering", { exact: true }).click();
+      await p.waitForTimeout(150);
+      const nollställ = await p.evaluate(() =>
+        [...document.querySelectorAll(".dp-sort-add")].some((e) => /Reset ordering/.test(e.textContent)));
+      return { url, prick, nollställ };
+    };
+
+    await p.locator("#displayBtn").click();
+    await p.waitForSelector(".pop, .sheet");
+    await p.locator(".pop, .sheet").getByText("Ordering", { exact: true }).click();
+    await p.waitForTimeout(150);
+    eq(await läge(), { url: "", prick: false, nollställ: false }, "orörd: alla tre tysta");
+
+    const riktning = () => p.locator(".dp-sort").nth(1).locator(".dp-sort-dir");
+    await riktning().click();
+    await p.waitForTimeout(200);
+    eq(await läge(), { url: "?sort=order,updated-asc", prick: true, nollställ: true },
+      "vänd: alla tre säger ändrad");
+    await riktning().click();
+    await p.waitForTimeout(200);
+    eq(await läge(), { url: "", prick: false, nollställ: false },
+      "och tillbaka igen: alla tre tysta, pricken med");
+  }
+
   group("datumet som visas är kedjans första datumnyckel");
   {
     // `autoDateField` visar det datum ordningen *handlar om*. Att bara läsa kedjans första

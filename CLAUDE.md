@@ -656,6 +656,20 @@ no new branch in the query language, the tray or the chip row.
   to *no choice* rather than to a chain, since storing the proposal is exactly what would end
   it. Neither `!== DEFAULT_SORT` (a reset offered on an untouched board) nor `state.sort != null`
   (one offered for a chain deliberately re-picked to equal the proposal) says it.
+- **`sortChosen()` is that question, and three surfaces ask it** — the URL writer, the
+  Display dot and `Reset ordering`. The dot was the one asking something else, and it is the
+  cost of the `null` above: `displayDirty` walks `DISPLAY_DEFAULTS` by identity, so the
+  string `order,updated` read as changed against a `null` default *forever*. Measured on the
+  default board — flip a direction and flip it back: URL `""`, `Reset ordering` gone, dot
+  still lit. `props` is not in that table at all for the same reason; `sort` is skipped in
+  the loop and asked properly after it.
+- **The choice is not normalized away at write time**, which was the other repair available
+  and is the wrong one. Collapsing a chosen chain back to `null` whenever it equals the
+  proposal would also give one writer — and would throw the choice out: an explicit
+  `order,updated` picked under `group=status` (where the URL rightly drops it, being what
+  the board draws anyway) has to survive a switch to `group=none`, where the proposal
+  differs. Sabotaged to prove it: normalizing turns that switch into `status,order`, and the
+  automation has overridden a choice — the one thing this whole rule forbids.
 - **A fold under a headless grouping is a preference about nothing**, and the link could
   still carry one: `effectiveParams` passes `collapsed` through for any list layout, and this
   branch never reads `state.collapsed`. Measured,

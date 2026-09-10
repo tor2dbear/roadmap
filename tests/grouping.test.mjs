@@ -177,6 +177,27 @@ export async function run({ open }) {
       ["Status", "Manual"], "och forslaget ar tillbaka");
   }
 
+  group("ett val overlever ett grupperingsbyte");
+  {
+    // Skalet till att fixen for foregaende fynd *inte* normaliserar en vald kedja till
+    // `null` vid skrivning. Det hade ocksa varit en skrivare — och hade kastat bort valet:
+    // ett uttryckligt `order,updated` valt dar det rakar vara forvalet maste overleva ett
+    // byte till en gruppering som foreslar nagot annat. Automatik galler i franvaron av ett
+    // val, aldrig over det; normalisering hade raderat franvarons motsats.
+    const p = await open("?layout=list&sort=order,updated");
+    eq(url(p), "?layout=list", "under status skrivs det inte ner — det ar vad bradan ritar anda");
+    await p.locator("#displayBtn").click();
+    await p.waitForSelector(".pop, .sheet");
+    await p.locator(".pop, .sheet").getByText("Grouping", { exact: true }).click();
+    await p.locator(".pop, .sheet").getByText("None", { exact: true }).first().click();
+    await p.waitForTimeout(300);
+    await p.keyboard.press("Escape");
+    await p.waitForTimeout(150);
+    eq(url(p), "?group=none&layout=list&sort=order,updated", "men det foljer med hit");
+    eq(await statusar(p), ["Now", "Later", "Next", "Now", "Now", "Later", "Next"],
+      "och vinner over forslaget — rank forst, inte statusstegen");
+  }
+
   group("menyn visar kedjan som ritas, inte den som lagras");
   {
     // En meny som visar en kedja tavlan inte ritar är exakt det fel den saknade `✕` på

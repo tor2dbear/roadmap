@@ -896,7 +896,7 @@
     // Not `!== DISPLAY_DEFAULTS.sort`: a chain equal to what this grouping proposes is a
     // choice the board would have made for you, and writing it down would freeze it — the
     // proposal is meant to follow the grouping, not to be captured by the first link.
-    if (state.sort != null && state.sort !== proposedSort()) o.sort = state.sort;
+    if (sortChosen()) o.sort = state.sort;
     if (state.showDone) o.done = "1";
     if (!state.showEmpty) o.empty = "0";
     // Sorted, not in click order: the same set of folded groups has to serialize to
@@ -5650,6 +5650,21 @@
   function sortChain() {
     return parseSort(state.sort == null ? proposedSort() : state.sort);
   }
+  // Whether the ordering differs from what the board would draw with no choice at all.
+  // **Three surfaces ask it** — the URL writer, the Display dot and `Reset ordering` — and
+  // one of them asking a slightly different question is exactly how the dot came to stay
+  // lit on a board whose URL and whose own submenu both said it was at its default: flip a
+  // direction and flip it back, and `state.sort` holds the string `order,updated` while the
+  // key's default is `null`, so an identity test against `DISPLAY_DEFAULTS` answered yes
+  // forever. Measured on the default board: URL `""`, `Reset ordering` gone, dot on.
+  //
+  // It asks about the *drawn* chain rather than the stored string, which is the same shape
+  // as `propShown` one section down — and deliberately **not** by normalizing a chosen
+  // chain back to `null` at write time. That would be one writer too, and it would throw
+  // the choice away: an explicit `order,updated` picked under `group=status` has to survive
+  // a switch to `group=none`, where the proposal differs. Automation applies in the absence
+  // of a choice, never over one — normalizing would erase the absence's opposite.
+  function sortChosen() { return serializeSort(sortChain()) !== proposedSort(); }
   function sortComparator() {
     var chain = sortChain().map(sortCmp);
     return function (a, b) {
@@ -6317,7 +6332,14 @@
   var displayBtn = document.getElementById("displayBtn");
   var displayDot = document.getElementById("displayDot");
   function displayDirty() {
-    for (var k in DISPLAY_DEFAULTS) if (state[k] !== DISPLAY_DEFAULTS[k]) return true;
+    for (var k in DISPLAY_DEFAULTS) {
+      // `sort` is skipped for the same reason `props` is not in the table at all: its
+      // default is `null` and this loop compares by identity, so every chosen chain reads
+      // as changed — including one deliberately returned to what the board draws anyway.
+      // `sortChosen()` is the question the URL writer and the ordering menu already ask.
+      if (k !== "sort" && state[k] !== DISPLAY_DEFAULTS[k]) return true;
+    }
+    if (sortChosen()) return true;
     // Not in DISPLAY_DEFAULTS because its default is `null` and the loop above compares by
     // identity — every Set would read as changed, including one holding every property.
     if (state.props) return true;
@@ -6677,7 +6699,7 @@
     // `state.sort != null` it offers one for a chain deliberately re-picked to equal the
     // proposal, which is the same empty promise one step further in. It resets to *no
     // choice* rather than to a chain, because storing the proposal is what would end it.
-    if (serializeSort(chain) !== proposedSort()) {
+    if (sortChosen()) {
       var res = el("button", "row dp-sort-add");
       res.type = "button";
       res.appendChild(icon("trash"));

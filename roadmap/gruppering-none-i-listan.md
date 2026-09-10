@@ -86,7 +86,7 @@ att falla tillbaka i tavlan.
   främmande params-objekt, `applyParams` tömmer `state.collapsed`. Det senare stänger den
   lucka filen redan namngav — *"`setDisplay` rensade redan fällningarna när grupperingen
   ändrades; navigeringen hade ingen motsvarighet"*.
-- **`tests/grouping.test.mjs`** — 32 kontroller. Varje fix backades ur och rätt kontroll
+- **`tests/grouping.test.mjs`** — 35 kontroller (plus 3 i `sort.test.mjs`). Varje fix backades ur och rätt kontroll
   föll: huvudet återkom med namn och fällkontroll, märket sa "column" igen, brädet ritade
   `All pucks` som enda kolumn, ordningen blev `Now Later Next Now …`, återställningen dök
   upp på en orörd kedja, `collapsed=%00` blev kvar i länken, och `order,updated` föll
@@ -106,3 +106,11 @@ Två P2 från Codex, bägge reproducerade i webbläsaren före fix och saboterad
    och en riktning vänd fram och tillbaka lämnade bägge förvalskedjan i länken). Regeln var
    rätt hela tiden — skriv inte ner det brädan ritar ändå — men mätt mot fel förval. Den
    mäter mot `proposedSort()` nu.
+3. **Display-pricken frågade något annat än de andra två.** Följdfelet av `null`:
+   `displayDirty` går igenom `DISPLAY_DEFAULTS` med identitet, så strängen `order,updated`
+   läste som ändrad mot ett `null`-förval för alltid. Vänd en riktning och vänd tillbaka på
+   förvalsbrädet: URL:en tom, `Reset ordering` borta, pricken kvar. `sortChosen()` är frågan
+   nu och alla tre ytorna ställer den. Det andra föreslagna botemedlet — normalisera en vald
+   kedja till `null` vid skrivning — förkastades och saboterades för att visa varför: då
+   överlever inte ett uttryckligt `order,updated` ett byte till `group=none`, och
+   automatiken har kört över ett val.
