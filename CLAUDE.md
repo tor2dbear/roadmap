@@ -172,9 +172,23 @@ sources.json ──▶ scripts/harvest.mjs ──▶ data/roadmap.json + data/ro
   folds groups in the list layout (`collapsed`) carries those too, and listing a subset
   here is how a plan comes to specify a lossy round trip.
   Configuration, not truth (the pucks stay the only data), and hand-editable;
-  the board writes it for you, as a commit: **Save view** in the chip row (where you
-  just built the filter), *Save this view…* behind the view title (where the saved
-  view lands), or the same command in ⌘K. Once a view exists, the chip row reads the
+  the board writes it for you, as a commit: **Save view** on the Filter/Display row,
+  *Save this view…* behind the view title (where the saved view lands), or the same
+  command in ⌘K. It sat in the chip row until a view could be *nothing but a display* —
+  then that row held one right-aligned button and nothing else, 49px of a 390px phone.
+  The clinching argument was in the chip row's own hiding rule: it could not hide without
+  chips, because it was carrying Reset and Update for exactly the view whose every change
+  is a display one. Moving the view's actions up releases it, and `chipRow.hidden` is
+  simply "no chips" again. `Clear all` stays with the chips — it is their bulk ✕, not a
+  view action, and it is a worse neighbour to Save and Update than to the things it
+  removes.
+- **What the board offers to name is not what it will accept.** `worthNaming()` gates the
+  button — `ownParams` minus the layout — while `saveCurrentView`'s refusal still asks
+  `ownParams`. The divergence is the point: the title menu and ⌘K are deliberate acts, so
+  "Ready, as a list" stays savable; a button that puts itself in front of you is an offer,
+  and an offer to name the default board is noise. Reported right after the layout left the
+  Display dot: `?layout=list` had the dot saying *default* and the chip row saying *save
+  this* — two surfaces, one question, different answers. Once a view exists, the chip row reads the
   board against it — untouched, it offers nothing; changed, it offers **Reset** (back
   to the view's parameters) and **Update "<name>"**, which rewrites that entry *in
   place* rather than by name collision. Rename / Duplicate / Remove live in the `⋯` on

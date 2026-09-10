@@ -1754,6 +1754,12 @@ body.preload * { transition: none !important; }
    is a solid pill rather than a mark beside a label. */
 .view-count { font-family: var(--mono); font-size: var(--fs-sm); color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .vopts { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+/* Pushed to the far end of the row it shares with Filter and Display. On a wide board
+   `.vopts` is already shrink-to-fit at the right, so this decides nothing there; in the
+   vhead, where `.vopts` spans (`margin-left: 0` below), it is what puts the actions
+   opposite the two openers instead of crowding them. */
+.vacts { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.vacts:empty { display: none; }
 .newbtn { gap: 5px; background: var(--panel-2); }
 .newbtn:hover { border-color: var(--ink-3); }
 /* filter popover: no empty band when closed (padding/border live on the chips) */
@@ -2290,7 +2296,11 @@ body.preload * { transition: none !important; }
 /* The title lives in the topbar on every width now, so the vhead carries only the
    view-options (filter / sort / layout) — the "body" toolbar. */
 .vhead .view-switch { display: none; }
-.vhead .vopts { margin-left: 0; }
+/* Spans, so `.vacts`' own auto-margin has somewhere to push to. Shrink-to-fit, the
+   actions sat hard against Display and read as a third opener rather than as the thing
+   you do *to* what the two of them changed. The h2 beside it is `display: none` here, so
+   growing costs nothing else on the row. */
+.vhead .vopts { margin-left: 0; flex: 1; }
 
 /* ── uniform control height across the topbar + view-header ─────────────────── */
 .topbar .ghost,

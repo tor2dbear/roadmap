@@ -929,6 +929,23 @@
     delete o.view;
     return o;
   }
+  // Whether this board is worth *offering* to name — `ownParams` minus the layout. A board
+  // that is the default arrangement, read as a list, is not a view of the roadmap; it is a
+  // preference about your screen, which is the same reason the Display dot stopped counting
+  // it. Reported right after that change: `?layout=list` left the chip row holding nothing
+  // but `Save view`, on a board the dot had just called default — two surfaces answering one
+  // question differently, which is the shape this file keeps paying for.
+  //
+  // The *refusal* in `saveCurrentView` still asks `ownParams`, and the divergence is the
+  // point rather than an oversight: the title menu and ⌘K are deliberate acts — you went
+  // looking for a way to name this — while a button that puts itself in front of you is an
+  // offer, and an offer to name the default board is noise. So "Ready, as a list" stays
+  // savable; it simply is not proposed.
+  function worthNaming() {
+    var o = ownParams();
+    delete o.layout;
+    return Object.keys(o).length > 0;
+  }
   // The view's keys, in one place. Three readers used to keep their own copy of this
   // list — the URL writer, and the saved-view reader and comparer — so adding
   // `collapsed` to the writer alone meant a saved view committed the fold and then
@@ -8192,6 +8209,7 @@
   // display, so the Filter button needs no count and "showing more" can never read
   // as "you have narrowed something".
   var chipRow = document.getElementById("chipRow");
+  var viewActs = document.getElementById("viewActs");
   // Is this term nothing but "hide these columns", and are those columns in the tray?
   // Only the two shapes the column ⋯ writes, and only in the polarity that hides:
   // `columnTerm` calls that `hideNeg`, and it differs between a real value (the
@@ -8306,12 +8324,24 @@
       chip.appendChild(x);
       chipRow.appendChild(chip);
     });
-    // The row's actions, right-aligned. Saving lived only behind the title, which is
-    // the right *home* for it — the saved view appears there — but it is not where you
-    // are standing when you finish building a filter. You are standing here, looking at
-    // the predicates you just assembled, and this is the one row that exists only
-    // because they do. So the door goes where the work is; the title keeps the list.
-    // (Linear puts its Clear and Save in exactly this band.)
+    // The view's actions sit on the Filter/Display row, not here — and that is a move,
+    // with the old reasoning worth keeping because it was right about half of it. Saving
+    // lived only behind the title, which is the right *home* for it (the saved view appears
+    // there), but not where you are standing when you finish building a filter; so the door
+    // went where the work is. What changed underneath that: a view can now be nothing but a
+    // display, so "the work" is no longer always the chips — and on a board whose only
+    // change was a grouping, this row was a 49px band on a 390px phone holding one
+    // right-aligned button and nothing else.
+    //
+    // The clinching argument is written two paragraphs down, in this row's own hiding
+    // rule: it could not hide when it had no chips, because it was also carrying Reset and
+    // Update for a view whose changes are all display. That was a compromise the row was
+    // forced into, and moving the actions out is what releases it — `chipRow.hidden` is now
+    // simply "no chips".
+    //
+    // `Clear all` stays, because it is not a view action: it is the chips' own bulk ✕, and
+    // putting a destructive filter command next to Save and Update is a worse neighbourhood
+    // than the one it leaves.
     //
     // Which door depends on where the board stands relative to the saved views, and
     // the two producers answer that between them:
@@ -8323,14 +8353,15 @@
     //                           parameters, which is what makes it a different button
     //                           from Clear all — that one empties the board.
     //   no view               → Clear all · Save view, as before.
-    var acts = el("div", "fchip-acts");
+    if (viewActs) viewActs.innerHTML = "";
+    var acts = el("div", "fchip-acts"); // this row's own half: `Clear all`
     var inView = activeSavedView(), edited = editedSavedView();
     function act(cls, label, title, run) {
       var b = el("button", cls, label);
       b.type = "button";
       if (title) b.title = title;
       b.addEventListener("click", run);
-      acts.appendChild(b);
+      (viewActs || acts).appendChild(b);
       return b;
     }
     if (edited) {
@@ -8343,19 +8374,21 @@
         "Save these changes into the view", function () { updateSavedView(edited); });
     } else if (!inView) {
       if (chips.length > 1) {
-        act("fchip-clear", "Clear all", null, function () {
+        var clear = el("button", "fchip-clear", "Clear all");
+        clear.type = "button";
+        clear.addEventListener("click", function () {
           setQueryTerms([]); // one store, so "put everything back" is one line
           refreshNav();
         });
+        acts.appendChild(clear);
       }
-      // Gated on there being anything to save, not on there being chips: a view can be
-      // nothing but a grouping (`Testvy` is exactly that), and `saveCurrentView` already
-      // refuses with a toast. Reading the same question the write path asks is what
-      // keeps the button off the default board — and, since that question became
-      // `ownParams`, off an untouched built-in view too. Standing in Ready having
-      // changed nothing, this row now has neither chips nor actions and hides itself,
-      // which is the same silence a saved view gets in the branch above.
-      if (ghToken() && Object.keys(ownParams()).length) {
+      // Gated on there being anything worth naming, not on there being chips: a view can
+      // be nothing but a grouping (`Testvy` is exactly that), and `saveCurrentView` still
+      // refuses with a toast for the cases this never proposes. `worthNaming` is where the
+      // difference between an offer and a permission is written down — it keeps the button
+      // off the default board, off an untouched built-in view, and off a board whose only
+      // difference is the layout.
+      if (ghToken() && worthNaming()) {
         var wrap = el("div", "filter-wrap"); // the positioned parent the popover anchors in
         var save = el("button", "fchip-save", "Save view");
         save.type = "button";
@@ -8367,17 +8400,16 @@
           saveCurrentView(wrap, "menu-right");
         });
         wrap.appendChild(save);
-        acts.appendChild(wrap);
+        (viewActs || acts).appendChild(wrap);
       }
     }
     if (acts.childNodes.length) chipRow.appendChild(acts);
-    // The row exists for either half of itself. Hiding it whenever there were no chips
-    // meant a view that only changes grouping, sorting or layout — or one whose query is
-    // all repo/agent terms, which `chipsData` deliberately leaves to the sidebar — could
-    // be edited with no way to Reset or Update it. That is precisely the view whose only
-    // other write path is retyping its name exactly, so it is the last place the actions
-    // should go missing.
-    chipRow.hidden = !chips.length && !acts.childNodes.length;
+    // Simply "no chips" now. It used to have to stay open without them, because it was
+    // also carrying Reset and Update for a view whose every change is a display one — the
+    // view whose only other write path is retyping its name exactly, so the last place
+    // those may go missing. With the actions on the row above, the row can mean what it is
+    // named after again.
+    chipRow.hidden = !chips.length;
   }
 
   if (filterBtn) filterBtn.addEventListener("click", function (e) { e.stopPropagation(); toggleFilterMenu(); });

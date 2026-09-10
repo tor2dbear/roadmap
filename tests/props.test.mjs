@@ -214,7 +214,7 @@ export async function run({ open }) {
     await sv.waitForTimeout(300);
     const sedd = await sv.evaluate(() => ({
       props: new URLSearchParams(location.search).get("props"),
-      acts: [...document.querySelectorAll("#chipRow .fchip-acts button")].map((e) => e.textContent.trim()),
+      acts: [...document.querySelectorAll("#viewActs button, #chipRow .fchip-acts button")].map((e) => e.textContent.trim()),
       titel: (document.querySelector("#viewTitleBtn, #topTitleBtn") || {}).textContent.replace(/\s+/g, " ").trim(),
     }));
     eq(sedd.acts, [], `en vy med ett namn tavlan inte känner läser inte som ändrad: ${JSON.stringify(sedd)}`);

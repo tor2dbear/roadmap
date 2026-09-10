@@ -9,7 +9,12 @@ const acts = (p) => p.evaluate(() => {
   const row = document.getElementById("chipRow");
   return {
     hidden: row.hidden,
-    acts: [...row.querySelectorAll(".fchip-acts button")].map((e) => e.textContent.trim()),
+    // Åtgärderna ligger på Filter/Display-raden sedan en vy kan vara enbart en display;
+    // `Clear all` stannar hos chipsen. Kontrollerna frågar *vilka* åtgärder brädan
+    // erbjuder, inte var de står, så läsaren tar bägge platserna i skärmens ordning —
+    // placeringen har en egen kontroll i `chrome.test.mjs`.
+    acts: [...document.querySelectorAll("#viewActs button, #chipRow .fchip-acts button")]
+      .map((e) => e.textContent.trim()),
   };
 });
 
@@ -33,6 +38,43 @@ async function saveFromTitle(p) {
 }
 
 export async function run({ open }) {
+  group("vyns åtgärder står på Filter/Display-raden, chipsraden bär bara chips");
+  {
+    // Rapporterat från en telefon, med en pil ritad från `Save view` upp till den tomma
+    // ytan bredvid Display: en vy kan vara enbart en display nu, och då höll chipsraden
+    // en högerställd knapp och ingenting annat. Kodens egen kommentar hade redan skrivit
+    // ner varför den inte kunde gömma sig — den bar Reset och Update åt just den vyn — så
+    // flytten är vad som släpper den fri.
+    const las = (p) => p.evaluate(() => {
+      const r = document.getElementById("chipRow");
+      return {
+        pa_raden: [...document.querySelectorAll("#viewActs button")].map((e) => e.textContent.trim()),
+        i_chipsraden: [...document.querySelectorAll("#chipRow .fchip-acts button")].map((e) => e.textContent.trim()),
+        bandet: r && !r.hidden ? Math.round(r.getBoundingClientRect().height) : 0,
+      };
+    });
+    const telefon = { token: true, viewport: { width: 390, height: 780 }, hasTouch: true };
+
+    // Enbart en layout är ingen vy att erbjuda. Det var den rapporterade halvan: när
+    // layouten slutade räknas som en display-ändring sa pricken "ingenting ändrat" medan
+    // chipsraden erbjöd att spara — två ytor, en fråga, olika svar.
+    const l = await open("?layout=list", telefon);
+    eq(await las(l), { pa_raden: [], i_chipsraden: [], bandet: 0 },
+      "en bräda som bara läses som lista erbjuder ingenting att namnge");
+
+    // Enbart en gruppering: erbjudandet finns, bandet gör det inte.
+    const g = await open("?layout=list&group=repo", telefon);
+    eq(await las(g), { pa_raden: ["Save view"], i_chipsraden: [], bandet: 0 },
+      "en display-ändring: knappen på raden, ingen chipsrad alls");
+
+    // `Clear all` är chipsens egen bulk-✕ och stannar där de står.
+    const f = await open("?q=priority%3Ahigh%20status%3Anow", telefon);
+    const tva = await las(f);
+    eq(tva.pa_raden, ["Save view"], "Save view står kvar på raden med två filter");
+    eq(tva.i_chipsraden, ["Clear all"], "men Clear all stannar hos chipsen");
+    ok(tva.bandet > 0, "och då finns chipsraden, för den har chips: " + tva.bandet);
+  }
+
   group("en orörd inbyggd vy erbjuder inget att spara");
   {
     // Reported from a phone, with a red arrow at the button: standing in "Ready to
@@ -46,8 +88,14 @@ export async function run({ open }) {
       ["?view=parents", { hidden: true, acts: [] }, "Etapps, orörd"],
       // A refinement on top of a built-in view *is* yours, and every kind counts —
       // a view can be nothing but a grouping or a sort.
-      ["?view=ready&group=repo", { hidden: false, acts: ["Save view"] }, "Ready + gruppering"],
-      ["?view=ready&sort=title", { hidden: false, acts: ["Save view"] }, "Ready + sortering"],
+      //
+      // `hidden: true` with an action offered is not a contradiction any more: the
+      // actions moved to the Filter/Display row, so the chip row means what it is named
+      // after again. It used to have to stay open to carry them, which is the compromise
+      // its own comment described — a 49px band on a 390px phone holding one
+      // right-aligned button and nothing else.
+      ["?view=ready&group=repo", { hidden: true, acts: ["Save view"] }, "Ready + gruppering"],
+      ["?view=ready&sort=title", { hidden: true, acts: ["Save view"] }, "Ready + sortering"],
       ["?view=ready&q=priority%3Ahigh", { hidden: false, acts: ["Save view"] }, "Ready + filter"],
       ["?q=priority%3Ahigh", { hidden: false, acts: ["Save view"] }, "filter utan vy"],
     ];
@@ -255,7 +303,7 @@ export async function run({ open }) {
     await p.waitForTimeout(300);
     const seen = await p.evaluate(() => ({
       url: location.search,
-      acts: [...document.querySelectorAll("#chipRow .fchip-acts button")].map((e) => e.textContent.trim()),
+      acts: [...document.querySelectorAll("#viewActs button, #chipRow .fchip-acts button")].map((e) => e.textContent.trim()),
       title: (document.querySelector("#viewTitleBtn, #topTitleBtn") || {}).textContent.replace(/\s+/g, " ").trim(),
     }));
     eq(seen.acts, [], "en orörd sparad vy erbjuder varken Reset eller Update");
@@ -309,7 +357,7 @@ export async function run({ open }) {
     await sv.waitForTimeout(300);
     const sedd = await sv.evaluate(() => ({
       url: location.search,
-      acts: [...document.querySelectorAll("#chipRow .fchip-acts button")].map((e) => e.textContent.trim()),
+      acts: [...document.querySelectorAll("#viewActs button, #chipRow .fchip-acts button")].map((e) => e.textContent.trim()),
       titel: (document.querySelector("#viewTitleBtn, #topTitleBtn") || {}).textContent.replace(/\s+/g, " ").trim(),
     }));
     eq(sedd.acts, [], "en sparad vy med det gamla namnet läser inte som ändrad");
