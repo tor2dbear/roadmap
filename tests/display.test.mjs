@@ -368,10 +368,36 @@ export async function run({ open, origin }) {
     await p.waitForSelector(".pop, .sheet");
     const rad = await p.evaluate(() => {
       const r = document.querySelector('label.fp-toggle[data-key="showDone"]');
-      return r ? { text: r.textContent.trim(), title: r.title } : null;
+      const cb = r && r.querySelector("input");
+      const byId = (a) => {
+        const id = cb && cb.getAttribute(a);
+        const e = id && document.getElementById(id);
+        return e ? e.textContent.trim() : null;
+      };
+      // Null-tåligt hellre än direkt uppslag: backar man till en tooltip finns hint-noden
+      // inte, och en kontroll som kastar säger inte vad den såg — den säger bara att den
+      // dog. Diffen är hela poängen med att sabotera.
+      const txt = (sel) => { const e = r.querySelector(sel); return e ? e.textContent.trim() : null; };
+      return {
+        namn: txt(".fp-toggle-name"),
+        synligHint: txt(".fp-toggle-hint"),
+        // Fyndet: en `title` når varken en telefon eller en skärmläsare, och arket *är*
+        // telefonen. Namnet måste dessutom smalnas av uttryckligen — en label som lindar
+        // sin kontroll lämnar över all sin text, så utan `aria-labelledby` blir det
+        // tillgängliga namnet "Show archived Done and cancelled pucks.", vilket är
+        // parentesen tillbaka och uppläst varje gång.
+        aNamn: byId("aria-labelledby"),
+        aBeskrivning: byId("aria-describedby"),
+        tooltip: r.title,
+      };
     });
-    eq(rad, { text: "Show archived", title: "Done and cancelled pucks." },
-      "etiketten är namnet, tooltipen är vad namnet betyder");
+    eq(rad, {
+      namn: "Show archived",
+      synligHint: "Done and cancelled pucks.",
+      aNamn: "Show archived",
+      aBeskrivning: "Done and cancelled pucks.",
+      tooltip: "",
+    }, "namnet är namnet, definitionen är en egen rad — synlig utan hover och uppläst som beskrivning");
     await p.keyboard.press("Escape");
   }
 }

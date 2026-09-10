@@ -2137,6 +2137,15 @@ body.preload * { transition: none !important; }
 .fp-vlabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fp-row .fp-n { color: var(--accent); font-family: var(--mono); font-size: var(--fs-xs); }
 .fp-toggle { display: flex; align-items: center; gap: 10px; font-size: var(--fs-md); color: var(--ink); cursor: pointer; }
+/* `flex-start` only where there are two lines — a one-line row centres against its box the
+   way every other control in this menu does, and switching all of them to top-alignment to
+   serve the two-line case would move a row nobody asked about. */
+.fp-toggle:has(.fp-toggle-hint) { align-items: flex-start; }
+.fp-toggle:has(.fp-toggle-hint) input { margin-top: 1px; }
+.fp-toggle-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+/* The definition, not a second name: one step down the type scale and one step out of the
+   ink, so the eye reads the row as a control with a footnote rather than two controls. */
+.fp-toggle-hint { font-size: var(--fs-sm); color: var(--ink-3); }
 /* A checkbox and not a switch, on purpose. A switch says "turn this feature on"; a
    checkbox says "include this in the set" — and that is exactly what these two do,
    in a menu whose other controls also *choose* (a segmented control, two selects).

@@ -6564,13 +6564,15 @@
       // against. One definition, in the control that acts on it, is what lets every mark
       // stay short and still be answerable.
       //
-      // It sits in the **tooltip**, not in the label. Spelling the statuses out inline read
-      // as a parenthesis explaining a word the interface had just chosen, and the row next
-      // to it already carries its own footnote the same way. The label is the name; the
-      // title is what the name means. Length never decided any of this — putting the
-      // statuses on the marks themselves fits too (148px against 92px, 41px still spare in
-      // the tightest column head at 390px) — so what is left is where a definition belongs,
-      // and it is not in the middle of a control's name.
+      // It sits on a **line of its own**, not inside the label and not in a tooltip. A
+      // parenthesis in the name read as the interface explaining a word it had just
+      // chosen; a `title` reached nobody who needed it, which a reviewer caught and is the
+      // sharper objection — hover is not a thing on a phone, and the bottom sheet *is* the
+      // phone. The definition would have been missing in the one place the marks are
+      // hardest to look up from. Length never decided any of this — putting the statuses on
+      // the marks themselves fits too (148px against 92px, 41px still spare in the tightest
+      // column head at 390px) — so what is left is that a name and its definition are two
+      // things, and the row can hold both without the first swallowing the second.
       if (ARCHIVABLE[state.focus]) rows.push(["showDone", "Show archived", "Done and cancelled pucks."]);
       if (state.view === "board") {
         rows.push(["showEmpty", "Show empty columns", "An empty column is still a drop target."]);
@@ -6587,8 +6589,25 @@
         var cb = document.createElement("input");
         cb.type = "checkbox"; cb.checked = state[w[0]];
         cb.addEventListener("change", function () { setDisplay(w[0], cb.checked); });
-        row.appendChild(cb); row.appendChild(el("span", null, w[1]));
-        if (w[2]) row.title = w[2];
+        row.appendChild(cb);
+        var txt = el("span", "fp-toggle-txt");
+        var name = el("span", "fp-toggle-name", w[1]);
+        name.id = "tgl-n-" + w[0];
+        txt.appendChild(name);
+        // **Named by the name, described by the hint** — and wired explicitly, because a
+        // label that wraps its control hands over *all* of its text. Left implicit, the
+        // accessible name would have become "Show archived Done and cancelled pucks.",
+        // which is the parenthesis back again with a screen reader reading it aloud every
+        // time. `aria-labelledby` narrows the name to the name; `aria-describedby` is what
+        // makes the second line a description rather than more of the first.
+        cb.setAttribute("aria-labelledby", name.id);
+        if (w[2]) {
+          var hint = el("span", "fp-toggle-hint", w[2]);
+          hint.id = "tgl-h-" + w[0];
+          cb.setAttribute("aria-describedby", hint.id);
+          txt.appendChild(hint);
+        }
+        row.appendChild(txt);
         wholeHost.appendChild(row);
       });
     }
