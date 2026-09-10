@@ -182,6 +182,17 @@ sources.json ──▶ scripts/harvest.mjs ──▶ data/roadmap.json + data/ro
   simply "no chips" again. `Clear all` stays with the chips — it is their bulk ✕, not a
   view action, and it is a worse neighbour to Save and Update than to the things it
   removes.
+- **A saved view's name is unbounded, and `Update "<name>"` carries it onto a toolbar.**
+  Neither the save nor the rename path caps it, so on a 390px phone a 52-character name
+  turned that button into a six-line balloon 130px tall and pushed the row out of shape.
+  `nowrap` alone then made it *worse* — the button ran 250px past the window, clipped by
+  `.app` and genuinely unreachable. The cap needs `min-width: 0` at **both** levels, because
+  a flex item's automatic minimum is its content: `.vopts` cannot shrink inside the header,
+  so `.vacts` has nothing to shrink inside either. And only the button holding the name may
+  give — every sibling without `min-width: 0` already refuses to lose a character, which is
+  why `Reset` keeps its word and an explicit `flex: none` on the parts turned out to change
+  nothing and was removed. The clipping is visual only: the button's text node keeps the
+  whole name, so a screen reader still announces which view it updates.
 - **What the board offers to name is not what it will accept.** `worthNaming()` gates the
   button — `ownParams` minus the layout — while `saveCurrentView`'s refusal still asks
   `ownParams`. The divergence is the point: the title menu and ⌘K are deliberate acts, so

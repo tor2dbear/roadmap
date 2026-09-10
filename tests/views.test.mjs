@@ -75,6 +75,59 @@ export async function run({ open }) {
     ok(tva.bandet > 0, "och då finns chipsraden, för den har chips: " + tva.bandet);
   }
 
+  group("ett långt vynamn kapas, det klämmer inte ut raden");
+  {
+    // Codex P2 om raden åtgärderna nyss flyttade till. Ett vynamn är obundet — varken
+    // spar- eller döpvägen kapar det — och `Update “<namn>”` bär det. Orsaken de pekar ut
+    // stämmer; utfallet blev ett annat och värre: knappen radbröt till en sexradig ballong
+    // som sprängde raden. Med `nowrap` men utan `min-width: 0` sprang den i stället 250px
+    // förbi ett 390px-fönster och blev oåtkomlig bakom `.app`s klippning — alltså precis
+    // det de förutsåg. Bägge nivåerna behövs: en flexitems automatiska minimum är dess
+    // innehåll, så `.vacts` kan inte krympa inuti en `.vopts` som inte heller får det.
+    const langt = "Allt som blockerar release och behöver granskas först";
+    const stall = async (namn) => {
+      const p = await open("", { token: true, viewport: { width: 1000, height: 780 },
+        data: (d) => { d.config.views = [{ name: namn, q: "priority:high" }]; return d; } });
+      await p.getByRole("button", { name: new RegExp("^" + namn.slice(0, 10)) }).first().click();
+      await p.waitForTimeout(300);
+      // Gör vyn "ändrad" utan att röra filtret — det är just den vyn åtgärderna flyttade
+      // för, den vars alla ändringar är display-ändringar.
+      await p.locator("#displayBtn").click();
+      await p.waitForSelector(".pop, .sheet");
+      await p.locator(".pop, .sheet").getByText("Grouping", { exact: true }).click();
+      await p.locator(".pop, .sheet").getByText("Repo", { exact: true }).first().click();
+      await p.waitForTimeout(300);
+      await p.keyboard.press("Escape");
+      await p.waitForTimeout(150);
+      await p.setViewportSize({ width: 390, height: 780 });
+      await p.waitForTimeout(400);
+      return p.evaluate(() => {
+        const u = document.querySelector("#viewActs .fchip-save");
+        const r = document.querySelector("#viewActs .fchip-clear");
+        const b = u.getBoundingClientRect();
+        return {
+          helText: u.textContent.trim(),
+          kapad: u.scrollWidth > u.clientWidth + 1,
+          enRad: Math.round(b.height) <= 34,
+          inomFonstret: Math.round(b.right) <= window.innerWidth,
+          resetBredd: Math.round(r.getBoundingClientRect().width),
+        };
+      });
+    };
+
+    const l = await stall(langt);
+    eq({ kapad: l.kapad, enRad: l.enRad, inom: l.inomFonstret }, { kapad: true, enRad: true, inom: true },
+      "långt namn: kapat, en rad, innanför fönstret");
+    eq(l.helText, "Update “" + langt + "”",
+      "men hela namnet står kvar i DOM:en, så en skärmläsare vet vilken vy den uppdaterar");
+    ok(l.resetBredd > 35, `och Reset behåller sitt ord — bara namnet ger: ${l.resetBredd}px`);
+
+    // Och inget kapas när det finns plats.
+    const k = await stall("High");
+    eq({ kapad: k.kapad, text: k.helText }, { kapad: false, text: "Update “High”" },
+      "kort namn kapas inte");
+  }
+
   group("en orörd inbyggd vy erbjuder inget att spara");
   {
     // Reported from a phone, with a red arrow at the button: standing in "Ready to

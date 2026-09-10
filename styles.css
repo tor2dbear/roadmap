@@ -1753,13 +1753,35 @@ body.preload * { transition: none !important; }
    `.filter-count` stays out of this and should: it counts *filters*, not cards, and it
    is a solid pill rather than a mark beside a label. */
 .view-count { font-family: var(--mono); font-size: var(--fs-sm); color: var(--ink-3); font-variant-numeric: tabular-nums; }
-.vopts { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+/* `min-width: 0` is the load-bearing half: a flex item's automatic minimum is its
+   *content*, so without it `.vacts`' own shrinking has nothing to shrink inside — the
+   ellipsis rule below did nothing and the Update button ran 250px past a 390px window,
+   clipped by `.app` and genuinely unreachable. Capping the text is two rules, one per
+   level, and only the pair works. */
+.vopts { margin-left: auto; display: flex; align-items: center; gap: 8px; min-width: 0; }
 /* Pushed to the far end of the row it shares with Filter and Display. On a wide board
    `.vopts` is already shrink-to-fit at the right, so this decides nothing there; in the
    vhead, where `.vopts` spans (`margin-left: 0` below), it is what puts the actions
    opposite the two openers instead of crowding them. */
-.vacts { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.vacts { margin-left: auto; display: flex; align-items: center; gap: 8px; min-width: 0; }
 .vacts:empty { display: none; }
+/* A saved view's name is unbounded — neither the save nor the rename path caps it — and
+   `Update “<name>”` carries it. Left to wrap, a long one turned a toolbar button into a
+   six-line balloon 130px tall that pushed the row out of shape (measured at 390px with a
+   52-character name). It ellipsises instead: the *visible* text is cut, while the button's
+   own text node keeps the whole name, so a screen reader still announces which view it
+   updates. `min-width: 0` on both the container and the buttons is what lets a flex item be
+   narrower than its content at all. */
+/* **Only the button carrying the unbounded name may shrink**, and `min-width: 0` is the
+   whole mechanism: a flex item's automatic minimum is its content, so every sibling without
+   it already refuses to lose a character. The first version also wrote `flex: none` on the
+   parts — the shape the list heading landed on — and sabotage showed it changed nothing
+   here, so it is gone. `Reset` keeps its word because nothing told it not to. */
+.vacts .fchip-save { flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Filter and Display keep their size; the squeeze goes to the actions, which are the part
+   that can lose characters without losing meaning. Direct children only — Save view's own
+   `.filter-wrap` (the popover's anchor) lives inside `.vacts`. */
+.vopts > .filter-wrap { flex: none; }
 .newbtn { gap: 5px; background: var(--panel-2); }
 .newbtn:hover { border-color: var(--ink-3); }
 /* filter popover: no empty band when closed (padding/border live on the chips) */
