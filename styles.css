@@ -404,11 +404,19 @@ body {
   grid-auto-flow: column;
   grid-auto-columns: minmax(280px, 1fr);
   gap: 16px;
-  padding: 18px var(--pad) 40px;
+  /* No padding at the top, and that is about the pinned head rather than about spacing.
+     A sticky box pins against the scrollport's *content* box, so the board's own 18px
+     gutter was a band above the head that belonged to neither: the cards scrolled up
+     through it and a strip of the one behind stood above `PIA 6` — measured at 390px,
+     `elementFromPoint` in that band answering `card` with the head pinned 18px lower
+     than the port's edge. It is the list's leak (two frozen cells with a 14px gap
+     between them) one layout over, and the same repair: give the space to the box that
+     travels. On the column it scrolls away with the column's own first screen. */
+  padding: 0 var(--pad) 40px;
   overflow-x: auto;
   align-items: start;
 }
-.column { min-width: 0; border-radius: var(--r-lg); }
+.column { min-width: 0; border-radius: var(--r-lg); padding-top: 18px; }
 /* drag-to-restatus */
 .card[draggable="true"] { cursor: grab; }
 .card.dragging { opacity: .5; }
@@ -1423,6 +1431,22 @@ body.scroll-locked { overflow: hidden; }
   grid-auto-rows: max-content;
   flex: 1; min-height: 0; overflow: auto;
 }
+/* …except in the kanban layout, where the board is the port and therefore has to be
+   exactly as tall as this box. `max-content` is what the paragraph above needed while
+   `.work` was the only scrollport: a content-tall board in a row sized to the leftover
+   space painted over the footer. Stretched, the row *is* the port's height and there is
+   no leftover to get wrong — the board scrolls its own overflow instead of handing it
+   upwards, which is what `.col-head`'s `position: sticky` has claimed all along and what
+   puts the sideways scrollbar at the bottom of the window rather than at the bottom of
+   4700px of cards.
+   `body:not(.viewing-puck)` for the reason the three rules below already give: a hidden
+   `#board` keeps its layout class, so without it a puck page would size its only row to
+   the port and clip its own content — the detail pane is `.work`'s other row, and it is
+   the one that has to stay content-tall and scroll. And `min-height: 0`, because a grid
+   item's automatic minimum is its content: without it the stretch is undone by the
+   columns' own height and the board grows straight back. */
+body:not(.viewing-puck) .work:has(> .board:not(.as-list)) { grid-auto-rows: auto; }
+body:not(.viewing-puck) .work > .board:not(.as-list) { align-self: stretch; min-height: 0; }
 /* It is a tab stop (see `index.html`), so a click on the empty space beside the columns
    focuses it. The ring belongs to the keyboard route only — the same rule the focus
    buttons follow. */

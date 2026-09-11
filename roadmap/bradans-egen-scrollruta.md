@@ -1,8 +1,8 @@
 ---
 title: Brädan är sin egen scrollruta igen
-status: inbox
+status: done
 tags: [ui]
-updated: 2026-09-08
+updated: 2026-09-11
 created: 2026-09-08
 priority: medium
 owner: tor2dbear
@@ -76,3 +76,64 @@ ska ställas på ett ställe, inte tre. Det är arbetet, inte de två CSS-radern
   förändring och värd en skärmdump innan den byggs.
 - **Ska rubriken över huvud taget fastna i kanban?** Kolumnen är kort på en telefon och
   rubriken är en rad. Det kan visa sig att den vågräta skrollisten är hela vinsten.
+
+## Utfall
+
+`scrollPort()` finns, och att den finns är hela ändringen. De två CSS-raderna stod kvar
+som de var mätta; svansen blev ungefär vad pucken förutsåg, med två tillägg den inte hade.
+
+**Frågan hade fyra läsare, inte tre.** Hjulet, låset och puckssidans sparade plats stod i
+pucken. Den fjärde var **tabbstoppet**: `.work` bär `tabindex="0"` i markupen sedan regeln
+*"porten är ett tabbstopp, eftersom sidan slutade vara det"* skrevs, och en bräda som
+skrollar medan `.work` håller stoppet ger Page Down ingenting att flytta igen. `markPort()`
+flyttar stopp, namn och — bara på `.work` — `role="region"`; `role` hålls borta från
+`#board`, som är en `<main>` och redan ett landmärke. Den ritas om från `renderBoard`,
+eftersom layouten byts utan att någon puck öppnas.
+
+**Och en läcka pucken inte kände till.** En sticky-box fäster mot portens *innehållsbox*,
+så brädans egna `padding-top: 18px` blev ett band som tillhörde varken rubriken eller
+korten: korten gled upp genom det och en remsa av kortet bakom stod ovanför den pinnade
+rubriken. Mätt på 390px — `elementFromPoint` i bandet svarade `card` med rubriken 18px
+under portens kant. Det är listans läcka (två frysta celler med en gridspringa emellan) en
+layout bort, och samma reparation: luften flyttar till lådan som färdas, `.column`.
+
+**Svaret på de tre öppna frågorna:**
+
+- **Vem svarar?** `scrollPort()`, med tre svar och inte två: brädan i kanban, `.work` i
+  listan, `.work` på en puckssida. Det tredje är inte en detalj — `#board` är `display:
+  none` där men behåller sin layoutklass, så utan det hade en puck öppnad från brädan fått
+  en gömd låda utan scrollområde. `armAxisLock` frågar fortfarande inte: låset är listans,
+  och där *är* `.work` porten.
+- **Foten.** Ja, den står underst i fönstret i kanban. Mätt på en 390px-telefon: 114px av
+  844, permanent. Orsaken är att foten ligger *inuti* `.work` som en tredje rad, så när
+  brädan slutar vara innehållshög får foten sin höjd och brädan resten. Skärmdump tagen
+  före commit, som pucken bad om.
+- **Ska rubriken fastna på en telefon?** Ja. Den är en rad, inte ett block — till skillnad
+  från listans frysta namnkolumn, som mättes till 368px och retirerade av just det skälet.
+
+**Sabotaget fällde fyra av fem regler — och det femte är fyndet.** Att låta `closeDetail`
+fråga efter porten *före* klassen tas bort fällde ingenting, och skälet är att kontrollen
+inte mätte mekanismen: i kanban är `#board` själv porten, och Chromium lägger tillbaka en
+gömd scrollcontainers offset när den visas igen. Mätt utan någon kod inblandad: 180 → gömd
+0 → åter 180. Sparandet är alltså bälte och hängslen här, medan det i listan är bärande
+(`.work` klampas på riktigt, och den kontrollen fanns redan). Koden står kvar ändå — den är
+*rätt* låda att skriva i, och alternativet är en rad som skriver brädans plats in i `.work`
+och råkar vara osynlig så länge webbläsaren gör oss tjänsten. Kontrollen är omskriven till
+det den faktiskt visar, plus en andra halva som är vår: går man ur pucken via sidomenyn ska
+platsen *släppas*, i bägge lådorna, och det fälls av sabotage.
+
+**Två befintliga kontroller flyttade med regeln i stället för att lappas**, bägge
+premissrader vars premiss ändringen avskaffar: *"tavlan sträcker sig utanför rutan"* är
+vänd (tavlan är nu **kortare** än `.work`, 176 mot 240, eftersom foten delar rutnätet — den
+klipper fortfarande, bara åt andra hållet), och *"brädan är högre än fönstret"* går inte att
+arrangera alls längre. Den andra är en starkare ordning än kontrollen bad om: en bräda som
+inte *kan* bli högre än sin rad kan inte måla över foten.
+
+## Kvar
+
+Listan gömmer sina inbyggda scrollindikatorer under `(pointer: coarse)`, eftersom en port
+med två axlar ritar dem illa — den lodräta stapeln målar under de klibbiga rubrikerna, och
+en snärt nedåt blinkar till den vågräta. Kanban-brädan är en tvåaxlig port nu också, så
+samma sak kan gälla den. Den regeln skrevs från en rapport från en riktig enhet; den här
+har ingen, och att bredda den på symmetri vore precis den omätta svepning arkivmärkets vakt
+togs bort för.

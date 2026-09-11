@@ -1992,13 +1992,19 @@
   }
 
   // ── detail: a side pane on desktop, a modal overlay on mobile ──
-  var detailPane, detailContent, workEl, selectedId = null, currentDetailItem = null, boardAt = null;
+  var detailPane, detailContent, workEl, boardEl, selectedId = null, currentDetailItem = null, boardAt = null;
   function isWide() { return window.matchMedia("(min-width: 900px)").matches; }
   function paneRefs() {
     if (!detailPane) {
       detailPane = document.getElementById("detailPane");
       detailContent = document.getElementById("detailContent");
       workEl = document.getElementById("work");
+      boardEl = document.getElementById("board");
+      // `armAxisLock` takes `.work` and not the port, deliberately: the axis lock is the
+      // list's, scoped by the same `:has(> .board.as-list)` the stylesheet uses, and in
+      // the list `.work` *is* the port. `armChromeWheel` takes it for a different reason —
+      // it is the box the chrome sits above, not the box that scrolls; what it forwards
+      // to it asks `scrollPort()` per event.
       if (workEl) { armAxisLock(workEl); armChromeWheel(workEl); }
     }
   }
@@ -2219,11 +2225,17 @@
           (e.deltaX < 0 ? n.scrollLeft > 0 : n.scrollLeft < n.scrollWidth - n.clientWidth - 1)) takeX = false;
       }
       if (!takeY && !takeX) return;
+      // The box the chrome sits above is `.work`; the box that *moves* is whichever one
+      // is scrolling, asked now rather than when this was armed. Arming happens once, at
+      // the first `paneRefs()`, and the layout changes many times after it — a captured
+      // port would forward every wheel to `.work` on a board that stopped scrolling, and
+      // the dead zone this exists to close would open again in the kanban layout only.
+      var to = scrollPort() || port;
       // Lines and pages are real delta modes — Firefox sends lines for a mouse wheel —
       // and forwarding them as pixels would move the board by three.
-      var k = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? port.clientHeight : 1;
-      if (takeY) port.scrollTop += e.deltaY * k;
-      if (takeX) port.scrollLeft += e.deltaX * k;
+      var k = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? to.clientHeight : 1;
+      if (takeY) to.scrollTop += e.deltaY * k;
+      if (takeX) to.scrollLeft += e.deltaX * k;
     }, { passive: true });
   }
 
@@ -2285,7 +2297,54 @@
   // freely. `overflow: hidden` on the port is enough here precisely because it is not
   // the document scroller, which is the case iOS mishandles.
   var scrollLocks = 0, lockedY = 0, lockedX = 0;
-  function scrollPort() { paneRefs(); return workEl; }
+  // ── which box actually scrolls ──────────────────────────────────────────────
+  // One question, asked in one place. It was asked in four — the wheel forwarder, the
+  // scroll lock, the puck page's saved place and the tab stop — and every one of them
+  // answered `.work`, which was true right up until the kanban board became a port of
+  // its own. Four copies of a fact is how they come to disagree; this is the same move
+  // as `liftArchive()` and `sortChain()`.
+  //
+  // Two answers, and the layout decides between them:
+  //
+  // - **The kanban board is its own port.** `#board` already carries `overflow-x: auto`,
+  //   which makes it a scroll container in *both* axes — it simply had no height to
+  //   scroll within, so `.col-head`'s `position: sticky` pinned against nothing and the
+  //   sideways scrollbar sat at the bottom of 4700px of cards instead of at the bottom of
+  //   the window. Stretching it to the port's height is what makes both true again.
+  // - **The list is not.** `.board.as-list` is no scroller — that is what buys the group
+  //   heading its vertical pin — so there `.work` is the port, unchanged.
+  //
+  // And a puck page is neither, which is why the class is asked first: `#board` is
+  // `display: none` there but keeps its layout class, so a puck opened from the board
+  // would otherwise hand back a hidden box with no scroll range at all. The puck's own
+  // content is `.work`'s, always.
+  function scrollPort() {
+    paneRefs();
+    if (!workEl) return null;
+    if (document.body.classList.contains("viewing-puck")) return workEl;
+    return boardEl && !boardEl.classList.contains("as-list") ? boardEl : workEl;
+  }
+  // The port is a tab stop and a labelled region, because the page stopped being one —
+  // Page Down and Space from the topbar need something to move, and Chrome puts
+  // scrollers in the tab order by itself where Safari does not. So the marks follow the
+  // port rather than sitting on `.work` in the markup: a box that no longer scrolls is
+  // not a stop, and a region with no name is worse than no region.
+  function markPort() {
+    var port = scrollPort();
+    if (!port) return;
+    [workEl, boardEl].forEach(function (n) {
+      if (!n || n === port) return;
+      n.removeAttribute("tabindex");
+      n.removeAttribute("role");
+      n.removeAttribute("aria-label");
+    });
+    port.setAttribute("tabindex", "0");
+    // `role="region"` only on `.work`, which is a `div`. `#board` is a `<main>` and
+    // already a landmark; `role` there would replace the landmark with a weaker one, so
+    // the label alone is what names it.
+    if (port === workEl) port.setAttribute("role", "region");
+    port.setAttribute("aria-label", document.body.classList.contains("viewing-puck") ? "Puck" : "Board");
+  }
   function lockScroll() {
     if (scrollLocks++) return;
     var port = scrollPort();
@@ -4122,14 +4181,16 @@
     // offsets clamp to 0 and coming back would land on the top-left of the list —
     // measured 150/250 → 0/0. Captured only on the way *in* from the board: puck →
     // puck keeps the first one, which is the place Back actually returns to.
-    if (workEl && !document.body.classList.contains("viewing-puck")) {
-      boardAt = { x: workEl.scrollLeft, y: workEl.scrollTop };
-    }
+    // Asked before the class goes on, so the answer is still the board's port — which in
+    // the kanban layout is `#board` and not `.work`.
+    var from = document.body.classList.contains("viewing-puck") ? null : scrollPort();
+    if (from) boardAt = { x: from.scrollLeft, y: from.scrollTop };
     detailPane.hidden = false;
     document.body.classList.add("viewing-puck");
     // The scrollport is a labelled region (it is the only thing that scrolls, so it is
-    // also a tab stop), and what it holds has just changed from the board to one puck.
-    if (workEl) workEl.setAttribute("aria-label", "Puck");
+    // also a tab stop), and what it holds has just changed from the board to one puck —
+    // which in the kanban layout also changes *which box* it is.
+    markPort();
     // The mobile topbar becomes the puck's context (Linear-style): Pucks › Title,
     // where "Pucks" is the back action and the title truncates.
     var tc = document.getElementById("topCrumb");
@@ -4182,8 +4243,10 @@
     // it on the way in, but the reader may have scrolled the page itself since. Dropping
     // the saved place without dropping the live one just moves the problem: measured, a
     // view picked after reading 300px into a puck opened 186px down its own list.
-    var port = scrollPort();
-    if (port) { port.scrollTop = 0; port.scrollLeft = 0; }
+    // Both boxes, not just the port: `closeDetail` has already run, so the answer is the
+    // board's port — while the offset the *puck* was read at is still standing in `.work`.
+    // In the list they are the same box and the second write is a no-op.
+    [scrollPort(), workEl].forEach(function (n) { if (n) { n.scrollTop = 0; n.scrollLeft = 0; } });
     if (location.hash) { try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} }
   }
   function closeDetail() {
@@ -4199,14 +4262,16 @@
     // the puck it belonged to and can still commit to it.
     closeSurfaces();
     document.body.classList.remove("viewing-puck");
-    if (workEl) workEl.setAttribute("aria-label", "Board");
+    markPort();
     if (detailPane) detailPane.hidden = true;
     highlightSelected();
     // The board is back and has its scroll range again, so the place it was left in can
-    // be. After `highlightSelected`, which is the last thing that touches the rows.
-    if (workEl && boardAt) {
-      workEl.scrollTop = boardAt.y;
-      workEl.scrollLeft = boardAt.x;
+    // be. After `highlightSelected`, which is the last thing that touches the rows — and
+    // after the class comes off, or the port asked for would still be the puck's.
+    var back = boardAt && scrollPort();
+    if (back) {
+      back.scrollTop = boardAt.y;
+      back.scrollLeft = boardAt.x;
       boardAt = null;
     }
   }
@@ -5790,6 +5855,10 @@
     var layout = state.view;
     trayColumns = null; // set again by the tray, if this render draws one
     board.classList.toggle("as-list", layout === "list");
+    // The class is what decides which box is the port, so the marks that belong to the
+    // port move with it — here rather than only in `openDetail`/`closeDetail`, because
+    // the layout switches without a puck ever being opened.
+    markPort();
     // On the board rather than on each row: one write for the whole list, and the rows
     // inherit it. Written on every render because the set can change without the rows
     // changing at all — ticking a property off is a redraw of the same pucks.
