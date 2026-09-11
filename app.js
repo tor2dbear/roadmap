@@ -2206,14 +2206,17 @@
       // that — so forwarding its delta would scroll the board out from under someone who
       // is only trying to make it bigger.
       // The guard asks the box that *scrolls*, not the box the chrome sits above, and the
-      // two stopped being the same thing when the kanban board became its own port. `.work`
-      // holds the board, the detail pane **and the footer** — and in kanban the footer is
-      // permanently visible, 65px of it. Asking `.work` there answered "inside the port,
-      // leave it to the browser" about a box that no longer scrolls, so a wheel over the
-      // footer moved nothing at all: measured, 0px against 300 over the topbar, in a strip
-      // that used to scroll its `.work` ancestor. Codex, #54 — the same shape as the scroll
-      // lock one function up, and the same cure. In the list `to` *is* `.work`, so the
-      // footer keeps its native scroll there and nothing is forwarded for it.
+      // two stopped being the same thing when kanban got a scrollport of its own. Codex,
+      // #54 — the same shape as the scroll lock one function up, and the same cure.
+      //
+      // **The case it was reported for is gone, and the rule is kept anyway.** It was the
+      // footer: while the board was the port, `.work` held it *outside* that port and 65px
+      // of it stood permanently in view, so asking `.work` answered "inside the port, leave
+      // it to the browser" about a box that no longer scrolled — 0px against 300 over the
+      // topbar. The footer moved inside `.port` a commit later, and with it that strip. No
+      // dead zone is reachable today, so nothing fails if this line asks the wrong box;
+      // what remains is that asking the wrong box is wrong, and the next box to sit between
+      // `.work` and the port would revive the bug rather than introduce it.
       var to = scrollPort() || port;
       if (to.contains(e.target) || scrollLocks || e.ctrlKey) return;
       // First refusal is per axis, and it is a *claim on that axis alone* rather than on
@@ -2311,7 +2314,7 @@
   // freely. `overflow: hidden` on the port is enough here precisely because it is not
   // the document scroller, which is the case iOS mishandles.
   // The box that is *currently* locked, remembered rather than resolved twice. Before the
-  // board became a port of its own the question had one answer for the life of a sheet, so
+  // kanban got a port of its own the question had one answer for the life of a sheet, so
   // asking again on the way out was free; it is not any more. See `unlockScroll`.
   //
   // **Sabotage cannot fell this one, and that is worth stating rather than hiding.** With
@@ -2325,17 +2328,20 @@
   // ── which box actually scrolls ──────────────────────────────────────────────
   // One question, asked in one place. It was asked in four — the wheel forwarder, the
   // scroll lock, the puck page's saved place and the tab stop — and every one of them
-  // answered `.work`, which was true right up until the kanban board became a port of
+  // answered `.work`, which was true right up until kanban got a scrollport of
   // its own. Four copies of a fact is how they come to disagree; this is the same move
   // as `liftArchive()` and `sortChain()`.
   //
   // Two answers, and the layout decides between them:
   //
-  // - **The kanban board is its own port.** `#board` already carries `overflow-x: auto`,
-  //   which makes it a scroll container in *both* axes — it simply had no height to
-  //   scroll within, so `.col-head`'s `position: sticky` pinned against nothing and the
-  //   sideways scrollbar sat at the bottom of 4700px of cards instead of at the bottom of
-  //   the window. Stretching it to the port's height is what makes both true again.
+  // - **In kanban it is `.port`, the box that wraps the board and the footer.** The board
+  //   used to carry `overflow-x: auto` with no height to scroll within, so `.col-head`'s
+  //   `position: sticky` pinned against nothing and the sideways scrollbar sat at the
+  //   bottom of 4700px of cards instead of at the bottom of the window. The obvious repair
+  //   is to give the board a height — and that was built, and it put the footer at the
+  //   bottom of the window forever, because a footer cannot go *inside* a box laid out
+  //   `grid-auto-flow: column`. So the scroller is one box out, and the board goes back to
+  //   overflowing visibly: exactly what `.board.as-list` has always done.
   // - **The list is not.** `.board.as-list` is no scroller — that is what buys the group
   //   heading its vertical pin — so there `.work` is the port, unchanged.
   //

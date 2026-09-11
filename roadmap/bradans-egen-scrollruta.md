@@ -79,16 +79,33 @@ ska ställas på ett ställe, inte tre. Det är arbetet, inte de två CSS-radern
 
 ## Utfall
 
-`scrollPort()` finns, och att den finns är hela ändringen. De två CSS-raderna stod kvar
-som de var mätta; svansen blev ungefär vad pucken förutsåg, med två tillägg den inte hade.
+**Titeln höll inte bokstavligt, och det är värt att säga först.** Brädan blev inte sin egen
+scrollruta — en låda *runt* den blev det, och skälet står i första stycket nedan. Rubriken
+fastnar, sidledslisten hamnade längst ner i fönstret, och kolumnerna skrollar: allt pucken
+bad om, genom en annan låda än den namngav. (Samma sak hände
+`nastling-listan-nastlar-tavlan-hinkar`, en syskonpuck: titeln lovade två projektioner och
+den andra höll inte.)
+
+`scrollPort()` finns, och att den finns är hela ändringen. De två CSS-raderna stod kvar som
+de var mätta; svansen blev ungefär vad pucken förutsåg, med tre tillägg den inte hade.
+
+**Porten blev en egen låda, och foten är skälet.** Det uppenbara är att göra `#board` till
+scrollrutan, och så byggdes det först. Men brädan lägger ut sina barn `grid-auto-flow:
+column`, så en fot *inuti* den blir bara ännu en kolumn — och en fot *utanför* den låda som
+skrollar är en fot som aldrig skrollar bort. Den stod fast underst i fönstret i en commit,
+rapporterad från telefonen: 114px av 844. `.port` wrappar brädan **och** foten och skrollar
+bägge axlarna; brädan går tillbaka till att svämma över synligt, vilket den måste, för en
+sticky-box löser upp mot närmaste scrollcontainer och får inte hitta brädan. Det är exakt
+listans arrangemang en layout bort — `.board.as-list` har stängt av sin egen `overflow-x`
+sedan listan skrevs, av samma skäl.
 
 **Frågan hade fyra läsare, inte tre.** Hjulet, låset och puckssidans sparade plats stod i
 pucken. Den fjärde var **tabbstoppet**: `.work` bär `tabindex="0"` i markupen sedan regeln
-*"porten är ett tabbstopp, eftersom sidan slutade vara det"* skrevs, och en bräda som
+*"porten är ett tabbstopp, eftersom sidan slutade vara det"* skrevs, och en port som
 skrollar medan `.work` håller stoppet ger Page Down ingenting att flytta igen. `markPort()`
-flyttar stopp, namn och — bara på `.work` — `role="region"`; `role` hålls borta från
-`#board`, som är en `<main>` och redan ett landmärke. Den ritas om från `renderBoard`,
-eftersom layouten byts utan att någon puck öppnas.
+flyttar stopp, roll och namn, och ritas om från `renderBoard` eftersom layouten byts utan
+att någon puck öppnas. `role="region"` hålls borta från `#board` — det är en `<main>` och
+redan ett landmärke.
 
 **Och en läcka pucken inte kände till.** En sticky-box fäster mot portens *innehållsbox*,
 så brädans egna `padding-top: 18px` blev ett band som tillhörde varken rubriken eller
@@ -99,41 +116,43 @@ layout bort, och samma reparation: luften flyttar till lådan som färdas, `.col
 
 **Svaret på de tre öppna frågorna:**
 
-- **Vem svarar?** `scrollPort()`, med tre svar och inte två: brädan i kanban, `.work` i
+- **Vem svarar?** `scrollPort()`, med tre svar och inte två: `.port` i kanban, `.work` i
   listan, `.work` på en puckssida. Det tredje är inte en detalj — `#board` är `display:
   none` där men behåller sin layoutklass, så utan det hade en puck öppnad från brädan fått
   en gömd låda utan scrollområde. `armAxisLock` frågar fortfarande inte: låset är listans,
   och där *är* `.work` porten.
-- **Foten.** Ja, den står underst i fönstret i kanban. Mätt på en 390px-telefon: 114px av
-  844, permanent. Orsaken är att foten ligger *inuti* `.work` som en tredje rad, så när
-  brädan slutar vara innehållshög får foten sin höjd och brädan resten. Skärmdump tagen
-  före commit, som pucken bad om.
+- **Foten.** Nej — och det är puckens enda fråga som fick ett annat svar än den väntade sig.
+  Den *stod* underst i fönstret så länge brädan var porten, och det var fel: foten hör till
+  innehållet. Mätt på 390px efter omstruktureringen: y=10352, alltså sist bland korten.
+  Skärmdump tagen och visad före commit, som pucken bad om — det var den som avgjorde.
 - **Ska rubriken fastna på en telefon?** Ja. Den är en rad, inte ett block — till skillnad
   från listans frysta namnkolumn, som mättes till 368px och retirerade av just det skälet.
 
-**Sabotaget fällde fyra av fem regler — och det femte är fyndet.** Att låta `closeDetail`
-fråga efter porten *före* klassen tas bort fällde ingenting, och skälet är att kontrollen
-inte mätte mekanismen: i kanban är `#board` själv porten, och Chromium lägger tillbaka en
-gömd scrollcontainers offset när den visas igen. Mätt utan någon kod inblandad: 180 → gömd
-0 → åter 180. Sparandet är alltså bälte och hängslen här, medan det i listan är bärande
-(`.work` klampas på riktigt, och den kontrollen fanns redan). Koden står kvar ändå — den är
-*rätt* låda att skriva i, och alternativet är en rad som skriver brädans plats in i `.work`
-och råkar vara osynlig så länge webbläsaren gör oss tjänsten. Kontrollen är omskriven till
-det den faktiskt visar, plus en andra halva som är vår: går man ur pucken via sidomenyn ska
-platsen *släppas*, i bägge lådorna, och det fälls av sabotage.
+**Sabotaget fällde åtta av elva regler, och de tre som stod kvar är fynden.**
 
-**Två befintliga kontroller flyttade med regeln i stället för att lappas**, bägge
-premissrader vars premiss ändringen avskaffar: *"tavlan sträcker sig utanför rutan"* är
-vänd (tavlan är nu **kortare** än `.work`, 176 mot 240, eftersom foten delar rutnätet — den
-klipper fortfarande, bara åt andra hållet), och *"brädan är högre än fönstret"* går inte att
-arrangera alls längre. Den andra är en starkare ordning än kontrollen bad om: en bräda som
-inte *kan* bli högre än sin rad kan inte måla över foten.
+1. Att låta `closeDetail` fråga efter porten *före* klassen tas bort fällde ingenting:
+   Chromium lägger tillbaka en gömd scrollcontainers offset när den visas igen. Mätt utan
+   kod inblandad: 180 → gömd 0 → åter 180. Sparandet är bälte och hängslen i kanban och
+   bärande i listan. Koden står kvar — den är *rätt* låda att skriva i — och kontrollen är
+   omskriven till det den visar, plus en halva som är vår: går man ur pucken via sidomenyn
+   ska platsen släppas, i bägge lådorna, och det fälls av sabotage.
+2. `lockedEl` täcks av `relockScroll`: det är överföringen som bär, inte minnet.
+3. Hjulets containment-guard skyddar inte mot dubbelskroll — det gör first
+   refusal-vandringen.
+
+**Fyra befintliga kontroller flyttade med strukturen i stället för att lappas.** Tre är
+premissrader vars premiss ändringen avskaffar (den klippande lådan är porten, spillet ligger
+i dess scroll, foten kommer efter brädan i stället för i fönstrets botten). Den fjärde är
+listans axellås: `touch-action`, sidledsstudsen och de gömda indikatorerna är scopade
+`.work:has(> .board.as-list)` — ett *direkt* barn, medvetet precist — och brädan slutade
+vara ett direkt barn när den fick en förälder. Fem kontroller föll på en gång, ingen av dem
+om det här bytet.
 
 ## Kvar
 
 Listan gömmer sina inbyggda scrollindikatorer under `(pointer: coarse)`, eftersom en port
 med två axlar ritar dem illa — den lodräta stapeln målar under de klibbiga rubrikerna, och
-en snärt nedåt blinkar till den vågräta. Kanban-brädan är en tvåaxlig port nu också, så
-samma sak kan gälla den. Den regeln skrevs från en rapport från en riktig enhet; den här
-har ingen, och att bredda den på symmetri vore precis den omätta svepning arkivmärkets vakt
-togs bort för.
+en snärt nedåt blinkar till den vågräta. Kanbanporten är tvåaxlig nu också, så samma sak
+kan gälla den. Den regeln skrevs från en rapport från en riktig enhet; den här har ingen,
+och att bredda den på symmetri vore precis den omätta svepning arkivmärkets vakt togs bort
+för.
