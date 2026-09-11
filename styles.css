@@ -1171,6 +1171,9 @@ body.scroll-locked { overflow: hidden; }
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+  position: sticky;
+  left: 0;
+  background: var(--bg);
 }
 .foot a { color: var(--ink-2); }
 /* The footer dates the harvest, so the control that refreshes it belongs in the same
