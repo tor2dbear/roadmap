@@ -1,8 +1,8 @@
 ---
 title: "Ingen gruppering alls i listan"
-status: later
+status: done
 tags: [ui]
-updated: 2026-09-02
+updated: 2026-09-10
 created: 2026-09-02
 priority: low
 target: 2026-09-30
@@ -39,3 +39,87 @@ att falla tillbaka i tavlan.
 
 - Ska `group=none` ärva den senaste sorteringen, eller föreslå en egen när man slår på
   den? Det förra är förutsägbart, det senare är hjälpsamt precis en gång.
+  **Svar: ingetdera — den föreslår, och förslaget viker för ett val.** Frågan förutsatte
+  att alternativen var "ärv" eller "skriv", och det tredje läget är det brädan redan
+  använder på ett ställe till: `autoDateField` visar det datum ordningen handlar om, i
+  frånvaro av ett val och aldrig över det. Ett *förslag* ärver alltså en vald kedja
+  ordagrant och ersätter bara förvalet, som under den här grupperingen är det enda som
+  inte betyder något.
+
+## Delivered
+
+- **`GROUPS.none`** — en gruppering utan `field`. Det är hela integrationen: `columnTerm`,
+  `termAboutGroup` och `groupConstrained` öppnar var och en med `if (!g.field) return …`,
+  och varje valfri medlem (`cls`, `tint`, `headExtra`, `write`) var redan vaktad. Ingen
+  ny gren någonstans i frågespråket, facket eller chipsraden.
+- **`LIST_ONLY = { parent: 1, none: 1 }`** — grupperingarna som kräver listan, som en
+  tabell och inte som ett andra `=== "parent"`. `parent` är en hierarki och kan inte bli
+  kolumner; `none` är kolumnernas frånvaro, vilket är samma sak sagt från andra hållet.
+  `groupUsable` och `effectiveParams` frågar tabellen, så `group=none&layout=board`
+  stryks ur länken precis som `group=parent` alltid har gjort.
+- **`headless`: huvudet ritas bara när arkivet har något att säga**, och bär då enbart
+  märket — ingen färgruta, inget namn, ingen fällkontroll. En rubrik som heter
+  `All pucks` ovanför hela listan är en etikett som upprepar sidan; men utan huvud alls
+  hade arkivet tystnat, och den tystnaden är precis vad märket skrevs för. Samma form som
+  arkivstubben en gren ner, minus de två delar som namnger en grupp.
+- **`archivedMark(n, key, where)`** — märket namnger platsen puckarna saknas från.
+  "in this column" pekade på något som inte ritas någonstans på sidan under den här
+  grupperingen.
+- **`sortChain()` / `proposedSort()`** — en gruppering får föreslå en ordning, och `none`
+  är den enda med en åsikt. `order:` är puckens plats *inom sin kolumn*, så utan kolumner
+  väver förvalskedjan ihop en `now`-puck med rank 20 mellan två `done` med 10 och 30, efter
+  ett tal som aldrig betytt något över den gränsen. `status,order` är tavlans egen
+  läsordning utplattad. En funktion och inte en gren per konsument, för menyn läser den
+  också: en meny som visar en kedja tavlan inte ritar är exakt det fel den saknade `✕` på
+  sista nyckeln finns för att förhindra.
+- **`Reset ordering` jämför mot förslaget**, inte mot `DEFAULT_SORT`. Mot konstanten
+  ritades en återställning på en orörd kedja vars tryck landat på samma rader — en
+  kontroll som inte gör något är värre än en som saknas.
+- **Frånvaron av ett sorteringsval är `null`**, inte `DEFAULT_SORT` — samma distinktion
+  `props` redan gör. Det var granskningsfyndet: en förvalskedja som också är ett giltigt
+  val kan inte dubbla som frånvaron av ett, så under den här grupperingen gick
+  `order,updated` inte att be om alls. Vad som *skrivs ner* mäts på samma sätt mot
+  grupperingens förslag i stället för mot konstanten, så en sparad vy och den levande
+  brädan är fortsatt överens om vilka strängar som är frånvarande.
+- **En fällning under en huvudlös gruppering betyder ingenting**, och länken kunde ändå bära
+  en. `headlessGroup()` frågas i två domäner: `effectiveParams` stryker nyckeln ur ett
+  främmande params-objekt, `applyParams` tömmer `state.collapsed`. Det senare stänger den
+  lucka filen redan namngav — *"`setDisplay` rensade redan fällningarna när grupperingen
+  ändrades; navigeringen hade ingen motsvarighet"*.
+- **`tests/grouping.test.mjs`** — 41 kontroller (plus 3 i `sort.test.mjs`). Varje fix backades ur och rätt kontroll
+  föll: huvudet återkom med namn och fällkontroll, märket sa "column" igen, brädet ritade
+  `All pucks` som enda kolumn, ordningen blev `Now Later Next Now …`, återställningen dök
+  upp på en orörd kedja, `collapsed=%00` blev kvar i länken, och `order,updated` föll
+  tillbaka till `[Status, Manual]`.
+
+## Granskningsfynd
+
+Två P2 från Codex, bägge reproducerade i webbläsaren före fix och saboterade efter.
+
+1. **`collapsed` under en huvudlös gruppering.** `?layout=list&group=none&collapsed=<NUL>`
+   behöll nyckeln i URL:en och tände Display-pricken medan alla sju rader stod öppna.
+2. **Ett val som råkar vara förvalet.** `state.sort === DEFAULT_SORT` var både "förvalet"
+   och "inget valt", så `order,updated` gick inte att be om under grupperingen: menyn skrev
+   kedjan, kedjan lästes som frånvaro, förslaget kom tillbaka. Fixen är `props`-mönstret
+   (`null` = inget val) — men **första försöket gick för långt**: att sluta stryka
+   `DEFAULT_SORT` ur URL:en helt fällde tre kontroller i `sort.test.mjs` (`?sort=default`
+   och en riktning vänd fram och tillbaka lämnade bägge förvalskedjan i länken). Regeln var
+   rätt hela tiden — skriv inte ner det brädan ritar ändå — men mätt mot fel förval. Den
+   mäter mot `proposedSort()` nu.
+3. **Display-pricken frågade något annat än de andra två.** Följdfelet av `null`:
+   `displayDirty` går igenom `DISPLAY_DEFAULTS` med identitet, så strängen `order,updated`
+   läste som ändrad mot ett `null`-förval för alltid. Vänd en riktning och vänd tillbaka på
+   förvalsbrädet: URL:en tom, `Reset ordering` borta, pricken kvar. `sortChosen()` är frågan
+   nu och alla tre ytorna ställer den.
+4. **En kedja lika med förslaget höll bara till nästa omladdning** — och det här är fyndet
+   som vände ett beslut jag hade försvarat i skrift en runda tidigare. Jag förkastade först
+   normalisering med argumentet att ett uttryckligt `order,updated` måste överleva ett
+   grupperingsbyte. Argumentet lät rätt och höll inte: det tillståndet går inte att skilja
+   från "inget val" — inte på skärmen, inte i länken, inte i en sparad vy — så samma länk och
+   samma klick gav två brädor beroende på om man laddat om. Vilket är exakt det fel
+   `state`-kommentaren högst upp i `app.js` redan dömt av: *"samma URL ritade två olika
+   chrome beroende på om man klickade eller laddade om."* Ett beteende som bara håller till
+   nästa F5 är en kapplöpning med webbläsaren, inte ett beteende. `normalizeSort()` kör i
+   `applyParams` och i `setDisplay`; att sabotera bort den andra fällde först ingenting, för
+   `sortChosen()` håller länken ren av sig själv i det steget — skillnaden syns ett byte
+   senare, på vägen tillbaka. Kontrollen mäter rundturen av det skälet.

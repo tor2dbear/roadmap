@@ -243,7 +243,7 @@ export async function run({ open, origin }) {
     const p = await open("", { token: true });
     await p.locator("#displayBtn").click();
     await p.waitForSelector(".pop, .sheet");
-    await p.locator("label.fp-toggle").filter({ hasText: "Show done" }).click();
+    await p.locator('label.fp-toggle[data-key="showDone"]').click();
     await p.waitForTimeout(250);
     await p.keyboard.press("Escape");
     await p.waitForTimeout(150);
@@ -307,6 +307,132 @@ export async function run({ open, origin }) {
     await p.goto(origin + "/index.html");
     await p.waitForSelector(".board");
     await p.waitForTimeout(250);
-    eq(url(p), "", "en nollställd vy står kvar nollställd över en omladdning");
+    // `?layout=list`, inte `""`: Reset återställer inte längre vytypen (se gruppen nedan),
+    // så det migrerade som ska vara borta är *grupperingen*. Beviset är oförändrat — hade
+    // migreringen kört en andra gång vore `group=repo` tillbaka — men strängen flyttade med
+    // regeln, och att inte flytta den hade varit att låta en check koda ett övergivet
+    // beteende.
+    eq(url(p), "?layout=list", "det migrerade kommer inte tillbaka vid nästa laddning");
+  }
+
+  group("layouten är inte en display-ändring, varken för pricken eller för Reset");
+  {
+    // Rapporterat: pricken tändes av board → list. Layouten är inget *arrangemang* av
+    // brädan utan ett val om hur man läser den — menyn säger det redan med sin form, en
+    // segmentkontroll överst, ovanför och skild från fältraderna. Filen medgav det när
+    // displayen blev per vy ("den som läses som en inställning om enheten") och behöll den
+    // ändå, bara för att de inbyggda vyerna inte skulle skilja sig från de sparade i exakt
+    // en nyckel.
+    //
+    // Pricken och Reset är *ett* beslut, inte två: koden skriver ut invarianten själv en
+    // rad ner — "annars skulle Reset to default ändra något pricken nyss kallade förval".
+    // Kontrollen mäter därför bägge, och sabotaget måste fälla bägge halvorna var för sig.
+    const prick = (p) => p.evaluate(() => !document.getElementById("displayDot")?.hidden);
+
+    const p = await open("");
+    eq(await prick(p), false, "förvalsbrädet: ingen prick");
+
+    await p.locator("#displayBtn").click();
+    await p.waitForSelector(".pop, .sheet");
+    await p.locator(".pop, .sheet").getByText("List", { exact: true }).click();
+    await p.waitForTimeout(300);
+    await p.keyboard.press("Escape");
+    await p.waitForTimeout(150);
+    eq(url(p), "?layout=list", "layouten står i länken");
+    eq(await prick(p), false, "men tänder inte pricken");
+
+    // En riktig display-ändring gör det fortfarande.
+    await välj(p, "Grouping", "Repo");
+    eq(url(p), "?group=repo&layout=list", "grupperingen står också i länken");
+    eq(await prick(p), true, "och den tänder pricken");
+
+    // Och Reset släpper grupperingen men behåller vytypen.
+    await p.locator("#displayBtn").click();
+    await p.waitForSelector(".pop, .sheet");
+    await p.locator(".dp-reset").click();
+    await p.waitForTimeout(300);
+    await p.keyboard.press("Escape");
+    await p.waitForTimeout(150);
+    eq(url(p), "?layout=list", "Reset behåller layouten och slänger grupperingen");
+    eq(await prick(p), false, "och pricken slocknar med den");
+  }
+
+  group("ett layoutbyte i en öppen meny gör om nivån, inte bara växlarna");
+  {
+    // Codex P2. `groupOffered` läser `state.view` sedan None togs bort från brädet, och
+    // layout-återanropet ritade bara om helhetsväxlarna. Undermenyn klarar sig — nivå 2
+    // kallar `f.options()` när man går *in* i den — men den här nivåns rader ritas en gång,
+    // och deras värde är `displayLabel(f)`. Mätt: stod man i listan under `group=none` och
+    // tryckte Board sa raden `Grouping · None` över en bräda som ritade Now / Next / Later.
+    // En meny som påstår en gruppering brädan inte ritar är samma fel som den saknade `✕`
+    // i sorteringsmenyn finns för att förhindra, en nyckel bort.
+    const p = await open("?layout=list&group=none", { token: true });
+    await p.locator("#displayBtn").click();
+    await p.waitForSelector(".pop, .sheet");
+    const rad = () => p.evaluate(() => {
+      const r = [...document.querySelectorAll(".dp-row")].find((e) => /Grouping/.test(e.textContent));
+      return r ? r.textContent.replace(/\s+/g, " ").trim() : null;
+    });
+    eq(await rad(), "GroupingNone", "i listan säger raden None");
+
+    await p.locator(".pop, .sheet").getByText("Board", { exact: true }).click();
+    await p.waitForTimeout(350);
+    eq(await rad(), "GroupingStatus", "efter Board säger den vad brädan ritar");
+    eq(await p.evaluate(() =>
+      [...document.querySelectorAll(".board > .column:not(.hidden-cols) .col-head h2")]
+        .map((e) => e.textContent.trim())), ["Now", "Next", "Later"],
+      "och brädan ritar det");
+
+    // Ombyggnaden kostar den tryckta knappen sin fokus, så den läggs tillbaka — på den
+    // knapp `segmented()` faktiskt märker, inte på ett `data-value` hjälparen inte sätter.
+    eq(await p.evaluate(() => {
+      const a = document.activeElement;
+      return { text: a && a.textContent.trim(), iSegmentet: !!(a && a.closest && a.closest(".dp-seg")) };
+    }), { text: "Board", iSegmentet: true }, "och fokus står kvar på segmentet man tryckte");
+    await p.keyboard.press("Escape");
+  }
+
+  group("växeln definierar ordet märkena använder");
+  {
+    // Det finns ingen `archived`-status — `TERMINAL` är `done` eller `cancelled` — så
+    // märkena ("137 archived 👁") namnger en kategori datan inte har. Växeln är det enda
+    // stället som kan definiera den, och gör det nu, så varje märke kan stanna kort och
+    // ändå gå att slå upp.
+    const p = await open("");
+    await p.locator("#displayBtn").click();
+    await p.waitForSelector(".pop, .sheet");
+    const rad = await p.evaluate(() => {
+      const r = document.querySelector('label.fp-toggle[data-key="showDone"]');
+      const cb = r && r.querySelector("input");
+      const byId = (a) => {
+        const id = cb && cb.getAttribute(a);
+        const e = id && document.getElementById(id);
+        return e ? e.textContent.trim() : null;
+      };
+      // Null-tåligt hellre än direkt uppslag: backar man till en tooltip finns hint-noden
+      // inte, och en kontroll som kastar säger inte vad den såg — den säger bara att den
+      // dog. Diffen är hela poängen med att sabotera.
+      const txt = (sel) => { const e = r.querySelector(sel); return e ? e.textContent.trim() : null; };
+      return {
+        namn: txt(".fp-toggle-name"),
+        synligHint: txt(".fp-toggle-hint"),
+        // Fyndet: en `title` når varken en telefon eller en skärmläsare, och arket *är*
+        // telefonen. Namnet måste dessutom smalnas av uttryckligen — en label som lindar
+        // sin kontroll lämnar över all sin text, så utan `aria-labelledby` blir det
+        // tillgängliga namnet "Show archived Done and cancelled pucks.", vilket är
+        // parentesen tillbaka och uppläst varje gång.
+        aNamn: byId("aria-labelledby"),
+        aBeskrivning: byId("aria-describedby"),
+        tooltip: r.title,
+      };
+    });
+    eq(rad, {
+      namn: "Show archived",
+      synligHint: "Done and cancelled pucks.",
+      aNamn: "Show archived",
+      aBeskrivning: "Done and cancelled pucks.",
+      tooltip: "",
+    }, "namnet är namnet, definitionen är en egen rad — synlig utan hover och uppläst som beskrivning");
+    await p.keyboard.press("Escape");
   }
 }

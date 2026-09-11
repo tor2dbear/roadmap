@@ -172,9 +172,34 @@ sources.json ──▶ scripts/harvest.mjs ──▶ data/roadmap.json + data/ro
   folds groups in the list layout (`collapsed`) carries those too, and listing a subset
   here is how a plan comes to specify a lossy round trip.
   Configuration, not truth (the pucks stay the only data), and hand-editable;
-  the board writes it for you, as a commit: **Save view** in the chip row (where you
-  just built the filter), *Save this view…* behind the view title (where the saved
-  view lands), or the same command in ⌘K. Once a view exists, the chip row reads the
+  the board writes it for you, as a commit: **Save view** on the Filter/Display row,
+  *Save this view…* behind the view title (where the saved view lands), or the same
+  command in ⌘K. It sat in the chip row until a view could be *nothing but a display* —
+  then that row held one right-aligned button and nothing else, 49px of a 390px phone.
+  The clinching argument was in the chip row's own hiding rule: it could not hide without
+  chips, because it was carrying Reset and Update for exactly the view whose every change
+  is a display one. Moving the view's actions up releases it, and `chipRow.hidden` is
+  simply "no chips" again. `Clear all` stays with the chips — it is their bulk ✕, not a
+  view action, and it is a worse neighbour to Save and Update than to the things it
+  removes.
+- **A saved view's name is unbounded, and `Update "<name>"` carries it onto a toolbar.**
+  Neither the save nor the rename path caps it, so on a 390px phone a 52-character name
+  turned that button into a six-line balloon 130px tall and pushed the row out of shape.
+  `nowrap` alone then made it *worse* — the button ran 250px past the window, clipped by
+  `.app` and genuinely unreachable. The cap needs `min-width: 0` at **both** levels, because
+  a flex item's automatic minimum is its content: `.vopts` cannot shrink inside the header,
+  so `.vacts` has nothing to shrink inside either. And only the button holding the name may
+  give — every sibling without `min-width: 0` already refuses to lose a character, which is
+  why `Reset` keeps its word and an explicit `flex: none` on the parts turned out to change
+  nothing and was removed. The clipping is visual only: the button's text node keeps the
+  whole name, so a screen reader still announces which view it updates.
+- **What the board offers to name is not what it will accept.** `worthNaming()` gates the
+  button — `ownParams` minus the layout — while `saveCurrentView`'s refusal still asks
+  `ownParams`. The divergence is the point: the title menu and ⌘K are deliberate acts, so
+  "Ready, as a list" stays savable; a button that puts itself in front of you is an offer,
+  and an offer to name the default board is noise. Reported right after the layout left the
+  Display dot: `?layout=list` had the dot saying *default* and the chip row saying *save
+  this* — two surfaces, one question, different answers. Once a view exists, the chip row reads the
   board against it — untouched, it offers nothing; changed, it offers **Reset** (back
   to the view's parameters) and **Update "<name>"**, which rewrites that entry *in
   place* rather than by name collision. Rename / Duplicate / Remove live in the `⋯` on
@@ -603,6 +628,119 @@ hidden by default, restored at container widths 560 and 720). They must stay *af
 whole mechanism, and putting them beside `.list-row` cost a round of two-line rows with
 the date wrapped under the title.
 
+## UI: the grouping with no values
+
+`group=none` is the list with no grouping at all: one bucket, no heading. It carries **no
+`field`**, and that is the whole integration — `columnTerm`, `termAboutGroup` and
+`groupConstrained` each open with `if (!g.field) return …`, and every optional member
+(`cls`, `tint`, `headExtra`, `write`) was already guarded — so a fieldless grouping needed
+no new branch in the query language, the tray or the chip row.
+
+- **It is offered only in the list, and it leads that menu.** `Parent` names a thing to
+  bucket by, so picking it from the board is a real request the layout switch honours —
+  which is why the rule one section down says a row that vanishes with the layout teaches
+  nothing. `none` is the exception, because of what the row *names*: the absence of the
+  board's own organising principle. A kanban with no grouping is not a board with a setting
+  changed, it is a list, so the layout switch would be the whole effect of pressing it.
+  `groupOffered` holds that, and both menus read it — the Display list and ⌘K walk the same
+  filtered `Object.keys(GROUPS)`, so the palette needed no branch of its own. It sits
+  **first** in that table for the same reason it is special: it is not a field among the
+  fields.
+- **Making `groupOffered` read `state.view` made the layout segment repaint the whole level.**
+  It used to repaint only the wholesale toggles, which was right while the layout governed
+  nothing else in that menu. The staleness is not where a reviewer looked for it: level 2
+  calls `f.options()` on entry, so the *submenu* reads the layout you are standing in — but
+  level 1's rows are drawn once and their value is `displayLabel(f)`. Measured: standing in
+  the list under `group=none` and pressing Board left the row reading `Grouping · None` over
+  a board drawing Now / Next / Later, which is the ordering menu's missing-`✕` failure one
+  key over. Rebuilding costs the pressed segment its focus, so it is put back — found by
+  `aria-pressed`, since `segmented()` sets no `data-value` and the first attempt reached for
+  one that was not there.
+- **`LIST_ONLY = { parent: 1, none: 1 }`** — the groupings that require the list, as a
+  table rather than a second `=== "parent"` test. `parent` is a hierarchy and cannot be
+  columns; `none` is the absence of columns, which is the same statement from the other
+  end. `groupUsable` and `effectiveParams` both ask the table, so `group=none&layout=board`
+  drops out of the link exactly as `group=parent` always has. A second hard-coded test is
+  precisely how the first one came to be forgotten in `effectiveParams`.
+- **The heading is drawn only when the archive has something to say, and then carries only
+  the mark** (`headless`). A heading reading `All pucks` above the whole list is a label
+  that repeats the page — but with no heading at all the archive falls silent, and that
+  silence is the exact bug the mark was written for (see *one thing, one place*). So: no
+  swatch (there is no column colour), no name, no fold control (there is no second group to
+  fold this one away from). The same shape as the archive-only stub one branch down, minus
+  the two parts that name a group.
+- **`archivedMark(n, key, where)`** — the mark names the place the pucks are missing from.
+  "in this column" pointed at something that is not drawn anywhere on the page here.
+- **A grouping may propose an ordering, and this is the only one with an opinion.** `order:`
+  is the puck's declared place *within its column*, so with the columns gone the default
+  chain interleaves a `now` puck ranked 20 between two `done` ones ranked 10 and 30, by a
+  number that never meant anything across that boundary. `GROUPS.none.sort` is
+  `status,order` — the board's own reading order flattened — and `sortChain()` applies it
+  **in the absence of a choice, never over one**, which is `autoDateField`'s rule one storey
+  up. The proposal therefore rides in the link as `group=none` alone, since it follows from
+  the grouping rather than from anything stored.
+- **The absence is `null`, not `DEFAULT_SORT`** — and getting that wrong is what a reviewer
+  caught. `props` two keys up has drawn this distinction since it was written (`null` = no
+  choice, an empty Set = the empty choice); `sort` spelled its absence as the default chain,
+  which meant that under a grouping with a proposal the chain `order,updated` **could not be
+  asked for at all**. Measured in the menu: building `[Manual]` and adding `Updated` handed
+  back `[Status, Manual]` and dropped `sort` from the URL, and `?group=none&sort=order,updated`
+  drew `status,order` — a control that silently undoes itself, and a link that does not say
+  what it draws. A default that is also a legal choice cannot double as the absence of one.
+- **What is written down is what the board would not have drawn by itself**, and that too is
+  measured against the *grouping's* proposal rather than the constant. `effectiveParams`
+  drops `sort` when it equals `proposedSort(o.group)` — the foreign object's grouping, not
+  the one you happen to be standing in — and `viewParamObject` emits on the same test, so a
+  saved view and the live board still agree about which strings are absent. Against the
+  constant instead, three checks in `sort.test.mjs` fell: `?sort=default` and a
+  flipped-and-unflipped direction both left the default chain sitting in the URL.
+- **One function, not a branch per consumer, because the menu reads it too.** A menu showing
+  a chain the board is not drawing is the failure the last key's missing `✕` exists to
+  prevent, and a proposal the chooser could not see would be that same failure one storey
+  up. `Reset ordering` asks the same question — is the drawn chain the proposal? — and resets
+  to *no choice* rather than to a chain, since storing the proposal is exactly what would end
+  it. Neither `!== DEFAULT_SORT` (a reset offered on an untouched board) nor `state.sort != null`
+  (one offered for a chain deliberately re-picked to equal the proposal) says it.
+- **`sortChosen()` is that question, and three surfaces ask it** — the URL writer, the
+  Display dot and `Reset ordering`. The dot was the one asking something else, and it is the
+  cost of the `null` above: `displayDirty` walks `DISPLAY_DEFAULTS` by identity, so the
+  string `order,updated` read as changed against a `null` default *forever*. Measured on the
+  default board — flip a direction and flip it back: URL `""`, `Reset ordering` gone, dot
+  still lit. `props` is not in that table at all for the same reason; `sort` is skipped in
+  the loop and asked properly after it.
+- **A chain equal to the proposal is normalized to `null` the moment it is set**, and this
+  is the one thing here that was argued the other way first and had to be reversed. The
+  claim was that an explicit `order,updated` picked under `group=status` must survive a
+  switch to `group=none` — automation never overriding a choice. It sounds right and it
+  does not hold, because that state is not distinguishable from having chosen nothing:
+  nothing on screen separates them, `sortChosen()` keeps it out of the link (the board's
+  older rule that the default chain is never written down has three checks behind it), and a
+  saved view normalizes it away. Kept anyway, it survived in memory and not through a
+  reload — so the **same link and the same click gave two boards**:
+  `?group=none&sort=status,order` then Grouping → Status gave `sort=status,order` live and
+  `order,updated` after F5. That is precisely the failure `state`'s own comment at the top
+  of `app.js` was written about — *"the same URL drew two different chromes depending on
+  whether you clicked or reloaded"* — and it had already been ruled on there: stop keeping
+  the state you cannot tell apart. A behaviour that only holds until a refresh is a race
+  with the browser, not a behaviour.
+- **`normalizeSort()` runs in two places, and the second one is easy to miss.**
+  `applyParams` covers a link; `setDisplay` covers a *grouping* change, where the chain
+  stands still and the proposal moves under it. Sabotaging the second changed nothing that
+  any check could see, because `sortChosen()` keeps the link clean by itself at that step —
+  the divergence appears one switch later, on the way back: without it, Status → None →
+  Status gives `?sort=status,order` live against `?layout=list` reloaded. The check measures
+  the round trip for that reason.
+- **A fold under a headless grouping is a preference about nothing**, and the link could
+  still carry one: `effectiveParams` passes `collapsed` through for any list layout, and this
+  branch never reads `state.collapsed`. Measured,
+  `?layout=list&group=none&collapsed=<NO_VALUE>` kept the key in the URL and lit the Display
+  dot while all seven rows stood open — a fold nobody can see, undo, or have made.
+  `headlessGroup()` is asked in two domains: `effectiveParams` drops the key from a foreign
+  params object, and `applyParams` clears `state.collapsed` outright. The second is the gap
+  this file already named — *"`setDisplay` already cleared the folds when the grouping
+  changed; navigation had no equivalent"* — closed where it is worst, since a headless
+  grouping has no control to undo the fold with.
+
 ## UI: the view chooses its properties
 
 `props` is the ninth key in `VIEW_KEYS`, so a chosen set of properties rides in the URL,
@@ -770,6 +908,16 @@ views already carry, because the query language spells alternatives with commas 
 - **An unknown key is dropped, and an empty chain is the default.** Same as `parseProps`, and
   `sort` is canonicalized in `effectiveParams` beside it, so a saved view carrying the old
   `default` compares against the board actually drawn instead of reading as *(edited)*.
+- **But an unreadable value is not a choice**, and telling those apart needs two readers.
+  `parseSort` must always hand back a chain — the comparator has to be given one — so on its
+  own it turns `sort=futureField` into `order,updated`, which under a grouping with a
+  proposal is a *different board* and gets written into the URL as though someone had asked
+  for it. Measured: `?group=none&sort=futureField` drew manual rank across status
+  boundaries, the exact ordering the proposal exists to prevent, while the same link with no
+  `sort` drew the proposal. `parseSortKeys` is the half allowed to answer nothing, and the
+  callers that decide whether a choice was *made* — `applyParams`, `effectiveParams` — ask
+  that one. The rule was already written one key over, about `props`: a name the board does
+  not know falls back to *no* choice rather than the empty one.
 - **Direction is a property of the key, not part of its name.** The catalogue was nine
   entries: three date fields × two directions as separate keys (`Recently updated`, `Oldest
   updated`), and the direction baked into the label of the other four (`Priority (high→low)`,
@@ -840,7 +988,15 @@ views already carry, because the query language spells alternatives with commas 
 - **`Reset ordering` is narrow on purpose.** Display's own "Reset to default" restores all
   seven display keys, so there was no way to drop an ordering without also dropping the
   grouping, the layout and the properties you had just set. It is drawn only when the chain
-  is not already the default.
+  is not the one the board would draw with no choice at all — which under a grouping that
+  proposes its own ordering is not `DEFAULT_SORT`; see *the grouping with no values*.
+- **The chain the board draws is `sortChain()`, and every consumer asks it** — the
+  comparator, `autoDateField`, `manualRank` and the menu alike. A grouping may propose an
+  ordering, and the proposal yields to any choice.
+- **`state.sort` is `null` when nothing has been chosen**, the same distinction `props`
+  draws. `DEFAULT_SORT` is a chain like any other and therefore a value someone can pick;
+  using it as the absence made it unpickable wherever a grouping proposes something else.
+  See *the grouping with no values* for the measurement.
 - **Choosing a key appends it.** Adding a tiebreak is one tap — the thing that was impossible
   before — and narrowing to a single key costs a `✕` per key you drop. The last key keeps no
   `✕` at all, since `parseSort` answers with the default for an empty value and a menu must
@@ -876,6 +1032,19 @@ never whether display can be per view but why only the saved ones had it.
   preference about the *device*: leaving it out would have made the built-in views differ
   from the saved ones in exactly one key, and `setDisplay` moves the layout by itself when
   you pick the hierarchy anyway.
+- **That concession has since been narrowed, and the dot is where it showed.** The layout is
+  *remembered* per view and rides in the link and in a saved view — but it is not an
+  arrangement of this board, it is a choice about how you read it, and the menu says so with
+  its shape: a segmented control at the top, above and apart from the field rows. Reported
+  from the board, board → list lit the Display dot. So `displayDirty` skips `view` and
+  **"Reset to default" leaves it alone** — one decision, not two, because the invariant
+  written beside the folds binds them: reset what the dot ignores and the press changes
+  something the dot had just called default. `clearDisplay` still resets it, since applying
+  a *saved view* runs through that same function and a view with no `layout` means the
+  default one; the Reset handler restores it afterwards rather than exempting it there.
+  What moved with the rule is one existing check: a reset view now reloads to
+  `?layout=list`, not `""`, and it still proves the thing it was written for — a re-run
+  migration would put `group=repo` back.
 - **A view you have never set up opens at the defaults, not at the last view's.**
   Inheritance would be softer and still contagious, and worst on a first visit — the one
   time nothing on screen can correct you.
@@ -987,6 +1156,29 @@ it off showed PIA's 6 open pucks and dropped 39 landed ones in silence.
   goes on every head, and a group the archive emptied entirely comes back as a plain
   heading in its own place, carrying only the mark. That heading is a `<span>`, not a
   control: there is nothing under it to expand until the toggle lifts.
+- **A grouping with no heading needs one drawn for it.** Under `group=none` there is no
+  head to speak from, and the rule would simply stop applying — the silence it was written
+  to end. The head is drawn when there is something to say and carries only the mark; see
+  *the grouping with no values*.
+- **The toggle is where "archived" is defined, because it is the only place that can be.**
+  There is no `archived` status — `TERMINAL` is `done` or `cancelled` — so every mark on the
+  board names a category the data does not have, and a reader who has never opened the
+  Display menu has nothing to check it against. One definition, in the control that acts on
+  it, lets each mark stay the short `137 archived 👁` and still be answerable — and it sits
+  on a **line of its own** beneath the name: `Show archived`, then *"Done and cancelled
+  pucks."* Spelling the statuses out inline read as a parenthesis explaining a word the
+  interface had just chosen; putting them in a `title` reached nobody who needed them, which
+  a reviewer caught and is the sharper objection — hover is not a thing on a phone, and the
+  bottom sheet *is* the phone, so the definition would have been missing exactly where the
+  marks are hardest to look up from. Length decided none of this: putting the statuses on
+  the marks themselves fits too, 148px against 92px with 41px spare in the tightest column
+  head at 390px. What is left is that a name and its definition are two things, and the row
+  holds both without the first swallowing the second.
+- **Named by the name, described by the hint — wired explicitly.** A `<label>` that wraps
+  its control hands over *all* of its text, so left implicit the checkbox's accessible name
+  becomes "Show archived Done and cancelled pucks." — the parenthesis back again, read aloud
+  every time. `aria-labelledby` narrows the name to the name and `aria-describedby` makes
+  the second line a description rather than more of the first.
 - **`liftArchive()` is the one writer**, shared with the tray's eye. Two callers writing
   `roadmap-done` differently is how the Display menu and the sidebar counts would come to
   disagree with the board they describe.
