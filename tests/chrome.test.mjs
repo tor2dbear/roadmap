@@ -1191,7 +1191,7 @@ export async function run({ open }) {
     const cdp = await p.context().newCDPSession(p);
     const före = await p.evaluate(() => ({
       ta: getComputedStyle(document.getElementById("work")).touchAction,
-      x: Math.round(document.getElementById("board").scrollLeft),
+      x: Math.round(document.getElementById("port").scrollLeft),
     }));
     eq(före.ta, "auto", `rutan är inte låst i tavellayouten: ${JSON.stringify(före)}`);
     await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: 300, y: 400 }] });
@@ -1200,7 +1200,7 @@ export async function run({ open }) {
     }
     await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
     await p.waitForTimeout(400);
-    const efter = await p.evaluate(() => Math.round(document.getElementById("board").scrollLeft));
+    const efter = await p.evaluate(() => Math.round(document.getElementById("port").scrollLeft));
     ok(efter > 100, `och kolumnerna går fortfarande att dra i sidled: ${före.x} → ${efter}`);
   }
 
@@ -1457,19 +1457,16 @@ export async function run({ open }) {
       const r = pop.getBoundingClientRect();
       return { bottom: Math.round(r.bottom), höjd: Math.round(r.height),
                boardBottom: Math.round(document.getElementById("board").getBoundingClientRect().bottom),
-               portBottom: Math.round(document.getElementById("work").getBoundingClientRect().bottom) };
+               portBottom: Math.round(document.getElementById("port").getBoundingClientRect().bottom) };
     });
     ok(kol, "kolumnmenyn öppnas");
-    // Premissen är vänd sedan brädan blev sin egen port, och det är värt att skriva ut.
-    // Förut stack tavlan *ut ur* rutan (473 mot 240), så en vandring som stannade vid
-    // första träffen läste en underkant långt nedanför fönstret. Nu är tavlan i stället
-    // *kortare* än `.work` — foten delar rutnätet med den, mätt 176 mot 240 — så en
-    // passning mätt mot `.work` vore fortfarande fel, bara åt andra hållet. Lådan som
-    // klipper är tavlan i bägge fallen, vilket är hela poängen med att mäta den och inte
-    // fönstret.
-    ok(kol.boardBottom < kol.portBottom,
-      `tavlan är den klippande lådan, nu genom att vara kortare än rutan: ${JSON.stringify(kol)}`);
-    ok(kol.bottom <= kol.boardBottom, `och menyn håller sig innanför den: ${JSON.stringify(kol)}`);
+    // Lådan som klipper är `.port`, och tavlan sticker ut ur den: kolumnerna är
+    // innehållshöga och porten är fönsterhög. Det är precis det som gör en vandring som
+    // stannar vid första träffen fel — den läser en underkant långt nedanför fönstret
+    // (mätt: 473 mot 240) — och därför mäter passningen den *intersekterade* lådan.
+    ok(kol.boardBottom > kol.portBottom,
+      `tavlan sticker ut ur porten, alltså finns det en fel underkant att läsa: ${JSON.stringify(kol)}`);
+    ok(kol.bottom <= kol.portBottom, `och menyn håller sig innanför porten: ${JSON.stringify(kol)}`);
   }
 
   group("chromet ovanför rutan är ingen död zon för hjulet");
@@ -1571,29 +1568,28 @@ export async function run({ open }) {
     };
     const p = await open("", { viewport: { width: 390, height: 780 }, data: hög });
     await p.waitForSelector(".column");
-    // Premissen är en annan sedan brädan blev sin egen port, och det är en starkare
-    // ordning än den här kontrollen bad om: en bräda som inte *kan* bli högre än sin rad
-    // kan inte måla över något. Spillet finns kvar — fyrtio extrapuckar i en kolumn — men
-    // det ligger nu i brädans egen scroll i stället för utanför rutan. Den gamla raden
-    // ("högre än fönstret") går alltså inte att arrangera längre, och att lappa den vore
-    // att koda ett beteende som medvetet är borta.
+    // Premissen är en annan sedan kanban fick en egen port, och det är en starkare ordning
+    // än den här kontrollen bad om: spillet ligger *inne i* porten i stället för utanför
+    // rutan, och foten ligger i samma port efter brädan. En bräda som målar över foten går
+    // alltså inte att arrangera längre — inte för att raden lappats, utan för att lådan
+    // som kunde göra det inte finns.
     const spill = await p.evaluate(() => {
-      const b = document.getElementById("board");
-      return { höjd: Math.round(b.getBoundingClientRect().height), innehåll: b.scrollHeight, ruta: b.clientHeight };
+      const pt = document.getElementById("port");
+      return { höjd: Math.round(pt.getBoundingClientRect().height), innehåll: pt.scrollHeight, ruta: pt.clientHeight };
     });
     ok(spill.innehåll > spill.ruta + 1,
-      `det finns spill att måla med — i brädans egen scroll: ${JSON.stringify(spill)}`);
-    ok(spill.höjd <= 780, `och brädan själv ryms i fönstret: ${JSON.stringify(spill)}`);
+      `det finns spill att måla med — i portens egen scroll: ${JSON.stringify(spill)}`);
+    ok(spill.höjd <= 780, `och porten själv ryms i fönstret: ${JSON.stringify(spill)}`);
     const m = await p.evaluate(() => {
       const b = document.getElementById("board").getBoundingClientRect();
       const f = document.querySelector(".foot").getBoundingClientRect();
       return { brädBotten: Math.round(b.bottom), fotTopp: Math.round(f.top) };
     });
     ok(m.fotTopp >= m.brädBotten,
-      `foten börjar där brädan slutar: ${JSON.stringify(m)} (med auto-rader: 4813 mot 686)`);
-    // Brädan scrollar fortfarande i sidled — fixen får inte köpa ordningen genom att ta
-    // bort det kolumnläget bygger på.
-    ok(await p.evaluate(() => { const b = document.getElementById("board"); return b.scrollWidth > b.clientWidth; }),
+      `foten börjar där brädan slutar, inte i fönstrets botten: ${JSON.stringify(m)}`);
+    // Sidled scrollar fortfarande — fixen får inte köpa ordningen genom att ta bort det
+    // kolumnläget bygger på. Det är portens scroll nu, inte brädans.
+    ok(await p.evaluate(() => { const pt = document.getElementById("port"); return pt.scrollWidth > pt.clientWidth; }),
       "och kolumnerna scrollar fortfarande i sidled");
   }
 
@@ -1702,19 +1698,19 @@ export async function run({ open }) {
     return p;
   };
   const ports = (page) => page.evaluate(() => {
-    const w = document.querySelector(".work"), b = document.getElementById("board");
+    const w = document.querySelector(".work"), pt = document.getElementById("port");
     const over = (e) => e.scrollHeight > e.clientHeight + 1;
-    return { work: over(w), board: over(b) };
+    return { work: over(w), port: over(pt) };
   });
 
   group("brädan är sin egen scrollruta, listan är inte det");
   {
     const kanban = await open("?view=all", { data: tall, viewport: { width: 900, height: 500 } });
-    eq(await ports(kanban), { work: false, board: true },
-      "i kanban skrollar brädan och .work står stilla");
+    eq(await ports(kanban), { work: false, port: true },
+      "i kanban skrollar porten och .work står stilla");
 
     const lista = await open("?view=all&layout=list", { data: tall, viewport: { width: 900, height: 500 } });
-    eq(await ports(lista), { work: true, board: false },
+    eq(await ports(lista), { work: true, port: false },
       "i listan är det tvärtom — .board.as-list är ingen scrollruta, vilket är vad grupprubrikens lodräta pinne kostar");
   }
 
@@ -1722,7 +1718,7 @@ export async function run({ open }) {
   {
     const p = await open("?view=all", { data: tall, viewport: { width: 390, height: 700 }, hasTouch: true });
     const m = await p.evaluate(() => {
-      const bd = document.getElementById("board");
+      const bd = document.getElementById("port");
       const kol = [...document.querySelectorAll(".column")].reduce((a, c) => c.scrollHeight > a.scrollHeight ? c : a);
       bd.scrollLeft = kol.getBoundingClientRect().left - bd.getBoundingClientRect().left + bd.scrollLeft;
       bd.scrollTop = 200;
@@ -1747,50 +1743,50 @@ export async function run({ open }) {
     await p.mouse.wheel(0, 300);
     await p.waitForTimeout(200);
     const m = await p.evaluate(() => ({
-      board: document.getElementById("board").scrollTop, work: document.querySelector(".work").scrollTop }));
-    ok(m.board > 0, `brädan tog hjulet (${m.board} px) — den döda zonen är stängd i kanban också`);
+      board: document.getElementById("port").scrollTop, work: document.querySelector(".work").scrollTop }));
+    ok(m.board > 0, `porten tog hjulet (${m.board} px) — den döda zonen är stängd i kanban också`);
     eq(m.work, 0, "och .work rörde sig inte, för den skrollar inte här");
 
-    // Foten ligger i `.work` men utanför `#board`, och i kanban står den permanent synlig.
-    // Codex, #54: guarden frågade den låda kromet sitter ovanför i stället för den som
-    // skrollar, så remsan svarade "inne i porten, låt webbläsaren ta det" om en låda som
-    // inte skrollar. Mätt före fix: 0px, mot 300 över topbaren.
-    const före = await p.evaluate(() => document.getElementById("board").scrollTop);
+    // Foten hör till innehållet, inte till fönstret: den ligger *i* porten, efter brädan,
+    // så den kommer efter sista kortet och inte underst i rutan. Rapporterat från en
+    // telefon när den en commit långt stod fast i botten och tog 114px av 844.
     const fot = await p.locator(".foot").boundingBox();
-    ok(fot && fot.y < 500, `foten syns i kanban (y=${fot && Math.round(fot.y)}) — annars mäter resten inget`);
-    await p.mouse.move(fot.x + 60, fot.y + fot.height / 2);
-    await p.mouse.wheel(0, 300);
-    await p.waitForTimeout(200);
-    ok(await p.evaluate(() => document.getElementById("board").scrollTop) > före,
-      "och hjulet över foten flyttar brädan — 65px död zon är vad den permanenta foten annars kostar");
+    const portLåda = await p.locator("#port").boundingBox();
+    ok(fot.y > portLåda.y + portLåda.height - 1,
+      `foten står under portens nederkant (fot ${Math.round(fot.y)}, port slutar ${Math.round(portLåda.y + portLåda.height)}) — alltså skrollar man till den`);
+    eq(await p.evaluate(() => document.getElementById("port").contains(document.querySelector(".foot"))), true,
+      "och den ligger inuti porten, vilket är vad som får den att färdas med korten");
 
-    // Men porten själv är inte vår att flytta: där skrollar webbläsaren.
+    // Porten själv är inte vår att flytta: där skrollar webbläsaren.
     //
-    // Att ta bort guarden helt fäller *inte* den här raden, och det är värt att veta
+    // Att ta bort hjulets guard fäller *inte* den här raden, och det är värt att veta
     // innan någon "förenklar" den: det är first refusal-vandringen som håller den —
-    // `#board` är en scrollcontainer med utrymme, alltså tar den axeln och vi skriver
+    // porten är en scrollcontainer med utrymme, alltså tar den axeln och vi skriver
     // ingenting. Guarden är ett tidigt utträde och en avsiktsförklaring, inte det som
     // hindrar dubbelskrollen. Raden står kvar för beteendet, inte för mekanismen.
-    const bräda = await p.locator("#board").boundingBox();
-    const innan = await p.evaluate(() => { const b = document.getElementById("board"); b.scrollTop = 0; return b.scrollTop; });
-    await p.mouse.move(bräda.x + bräda.width / 2, bräda.y + 60);
+    // Positionen tas ur *porten*, inte brädan: brädans låda är bredare än fönstret nu
+    // (kolumnerna svämmar över den synligt), så dess mittpunkt ligger utanför skärmen och
+    // ett hjul där träffar ingenting. Kostade en röd körning.
+    const portRuta = await p.locator("#port").boundingBox();
+    const innan = await p.evaluate(() => { const b = document.getElementById("port"); b.scrollTop = 0; return b.scrollTop; });
+    await p.mouse.move(portRuta.x + portRuta.width / 2, portRuta.y + 60);
     await p.mouse.wheel(0, 200);
     await p.waitForTimeout(200);
-    const efter = await p.evaluate(() => document.getElementById("board").scrollTop);
+    const efter = await p.evaluate(() => document.getElementById("port").scrollTop);
     eq(efter, 200, `ett hjul över brädan flyttar den en gång, inte två: ${JSON.stringify({ innan, efter })}`);
   }
 
   group("låset håller den ruta som skrollar");
   {
     const p = await open("?view=all", { data: tall, viewport: { width: 390, height: 700 }, hasTouch: true });
-    await p.evaluate(() => { document.getElementById("board").scrollTop = 150; });
+    await p.evaluate(() => { document.getElementById("port").scrollTop = 150; });
     await p.locator("#filterBtn").click();
     await p.waitForSelector(".sheet");
-    eq(await p.evaluate(() => getComputedStyle(document.getElementById("board")).overflow), "hidden",
+    eq(await p.evaluate(() => getComputedStyle(document.getElementById("port")).overflow), "hidden",
       "med ett ark uppe är brädans overflow dold");
     await p.keyboard.press("Escape");
     await p.waitForTimeout(300);
-    eq(await p.evaluate(() => document.getElementById("board").scrollTop), 150,
+    eq(await p.evaluate(() => document.getElementById("port").scrollTop), 150,
       "och platsen är tillbaka när arket stängs");
   }
 
@@ -1808,7 +1804,7 @@ export async function run({ open }) {
     const p = await open("?view=all", { data: tall, viewport: { width: 900, height: 500 } });
     // Ett kort som redan syns: låter man webbläsaren skrolla dit försvinner det som mäts.
     await p.evaluate(() => {
-      const bd = document.getElementById("board"); bd.scrollTop = 180;
+      const bd = document.getElementById("port"); bd.scrollTop = 180;
       const r = bd.getBoundingClientRect();
       const c = [...document.querySelectorAll(".card")].find((c) => {
         const b = c.getBoundingClientRect(); return b.top > r.top + 10 && b.bottom < r.bottom - 10; });
@@ -1819,20 +1815,20 @@ export async function run({ open }) {
     eq(await p.evaluate(() => document.body.classList.contains("viewing-puck")), true, "pucken är öppen");
     await p.locator(".crumb-back").first().click();
     await p.waitForTimeout(400);
-    eq(await p.evaluate(() => document.getElementById("board").scrollTop), 180,
+    eq(await p.evaluate(() => document.getElementById("port").scrollTop), 180,
       "tillbaka på brädan står den där den stod");
 
     // Ur pucken via sidomenyn i stället: en annan tavla, alltså ingen plats att ärva.
     // Mätt före `exitPuckView`s nollning: den nya vyn öppnade 180px ner i en lista som
     // inte var densamma.
-    await p.evaluate(() => { document.getElementById("board").scrollTop = 180; });
+    await p.evaluate(() => { document.getElementById("port").scrollTop = 180; });
     await p.locator("[data-probe='1']").click();
     await p.waitForTimeout(350);
     await p.getByRole("button", { name: /^Ready/ }).first().click();
     await p.waitForTimeout(400);
     const ut = await p.evaluate(() => ({
       puck: document.body.classList.contains("viewing-puck"),
-      board: document.getElementById("board").scrollTop,
+      board: document.getElementById("port").scrollTop,
       work: document.querySelector(".work").scrollTop }));
     eq(ut.puck, false, "sidomenyn stänger pucken");
     eq({ board: ut.board, work: ut.work }, { board: 0, work: 0 },
@@ -1846,22 +1842,22 @@ export async function run({ open }) {
     // `#board` med en inline `overflow: hidden` ingen skulle ta bort igen.
     const p = await open("?view=all", { data: tall, viewport: { width: 390, height: 700 }, hasTouch: true });
     const stil = () => p.evaluate(() => ({
-      board: document.getElementById("board").style.overflow || "",
+      port: document.getElementById("port").style.overflow || "",
       work: document.querySelector(".work").style.overflow || "" }));
 
     await p.locator("#displayBtn").click();
     await p.waitForSelector(".sheet");
-    eq(await stil(), { board: "hidden", work: "" }, "arket låser brädan, som är porten i kanban");
+    eq(await stil(), { port: "hidden", work: "" }, "arket låser porten, som är den som skrollar i kanban");
 
     await p.locator(".sheet").getByText("List", { exact: true }).click();
     await p.waitForTimeout(350);
     eq(await p.evaluate(() => !!document.querySelector(".sheet")), true, "arket står kvar över bytet");
-    eq(await stil(), { board: "", work: "hidden" },
-      "och låset följer med porten — brädan släppt, listans ruta hållen");
+    eq(await stil(), { port: "", work: "hidden" },
+      "och låset följer med porten — kanbanporten släppt, listans ruta hållen");
 
     await p.keyboard.press("Escape");
     await p.waitForTimeout(300);
-    eq(await stil(), { board: "", work: "" }, "när arket stängs är bägge lådorna rena");
+    eq(await stil(), { port: "", work: "" }, "när arket stängs är bägge lådorna rena");
 
     // Det läsaren märker, och det enda som mäter det: `overflow: hidden` stoppar aldrig
     // våra egna `scrollTop`-skrivningar, så en kontroll som skrollar själv ser ingenting.
@@ -1871,27 +1867,27 @@ export async function run({ open }) {
     await p.waitForTimeout(350);
     await p.keyboard.press("Escape");
     await p.waitForTimeout(300);
-    const box = await p.locator("#board").boundingBox();
+    const box = await p.locator("#port").boundingBox();
     await p.mouse.move(box.x + box.width / 2, box.y + 120);
     await p.mouse.wheel(0, 300);
     await p.waitForTimeout(250);
-    ok(await p.evaluate(() => document.getElementById("board").scrollTop) > 0,
+    ok(await p.evaluate(() => document.getElementById("port").scrollTop) > 0,
       "och brädan går att skrolla med hjulet efteråt — 0px är hur det fastnade tillståndet läses");
   }
 
   group("tabbstoppet följer porten över ett layoutbyte");
   {
     const p = await open("?view=all&layout=list", { data: tall, viewport: { width: 900, height: 500 } });
-    const marks = () => p.evaluate(() => [...document.querySelectorAll("#work, #board")]
+    const marks = () => p.evaluate(() => [...document.querySelectorAll("#work, #port")]
       .map((e) => e.id + ":" + (e.getAttribute("tabindex") ?? "-") + ":" + (e.getAttribute("aria-label") ?? "-")));
-    eq(await marks(), ["work:0:Board", "board:-:-"], "i listan är .work stoppet");
+    eq(await marks(), ["work:0:Board", "port:-:-"], "i listan är .work stoppet");
     await p.locator("#displayBtn").click();
     await p.waitForSelector(".pop, .sheet");
     await p.locator(".pop, .sheet").getByText("Board", { exact: true }).click();
     await p.waitForTimeout(300);
     await p.keyboard.press("Escape");
     await p.waitForTimeout(200);
-    eq(await marks(), ["work:-:-", "board:0:Board"],
-      "efter bytet till kanban har stoppet och namnet flyttat till brädan — utan omladdning");
+    eq(await marks(), ["work:-:-", "port:0:Board"],
+      "efter bytet till kanban har stoppet och namnet flyttat till porten — utan omladdning");
   }
 }

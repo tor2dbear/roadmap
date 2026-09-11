@@ -1992,7 +1992,7 @@
   }
 
   // ── detail: a side pane on desktop, a modal overlay on mobile ──
-  var detailPane, detailContent, workEl, boardEl, selectedId = null, currentDetailItem = null, boardAt = null;
+  var detailPane, detailContent, workEl, boardEl, portEl, selectedId = null, currentDetailItem = null, boardAt = null;
   function isWide() { return window.matchMedia("(min-width: 900px)").matches; }
   function paneRefs() {
     if (!detailPane) {
@@ -2000,8 +2000,12 @@
       detailContent = document.getElementById("detailContent");
       workEl = document.getElementById("work");
       boardEl = document.getElementById("board");
+      // `.port` wraps the board *and* the footer, and that is what makes the kanban port
+      // a port a footer can scroll out of. The board is asked for the layout class; the
+      // port is what scrolls.
+      portEl = document.getElementById("port");
       // `armAxisLock` takes `.work` and not the port, deliberately: the axis lock is the
-      // list's, scoped by the same `:has(> .board.as-list)` the stylesheet uses, and in
+      // list's, scoped by the same `:has(> .port > .board.as-list)` the stylesheet uses, and in
       // the list `.work` *is* the port. `armChromeWheel` takes it for a different reason —
       // it is the box the chrome sits above, not the box that scrolls; what it forwards
       // to it asks `scrollPort()` per event.
@@ -2343,7 +2347,7 @@
     paneRefs();
     if (!workEl) return null;
     if (document.body.classList.contains("viewing-puck")) return workEl;
-    return boardEl && !boardEl.classList.contains("as-list") ? boardEl : workEl;
+    return portEl && boardEl && !boardEl.classList.contains("as-list") ? portEl : workEl;
   }
   // The port is a tab stop and a labelled region, because the page stopped being one —
   // Page Down and Space from the topbar need something to move, and Chrome puts
@@ -2353,17 +2357,17 @@
   function markPort() {
     var port = scrollPort();
     if (!port) return;
-    [workEl, boardEl].forEach(function (n) {
+    [workEl, portEl].forEach(function (n) {
       if (!n || n === port) return;
       n.removeAttribute("tabindex");
       n.removeAttribute("role");
       n.removeAttribute("aria-label");
     });
     port.setAttribute("tabindex", "0");
-    // `role="region"` only on `.work`, which is a `div`. `#board` is a `<main>` and
-    // already a landmark; `role` there would replace the landmark with a weaker one, so
-    // the label alone is what names it.
-    if (port === workEl) port.setAttribute("role", "region");
+    // Both ports are plain `div`s, so both want the role. It is `#board` that must never
+    // have it — a `<main>` is already a landmark and `region` would replace it with a
+    // weaker one — and the board stopped being a port when `.port` took the job.
+    port.setAttribute("role", "region");
     port.setAttribute("aria-label", document.body.classList.contains("viewing-puck") ? "Puck" : "Board");
   }
   function lockScroll() {

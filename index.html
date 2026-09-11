@@ -138,11 +138,14 @@
              a keyboard can read and one it cannot. The label follows what the box is
              holding — see `openDetail`. -->
         <div class="work" id="work" tabindex="0" role="region" aria-label="Board">
+          <!-- The kanban scrollport. The board cannot be it *and* hold the footer: its
+               children are laid out `grid-auto-flow: column`, so a footer inside it would
+               simply be one more column. So the box that scrolls wraps both, and the board
+               goes back to overflowing visibly — which is how the list has always worked,
+               one layout over. In the list this box scrolls nothing (`.work` is the port
+               there) and is pure structure. See `scrollPort()` in app.js. -->
+          <div class="port" id="port">
           <main id="board" class="board" aria-live="polite"></main>
-          <aside class="detail-pane" id="detailPane" hidden aria-label="Puck detail">
-            <button class="detail-close" id="detailClose" type="button" aria-label="Close"></button>
-            <div class="detail-content" id="detailContent"></div>
-          </aside>
 
         <footer class="foot">
           <span id="footmeta"></span>
@@ -154,6 +157,11 @@
           <a href="data/roadmap.json">roadmap.json</a> ·
           <a id="sourceLink" href="#">source</a>
         </footer>
+          </div>
+          <aside class="detail-pane" id="detailPane" hidden aria-label="Puck detail">
+            <button class="detail-close" id="detailClose" type="button" aria-label="Close"></button>
+            <div class="detail-content" id="detailContent"></div>
+          </aside>
         </div>
       </div>
     </div>

@@ -404,7 +404,7 @@ phone, with the topbar and chip row (sized to the viewport) sitting in 60% of th
 shrink but does not lower what it contributes.
 
 **The shell is a fixed-height column with one scrollport per layout, not a page that
-scrolls** — `.work` in the list and on a puck page, `#board` in kanban; `scrollPort()` is
+scrolls** — `.work` in the list and on a puck page, `.port` in kanban; `scrollPort()` is
 the one place that answers, and *the section below it is the one to read before touching
 any of this*. Its rows say `grid-auto-rows: max-content`, and they have to say it out loud:
 `#board` carries `overflow-x: auto`, which makes it a scroll container in both axes, and a
@@ -518,7 +518,7 @@ sideways is a scroll container in *both* axes, so before the change a group head
   scroll runs on the compositor, and writing `scrollTop` while the finger is down does not
   reach it** — a test that moves the offsets itself measures the arithmetic, not the
   mechanism. So the port carries `touch-action: pan-y pinch-zoom` (scoped by
-  `.work:has(> .board.as-list)`, since the kanban board is its own sideways scroller and
+  `.work:has(> .port > .board.as-list)`, since the kanban board is its own sideways scroller and
   `pan-y` on an ancestor would forbid it), and sideways is `armAxisLock`'s to drive: the
   first 8px pick the axis, and a sideways one refuses the browser's vertical pan and moves
   `scrollLeft` by the finger's delta — but only where there is room *in the direction being
@@ -638,7 +638,8 @@ the tab stop — and each of them answered `.work`, because until now that was t
 copies of one fact is how they come to disagree; the cure is the one the board already uses
 for `liftArchive()` and `sortChain()`.
 
-> **The kanban board is its own port. The list is not. A puck page is neither.**
+> **`.port` is the kanban scrollport. In the list it scrolls nothing. A puck page is
+> neither — there `.work` holds the content.**
 
 - **What was broken, and it was in the default layout.** `.col-head` has been
   `position: sticky` all along, with a comment beside it explaining that it pins against the
@@ -648,19 +649,32 @@ for `liftArchive()` and `sortChain()`.
   climbing. The sideways scrollbar had the same cause from the other end, sitting at the
   bottom of 4700px of cards instead of at the bottom of the window. A rule that explains a
   behaviour the layout stopped delivering is worse than no rule: it reads as true.
-- **Two CSS lines, and they are not the work.** `grid-auto-rows: auto` on `.work` plus
-  `align-self: stretch; min-height: 0` on the kanban board makes the row the port's height
-  and the board fill it. The `max-content` those replace was right while `.work` was the only
-  port (a content-tall board in a row sized to the leftover space painted over the footer);
-  stretched, there is no leftover to get wrong. Both are scoped `body:not(.viewing-puck)`,
-  the same guard three rules above them already carry, because a hidden `#board` keeps its
-  layout class — without it a puck page sizes its only row to the port and clips its own
-  content.
-- **The footer is inside `.work`, which is what makes the stretch land where it does.** Board,
-  detail pane and footer are its three rows, so in kanban the footer keeps its height and the
-  board takes the rest: it now stands at the bottom of the window rather than after the last
-  card. That is the one visible change, and on a 390px phone it is 114px of permanent
-  furniture — the honest cost, not a side effect nobody noticed.
+- **The port is a box of its own, and the footer is why.** The obvious move is to make
+  `#board` the scroller — and it was, for one commit. The board lays its children out
+  `grid-auto-flow: column`, so a footer *inside* it is one more column; a footer *outside*
+  it never scrolls away. Reported from the phone: 114px of permanent furniture on an
+  844px screen. `.port` wraps the board and the footer, scrolls both, and the footer comes
+  after the last card again.
+- **So the board stops being a scroll container**, or a sticky column head resolves against
+  *it* — a box with no height of its own to travel in — instead of the port. That is the
+  list's arrangement exactly: `.board.as-list` has turned its own `overflow-x` off since the
+  day the list was written. `min-width: 0` comes with it, because a grid item's automatic
+  minimum is its min-content and it was only 0 here because `overflow-x: auto` made the box
+  a scroll container (the 652px document on a 390px phone is what that costs).
+- **Two CSS lines on top of that, and they are not the work.** `grid-auto-rows: auto` on
+  `.work` plus `align-self: stretch; min-height: 0` on `.port` makes the row the port's
+  height and the port fill it. The `max-content` those replace was right while `.work` was
+  the only port (a content-tall board in a row sized to the leftover space painted over the
+  footer); stretched, there is no leftover to get wrong. Both are scoped
+  `body:not(.viewing-puck)`, the same guard three rules above them already carry, because a
+  hidden `#board` keeps its layout class — without it a puck page sizes its only row to the
+  port and clips its own content.
+- **The list's rules had to follow the board down a level.** `touch-action: pan-y`, the
+  sideways `overscroll-behavior` and the hidden indicators are all scoped
+  `.work:has(> .board.as-list)` — a *direct* child selector, deliberately precise, and the
+  board stopped being a direct child. Five checks fell at once: the axis lock, the rubber
+  band and the fling, none of which the port change is otherwise about. They read
+  `> .port > .board.as-list` now.
 - **A sticky box pins against the scrollport's *content* box, so the port's own top padding
   is a band that belongs to nobody.** `#board` carried `padding: 18px …`, and the cards
   scrolled up through those 18 pixels with a strip of the one behind standing above the
@@ -670,13 +684,13 @@ for `liftArchive()` and `sortChain()`.
   that travels, `.column`, where it scrolls away with the column's own first screen.
 - **The tab stop is the fourth reader, and the easiest to forget.** "The port is a tab stop,
   because the page stopped being one" was written about `.work` and stamped into the markup;
-  a board that scrolls while `.work` holds the `tabindex` gives Page Down nothing to move
-  again. `markPort()` moves `tabindex`, the label and — on `.work` only — `role="region"`,
-  called from `renderBoard` (the layout switches without a puck ever opening) and from both
-  sides of the puck page. `role` stays off `#board`: it is a `<main>`, and a `region` there
-  would replace a landmark with a weaker one.
+  a port that scrolls while `.work` holds the `tabindex` gives Page Down nothing to move
+  again. `markPort()` moves `tabindex`, `role="region"` and the label, called from
+  `renderBoard` (the layout switches without a puck ever opening) and from both sides of the
+  puck page. Both ports are plain `div`s and take the role; `#board` must never have it —
+  it is a `<main>`, and `region` would replace a landmark with a weaker one.
 - **`armAxisLock` still takes `.work`, and that is not an oversight.** The axis lock is the
-  *list's* — `touch-action: pan-y` is scoped by `:has(> .board.as-list)` — and in the list
+  *list's* — `touch-action: pan-y` is scoped by `:has(> .port > .board.as-list)` — and in the list
   `.work` is the port. `armChromeWheel` also takes `.work`, for a different reason: it is the
   box the chrome sits *above*, not the box that moves. What it forwards to, it asks per
   event, because arming happens once and the layout changes many times after it.

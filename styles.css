@@ -1431,22 +1431,40 @@ body.scroll-locked { overflow: hidden; }
   grid-auto-rows: max-content;
   flex: 1; min-height: 0; overflow: auto;
 }
-/* …except in the kanban layout, where the board is the port and therefore has to be
+/* …except in the kanban layout, where `.port` is the scrollport and therefore has to be
    exactly as tall as this box. `max-content` is what the paragraph above needed while
    `.work` was the only scrollport: a content-tall board in a row sized to the leftover
    space painted over the footer. Stretched, the row *is* the port's height and there is
-   no leftover to get wrong — the board scrolls its own overflow instead of handing it
+   no leftover to get wrong — the port scrolls its own overflow instead of handing it
    upwards, which is what `.col-head`'s `position: sticky` has claimed all along and what
    puts the sideways scrollbar at the bottom of the window rather than at the bottom of
    4700px of cards.
+   **The footer is inside the port, not beside it**, which is the whole reason `.port`
+   exists rather than the board being the scroller itself: the board lays its children out
+   `grid-auto-flow: column`, so a footer in there would be one more column — and a footer
+   *outside* the scroller is a footer that never scrolls away. It was one, for exactly one
+   commit: 114px of permanent furniture on a 390px phone, reported from the device.
    `body:not(.viewing-puck)` for the reason the three rules below already give: a hidden
    `#board` keeps its layout class, so without it a puck page would size its only row to
    the port and clip its own content — the detail pane is `.work`'s other row, and it is
    the one that has to stay content-tall and scroll. And `min-height: 0`, because a grid
    item's automatic minimum is its content: without it the stretch is undone by the
-   columns' own height and the board grows straight back. */
-body:not(.viewing-puck) .work:has(> .board:not(.as-list)) { grid-auto-rows: auto; }
-body:not(.viewing-puck) .work > .board:not(.as-list) { align-self: stretch; min-height: 0; }
+   columns' own height and the port grows straight back. */
+body:not(.viewing-puck) .work:has(> .port > .board:not(.as-list)) { grid-auto-rows: auto; }
+body:not(.viewing-puck) .work > .port:has(> .board:not(.as-list)) {
+  align-self: stretch; min-height: 0; overflow: auto;
+}
+/* And the board stops being a scroll container, or it — not the port — is what a sticky
+   column head would resolve against, and it has no height of its own to travel in. This
+   is the list's arrangement exactly: `.board.as-list` has turned its own `overflow-x` off
+   since the day the list was written, for the same reason. `min-width: 0` comes with it:
+   a grid item's automatic minimum is its min-content, and it was only 0 here because
+   `overflow-x: auto` made the box a scroll container. Without it the widest unbreakable
+   thing on the page decides the document's width again — measured at 652px on a 390px
+   phone the last time that happened. */
+body:not(.viewing-puck) .port > .board:not(.as-list) { overflow: visible; min-width: 0; }
+/* In the list the port is `.work`, so this box is structure and nothing else. */
+.port { min-width: 0; display: flex; flex-direction: column; }
 /* It is a tab stop (see `index.html`), so a click on the empty space beside the columns
    focuses it. The ring belongs to the keyboard route only — the same rule the focus
    buttons follow. */
@@ -1460,7 +1478,7 @@ body:not(.viewing-puck) .work > .board:not(.as-list) { align-self: stretch; min-
    opened from the list would otherwise carry the list's lock through a page that is not a
    list at all, and forbid sideways panning inside its own code blocks and tables. The same
    puck reached from the board layout had none — an asymmetry with no reason behind it. */
-body:not(.viewing-puck) .work:has(> .board.as-list) { touch-action: pan-y pinch-zoom; }
+body:not(.viewing-puck) .work:has(> .port > .board.as-list) { touch-action: pan-y pinch-zoom; }
 /* And no rubber band sideways. `touch-action` stops the browser *starting* a horizontal
    pan; it does not re-decide a scroll already under way, which is why chaining a swipe
    down straight into a swipe right moves both axes on iOS (measured on the device: 1 of 9
@@ -1473,7 +1491,7 @@ body:not(.viewing-puck) .work:has(> .board.as-list) { touch-action: pan-y pinch-
    list is actually read with, and it stays. The property is not new here — the sheet has
    used it since `overscroll-behavior: none` was what removed *its* bounce, so it is known
    to land on the device this is for. */
-body:not(.viewing-puck) .work:has(> .board.as-list) { overscroll-behavior-x: none; }
+body:not(.viewing-puck) .work:has(> .port > .board.as-list) { overscroll-behavior-x: none; }
 /* No native scroll indicators on a phone, and the reason is that a two-axis port draws
    two of them badly. Reported from a real device, three symptoms of one cause: the
    vertical bar is painted *under* the sticky group headings, it travels with the sideways
@@ -1482,8 +1500,8 @@ body:not(.viewing-puck) .work:has(> .board.as-list) { overscroll-behavior-x: non
    since `armAxisLock` drives that one. Touch only: on a desktop the bar is how you learn
    the list scrolls sideways at all, and it is not transient there. */
 @media (pointer: coarse) {
-  body:not(.viewing-puck) .work:has(> .board.as-list) { scrollbar-width: none; }
-  body:not(.viewing-puck) .work:has(> .board.as-list)::-webkit-scrollbar { display: none; }
+  body:not(.viewing-puck) .work:has(> .port > .board.as-list) { scrollbar-width: none; }
+  body:not(.viewing-puck) .work:has(> .port > .board.as-list)::-webkit-scrollbar { display: none; }
 }
 /* A puck opens as a full-width page (same on desktop + mobile): the board and the
    view-header hide, and the detail fills the content area as a centered,
