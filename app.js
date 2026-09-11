@@ -2201,7 +2201,17 @@
       // Ctrl+wheel is the browser's zoom gesture — a trackpad pinch arrives as exactly
       // that — so forwarding its delta would scroll the board out from under someone who
       // is only trying to make it bigger.
-      if (port.contains(e.target) || scrollLocks || e.ctrlKey) return;
+      // The guard asks the box that *scrolls*, not the box the chrome sits above, and the
+      // two stopped being the same thing when the kanban board became its own port. `.work`
+      // holds the board, the detail pane **and the footer** — and in kanban the footer is
+      // permanently visible, 65px of it. Asking `.work` there answered "inside the port,
+      // leave it to the browser" about a box that no longer scrolls, so a wheel over the
+      // footer moved nothing at all: measured, 0px against 300 over the topbar, in a strip
+      // that used to scroll its `.work` ancestor. Codex, #54 — the same shape as the scroll
+      // lock one function up, and the same cure. In the list `to` *is* `.work`, so the
+      // footer keeps its native scroll there and nothing is forwarded for it.
+      var to = scrollPort() || port;
+      if (to.contains(e.target) || scrollLocks || e.ctrlKey) return;
       // First refusal is per axis, and it is a *claim on that axis alone* rather than on
       // the gesture. The chip row scrolls vertically and cannot take a `deltaX` at all,
       // so two things went wrong in turn: asking `deltaY < 0` about a purely sideways
@@ -2225,12 +2235,12 @@
           (e.deltaX < 0 ? n.scrollLeft > 0 : n.scrollLeft < n.scrollWidth - n.clientWidth - 1)) takeX = false;
       }
       if (!takeY && !takeX) return;
-      // The box the chrome sits above is `.work`; the box that *moves* is whichever one
-      // is scrolling, asked now rather than when this was armed. Arming happens once, at
-      // the first `paneRefs()`, and the layout changes many times after it — a captured
-      // port would forward every wheel to `.work` on a board that stopped scrolling, and
-      // the dead zone this exists to close would open again in the kanban layout only.
-      var to = scrollPort() || port;
+      // `to` is resolved at the top of the handler rather than captured when this was
+      // armed: arming happens once, at the first `paneRefs()`, and the layout changes many
+      // times after it — a captured port would forward every wheel to `.work` on a board
+      // that stopped scrolling, and the dead zone this exists to close would open again in
+      // the kanban layout only.
+      //
       // Lines and pages are real delta modes — Firefox sends lines for a mouse wheel —
       // and forwarding them as pixels would move the board by three.
       var k = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? to.clientHeight : 1;

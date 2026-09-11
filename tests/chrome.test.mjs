@@ -1750,6 +1750,34 @@ export async function run({ open }) {
       board: document.getElementById("board").scrollTop, work: document.querySelector(".work").scrollTop }));
     ok(m.board > 0, `brädan tog hjulet (${m.board} px) — den döda zonen är stängd i kanban också`);
     eq(m.work, 0, "och .work rörde sig inte, för den skrollar inte här");
+
+    // Foten ligger i `.work` men utanför `#board`, och i kanban står den permanent synlig.
+    // Codex, #54: guarden frågade den låda kromet sitter ovanför i stället för den som
+    // skrollar, så remsan svarade "inne i porten, låt webbläsaren ta det" om en låda som
+    // inte skrollar. Mätt före fix: 0px, mot 300 över topbaren.
+    const före = await p.evaluate(() => document.getElementById("board").scrollTop);
+    const fot = await p.locator(".foot").boundingBox();
+    ok(fot && fot.y < 500, `foten syns i kanban (y=${fot && Math.round(fot.y)}) — annars mäter resten inget`);
+    await p.mouse.move(fot.x + 60, fot.y + fot.height / 2);
+    await p.mouse.wheel(0, 300);
+    await p.waitForTimeout(200);
+    ok(await p.evaluate(() => document.getElementById("board").scrollTop) > före,
+      "och hjulet över foten flyttar brädan — 65px död zon är vad den permanenta foten annars kostar");
+
+    // Men porten själv är inte vår att flytta: där skrollar webbläsaren.
+    //
+    // Att ta bort guarden helt fäller *inte* den här raden, och det är värt att veta
+    // innan någon "förenklar" den: det är first refusal-vandringen som håller den —
+    // `#board` är en scrollcontainer med utrymme, alltså tar den axeln och vi skriver
+    // ingenting. Guarden är ett tidigt utträde och en avsiktsförklaring, inte det som
+    // hindrar dubbelskrollen. Raden står kvar för beteendet, inte för mekanismen.
+    const bräda = await p.locator("#board").boundingBox();
+    const innan = await p.evaluate(() => { const b = document.getElementById("board"); b.scrollTop = 0; return b.scrollTop; });
+    await p.mouse.move(bräda.x + bräda.width / 2, bräda.y + 60);
+    await p.mouse.wheel(0, 200);
+    await p.waitForTimeout(200);
+    const efter = await p.evaluate(() => document.getElementById("board").scrollTop);
+    eq(efter, 200, `ett hjul över brädan flyttar den en gång, inte två: ${JSON.stringify({ innan, efter })}`);
   }
 
   group("låset håller den ruta som skrollar");
