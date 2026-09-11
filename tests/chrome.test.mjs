@@ -1757,6 +1757,22 @@ export async function run({ open }) {
     eq(await p.evaluate(() => document.getElementById("port").contains(document.querySelector(".foot"))), true,
       "och den ligger inuti porten, vilket är vad som får den att färdas med korten");
 
+    // Men bara i höjdled. Porten skrollar i sidled också, och foten är portbred — utan en
+    // sidledspinne står hela raden (tiden, `sync now`, länkarna) parkerad utanför skärmen
+    // så fort man läst sig åt höger. Mätt på 390px före regeln: left −800. Codex, #54.
+    const fot2 = await p.evaluate(() => {
+      const pt = document.getElementById("port");
+      pt.scrollLeft = pt.scrollWidth; pt.scrollTop = pt.scrollHeight;
+      const f = document.querySelector(".foot").getBoundingClientRect();
+      const r = pt.getBoundingClientRect();
+      // Mätt *mot porten*, inte mot fönstret: sidomenyn tar 240px när den är öppen, så
+      // portens vänsterkant är inte 0 på en bred skärm. Kostade en röd körning.
+      return { x: Math.round(pt.scrollLeft), kvar: Math.round(f.left - r.left),
+               vänster: Math.round(f.left), portVänster: Math.round(r.left) };
+    });
+    ok(fot2.x > 100, `porten är verkligen skrollad åt höger (${fot2.x} px)`);
+    eq(fot2.kvar, 0, `och foten står kvar vid portens vänsterkant: ${JSON.stringify(fot2)}`);
+
     // Porten själv är inte vår att flytta: där skrollar webbläsaren.
     //
     // Att ta bort hjulets guard fäller *inte* den här raden, och det är värt att veta
