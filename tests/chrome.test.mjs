@@ -1811,6 +1811,46 @@ export async function run({ open }) {
       "och den nya tavlan ärver ingen plats — i bägge lådorna, för den ena höll puckens egen offset");
   }
 
+  group("låset släpper den låda det tog, inte den frågan svarar med nu");
+  {
+    // Codex, #54. Layoutsegmentet ligger överst i samma ark, så ett byte till List med
+    // arket uppe flyttade porten ur låset: `unlockScroll` rensade `.work` och lämnade
+    // `#board` med en inline `overflow: hidden` ingen skulle ta bort igen.
+    const p = await open("?view=all", { data: tall, viewport: { width: 390, height: 700 }, hasTouch: true });
+    const stil = () => p.evaluate(() => ({
+      board: document.getElementById("board").style.overflow || "",
+      work: document.querySelector(".work").style.overflow || "" }));
+
+    await p.locator("#displayBtn").click();
+    await p.waitForSelector(".sheet");
+    eq(await stil(), { board: "hidden", work: "" }, "arket låser brädan, som är porten i kanban");
+
+    await p.locator(".sheet").getByText("List", { exact: true }).click();
+    await p.waitForTimeout(350);
+    eq(await p.evaluate(() => !!document.querySelector(".sheet")), true, "arket står kvar över bytet");
+    eq(await stil(), { board: "", work: "hidden" },
+      "och låset följer med porten — brädan släppt, listans ruta hållen");
+
+    await p.keyboard.press("Escape");
+    await p.waitForTimeout(300);
+    eq(await stil(), { board: "", work: "" }, "när arket stängs är bägge lådorna rena");
+
+    // Det läsaren märker, och det enda som mäter det: `overflow: hidden` stoppar aldrig
+    // våra egna `scrollTop`-skrivningar, så en kontroll som skrollar själv ser ingenting.
+    await p.locator("#displayBtn").click();
+    await p.waitForSelector(".sheet");
+    await p.locator(".sheet").getByText("Board", { exact: true }).click();
+    await p.waitForTimeout(350);
+    await p.keyboard.press("Escape");
+    await p.waitForTimeout(300);
+    const box = await p.locator("#board").boundingBox();
+    await p.mouse.move(box.x + box.width / 2, box.y + 120);
+    await p.mouse.wheel(0, 300);
+    await p.waitForTimeout(250);
+    ok(await p.evaluate(() => document.getElementById("board").scrollTop) > 0,
+      "och brädan går att skrolla med hjulet efteråt — 0px är hur det fastnade tillståndet läses");
+  }
+
   group("tabbstoppet följer porten över ett layoutbyte");
   {
     const p = await open("?view=all&layout=list", { data: tall, viewport: { width: 900, height: 500 } });

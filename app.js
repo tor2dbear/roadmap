@@ -2296,7 +2296,18 @@
   // nothing: the body no longer scrolls, and the board behind the sheet would move
   // freely. `overflow: hidden` on the port is enough here precisely because it is not
   // the document scroller, which is the case iOS mishandles.
-  var scrollLocks = 0, lockedY = 0, lockedX = 0;
+  // The box that is *currently* locked, remembered rather than resolved twice. Before the
+  // board became a port of its own the question had one answer for the life of a sheet, so
+  // asking again on the way out was free; it is not any more. See `unlockScroll`.
+  //
+  // **Sabotage cannot fell this one, and that is worth stating rather than hiding.** With
+  // `relockScroll` below in place the two answers always agree by the time anything
+  // unlocks — every path that moves the port under a held lock runs through `renderBoard`,
+  // and the lock is taken in exactly one place (a surface's scrim) and released in one.
+  // It stays because it is what makes `unlockScroll` independent of that guarantee: two
+  // functions that must agree about a mutable answer is the shape this file keeps
+  // removing, not one to add.
+  var scrollLocks = 0, lockedY = 0, lockedX = 0, lockedEl = null;
   // ── which box actually scrolls ──────────────────────────────────────────────
   // One question, asked in one place. It was asked in four — the wheel forwarder, the
   // scroll lock, the puck page's saved place and the tab stop — and every one of them
@@ -2351,20 +2362,46 @@
     if (!port) return;
     // `overflow: hidden` holds the *user's* scrolling, not ours.
     stopGlide();
+    lockedEl = port;
     lockedY = port.scrollTop;
     lockedX = port.scrollLeft;
     port.style.overflow = "hidden";
   }
+  // **Unlock the box that was locked, not the one the question answers now.** The layout
+  // segment sits at the top of that very sheet, so switching to List with it open moved
+  // the port out from under the lock: `unlockScroll` cleared `.work` and left `#board`
+  // with an inline `overflow: hidden` nobody would take off again. Measured with a wheel
+  // over the board in that state — 0px against 300 — so the reader could not scroll the
+  // board at all, while our own `scrollTop` writes went on working and hid it from every
+  // programmatic check. Codex, #54.
   function unlockScroll() {
     scrollLocks = Math.max(0, scrollLocks - 1);
     if (scrollLocks) return;
-    var port = scrollPort();
+    var port = lockedEl;
+    lockedEl = null;
     if (!port) return;
     port.style.overflow = "";
     // Hiding the overflow drops the scroll offset, so it is put back — the sheet closes
     // onto the row you opened it from, not onto the top of the list.
     port.scrollTop = lockedY;
     port.scrollLeft = lockedX;
+  }
+  // And the lock follows the port, or the other half of that gesture is a board nobody is
+  // holding: the sheet stays up over a list whose port was never locked. That half cannot
+  // be measured from a test the way the first one can — `overflow: hidden` has never
+  // stopped our own `scrollTop` writes, which is the only scrolling a synthetic check can
+  // do — so what is asserted is the transfer itself: the old box released, the new one
+  // hidden. The old one gets nothing put back, because its offsets belong to a layout that
+  // is no longer drawn; the new one is locked wherever it now stands.
+  function relockScroll() {
+    if (!scrollLocks) return;
+    var port = scrollPort();
+    if (!port || port === lockedEl) return;
+    if (lockedEl) lockedEl.style.overflow = "";
+    lockedEl = port;
+    lockedY = port.scrollTop;
+    lockedX = port.scrollLeft;
+    port.style.overflow = "hidden";
   }
 
   // The scrim stops the pointer, not the keyboard. A sheet is modal, so the app
@@ -5859,6 +5896,7 @@
     // port move with it — here rather than only in `openDetail`/`closeDetail`, because
     // the layout switches without a puck ever being opened.
     markPort();
+    relockScroll();
     // On the board rather than on each row: one write for the whole list, and the rows
     // inherit it. Written on every render because the set can change without the rows
     // changing at all — ticking a property off is a redraw of the same pucks.
