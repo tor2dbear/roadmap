@@ -918,8 +918,30 @@ body {
 .card h3 { margin: 0; font-size: var(--fs-xl); line-height: var(--lh-tight); font-weight: var(--fw-semibold); }
 .repo-name { font-size: var(--fs-sm); color: var(--repo, var(--ink-3)); font-weight: var(--fw-semibold); white-space: nowrap; }
 /* Row 2 — repo (colored dot + name) left, ⚠/date right. */
+/* The repo cell is what gives, and it is the only child here that can. Every other one is a
+   fixed mark — a date, a badge, a warning — and each is `nowrap` by design, so with nothing
+   able to shrink the row simply grew: measured at 280px with a long organisation name and
+   every property ticked, 149px of overflow in the row and the date block pushed 135px past
+   the card's right edge. That used to be reachable by scrolling sideways, which was the
+   two-axis bug; with `overflow-x: clip` on the column it is merely hidden, which is worse.
+   Codex found the pair (#54).
+   **Sabotage had to be run three times to say what bears it, and the answer is neither
+   declaration alone.** A flex item's automatic minimum is its content *only while its
+   `overflow` is `visible`* — so `min-width: 0` and `overflow: hidden` each lower it to zero
+   by themselves, and removing either one changes nothing. Only removing both brings the
+   overflow back. That is belt and braces rather than a mechanism, and it is kept for the
+   reason `.board.as-list` keeps the same pair: the declaration is what makes the behaviour
+   independent of whichever `overflow` this rule ends up carrying, and `overflow: hidden` is
+   here for the ellipsis in any case.
+   **What was removed is the one that never applied**: `min-width: 0` on `.card-meta`, where
+   `.card` is a block, so the row is not a flex item and has no automatic minimum to lower.
+   A declaration that cannot apply is not a guard, it is a claim. */
 .card-meta { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: var(--fs-sm); color: var(--ink-3); }
-.card-repo { display: inline-flex; align-items: center; gap: 5px; color: var(--ink-2); font-weight: var(--fw-semibold); white-space: nowrap; }
+/* `inline-block`, not `inline-flex`: the card's repo cell holds one text node (the dot
+   belongs to the list's `.repo-name` variant), so `align-items` and `gap` decided nothing —
+   and `text-overflow` needs a block container. As a flex box it clipped mid-letter instead
+   of ellipsising. */
+.card-repo { display: inline-block; color: var(--ink-2); font-weight: var(--fw-semibold); white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .repo-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
 .card-date { margin-left: auto; font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* Two or three dates, kept inside the card. `min-width: 0` is what lets the box be

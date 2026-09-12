@@ -2308,6 +2308,38 @@ export async function run({ open }) {
     eq(m.filter((k) => k.ox === "visible" || k.ox === "auto" || k.ox === "scroll").length, 0,
       `och sidledsaxeln är stängd oavsett, för nästa sak som råkar svämma över: ${JSON.stringify(m)}`);
 
+    // Och "nästa sak" var inte hypotetisk: kortets metadatarad är en `nowrap`-flexrad där
+    // varje barn är ett eget token, så ett långt reponamn med alla egenskaper påslagna
+    // sköt datumblocket 135px utanför kortet och gav raden 149px eget spill — som klippet
+    // sedan *gömmer* i stället för att låta en skrolla till. Codex hittade paret (#54).
+    // Regeln är listans en layout bort: bara namnet ger, och varje låda ner till det.
+    const långt = (d) => {
+      const en = d.items.find((i) => i.status === "now");
+      d.sources.forEach((x) => { x.name = "Ett Mycket Långt Organisationsnamn AB"; });
+      d.items.push(Object.assign({}, en, { id: "alpha/meta", slug: "meta", title: "Kort titel",
+        repoName: "Ett Mycket Långt Organisationsnamn AB", priority: "urgent", agent: "design-systems",
+        owner: "tor2dbear", target: "2026-12-24", created: "2026-01-02" }));
+      return d;
+    };
+    const c = await open("?view=all&props=repo,priority,agent,owner,created,updated,target",
+      { data: (d) => långt(tall(d)), viewport: { width: 900, height: 700 } });
+    await c.waitForSelector(".board .card");
+    const rader = await c.evaluate(() => {
+      const ut = [];
+      document.querySelectorAll(".board > .column .cards[data-col] .card").forEach((kort) => {
+        const r = kort.getBoundingClientRect();
+        kort.querySelectorAll(".card-meta, .card-dates, h3").forEach((row) => {
+          const spill = Math.round(row.getBoundingClientRect().right - r.right);
+          if (spill > 0 || row.scrollWidth > row.clientWidth + 1)
+            ut.push({ klass: row.className || row.tagName, utanför: spill, eget: row.scrollWidth - row.clientWidth });
+        });
+      });
+      const k = document.querySelector(".board > .column .cards[data-col]");
+      return { ut: ut.slice(0, 5), kolumnSpill: k.scrollWidth - k.clientWidth };
+    });
+    eq(rader.ut.length, 0, `ingen rad i ett kort svämmar utanför det: ${JSON.stringify(rader)}`);
+    eq(rader.kolumnSpill, 0, `och kolumnen har inget sidledsspill att klippa: ${JSON.stringify(rader)}`);
+
     // Och motmedlen ligger kvar där de hör hemma. Det är den andra halvan: att kanban klarar
     // sig utan dem betyder inte att listan gör det, och en svepande borttagning är precis vad
     // den här kontrollen finns för att stoppa.
