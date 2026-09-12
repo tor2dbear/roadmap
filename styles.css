@@ -414,7 +414,15 @@ body {
      travels. On the column it scrolls away with the column's own first screen. */
   padding: 0 var(--pad) 40px;
   overflow-x: auto;
-  align-items: start;
+  /* Lika höga banor, inte innehållshöga kolumner. En sticky-box kan bara färdas inuti
+     sitt containing block, så en kort kolumn tar sin egen rubrik med sig ut ur rutan när
+     den tar slut: rapporterat från en telefon som "Now försvinner upp", och mätt — vid
+     scroll 380 stod `Now` på 106 med portens kant på 113, alltså avklippt mitt i ordet,
+     medan grannarna stod kvar. `start` gav varje kolumn dess egen höjd, vilket är rätt
+     för en lista av kort och fel för en bana man läser tvärs över. Stretchade är alla
+     banor den längstas höjd, ingen rubrik kan tryckas ut, och en tom kolumns släppyta
+     blir hela banan i stället för fyrtio pixlar. */
+  align-items: stretch;
 }
 .column { min-width: 0; border-radius: var(--r-lg); padding-top: 18px; }
 /* drag-to-restatus */
@@ -493,13 +501,25 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
+  /* The background bleeds past the cards, because a card's shadow does too. A card that
+     has scrolled behind this box is hidden — the box is opaque and outranks it — but its
+     `0 2px 8px` shadow is painted outside that box and drew a faint rectangle around the
+     pinned title, reported from a phone as "a small edge/shadow behind the other titles".
+     Proved rather than guessed: with `box-shadow: none` on `.card` the edge is gone.
+     The bleed is 8px, the shadow's blur, taken as negative margin and given back as
+     padding so the text does not move (−8 + 10 = the 2px it had). It is the list's own
+     repair one layout over, where the group heading's background bleeds across the
+     gutter for the same reason. */
+  margin-inline: -8px;
+  padding-inline: 10px;
   position: sticky;
-  /* The kanban .board is its own scroll container (overflow-x: auto forces
-     overflow-y: auto too), so this sticks relative to the board, not the page —
-     top: 0 keeps it at the column top. (The list view scrolls with the viewport
-     and offsets below the topbar via --topbar-h; see .list-head.) */
+  /* Sticky resolves against the nearest scroll container, which is `.port` — the board
+     itself deliberately is not one, or this would pin against a box with no height to
+     travel in. That is why the board wraps in a port at all; see `scrollPort()`.
+     `top: 0` is the port's own edge, and the column's 18px gutter sits above it, so the
+     pin costs no travel. (The list's heading is `.list-head`, pinned against `.work`.) */
   top: 0;
-  padding: 4px 2px 10px;
+  padding-block: 4px 10px;
   background: var(--bg);
   z-index: 1;
 }

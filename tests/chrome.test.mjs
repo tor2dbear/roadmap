@@ -1733,6 +1733,43 @@ export async function run({ open }) {
     ok(m.skroll > 100, `brädan skrollade på riktigt (${m.skroll} px) — annars mäter resten ingenting`);
     eq(m.kvar, 0, "rubriken står kvar vid portens överkant");
     eq(m.band, "col-head", "och bandet ovanför den är rubriken själv, inte kortet bakom");
+
+    // Rapporterat från en telefon: "Now försvinner upp". En sticky-box kan bara färdas
+    // inuti sitt containing block, så en *kort* kolumn tog sin egen rubrik med sig ut ur
+    // rutan när korten tog slut — mätt vid scroll 380: `Now` på 106 med portens kant på
+    // 113, avklippt mitt i ordet, medan grannarna stod kvar. Banorna är lika höga nu.
+    const korta = await p.evaluate(() => {
+      const pt = document.getElementById("port");
+      pt.scrollTop = pt.scrollHeight / 2;
+      const r = pt.getBoundingClientRect();
+      // Bara de kolumner vars rubrik *är* pinnad. Facket (`HIDDEN`) deklarerar
+      // `align-self: start` och `position: static` på sin rubrik med flit — en streckad
+      // låda ska hugga sitt innehåll — så det hör inte till den här regeln. Frågan ställs
+      // till den beräknade stilen och inte till klassnamnet, så kontrollen följer regeln
+      // och inte en uppräkning.
+      return [...document.querySelectorAll(".column")].map((c) => {
+        const h = c.querySelector(".col-head");
+        return { namn: c.querySelector("h2").textContent.trim(),
+                 kort: c.querySelectorAll(".card").length,
+                 pinnad: getComputedStyle(h).position === "sticky",
+                 över: Math.round(h.getBoundingClientRect().top - r.top) };
+      }).filter((k) => k.pinnad);
+    });
+    ok(korta.length > 1, `flera kolumner att jämföra (${korta.length})`);
+    ok(korta.some((k) => k.kort === 0) || new Set(korta.map((k) => k.kort)).size > 1,
+      `kolumnerna är olika långa, annars mäter det här ingenting: ${JSON.stringify(korta.map((k) => k.kort))}`);
+    eq(korta.filter((k) => k.över !== 0).length, 0,
+      `varje rubrik står kvar vid portens kant, även den korta kolumnens: ${JSON.stringify(korta)}`);
+
+    // Och rubrikens bakgrund går förbi kortens kant, eftersom kortens *skugga* gör det.
+    // Kortet bakom är täckt; dess `0 2px 8px` målade en svag ram runt den pinnade titeln.
+    const bredd = await p.evaluate(() => {
+      const kol = document.querySelector(".column").getBoundingClientRect();
+      const h = document.querySelector(".col-head").getBoundingClientRect();
+      return { vänster: Math.round(kol.left - h.left), höger: Math.round(h.right - kol.right) };
+    });
+    ok(bredd.vänster >= 8 && bredd.höger >= 8,
+      `rubriken blöder förbi kolumnen minst skuggans 8px åt bägge håll: ${JSON.stringify(bredd)}`);
   }
 
   group("hjulet över topbaren flyttar den ruta som skrollar");
