@@ -7,6 +7,7 @@ created: 2026-09-12
 priority: medium
 owner: tor2dbear
 depends: [varje-kolumn-skrollar-for-sig]
+parent: skroll-isoleras-till-en-axel
 ---
 
 ## Goal

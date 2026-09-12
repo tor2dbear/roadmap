@@ -6,6 +6,8 @@ updated: 2026-09-12
 created: 2026-09-12
 priority: medium
 owner: tor2dbear
+parent: skroll-isoleras-till-en-axel
+depends: [foten-flyttar-in-i-sidomenyn]
 ---
 
 ## Goal
@@ -77,11 +79,10 @@ markupen, inte en CSS-rad.
 
 ## Open questions
 
-- **Vad händer med foten?** Tre vägar, ingen av dem gratis: (a) permanent och tunnare —
-  kräver att raden görs om, inte bara trycks ihop; (b) tidsstämpeln flyttar (`Sync now`
-  finns redan i ⌘K, tiden finns ingen annanstans); (c) formen tas bara på desktop, där
-  foten är 65px och inte radbryts — men en layout som skiljer sig mellan format är två
-  layouter att underhålla. **Den här frågan avgör hela pucken.**
+- ~~**Vad händer med foten?**~~ **Avgjord:** den tas bort och innehållet flyttar in i
+  sidomenyn — `foten-flyttar-in-i-sidomenyn`, som den här nu är blockerad av. Priset är
+  alltså redan betalt när den här startas: de 114px finns inte att förhandla om, och
+  brädan behöver ingen lodrät resa att skrolla bort en fot i.
 - **Platsen blir N tal i stället för ett.** `openDetail` sparar en offset och `closeDetail`
   lägger tillbaka den; med sju kolumner som var och en minns sitt läge, och `renderBoard`
   som byter ut brädan, är det sju. `scrollPort()` svarar med *en* låda — vad svarar den här?
