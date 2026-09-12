@@ -2133,6 +2133,8 @@ export async function run({ open }) {
     eq(await p.evaluate(() => document.getElementById("port").scrollLeft), 90,
       "portens sidled överlever av sig själv — den lådan byts inte ut");
 
+
+
     // Och en grupperingsändring ska *inte* ärva platsen. Nyckeln räcker inte för att säga
     // det: `NO_VALUE` är den tomma hinken för agent, prioritet, mål *och* förälder, så
     // `Unrouted` och `No priority` bär samma nyckel. Codex hittade det (#54) — kommentaren
@@ -2166,6 +2168,73 @@ export async function run({ open }) {
       `och den delade nyckeln finns i den nya grupperingen också — annars mäter det här inget: ${JSON.stringify(efterByte)}`);
     eq(efterByte.platser.filter((v) => v !== 0).length, 0,
       `ingen kolumn ärvde en plats över grupperingsbytet: ${JSON.stringify(efterByte)}`);
+  }
+
+  group("en omritning bakom en öppen puck tappar inte kolumnens plats heller");
+  {
+    // Codex, #54. En scrollruta utan layout kan inte ta emot en offset: mätt isolerat
+    // skriver `scrollTop = 240` i ett `display: none`-träd tillbaka 0, och står kvar på 0
+    // när lådan visas igen. Ritas brädan om medan en puck är öppen är de gamla noderna
+    // redan borta, så platsen vore förlorad utan att något syns.
+    //
+    // Den riktiga vägen drivs, inte en påhittad: behörighetssonden hålls tills pucken är
+    // öppen, och `loadWritableRepos` ritar om när den släpps.
+    let släpp;
+    const spärr = new Promise((ok) => { släpp = ok; });
+    const p = await open("?view=all", {
+      data: tall, viewport: { width: 1000, height: 600 }, token: true,
+      github: async (route) => {
+        if (/\/repos\//.test(route.request().url())) await spärr;
+        return route.fulfill({ status: 200, contentType: "application/json",
+          body: JSON.stringify({ login: "t", permissions: { push: true } }) });
+      },
+    });
+    await p.waitForSelector(".board .card");
+    await p.evaluate(() => { document.querySelector(".board > .column .cards").scrollTop = 180; });
+    await p.waitForTimeout(120);
+    const före = await p.evaluate(() => Math.round(document.querySelector(".board > .column .cards").scrollTop));
+    ok(före > 100, `en kolumn står skrollad innan pucken öppnas: ${före}`);
+
+    await p.evaluate(() => document.querySelector(".card").click());
+    await p.waitForFunction(() => document.body.classList.contains("viewing-puck"));
+    eq(await p.evaluate(() => getComputedStyle(document.getElementById("board")).display), "none",
+      "brädan är dold, vilket är hela premissen");
+
+    släpp();                                  // sonden landar → renderBoard() bakom pucken
+    await p.waitForFunction(() => !!document.querySelector('.card[draggable="true"]'), null, { timeout: 8000 });
+    await p.evaluate(() => history.back());
+    await p.waitForFunction(() => !document.body.classList.contains("viewing-puck"));
+    await p.waitForTimeout(250);
+    eq(await p.evaluate(() => Math.round(document.querySelector(".board > .column .cards").scrollTop)), före,
+      "och platsen är tillbaka när brädan visas igen");
+  }
+
+  group("hjulet över kolumnens rubrik tillhör kolumnen");
+  {
+    // Codex, #54. Brädans egen dödzonsregel en nivå in: `.cards` är det enda som skrollar
+    // lodrätt, rubriken är dess *syskon*, och `.port` ovanför dem är `overflow-y: hidden` —
+    // så en gest som börjar på rubriken nådde ingenting. Mätt på 1000×600 före: 300 hack
+    // över rubriken flyttade 0, över korten 300.
+    const p = await open("?view=all", { data: tall, viewport: { width: 1000, height: 600 } });
+    await p.waitForSelector(".board .card");
+    const kol = await p.locator(".board > .column").first().boundingBox();
+    const huvud = await p.locator(".board > .column .col-head").first().boundingBox();
+    const nolla = () => p.evaluate(() => { document.querySelector(".board > .column .cards").scrollTop = 0; });
+    const läs = () => p.evaluate(() => Math.round(document.querySelector(".board > .column .cards").scrollTop));
+    async function hjul(x, y, d) { await p.mouse.move(x, y); await p.mouse.wheel(0, d); await p.waitForTimeout(200); return läs(); }
+
+    await nolla();
+    ok(await hjul(huvud.x + 60, huvud.y + huvud.height / 2, 300) > 100, "från rubriken flyttar kolumnen");
+    await nolla();
+    ok(await hjul(kol.x + 60, kol.y + 6, 300) > 100, "och från kolumnens övre luft");
+    await nolla();
+    ok(await hjul(kol.x + 60, kol.y + 140, 300) > 100, "korten tar den förstås själva");
+
+    // Vid kanten ska gesten inte sväljas: en kolumn som tagit slut får inte äta ett hjul
+    // sidan kunde ha använt. Samma regel `armAxisLock` har om att kräva en axel vid en kant.
+    await nolla();
+    eq(await hjul(huvud.x + 60, huvud.y + huvud.height / 2, -300), 0,
+      "uppåt vid toppen gör ingenting, och tas inte");
   }
 
   group("facket linjerar med kolumnerna bredvid");
@@ -2425,6 +2494,33 @@ export async function run({ open }) {
     });
     eq(rader.ut.length, 0, `ingen rad i ett kort svämmar utanför det: ${JSON.stringify(rader)}`);
     eq(rader.kolumnSpill, 0, `och kolumnen har inget sidledsspill att klippa: ${JSON.stringify(rader)}`);
+
+    // Och agenthandtaget, som är radens andra fält med godtycklig text — och det enda utan
+    // längdgräns alls. Codex hittade uppföljaren (#54): reponamnet gav efter ända till 0
+    // medan märket stod kvar på 325px, eftersom den delade badge-regeln säger `flex: none`
+    // och en låda som inte får krympa inte bryr sig om sitt minimum.
+    const agent = (d) => {
+      const en = d.items.find((i) => i.status === "now");
+      d.items.push(Object.assign({}, en, { id: "alpha/ag", slug: "ag", title: "T",
+        agent: "en-mycket-lang-disciplinhandle-for-design-systems", owner: "en-lang-github-handle" }));
+      return d;
+    };
+    const a = await open("?view=all&props=repo,agent,owner,priority,status",
+      { data: (d) => agent(tall(d)), viewport: { width: 1000, height: 600 } });
+    await a.waitForSelector(".board .card");
+    const am = await a.evaluate(() => {
+      const rader = [...document.querySelectorAll(".board > .column .cards[data-col] .card .card-meta")]
+        .map((r) => r.scrollWidth - r.clientWidth);
+      const märke = document.querySelector(".card-meta > .agent-badge");
+      return { spill: rader.filter((v) => v > 0), harMärke: !!märke,
+               krymper: märke ? getComputedStyle(märke).flexShrink : null,
+               namnKlipps: (function () { const n = document.querySelector(".agent-name");
+                 return n ? n.scrollWidth > n.clientWidth + 1 : null; })() };
+    });
+    ok(am.harMärke, `agentmärket ritas, annars mäter det här ingenting: ${JSON.stringify(am)}`);
+    eq(am.spill.length, 0, `ingen metadatarad svämmar med ett långt agenthandtag: ${JSON.stringify(am)}`);
+    ok(Number(am.krymper) > 0, `och märket får krympa — flex: none gör minimum meningslöst: ${JSON.stringify(am)}`);
+    eq(am.namnKlipps, true, "namnet klipps i sin egen låda, alltså med ellips");
 
     // Och motmedlen ligger kvar där de hör hemma. Det är den andra halvan: att kanban klarar
     // sig utan dem betyder inte att listan gör det, och en svepande borttagning är precis vad

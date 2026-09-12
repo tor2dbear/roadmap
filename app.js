@@ -92,7 +92,12 @@
     var b = el("span", "agent-badge");
     b.title = "Routed to " + name;
     b.appendChild(icon("agent", "agent-glyph"));
-    b.appendChild(document.createTextNode(name));
+    // The name in a box of its own, because the badge is an `inline-flex` and
+    // `text-overflow` needs a block container — a bare text node there clips mid-letter
+    // instead of ellipsising. The badge is the second field in a card's metadata row with
+    // arbitrary text in it (the repo name is the first), and an agent handle has no length
+    // limit at all, so it is the one that can push the row past the card on its own.
+    b.appendChild(el("span", "agent-name", name));
     return b;
   }
   var state = {
@@ -2010,6 +2015,7 @@
       // it is the box the chrome sits above, not the box that scrolls; what it forwards
       // to it asks `scrollPort()` per event.
       if (workEl) { armAxisLock(workEl); armChromeWheel(workEl); }
+    if (boardEl) armColumnWheel(boardEl);
     }
   }
 
@@ -2196,6 +2202,37 @@
   // a long query wraps it — so the walk asks each box on the way up whether it has room
   // in the direction being asked for, and only forwards what nobody wanted.
   var wheelArmed = false;
+  // A wheel over a column's head or its top gutter belongs to that column. Those are the
+  // board's own dead zone, and they are new: `.cards` is the only box that scrolls
+  // vertically now, the head is its *sibling*, and `.port` above them is `overflow-y:
+  // hidden` — so a gesture starting on the head reached nothing. Measured at 1000×600:
+  // 300 notches over the head moved 0, over the cards 300. Codex found it (#54).
+  //
+  // It is the same rule as `armChromeWheel` one function down — the chrome above a
+  // scrollport is not a dead zone — one level in, and the same shape of answer: delegate
+  // from the box that contains them all, and give anything that scrolls itself first
+  // refusal. Armed on `#board`, which `renderBoard` empties but never replaces.
+  var colWheelArmed = false;
+  function armColumnWheel(board) {
+    if (colWheelArmed || !board) return;
+    colWheelArmed = true;
+    board.addEventListener("wheel", function (e) {
+      if (e.ctrlKey || !e.deltaY) return;              // zoom, or nothing to forward
+      var col = e.target.closest && e.target.closest(".column");
+      if (!col) return;
+      var cards = col.querySelector(":scope > .cards");
+      if (!cards || cards.contains(e.target)) return;  // the browser already has it
+      if (cards.scrollHeight <= cards.clientHeight + 1) return;  // nothing to move
+      // Only the room in the direction asked for, or a column at its end would swallow a
+      // gesture the page could still have used — the rule `armAxisLock` states about
+      // claiming an axis at an edge.
+      var room = e.deltaY < 0 ? cards.scrollTop > 0 : cards.scrollTop < cards.scrollHeight - cards.clientHeight - 1;
+      if (!room) return;
+      e.preventDefault();
+      cards.scrollTop += e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? cards.clientHeight : 1);
+    }, { passive: false });
+  }
+
   function armChromeWheel(port) {
     if (wheelArmed) return;
     var col = port.parentElement;
@@ -4271,7 +4308,17 @@
     // Asked before the class goes on, so the answer is still the board's port — which in
     // the kanban layout is `#board` and not `.work`.
     var from = document.body.classList.contains("viewing-puck") ? null : scrollPort();
-    if (from) boardAt = { x: from.scrollLeft, y: from.scrollTop };
+    if (from) {
+      boardAt = { x: from.scrollLeft, y: from.scrollTop, group: boardEl && boardEl.dataset.group, cols: {} };
+      // The columns' places too, and *here* rather than at the next render: a hidden
+      // scroller reports `scrollTop` as 0 (Chromium remembers it and gives it back when the
+      // box is shown, but only for a box that survives). A redraw behind an open puck —
+      // `loadWritableRepos` resolving — reads 0 from every column, replaces the nodes, and
+      // the place is gone with nothing to put back. Measured: 180 → 0. Codex, #54.
+      if (boardEl) Array.prototype.forEach.call(boardEl.querySelectorAll(".cards[data-col]"), function (k) {
+        if (k.scrollTop) boardAt.cols[k.dataset.col] = k.scrollTop;
+      });
+    }
     detailPane.hidden = false;
     document.body.classList.add("viewing-puck");
     // The scrollport is a labelled region (it is the only thing that scrolls, so it is
@@ -4369,6 +4416,17 @@
     if (back) {
       back.scrollTop = boardAt.y;
       back.scrollLeft = boardAt.x;
+      // And each column, from the snapshot taken on the way in. It is written here whether
+      // or not the board was redrawn behind the puck: if it was not, the nodes still hold
+      // these very numbers and the write is a no-op; if it was, this is the first moment
+      // there is a scroll range to write into at all. The grouping is checked for the same
+      // reason the render-time restore checks it — `NO_VALUE` is four groupings' key.
+      if (boardEl && boardAt.cols && boardAt.group === boardEl.dataset.group) {
+        Array.prototype.forEach.call(boardEl.querySelectorAll(".cards[data-col]"), function (k) {
+          var v = boardAt.cols[k.dataset.col];
+          if (v) k.scrollTop = v;
+        });
+      }
       boardAt = null;
     }
   }
@@ -5335,6 +5393,11 @@
     var gruppering = effectiveGroup();
     board.dataset.group = gruppering;
     var samma = colPlacesGroup === gruppering;
+    // A redraw behind an open puck writes into boxes with no layout, so these offsets go
+    // nowhere — and the capture above read 0 from every hidden column in the first place.
+    // That case is not this function's to solve: `openDetail` snapshots the columns while
+    // the board is still visible and `closeDetail` puts them back. The pass still runs,
+    // because it also decides the tab stops.
     Array.prototype.forEach.call(board.querySelectorAll(".cards[data-col]"), function (k) {
       var v = samma ? colPlaces[k.dataset.col] : 0;
       if (v) k.scrollTop = v;

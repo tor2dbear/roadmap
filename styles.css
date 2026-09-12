@@ -980,6 +980,18 @@ body {
   border-radius: var(--r-sm); padding: 1px 7px;
 }
 .badge--pill, .status-pill, .rollup, .agent-badge { border-radius: var(--r-pill); }
+/* The agent handle gives, in the one place a card has to fit it. Measured at 1000px with a
+   long handle and four properties ticked: the badge stood 325px wide at `flex: none` while
+   `.card-repo` had already shrunk to nothing, and the row overflowed its card by 159px —
+   which `overflow-x: clip` on the column then hides rather than lets you reach. Codex found
+   it (#54), as the sequel to the repo name.
+   Scoped to the card's row on purpose: the list gives the agent its own 108px track and
+   answers this question there, and widening the rule into it would be a sweep nobody
+   measured. And `flex: 0 1 auto`, not `min-width` alone: the shared badge rule says
+   `flex: none`, which is `flex-shrink: 0` — a box that may not shrink does not care what
+   its minimum is. Measured with only the minimum lowered: 325px, unchanged. */
+.card-meta > .agent-badge { flex: 0 1 auto; min-width: 0; }
+.agent-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 /* Takes its colour from the value it stands for, so the border follows the text. */
 .badge--outline, .status-pill, .issue-state { background: none; border-color: currentColor; }
 .badge--mono, .rollup, .agent-badge { font-family: var(--mono); }
