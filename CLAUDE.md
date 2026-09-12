@@ -808,6 +808,17 @@ than tuning them.
   There is no board-level vertical scroll now, and the pointer over the topbar is above no
   column; choosing one — the leftmost, the widest — would be inventing a destination.
   Sideways is still forwarded. The rule is the list's now.
+- **The reader's place in a column has to be carried across a redraw, and the carrying has
+  its own trap.** `renderBoard` empties the board, which takes every `.cards` with it — so
+  the promise one paragraph up ("nothing may measure the board while it is empty", written
+  so `loadWritableRepos` resolving does not throw the reader to the top) stopped covering
+  the axis that matters. The places are read out by column key before the clear and put back
+  **in one pass over a finished board**: doing it per column inside the loop forces a layout
+  of a half-built board, and the port — wider than two of four columns — clamps its own
+  `scrollLeft` to 0 (measured: 90 → 0). That is the same rule in a new disguise. `colPlaces`
+  is cleared in `exitPuckView` too, because the keys are the grouping's own values, so `now`
+  is `now` in the next view and the old board's place would otherwise be inherited one box
+  further in — the exact bug that function already exists to prevent.
 - **A closed puck's outcome is true of the commit that wrote it, not of the PR it sits in.**
   `bradans-egen-scrollruta` was corrected once for describing an intermediate design, and
   then went stale a second time — because *later steps in the same branch* changed what it

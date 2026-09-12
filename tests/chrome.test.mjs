@@ -2068,6 +2068,62 @@ export async function run({ open }) {
       `bandet är oförändrat på puckssidan: ${före} → ${efter}`);
   }
 
+  group("en omritning tappar inte läsarens plats i kolumnen");
+  {
+    // Codex, #54. Regeln stod redan skriven i `renderBoard` — "inget mäter brädan medan den
+    // är tom", så en asynkron omritning kastar inte tillbaka läsaren — men den höll för en
+    // låda som *överlever* rensningen, och kolumnerna gör inte det: `.cards` är brädans
+    // lodräta port nu och `innerHTML = ""` tar den med sig.
+    //
+    // Fallet drivs på riktigt och inte genom att anropa `renderBoard` själv: en inloggad
+    // bräda kör `loadWritableRepos()`, och när behörighetssonden landar ritas identiskt
+    // innehåll om. Stubben svarar långsamt nog att brädan hinner ritas, skrollas och ritas
+    // om — vilket är precis sekvensen en läsare möter.
+    let släpp;
+    const spärr = new Promise((ok) => { släpp = ok; });
+    const p = await open("?view=all", {
+      data: tall, viewport: { width: 900, height: 600 }, token: true,
+      github: async (route) => {
+        const u = route.request().url();
+        if (/\/repos\//.test(u)) {
+          await spärr;   // håll sonden tills vi har skrollat
+          return route.fulfill({ status: 200, contentType: "application/json",
+            body: JSON.stringify({ permissions: { push: true } }) });
+        }
+        return route.fulfill({ status: 200, contentType: "application/json",
+          body: JSON.stringify({ login: "tester", permissions: { push: true } }) });
+      },
+    });
+    await p.waitForSelector(".board .card");
+    const läs = () => p.evaluate(() => [...document.querySelectorAll(".board > .column .cards")]
+      .map((k) => Math.round(k.scrollTop)));
+    await p.evaluate(() => {
+      document.querySelectorAll(".board > .column .cards").forEach((k) => { k.scrollTop = 240; });
+      document.getElementById("port").scrollLeft = 90;
+    });
+    await p.waitForTimeout(120);
+    const före = await läs();
+    ok(före.some((v) => v > 100), `en kolumn står skrollad innan sonden landar: ${JSON.stringify(före)}`);
+
+    släpp();
+    // Vänta på att omritningen faktiskt skett: korten blir dragbara när skrivrätt landat.
+    await p.waitForFunction(() => !!document.querySelector('.card[draggable="true"]'), null, { timeout: 8000 });
+    await p.waitForTimeout(200);
+    const efter = await läs();
+    eq(efter, före, `och står kvar efter omritningen: ${JSON.stringify({ före, efter })}`);
+    eq(await p.evaluate(() => document.getElementById("port").scrollLeft), 90,
+      "portens sidled överlever av sig själv — den lådan byts inte ut");
+
+    // Och en grupperingsändring ska *inte* ärva platsen: nycklarna är grupperingens egna
+    // värden, så ett annat arrangemang av samma pucker öppnar överst. Samma mekanism som
+    // `collapsed`, och samma skäl.
+    await p.evaluate(() => { document.querySelectorAll(".board > .column .cards").forEach((k) => { k.scrollTop = 200; }); });
+    const q = await open("?view=all&group=repo", { data: tall, viewport: { width: 900, height: 600 } });
+    await q.waitForSelector(".board .card");
+    eq(await q.evaluate(() => [...document.querySelectorAll(".board > .column .cards")]
+      .every((k) => k.scrollTop === 0)), true, "en annan gruppering öppnar överst");
+  }
+
   group("ingen låda på brädan skrollar åt två håll");
   {
     // Målets invariant, och den enda leveransen i `listans-motmedel-foljde-inte-med-till-kanban`:

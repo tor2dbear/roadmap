@@ -4326,6 +4326,16 @@
     // board's port — while the offset the *puck* was read at is still standing in `.work`.
     // In the list they are the same box and the second write is a no-op.
     [scrollPort(), workEl].forEach(function (n) { if (n) { n.scrollTop = 0; n.scrollLeft = 0; } });
+    // And the columns, which is where the same problem moved when they became the board's
+    // vertical scrollports. The redraw that follows this navigation would otherwise put the
+    // *old* board's places back by key — `now` is `now` in the next view too — and the
+    // four-row view measured above would open partway down again, one box further in.
+    // Caught by this rule's own check rather than by a report, which is the whole reason
+    // the check for it was written the same hour.
+    colPlaces = {};
+    Array.prototype.forEach.call(document.querySelectorAll(".cards[data-col]"), function (k) {
+      k.scrollTop = 0;
+    });
     if (location.hash) { try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} }
   }
   function closeDetail() {
@@ -5161,6 +5171,12 @@
     return h;
   }
 
+  // The reader's place in each column, carried across one redraw. `renderBoard` fills it
+  // just before it empties the board and `renderColumns` spends it as each column is
+  // appended — two functions and one fact, which is a shape this file otherwise avoids.
+  // It earns the exception by being write-once-read-once within a single render: anything
+  // longer-lived would be a second source of truth for where the reader is.
+  var colPlaces = {};
   function renderColumns(groups) {
     var g = activeGroup();
     // No guard for status grouping, and none is needed — which is worth writing down,
@@ -5197,6 +5213,10 @@
       cards.tabIndex = 0;
       cards.setAttribute("role", "region");
       cards.setAttribute("aria-label", grp.label);
+      // The key a restored place is found by, and the grouping's own value — so a grouping
+      // change simply matches nothing and every column opens at the top, which is what a
+      // different arrangement of the same pucks deserves. Same mechanism as `collapsed`.
+      cards.dataset.col = grp.key;
       if (grp.items.length === 0) cards.appendChild(el("div", "empty", "—"));
       else grp.items.forEach(function (it) { cards.appendChild(card(it)); });
       col.appendChild(cards);
@@ -5275,6 +5295,21 @@
     });
     // Last, where the columns it holds would have been.
     renderHiddenTray(g, groups);
+    // And only now the reader's places, in one pass over a board that is finished.
+    //
+    // The first version put each one back inside the loop, and its own check caught what
+    // that costs: writing `scrollTop` needs the scrollable extent, so it forces a layout —
+    // of a board holding two columns out of four. The port is wider than that, so its
+    // `scrollLeft` clamped to 0 and the sideways place was lost (measured: 90 → 0). It is
+    // the rule at the top of `renderBoard` in a new disguise — nothing may measure the
+    // board before it is whole — and the repair is the same: wait until it is.
+    //
+    // A key that is not in `colPlaces` (a new column, another grouping) opens at the top,
+    // and a column that has grown shorter clamps itself.
+    Array.prototype.forEach.call(board.querySelectorAll(".cards[data-col]"), function (k) {
+      var v = colPlaces[k.dataset.col];
+      if (v) k.scrollTop = v;
+    });
   }
 
   // Fold a group shut or open it. Display state, so it travels the same road as the
@@ -5928,6 +5963,19 @@
     // clear and the fill. `tests/chrome.test.mjs` holds the guarantee.
     // A glide still running would carry on moving whatever replaces the list it belonged to.
     stopGlide();
+    // The paragraph above holds for boxes that *survive* the clear, and the columns do not:
+    // each `.cards` is the board's vertical scrollport now and `innerHTML = ""` takes it
+    // with the rest. So the reader's place is read out first, by column key, and put back
+    // after the fill — Codex found this (#54), and the case is the very one the paragraph
+    // names: `loadWritableRepos` resolving on a signed-in board redraws identical content
+    // and would have returned a reader partway down a column to its top.
+    //
+    // Reading `scrollTop` here is safe: it is before the clear, not inside the gap the rule
+    // is about. Restoring happens after the appends, outside it too.
+    colPlaces = {};
+    Array.prototype.forEach.call(board.querySelectorAll(".cards[data-col]"), function (k) {
+      if (k.scrollTop) colPlaces[k.dataset.col] = k.scrollTop;
+    });
     board.innerHTML = "";
     // The layout is whatever the toggle says — in every view.
     //

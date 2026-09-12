@@ -151,4 +151,26 @@ porten i höjdled, porten tar hjulets `deltaY`, platsen är portens `scrollTop`,
 tillbaka den, en popover läser brädans underkant, och spillet att måla med är portens. Alla
 sanna om en tvåaxlig port, alla meningslösa utan en.
 
-**255 kontroller i `chrome`, 1012 i hela sviten, 0 fel.**
+**En sjätte läsare, funnen i granskning efter att pucken stängts.** `renderBoard` gör
+`board.innerHTML = ""`, och kommentaren ovanför den raden lovar att en asynkron omritning
+inte kastar tillbaka läsaren — *"inget mäter brädan medan den är tom"*. Löftet höll för en
+låda som **överlever** rensningen, och kolumnerna gör inte det: `.cards` är brädans lodräta
+port nu och tas med. Fallet är det kommentaren själv namnger: `loadWritableRepos` som landar
+på en inloggad bräda ritar om identiskt innehåll, och en läsare halvvägs ner i en kolumn
+hamnade överst. Platsen läses ut per kolumnnyckel före rensningen och läggs tillbaka efter.
+
+**Och lagningen hade två egna fel, bägge fångade av dess egen kontroll innan de gick vidare.**
+
+1. *Återställ i loopen* — att skriva `scrollTop` kräver scrollvidden, alltså framtvingas en
+   layout, av en bräda med två kolumner av fyra. Porten är bredare än så, så dess
+   `scrollLeft` klampade till 0 (mätt: 90 → 0). Det är regeln överst i `renderBoard` i ny
+   förklädnad — *inget får mäta brädan innan den är hel* — och samma reparation: vänta tills
+   den är det. En enda svepning över en färdig bräda.
+2. *Platsen ärvs vid navigering* — `exitPuckView` nollar porten och `.work` för att en annan
+   tavla inte ska öppnas där en längre lista lästes. Med nycklar som är grupperingens egna
+   värden är `now` fortfarande `now` i nästa vy, så den gamla brädans plats lades tillbaka
+   en låda längre in. `colPlaces` töms där, och kolumnerna nollas.
+
+**267 kontroller i `chrome`, 0 fel**, och vart och ett av de tre sabotagen fäller sin egen
+rad: ingen återställning alls, återställning i loopen, och `exitPuckView` som behåller
+platserna.
