@@ -2163,11 +2163,35 @@ export async function run({ open }) {
       stämpel: document.getElementById("board").dataset.group,
       platser: [...document.querySelectorAll(".board > .column .cards")].map((k) => Math.round(k.scrollTop)),
       nycklar: [...document.querySelectorAll(".board > .column .cards")].map((k) => k.dataset.col) }));
-    eq(efterByte.stämpel, "priority", `brädan är stämplad med sin nya gruppering: ${JSON.stringify(efterByte)}`);
+    // Stämpeln är sammansatt — vy, filter och gruppering — så frågan är om dess sista del
+    // är den nya grupperingen, inte om hela strängen är det.
+    eq(efterByte.stämpel.split("\u0001").pop(), "priority",
+      `brädan är stämplad med sin nya gruppering: ${JSON.stringify(efterByte)}`);
     ok(efterByte.nycklar.includes(tom.nyckel),
       `och den delade nyckeln finns i den nya grupperingen också — annars mäter det här inget: ${JSON.stringify(efterByte)}`);
     eq(efterByte.platser.filter((v) => v !== 0).length, 0,
       `ingen kolumn ärvde en plats över grupperingsbytet: ${JSON.stringify(efterByte)}`);
+
+    // Och inte över en navigering till en *annan bräda* med samma gruppering heller.
+    // Grupperingen ensam är ingen identitet: All → Ready, bägge under status, och nycklarna
+    // matchar fortfarande — mätt före, Ready öppnade 260px ner i sin `now`. Codex, #54.
+    // `exitPuckView` kan inte fånga den: den returnerar direkt när ingen puck är öppen,
+    // vilket är hela en bräda-till-bräda-navigering.
+    const n = await open("?view=all", { data: tall, viewport: { width: 1000, height: 600 } });
+    await n.waitForSelector(".board .card");
+    await n.evaluate(() => { document.querySelector(".board > .column .cards").scrollTop = 260; });
+    await n.waitForTimeout(120);
+    const iAll = await n.evaluate(() => Math.round(document.querySelector(".board > .column .cards").scrollTop));
+    ok(iAll > 100, `All står skrollad: ${iAll}`);
+    await n.getByRole("button", { name: /^Ready/ }).first().click();
+    await n.waitForTimeout(500);
+    const iReady = await n.evaluate(() => ({
+      platser: [...document.querySelectorAll(".board > .column .cards[data-col]")].map((k) => Math.round(k.scrollTop)),
+      nycklar: [...document.querySelectorAll(".board > .column .cards[data-col]")].map((k) => k.dataset.col) }));
+    ok(iReady.nycklar.includes("now"),
+      `Ready har samma kolumnnyckel, annars mäter det här inget: ${JSON.stringify(iReady)}`);
+    eq(iReady.platser.filter((v) => v !== 0).length, 0,
+      `och ingen kolumn ärvde All:s plats: ${JSON.stringify(iReady)}`);
   }
 
   group("en omritning bakom en öppen puck tappar inte kolumnens plats heller");

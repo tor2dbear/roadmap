@@ -5247,6 +5247,12 @@
   // `NO_VALUE` belongs to four of them, so the key alone cannot say whether a place is this
   // board's.
   var colPlacesGroup = null;
+  // What makes a board *this* board, for the purpose of putting a reader's place back: the
+  // view, the filter and the grouping. `\u0001` separates them because a query may contain
+  // anything printable, and the grouping's own keys reach for `\u0000` already.
+  function boardStamp() {
+    return state.focus + "\u0001" + canonicalQuery(state.query || "") + "\u0001" + effectiveGroup();
+  }
   function renderColumns(groups) {
     var g = activeGroup();
     // No guard for status grouping, and none is needed — which is worth writing down,
@@ -5386,11 +5392,22 @@
     //
     // A key that is not in `colPlaces` (a new column, another grouping) opens at the top,
     // and a column that has grown shorter clamps itself.
+    // The stamp says which *board* this is, not just how it is grouped, and the second half
+    // was a separate finding (Codex, #54). Grouping alone is not identity: navigate All →
+    // Ready with both grouped by status and the keys still match, so Ready's `now` opened
+    // where All's had been read — measured, 260px down. It is the failure `exitPuckView`
+    // names one box out ("a four-row view opened at `scrollLeft: 150` because a longer list
+    // had been read there"), and that function cannot catch this one: it returns at once
+    // when no puck is open, which is the whole of a board-to-board navigation.
+    //
+    // View plus query plus grouping, because those are what make a board a different board.
+    // A display toggle — the archive, a property — is the same board with more or less
+    // drawn, and returning to the place you were reading is right there.
     // `effectiveGroup()`, not `g.key`: the groupings are keyed by their property name in
     // `GROUPS` and carry no `key` member, so that read stamped the string "undefined" and
     // the comparison then failed against a genuine `undefined` on the next pass. Caught by
     // the redraw check within the minute, which is what it is for.
-    var gruppering = effectiveGroup();
+    var gruppering = boardStamp();
     board.dataset.group = gruppering;
     var samma = colPlacesGroup === gruppering;
     // A redraw behind an open puck writes into boxes with no layout, so these offsets go
