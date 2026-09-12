@@ -808,6 +808,17 @@ than tuning them.
   There is no board-level vertical scroll now, and the pointer over the topbar is above no
   column; choosing one — the leftmost, the widest — would be inventing a destination.
   Sideways is still forwarded. The rule is the list's now.
+- **The scrollbar gets a lane, not the cards' right edge.** A scroller exactly as wide as its
+  content leaves an overlay bar nowhere to go but on top of it — reported from a phone, with
+  Linear beside it: the bar drawn across the right edge of every card in the column being
+  read. Linear's scroller is simply wider than its cards. `.cards` borrows 8px of the 16px
+  the board already keeps between columns, bleeding right by `--bar-lane` and insetting its
+  content by the same number: measured, the column ends at 302, the card ends at 302 (in
+  line with `.col-head`, which is a sibling and does not move), the scroller ends at 310,
+  and the next column still starts at 318. The two declarations are one idea and each half
+  fells its own check — drop the bleed and the cards shrink out of line with the head; drop
+  the inset and the scroller no longer extends past them. The bar itself is an overlay the
+  test browser does not draw, so the checks assert the lane and the device confirms the bar.
 - **A column takes one axis, and CSS will not leave it alone.** `overflow-y: auto` beside an
   `overflow-x` of `visible` computes the *visible* one to `auto` — the same rule that forces
   `#board` not to be a scroll container, read from the other direction — so one unbreakable

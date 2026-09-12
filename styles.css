@@ -1548,6 +1548,19 @@ body:not(.viewing-puck) .port > .board:not(.as-list) > .column {
 }
 body:not(.viewing-puck) .port > .board:not(.as-list) > .column > .cards {
   overflow-y: auto; min-height: 0; flex: 1;
+  /* The scrollbar gets a lane of its own, beside the cards rather than on them. A scroller
+     exactly as wide as its content leaves an overlay bar nowhere to go but on top of it —
+     reported from a phone, the bar drawn across the right edge of every card in the column
+     being read. Linear's scroller is simply wider than its cards; this is that, borrowed
+     from the 16px the board already keeps between columns.
+     The bleed and the inset are the same number, so the cards' own box is unchanged: they
+     stay exactly column-wide and in line with `.col-head`, which is a sibling and does not
+     move. What lands in the borrowed strip is the bar and nothing else. Half the gap, so
+     the neighbouring column keeps the other half; the last column bleeds into the board's
+     own `--pad`, which is wider still. */
+  --bar-lane: 8px;
+  margin-right: calc(-1 * var(--bar-lane));
+  padding-right: var(--bar-lane);
   /* One axis, said out loud, because CSS will not leave it alone otherwise: an `overflow`
      of `visible` on one axis computes to `auto` when the other is not `visible`. This is
      the rule the board already knows from the other direction — `overflow-x: auto` forcing

@@ -2124,6 +2124,40 @@ export async function run({ open }) {
       .every((k) => k.scrollTop === 0)), true, "en annan gruppering öppnar överst");
   }
 
+  group("scrollisten får ett eget körfält, inte kortens högerkant");
+  {
+    // Rapporterat från en telefon med Linear bredvid: vår list målades *över* korten i den
+    // kolumn man läste. Skälet är inte listens utseende utan scrollrutans kant — en
+    // scrollruta exakt lika bred som sitt innehåll lämnar en overlay-list ingenstans att ta
+    // vägen. Linears scrollruta är helt enkelt bredare än sina kort.
+    //
+    // Det som går att mäta här är geometrin; själva baren är en overlay som den här
+    // webbläsaren inte ritar, och att den landar i remsan är bekräftat på enhet.
+    const p = await open("?view=all", { data: tall, viewport: { width: 900, height: 600 } });
+    await p.waitForSelector(".board .card");
+    const m = await p.evaluate(() => {
+      const kol = document.querySelector(".board > .column");
+      const k = kol.querySelector(".cards"), h = kol.querySelector(".col-head"), c = k.querySelector(".card");
+      const nästa = document.querySelectorAll(".board > .column")[1];
+      const hö = (e) => Math.round(e.getBoundingClientRect().right);
+      const vä = (e) => Math.round(e.getBoundingClientRect().left);
+      return { kolH: hö(kol), rubrikH: hö(h), kortH: hö(c), listaH: hö(k),
+               kolV: vä(kol), kortV: vä(c),
+               nästaV: nästa ? vä(nästa) : null,
+               körfält: parseInt(getComputedStyle(k).getPropertyValue("--bar-lane"), 10) };
+    });
+    ok(m.körfält > 0, `körfältet är deklarerat: ${JSON.stringify(m)}`);
+    eq(m.listaH - m.kortH, m.körfält,
+      `scrollrutan sträcker sig förbi korten precis så mycket som körfältet: ${JSON.stringify(m)}`);
+    // Och kortet rör sig inte: det är hela poängen med att blöda och skjuta in lika mycket.
+    eq(m.kortH, m.rubrikH, `kortets högerkant ligger kvar i linje med rubrikens: ${JSON.stringify(m)}`);
+    eq(m.kortH, m.kolH, "och med kolumnens");
+    eq(m.kortV, m.kolV, "vänsterkanten är orörd");
+    // Grannen får behålla sin halva av gapet — annars är remsan lånad från fel ställe.
+    ok(m.nästaV - m.listaH >= m.körfält,
+      `och nästa kolumn har minst lika mycket kvar av gapet: ${JSON.stringify(m)}`);
+  }
+
   group("ingen låda på brädan skrollar åt två håll");
   {
     // Målets invariant, och den enda leveransen i `listans-motmedel-foljde-inte-med-till-kanban`:
