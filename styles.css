@@ -1576,6 +1576,15 @@ body:not(.viewing-puck) .port > .board:not(.as-list) {
 body:not(.viewing-puck) .port > .board:not(.as-list) > .column {
   display: flex; flex-direction: column; min-height: 0;
 }
+/* The tray hugs its content — `align-self: start`, because a dashed box around four rows
+   should not be column-tall — and that left it the one box on the board with no ceiling.
+   With the port no longer scrolling downwards there is no ancestor to reach a clipped row
+   through, so a tray taller than the port simply loses its lower eyes: measured at 240px
+   with a single hidden column, already 89px of tray in an 80px port. Codex found it (#54).
+   A ceiling rather than a stretch: short stays short, tall stops at the port and its own
+   list takes over the scrolling — which it can, because `.cards` above is already a
+   scroller and only ever lacked a definite height to scroll within. */
+body:not(.viewing-puck) .port > .board:not(.as-list) > .column.hidden-cols { max-height: 100%; }
 body:not(.viewing-puck) .port > .board:not(.as-list) > .column > .cards {
   overflow-y: auto; min-height: 0; flex: 1;
   /* The scrollbar gets a lane of its own, beside the cards rather than on them. A scroller

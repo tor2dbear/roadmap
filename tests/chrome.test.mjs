@@ -2168,6 +2168,61 @@ export async function run({ open }) {
       `ingen kolumn ärvde en plats över grupperingsbytet: ${JSON.stringify(efterByte)}`);
   }
 
+  group("facket kapas vid porten och skrollar själv, korta fack hugger sitt innehåll");
+  {
+    // Codex, #54. Facket är den enda lådan på brädan utan tak: `align-self: start`, för att
+    // en streckad ruta kring fyra rader inte ska vara kolumnhög. Med porten enaxlig finns
+    // ingen förälder att nå en avklippt rad genom, så ett fack högre än porten tappar sina
+    // nedre ögon — och eyen är hela poängen med facket.
+    const många = (d) => {
+      const en = d.items.find((i) => i.status === "now");
+      const mall = d.sources[0];
+      for (let i = 0; i < 8; i++) {
+        d.sources.push(Object.assign({}, mall, { repo: "acme/x" + i, name: "Extra " + i }));
+        d.items.push(Object.assign({}, en, { id: "acme/x" + i + "/p", slug: "xp" + i,
+          repo: "acme/x" + i, repoName: "Extra " + i, title: "Extra puck " + i, tags: ["extra"] }));
+      }
+      return d;
+    };
+    // Negationer, inte ett positivt urval: brädans egen regel är att en positiv term är
+    // *omfånget du valde*, inte en kolumn du gömde — så `repo:alpha` ger inget fack alls.
+    // Kostade en röd körning, och är värd att stå här: facket fylls av `hiddenColumns()`,
+    // som frågar vilka kolumner frågan *tog bort*.
+    const GÖM = "?view=all&group=repo&q=-repo%3Ax0%20-repo%3Ax1%20-repo%3Ax2%20-repo%3Ax3%20-repo%3Ax4%20-repo%3Ax5%20-repo%3Ax6%20-repo%3Ax7";
+    const p = await open(GÖM, { data: många, viewport: { width: 1100, height: 300 } });
+    await p.waitForSelector(".hidden-cols");
+    const m = await p.evaluate(() => {
+      const tray = document.querySelector(".hidden-cols"), pt = document.getElementById("port");
+      const lista = tray.querySelector(".cards");
+      const r = tray.getBoundingClientRect(), pr = pt.getBoundingClientRect();
+      const knappar = [...tray.querySelectorAll("button.hidden-col")];
+      const sista = knappar[knappar.length - 1];
+      // Skrolla listan till botten: sista ögat ska gå att nå.
+      lista.scrollTop = lista.scrollHeight;
+      const sr = sista.getBoundingClientRect();
+      return { rader: knappar.length, fackH: Math.round(r.height), portH: Math.round(pr.height),
+               utanför: Math.round(r.bottom - pr.bottom), rullar: lista.scrollHeight > lista.clientHeight + 1,
+               sistaInnanför: Math.round(pr.bottom - sr.bottom) };
+    });
+    ok(m.rader > 3, `facket har flera rader, annars mäter det här ingenting: ${JSON.stringify(m)}`);
+    ok(m.fackH <= m.portH, `facket är aldrig högre än porten: ${JSON.stringify(m)}`);
+    ok(m.utanför <= 0, `och sticker inte ut under den: ${JSON.stringify(m)}`);
+    ok(m.rullar, `dess egen lista tar över skrollandet: ${JSON.stringify(m)}`);
+    ok(m.sistaInnanför >= -1, `så sista ögat går att nå: ${JSON.stringify(m)}`);
+
+    // Och ett kort fack hugger fortfarande sitt innehåll — taket får inte bli en sträckning.
+    const kort = await open(GÖM, { data: många, viewport: { width: 1100, height: 900 } });
+    await kort.waitForSelector(".hidden-cols");
+    const k = await kort.evaluate(() => {
+      const tray = document.querySelector(".hidden-cols"), pt = document.getElementById("port");
+      return { fackH: Math.round(tray.getBoundingClientRect().height),
+               portH: Math.round(pt.getBoundingClientRect().height),
+               rullar: tray.querySelector(".cards").scrollHeight > tray.querySelector(".cards").clientHeight + 1 };
+    });
+    ok(k.fackH < k.portH - 20, `i ett högt fönster är facket innehållshögt, inte portshögt: ${JSON.stringify(k)}`);
+    eq(k.rullar, false, "och behöver ingen egen skroll");
+  }
+
   group("kolumnens + färdas med korten, det pinnas inte i botten");
   {
     // Codex, #54. `.col-add` var syskon till `.cards`, och när kortlistan blev kolumnens
