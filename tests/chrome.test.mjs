@@ -2068,6 +2068,49 @@ export async function run({ open }) {
       `bandet är oförändrat på puckssidan: ${före} → ${efter}`);
   }
 
+  group("ingen låda på brädan skrollar åt två håll");
+  {
+    // Målets invariant, och den enda leveransen i `listans-motmedel-foljde-inte-med-till-kanban`:
+    // den pucken fanns för att lägga listans tre motmedel — axellås, ingen sidledsstuds,
+    // gömda indikatorer — på kanbanporten också. Scroll per kolumn gjorde dem obehövliga i
+    // stället, så det som står kvar är att mäta att det förblir så. En regel som bara gäller
+    // så länge ingen råkar lägga tillbaka en axel är ingen regel.
+    //
+    // Mätt när den skrevs: .work skrollar ingenting, porten x, kolumnen y. Listan är
+    // undantaget och behåller sina motmedel, eftersom `.work` där är tvåaxlig på riktigt.
+    const p = await open("?view=all", { data: tall, viewport: { width: 390, height: 700 }, hasTouch: true });
+    await p.waitForSelector(".board .card");
+    const lådor = await p.evaluate(() => {
+      const ax = (e) => [e.scrollWidth > e.clientWidth + 1 ? "x" : null,
+                         e.scrollHeight > e.clientHeight + 1 ? "y" : null].filter(Boolean);
+      const ut = { work: ax(document.querySelector(".work")), port: ax(document.getElementById("port")) };
+      ut.kolumner = [...document.querySelectorAll(".board > .column .cards")].map(ax);
+      return ut;
+    });
+    eq(lådor.work, [], "`.work` skrollar ingenting i kanban");
+    eq(lådor.port, ["x"], `porten tar sidled och bara den: ${JSON.stringify(lådor.port)}`);
+    ok(lådor.kolumner.some((a) => a.length), `minst en kolumn skrollar, annars mäter det här ingenting: ${JSON.stringify(lådor.kolumner)}`);
+    eq(lådor.kolumner.filter((a) => a.length > 1).length, 0,
+      `och ingen kolumn tar mer än en axel: ${JSON.stringify(lådor.kolumner)}`);
+    eq(lådor.kolumner.filter((a) => a.includes("x")).length, 0,
+      `ingen kolumn skrollar i sidled — det är portens axel: ${JSON.stringify(lådor.kolumner)}`);
+
+    // Och motmedlen ligger kvar där de hör hemma. Det är den andra halvan: att kanban klarar
+    // sig utan dem betyder inte att listan gör det, och en svepande borttagning är precis vad
+    // den här kontrollen finns för att stoppa.
+    const lista = await open("?view=all&layout=list&done=1", { viewport: { width: 390, height: 700 }, hasTouch: true });
+    await lista.waitForSelector(".list-row");
+    const l = await lista.evaluate(() => {
+      const w = document.querySelector(".work"), c = getComputedStyle(w);
+      return { ta: c.touchAction, obX: c.overscrollBehaviorX,
+               axlar: [w.scrollWidth > w.clientWidth + 1 ? "x" : null,
+                       w.scrollHeight > w.clientHeight + 1 ? "y" : null].filter(Boolean) };
+    });
+    eq(l.axlar, ["x", "y"], "listans `.work` är tvåaxlig — det är därför den behöver motmedel");
+    eq(l.ta, "pan-y pinch-zoom", "och har dem: axellåset");
+    eq(l.obX, "none", "och sidledsstudsen avstängd");
+  }
+
   group("tabbstoppet följer porten över ett layoutbyte");
   {
     const p = await open("?view=all&layout=list", { data: tall, viewport: { width: 900, height: 500 } });

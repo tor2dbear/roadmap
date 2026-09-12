@@ -1,6 +1,6 @@
 ---
 title: Listans motmedel följde inte med till kanban
-status: inbox
+status: done
 tags: [ui]
 updated: 2026-09-12
 created: 2026-09-12
@@ -66,3 +66,50 @@ svaret avgör om den har något innehåll.
   `none`) eftersom den är det en lång lista läses med. Gäller samma sak en kolumn?
 - **Indikatorerna: mäta eller lämna?** Ingen enhetsrapport finns. Om Linear-formen tas
   försvinner frågan av sig själv.
+
+## Utfall
+
+**Tom, och det var syftet.** Pucken fanns för att lägga listans tre motmedel på kanbanporten
+också. Blockeraren valde den andra vägen — `varje-kolumn-skrollar-for-sig` — och då fanns
+ingenting kvar att bygga. Mätt på 390×700 efter steg 2:
+
+```
+kanban   .work    skrollar ingenting
+         #port    x
+         kolumn   y                 ← varje låda enaxlig
+lista    .work    x + y             ← pan-y pinch-zoom, overscroll-x: none, gömda indikatorer
+```
+
+Inga `touch-action`, ingen `overscroll-behavior`, inga gömda indikatorer i kanban — och inga
+behövs, eftersom webbläsaren låser axeln själv när det finns en box per axel att välja
+mellan. Det var så det såg ut innan brädan fick en port; skillnaden är att axlarna nu ligger
+på *rätt* två lådor i stället för på `.work` och `#board`.
+
+**`armAxisLock` är fortfarande inert i kanban, och det är nu korrekt i stället för
+halvsant.** `.work` skrollar ingen axel där (mätt: `x:false, y:false`), så det finns
+ingenting att låsa. Meningen i `CLAUDE.md` — *"`armAxisLock` still takes `.work`, and that is
+not an oversight"* — är sann igen, och av ett starkare skäl än när den skrevs: låset är
+listans för att kanban inte har något behov av det, inte bara för att `.work` råkar vara
+listans port.
+
+**Svaren på de tre öppna frågorna:**
+
+- **Vad räknas som en lyckad mätning av driften?** Frågan besvarades i steg 2 i stället, och
+  42°-vinkeln togs med dit: `port.left 0` mot en tvåaxlig ports `299`. Den kontrollen bor i
+  `chrome.test.mjs`, med anteckningen om *vad* som håller den — kolumnen är en scrollruta,
+  inte portens `overflow-y: hidden`.
+- **Ärver kanban listans undantag?** Ingen fråga längre. Listan behåller den lodräta studsen
+  (`-x`, inte `none`) för att en lång lista läses med den; en kolumn har bara den axeln, så
+  dess studs är den som ska finnas.
+- **Indikatorerna: mäta eller lämna?** Upplöst. Regeln skrevs för att en **tvåaxlig** port
+  ritar två indikatorer illa. Varje låda ritar en nu, på sin egen axel, vilket är det normala
+  fallet. Ingen enhetsrapport behövs för en fråga vars orsak är borta.
+
+**Leveransen är en vakt, inte en fix.** Målets invariant — *ingen låda på brädan skrollar åt
+två håll* — hade ingen kontroll, och en regel som bara gäller tills någon råkar lägga
+tillbaka en axel är ingen regel. Den mäter bägge halvorna: att kanbans tre lådor tar noll,
+en respektive en axel, och att listan behåller sina motmedel. Sabotage fäller dem var för
+sig — porten tillbaka till tvåaxlig ger `["x","y"]`, och att ta listans `touch-action` fäller
+den andra halvan.
+
+**263 kontroller i `chrome`, 0 fel.**
