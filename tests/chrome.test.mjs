@@ -2168,6 +2168,40 @@ export async function run({ open }) {
       `ingen kolumn ärvde en plats över grupperingsbytet: ${JSON.stringify(efterByte)}`);
   }
 
+  group("kolumnens + färdas med korten, det pinnas inte i botten");
+  {
+    // Codex, #54. `.col-add` var syskon till `.cards`, och när kortlistan blev kolumnens
+    // scrollruta med `flex: 1` pinnades knappen i kolumnens botten. Mätt: 31px hög med
+    // `opacity: 0` på en hover-enhet — alltså en osynlig rad som ändå reserverar sin höjd i
+    // varje kolumn — och synlig men lika pinnad på touch.
+    //
+    // Lagningen är en återställning, inte ett designval: den ligger inne i skrollrutan
+    // efter sista kortet, där den låg innan. Att ett permanent nåbart `+` kan vara den
+    // bättre affordansen — Linear har ett i kolumnrubriken — är en egen fråga.
+    const p = await open("?view=all", { data: tall, viewport: { width: 1200, height: 700 }, token: true,
+      github: (route) => route.fulfill({ status: 200, contentType: "application/json",
+        body: JSON.stringify({ login: "t", permissions: { push: true } }) }) });
+    await p.waitForSelector(".board .card");
+    const m = await p.evaluate(() => {
+      const col = document.querySelector(".board > .column");
+      const add = col.querySelector(".col-add"), k = col.querySelector(".cards");
+      if (!add) return null;
+      return { iSkrollrutan: k.contains(add),
+               addY: Math.round(add.getBoundingClientRect().top),
+               kolBotten: Math.round(col.getBoundingClientRect().bottom),
+               rullar: k.scrollHeight > k.clientHeight + 1,
+               // Och den skrollar med: hoppa till botten och den ska komma in i rutan.
+               efterSkroll: (function () { k.scrollTop = k.scrollHeight;
+                 return Math.round(add.getBoundingClientRect().bottom - k.getBoundingClientRect().bottom); })() };
+    });
+    ok(m, "knappen finns med en token");
+    ok(m.rullar, `kolumnen rullar, annars mäter det här ingenting: ${JSON.stringify(m)}`);
+    eq(m.iSkrollrutan, true, "den ligger i kortlistan, inte bredvid den");
+    ok(m.addY > m.kolBotten,
+      `och utanför rutan innan man skrollar dit — den reserverar ingen höjd: ${JSON.stringify(m)}`);
+    ok(m.efterSkroll <= 1, `längst ner i kolumnen står den i rutan: ${JSON.stringify(m)}`);
+  }
+
   group("bara en kolumn som kan skrolla är ett tabbstopp");
   {
     // Codex, #54. Tabbstoppet sattes på varje `.cards` oavsett, så en filtrerad bräda med

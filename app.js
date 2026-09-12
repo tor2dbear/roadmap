@@ -5242,7 +5242,14 @@
         add.appendChild(icon("plus"));
         add.setAttribute("aria-label", "New puck in " + grp.label);
         add.addEventListener("click", function () { openNewPuckPanel(g.preset(grp.key)); });
-        col.appendChild(add);
+        // Inside the scroller, after the last card — where it was before `.cards` became
+        // the column's scrollport. As a *sibling* of the flexed scroller it was pinned to
+        // the bottom of the column instead, which costs 31px in every column whether or not
+        // anything is drawn there: measured, `opacity: 0` on a hover device and still
+        // holding its row. Codex found it (#54). A permanently reachable `+` may well be
+        // the better affordance — Linear keeps one in the column head — but that is a
+        // design change and this is a restoration.
+        cards.appendChild(add);
       }
       // Manual ordering: dropping *between* cards writes `order` (and the status
       // too, when the card also changed column — one move, one commit).

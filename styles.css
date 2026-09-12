@@ -490,7 +490,10 @@ body {
 @media (hover: none) { .col-more { opacity: 1; } }
 /* in-column "+" — add a puck already in this column */
 .col-add {
-  margin-top: 10px; width: 100%; display: flex; align-items: center; justify-content: center;
+  /* No top margin: it sits inside `.cards`, whose own `gap` already spaces it from the last
+     card. The margin dates from when it was the column's sibling and doubled the gap once
+     it moved in. */
+  width: 100%; display: flex; align-items: center; justify-content: center;
   padding: 7px; opacity: 0; transition: opacity .12s;
 }
 .column:hover .col-add, .col-add:focus-visible { opacity: 1; }
