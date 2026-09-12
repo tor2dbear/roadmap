@@ -2342,14 +2342,22 @@
   //
   // Two answers, and the layout decides between them:
   //
-  // - **In kanban it is `.port`, the box that wraps the board and the footer.** The board
-  //   used to carry `overflow-x: auto` with no height to scroll within, so `.col-head`'s
-  //   `position: sticky` pinned against nothing and the sideways scrollbar sat at the
-  //   bottom of 4700px of cards instead of at the bottom of the window. The obvious repair
-  //   is to give the board a height — and that was built, and it put the footer at the
-  //   bottom of the window forever, because a footer cannot go *inside* a box laid out
-  //   `grid-auto-flow: column`. So the scroller is one box out, and the board goes back to
-  //   overflowing visibly: exactly what `.board.as-list` has always done.
+  // - **In kanban it is `.port`, the box around the board — and it scrolls sideways only.**
+  //   The board used to carry `overflow-x: auto` with no height to scroll within, so
+  //   `.col-head`'s `position: sticky` pinned against nothing and the sideways scrollbar sat
+  //   at the bottom of 4700px of cards instead of at the bottom of the window. The obvious
+  //   repair is to give the board a height — and that was built, and it put the footer at
+  //   the bottom of the window forever, because a footer cannot go *inside* a box laid out
+  //   `grid-auto-flow: column`. So the scroller became one box out, and the board went back
+  //   to overflowing visibly: exactly what `.board.as-list` has always done.
+  //
+  //   **Two things have changed since and neither is visible from here.** The footer left
+  //   for the sidebar, so the port holds only the board — the box stays because a sticky
+  //   column head must not resolve against the board, which is a separate reason from the
+  //   one it was built for. And the vertical axis moved into the columns: `.cards` is what
+  //   scrolls downwards now, so what this function answers is *the box that scrolls
+  //   sideways*. Anything asking it about a vertical place is asking the wrong box; see
+  //   `colPlaces`.
   // - **The list is not.** `.board.as-list` is no scroller — that is what buys the group
   //   heading its vertical pin — so there `.work` is the port, unchanged.
   //
@@ -5177,6 +5185,10 @@
   // It earns the exception by being write-once-read-once within a single render: anything
   // longer-lived would be a second source of truth for where the reader is.
   var colPlaces = {};
+  // Which grouping `colPlaces` was read out of. The keys are the grouping's own values and
+  // `NO_VALUE` belongs to four of them, so the key alone cannot say whether a place is this
+  // board's.
+  var colPlacesGroup = null;
   function renderColumns(groups) {
     var g = activeGroup();
     // No guard for status grouping, and none is needed — which is worth writing down,
@@ -5210,7 +5222,10 @@
       // same asymmetry `markPort()` was written for, so it is said out loud here too.
       // Labelled by the column, because "region" with no name is a landmark you cannot tell
       // from the next one.
-      cards.tabIndex = 0;
+      // A named region either way — landmarks are navigated by name, not by Tab, so they
+      // cost no keystrokes — but the tab stop waits until the box has something to scroll.
+      // See the pass at the end of this function: a stop on an empty column is a target
+      // that answers nothing, which is the rule the list's caret gutter already follows.
       cards.setAttribute("role", "region");
       cards.setAttribute("aria-label", grp.label);
       // The key a restored place is found by, and the grouping's own value — so a grouping
@@ -5306,9 +5321,25 @@
     //
     // A key that is not in `colPlaces` (a new column, another grouping) opens at the top,
     // and a column that has grown shorter clamps itself.
+    // `effectiveGroup()`, not `g.key`: the groupings are keyed by their property name in
+    // `GROUPS` and carry no `key` member, so that read stamped the string "undefined" and
+    // the comparison then failed against a genuine `undefined` on the next pass. Caught by
+    // the redraw check within the minute, which is what it is for.
+    var gruppering = effectiveGroup();
+    board.dataset.group = gruppering;
+    var samma = colPlacesGroup === gruppering;
     Array.prototype.forEach.call(board.querySelectorAll(".cards[data-col]"), function (k) {
-      var v = colPlaces[k.dataset.col];
+      var v = samma ? colPlaces[k.dataset.col] : 0;
       if (v) k.scrollTop = v;
+      // And the tab stop, decided here because here is where measuring is allowed — the
+      // rule at the top of `renderBoard` forbids it only between the clear and the fill.
+      // Chrome puts *overflowing* boxes in the tab order by itself and Safari puts none
+      // there; matching the first is the whole point, and it means an empty or short
+      // column is not a stop. What it cannot follow is a resize that changes the answer
+      // without a redraw: rare, and a stale stop is a far smaller cost than seven inert
+      // ones on every filtered board.
+      if (k.scrollHeight > k.clientHeight + 1) k.tabIndex = 0;
+      else k.removeAttribute("tabindex");
     });
   }
 
@@ -5972,6 +6003,15 @@
     //
     // Reading `scrollTop` here is safe: it is before the clear, not inside the gap the rule
     // is about. Restoring happens after the appends, outside it too.
+    // The grouping the *existing* columns were drawn under, read off the board rather than
+    // from `state`: by the time this runs `effectiveGroup()` already answers with the new
+    // one, so asking it would compare a board to itself. Codex found what that costs (#54):
+    // `NO_VALUE` is the empty bucket for agent, priority, target and parent alike, so
+    // scrolling `Unrouted` and switching to Priority restored that offset into
+    // `No priority` — a column with nothing to do with it. The comment here used to claim a
+    // grouping change "simply matches nothing", and that was true of every key except the
+    // one they share.
+    colPlacesGroup = board.dataset.group || null;
     colPlaces = {};
     Array.prototype.forEach.call(board.querySelectorAll(".cards[data-col]"), function (k) {
       if (k.scrollTop) colPlaces[k.dataset.col] = k.scrollTop;
@@ -6027,9 +6067,16 @@
     // next. Inline in the board's footer it had to hand over to whatever came after it.
     var fm = document.getElementById("footmeta");
     fm.textContent = "";
-    fm.appendChild(el("span", null, DATA.total + " pucks · "));
-    fm.appendChild(el("span", "fm-stamp",
-      "generated " + DATA.generatedAt.slice(0, 16).replace("T", " ") + " UTC"));
+    fm.appendChild(el("span", null, DATA.total + " pucks · generated "));
+    // Only the date is unbreakable, and that is the whole of the fix. Wrapping the entire
+    // stamp in `nowrap` stopped `2026-08-16` breaking after the month — a date split across
+    // two rows reads as two numbers — but made the 29-character run itself unbreakable, and
+    // the sidebar can be dragged to 190px (`MIN` in `initSidebarResize`). Measured before:
+    // 41px of horizontal overflow on a box whose whole job is to scroll vertically, with
+    // the stamp 40px past the edge — and 3px of it already at the default 240. Codex found
+    // it (#54). The words around the date may wrap; the digits and hyphens may not.
+    fm.appendChild(el("span", "fm-stamp", DATA.generatedAt.slice(0, 10)));
+    fm.appendChild(el("span", null, " " + DATA.generatedAt.slice(11, 16) + " UTC"));
   }
 
   // Which status groups the current view shows. Inbox is its own space, so it's

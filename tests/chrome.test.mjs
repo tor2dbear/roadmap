@@ -2050,6 +2050,25 @@ export async function run({ open }) {
     // två tal och inte ett datum.
     eq(await p.evaluate(() => getComputedStyle(document.querySelector(".fm-stamp")).whiteSpace),
       "nowrap", "och skördestämpeln bryts inte mitt i");
+    // Men *bara* datumet. Hela stämpeln som ett obrytbart ord är 29 tecken, och sidomenyn
+    // går att dra till 190px (`MIN` i `initSidebarResize`) — mätt före: 41px sidledsspill i
+    // en låda vars hela uppgift är att skrolla lodrätt, och 3px av det redan vid 240.
+    // Codex, #54. Bredden mäts och inte bara egenskapen: det är talet som var fel.
+    const smal = await p.evaluate(() => {
+      const ut = {};
+      [240, 190].forEach(function (w) {
+        document.documentElement.style.setProperty("--sidebar-w", w + "px");
+        const sb = document.querySelector(".sidebar");
+        ut[w] = { spill: sb.scrollWidth - sb.clientWidth,
+                  stämpel: Math.round(document.querySelector(".fm-stamp").getBoundingClientRect().width) };
+      });
+      document.documentElement.style.removeProperty("--sidebar-w");
+      return ut;
+    });
+    eq(smal[240].spill, 0, `ingen sidledsspill vid standardbredden: ${JSON.stringify(smal)}`);
+    eq(smal[190].spill, 0, `och ingen vid sidomenyns minsta bredd: ${JSON.stringify(smal)}`);
+    ok(smal[190].stämpel < 100,
+      `stämpelns obrytbara del är datumet och inte hela raden: ${JSON.stringify(smal)}`);
   }
 
   group("bandet överlever en puckssida, vilket den gamla foten inte gjorde");
@@ -2114,14 +2133,63 @@ export async function run({ open }) {
     eq(await p.evaluate(() => document.getElementById("port").scrollLeft), 90,
       "portens sidled överlever av sig själv — den lådan byts inte ut");
 
-    // Och en grupperingsändring ska *inte* ärva platsen: nycklarna är grupperingens egna
-    // värden, så ett annat arrangemang av samma pucker öppnar överst. Samma mekanism som
-    // `collapsed`, och samma skäl.
-    await p.evaluate(() => { document.querySelectorAll(".board > .column .cards").forEach((k) => { k.scrollTop = 200; }); });
-    const q = await open("?view=all&group=repo", { data: tall, viewport: { width: 900, height: 600 } });
-    await q.waitForSelector(".board .card");
-    eq(await q.evaluate(() => [...document.querySelectorAll(".board > .column .cards")]
-      .every((k) => k.scrollTop === 0)), true, "en annan gruppering öppnar överst");
+    // Och en grupperingsändring ska *inte* ärva platsen. Nyckeln räcker inte för att säga
+    // det: `NO_VALUE` är den tomma hinken för agent, prioritet, mål *och* förälder, så
+    // `Unrouted` och `No priority` bär samma nyckel. Codex hittade det (#54) — kommentaren
+    // här påstod att en grupperingsändring "matchar ingenting", vilket var sant om varje
+    // nyckel utom den de delar. Brädan stämplas med sin gruppering i stället, och platsen
+    // läggs bara tillbaka när stämpeln är densamma.
+    const g = await open("?view=all&group=agent", { data: tall, viewport: { width: 900, height: 600 } });
+    await g.waitForSelector(".board .card");
+    const tom = await g.evaluate(() => {
+      const k = [...document.querySelectorAll(".board > .column .cards")]
+        .find((x) => x.scrollHeight > x.clientHeight + 1);
+      if (!k) return null;
+      k.scrollTop = 200;
+      return { nyckel: k.dataset.col, plats: Math.round(k.scrollTop),
+               stämpel: document.getElementById("board").dataset.group };
+    });
+    ok(tom && tom.plats > 100, `en agentkolumn står skrollad: ${JSON.stringify(tom)}`);
+    // Byt gruppering i samma sida — en ny sidladdning skulle inte mäta överföringen alls.
+    await g.locator("#displayBtn").click();
+    await g.waitForTimeout(300);
+    await g.locator(".pop, .sheet").getByText("Grouping", { exact: false }).first().click();
+    await g.waitForTimeout(300);
+    await g.locator(".pop, .sheet").getByText("Priority", { exact: true }).first().click();
+    await g.waitForTimeout(400);
+    const efterByte = await g.evaluate(() => ({
+      stämpel: document.getElementById("board").dataset.group,
+      platser: [...document.querySelectorAll(".board > .column .cards")].map((k) => Math.round(k.scrollTop)),
+      nycklar: [...document.querySelectorAll(".board > .column .cards")].map((k) => k.dataset.col) }));
+    eq(efterByte.stämpel, "priority", `brädan är stämplad med sin nya gruppering: ${JSON.stringify(efterByte)}`);
+    ok(efterByte.nycklar.includes(tom.nyckel),
+      `och den delade nyckeln finns i den nya grupperingen också — annars mäter det här inget: ${JSON.stringify(efterByte)}`);
+    eq(efterByte.platser.filter((v) => v !== 0).length, 0,
+      `ingen kolumn ärvde en plats över grupperingsbytet: ${JSON.stringify(efterByte)}`);
+  }
+
+  group("bara en kolumn som kan skrolla är ett tabbstopp");
+  {
+    // Codex, #54. Tabbstoppet sattes på varje `.cards` oavsett, så en filtrerad bräda med
+    // korta eller tomma kolumner gav tangentbordet en rad stopp som inte flyttar något.
+    // Skälet raden skrevs med gäller bara överfulla lådor: Chrome lägger *dem* i
+    // tabbordningen själv och Safari lägger inga alls. Rollen och namnet står kvar —
+    // landmärken navigeras på namn och kostar inga tangenttryck.
+    const p = await open("?view=all&empty=1", { data: tall, viewport: { width: 900, height: 600 } });
+    await p.waitForSelector(".board .card");
+    // `[data-col]`: facket (`HIDDEN`) har också en `.cards`, men ritas av `renderHiddenTray`
+    // och är ingen grupperad kolumn — den hör inte till regeln.
+    const m = await p.evaluate(() => [...document.querySelectorAll(".board > .column .cards[data-col]")].map((k) => ({
+      namn: k.getAttribute("aria-label"), roll: k.getAttribute("role"),
+      rullar: k.scrollHeight > k.clientHeight + 1, tab: k.getAttribute("tabindex") })));
+    ok(m.some((k) => k.rullar) && m.some((k) => !k.rullar),
+      `brädan har både rullande och icke-rullande kolumner, annars mäter det här inget: ${JSON.stringify(m)}`);
+    eq(m.filter((k) => k.rullar && k.tab !== "0").length, 0,
+      `varje rullande kolumn är ett stopp: ${JSON.stringify(m)}`);
+    eq(m.filter((k) => !k.rullar && k.tab !== null).length, 0,
+      `och ingen icke-rullande är det: ${JSON.stringify(m)}`);
+    eq(m.filter((k) => k.roll !== "region" || !k.namn).length, 0,
+      "men alla är namngivna regioner — det kostar inga tangenttryck");
   }
 
   group("scrollisten får ett eget körfält, inte kortens högerkant");

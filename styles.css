@@ -1195,7 +1195,10 @@ body.board-locked:not(.x) .port > .board:not(.x) > .column > .cards { overflow: 
   flex-direction: column;
   gap: 4px;
 }
-/* A date is one token however many hyphens are in it. */
+/* The date is one token however many hyphens are in it — and *only* the date. The words
+   around it wrap, or the whole 29-character stamp becomes unbreakable and a sidebar dragged
+   to its 190px minimum gets 41px of horizontal overflow in a box that only scrolls
+   vertically. See `footmeta` for the measurement. */
 .fm-stamp { white-space: nowrap; }
 /* The links wrap among themselves rather than stretching the band: at 240px "flat digest ·
    roadmap.json · source" is two lines, and that is the shape it should take. */
@@ -1485,10 +1488,12 @@ body.board-locked:not(.x) .port > .board:not(.x) > .column > .cards { overflow: 
    upwards, which is what `.col-head`'s `position: sticky` has claimed all along and what
    puts the sideways scrollbar at the bottom of the window rather than at the bottom of
    4700px of cards.
-   **The footer is inside the port, not beside it**, which is the whole reason `.port`
-   exists rather than the board being the scroller itself: the board lays its children out
+   **The footer was inside the port, not beside it**, which is why `.port` came to exist
+   rather than the board being the scroller itself: the board lays its children out
    `grid-auto-flow: column`, so a footer in there would be one more column — and a footer
-   *outside* the scroller is a footer that never scrolls away. It was one, for exactly one
+   *outside* the scroller is a footer that never scrolls away. (The footer has since moved
+   to the sidebar and the port holds only the board; the box stays for the other reason
+   below — a sticky column head must not resolve against the board.) It was one, for exactly one
    commit: 114px of permanent furniture on a 390px phone, reported from the device.
    `body:not(.viewing-puck)` for the reason the three rules below already give: a hidden
    `#board` keeps its layout class, so without it a puck page would size its only row to

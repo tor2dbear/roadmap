@@ -749,12 +749,14 @@ for `liftArchive()` and `sortChain()`.
   it (so the place goes back into the box that holds it). `exitPuckView` zeroes *both* boxes:
   it runs after the class is off, so the port it is handed is the board's, while the offset
   the puck was read at is still standing in `.work`.
-- **Still open, and deliberately not guessed at:** the list hides its native scroll
-  indicators under `(pointer: coarse)` because a two-axis port draws them badly — the
-  vertical bar painting under the sticky headings, a flick down flashing the horizontal one.
-  The kanban board is a two-axis port now too, so the same may be true of it. That rule was
-  written from a device report, and this one has none yet; extending it on symmetry alone
-  would be the sort of unmeasured sweep the archive mark's guard was removed for.
+- **Settled since, and the settling is the point:** this section once ended with an open
+  question — the list hides its native scroll indicators under `(pointer: coarse)` because a
+  two-axis port draws them badly (the vertical bar painting under the sticky headings, a
+  flick down flashing the horizontal one), and the kanban port had just become two-axis too.
+  It is not any more. Every box on the board takes one axis (see *each column is its own
+  scrollport*), so each draws one indicator on its own axis, which is the ordinary case. The
+  question dissolved rather than being answered, and no device report was needed for a cause
+  that is gone.
 
 ## UI: each column is its own scrollport
 
