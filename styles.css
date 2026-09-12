@@ -1166,41 +1166,47 @@ body.scroll-locked { overflow: hidden; }
 }
 
 .empty { color: var(--ink-3); font-size: var(--fs-md); padding: 8px 2px; }
-/* Pinned sideways, scrolling away downwards — the same "one axis each" the list's group
-   heading uses, for the same reason. The footer is only as wide as the port, and the port
-   scrolls horizontally in both layouts, so scrolling right and then to the bottom left the
-   whole row — the harvest time, `sync now`, every link — parked off screen with blank space
-   where it should be. Measured at 390px: `left: -800` in kanban, and `-488` in the list,
-   where it had been true since the list was written. Codex found the kanban half; the list
-   half came with the same measurement.
-   **And this rule only fixes the kanban half, which is worth saying rather than leaving a
-   reader to find out.** In the list the footer is a grid item of `.work`, and a sticky box
-   cannot travel outside its containing block — the grid area, one `1fr` track wide, which
-   is precisely the width that scrolls away. Widening that track was tried and measured: it
-   takes the horizontal scroll off the kanban port (0 against 800) and still does not move
-   the list's footer. That half is older than this branch and needs its own answer.
-   `left: 0` is its resting offset, so the pin costs no travel — the rule the heading's own
-   `--list-pad` offset exists for. Making it span the scroll width instead would keep the
-   *box* on screen and the text still 800px to the left, which is not what anyone is after.
-   And a background, because pinned means content can pass beside it. */
-.foot {
-  padding: 16px var(--pad) 28px;
-  border-top: 1px solid var(--line);
-  color: var(--ink-3);
-  font-size: var(--fs-md);
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
+/* The sidebar's foot: where the board's footer went, and what it stopped being. It was a
+   horizontal row in the one place vertical space is scarce — 114px of an 844px phone,
+   three wrapped lines with an orphaned "·" on the last — and it had to be pinned sideways
+   (`position: sticky; left: 0`) because the port scrolls horizontally and the row is only
+   port-wide: read to the right, then to the bottom, and the harvest time, `sync now` and
+   every link stood parked off screen. Measured at 390px: `left: -800`.
+
+   None of that survives the move, because the box it was true of is gone. The list's own
+   footer had the same sideways fault (`left: -488`, since the day the list was written)
+   and it goes with it — one repair for a defect that had two homes.
+
+   Sticky against the bottom is `.side-brand`'s rule mirrored, and the reasoning beside
+   that band applies unchanged: this sits *inside* the sidebar's own scroller, so "last"
+   holds only at the end of the scroll. `margin-top: auto` puts it at the bottom while the
+   sections above are short enough not to fill the column. */
+.side-foot {
+  margin-top: auto;
   position: sticky;
-  left: 0;
-  background: var(--bg);
+  bottom: 0;
+  z-index: 2;
+  background: var(--sidebar-bg);
+  border-top: 1px solid var(--line);
+  padding: 10px 8px 14px;
+  color: var(--ink-3);
+  font-size: var(--fs-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
-.foot a { color: var(--ink-2); }
-/* The footer dates the harvest, so the control that refreshes it belongs in the same
+/* A date is one token however many hyphens are in it. */
+.fm-stamp { white-space: nowrap; }
+/* The links wrap among themselves rather than stretching the band: at 240px "flat digest ·
+   roadmap.json · source" is two lines, and that is the shape it should take. */
+.side-foot-links { display: flex; flex-wrap: wrap; gap: 6px; }
+.side-foot a { color: var(--ink-2); }
+/* The band dates the harvest, so the control that refreshes it belongs in the same
    sentence — not in a menu two clicks away from the number it answers for. It is a
    button and not a link (it starts a workflow run; it does not go anywhere), but it
-   wears the footer's type: this row is prose, and one control shaped like a control
-   would read as chrome that wandered in. */
+   wears the band's type: this row is prose, and one control shaped like a control
+   would read as chrome that wandered in. The name is the board footer's, kept because
+   the thing it names did not change when its home did. */
 .foot-sync {
   font: inherit;
   color: var(--ink-2);
@@ -1216,13 +1222,13 @@ body.scroll-locked { overflow: hidden; }
    as well as the colour is what stops it reading as a link you may press again. */
 .foot-sync:disabled { cursor: default; color: var(--ink-3); text-decoration: none; }
 /* The wrapper holds the button *and* the separator after it, so hiding one hides both
-   — the alternative leaves a stray "·" on a logged-out board. It needs the footer's own
-   gap repeated inside it: `.foot`'s gap reaches between flex items and not into one, so
-   a plain space here set this separator tighter than the three beside it.
+   — the alternative leaves a stray "·" on a logged-out board. It needs the link row's own
+   gap repeated inside it: `.side-foot-links`' gap reaches between flex items and not into
+   one, so a plain space here set this separator tighter than the three beside it.
    Safe against `hidden` only because `[hidden]` above is `!important` — a bare
    `display: flex` would otherwise beat the browser's `[hidden] { display: none }` and
    put the button back on a board with no token. */
-#syncWrap { display: flex; gap: 10px; }
+#syncWrap { display: flex; gap: 6px; }
 .banner {
   margin: 24px;
   padding: 16px 18px;
@@ -1558,7 +1564,6 @@ body:not(.viewing-puck) .work:has(> .port > .board.as-list) { overscroll-behavio
    One flag for content, one for which page you are on; folding them together would let
    a render while a puck is open put the row back. */
 body.viewing-puck #board,
-body.viewing-puck .foot,
 body.viewing-puck .chiprow,
 body.viewing-puck .vhead { display: none; }
 .detail-pane {
@@ -1614,7 +1619,11 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 
 .sidebar {
   background: var(--sidebar-bg); border-right: 1px solid var(--line);
-  padding: 0 12px 16px; display: flex; flex-direction: column; gap: 18px;
+  /* No bottom padding: `.side-foot` is the last thing in here and owns that air. The
+     16px that used to keep the last repo row off the edge put a stripe *below* the
+     band, and a `bottom: 0` sticky box that stops 16px short looks stuck rather than
+     pinned. */
+  padding: 0 12px; display: flex; flex-direction: column; gap: 18px;
   /* minimal, self-effacing scrollbar */
   scrollbar-width: thin; scrollbar-color: var(--line) transparent;
   position: sticky; top: 0; height: 100%; overflow-y: auto;

@@ -5938,8 +5938,18 @@
     // count of the current view is already in the view header and the sidebar, and
     // a third copy under the fold was the only one that could go stale (it stayed
     // put, reading "1 of 145 shown", while a puck page covered the board).
-    document.getElementById("footmeta").textContent =
-      DATA.total + " pucks · generated " + DATA.generatedAt.slice(0, 16).replace("T", " ") + " UTC · ";
+    // Two nodes, not one string, and the date is the reason. A browser takes a hyphen as
+    // a break opportunity, so in the sidebar's 240px column `2026-08-16` broke after the
+    // month and left `16 18:29 UTC` starting the next line — a date split across two rows
+    // reads as two numbers. The count may wrap; the stamp may not.
+    //
+    // No trailing separator any more either: this is its own line, with the links on the
+    // next. Inline in the board's footer it had to hand over to whatever came after it.
+    var fm = document.getElementById("footmeta");
+    fm.textContent = "";
+    fm.appendChild(el("span", null, DATA.total + " pucks · "));
+    fm.appendChild(el("span", "fm-stamp",
+      "generated " + DATA.generatedAt.slice(0, 16).replace("T", " ") + " UTC"));
   }
 
   // Which status groups the current view shows. Inbox is its own space, so it's

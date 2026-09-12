@@ -1,6 +1,6 @@
 ---
 title: Foten flyttar in i sidomenyn
-status: inbox
+status: done
 tags: [ui]
 updated: 2026-09-12
 created: 2026-09-12
@@ -63,3 +63,44 @@ en premissrad vars premiss avskaffats, och de flyttar eller går, aldrig lappas.
   Den flyttar oförändrat nu; frågan ställs när raden stått i sidomenyn ett tag.
 - **Blir `sync now` kvar bredvid datumet?** De två är en mening — knappen lagar talet den
   står bredvid. Flyttar tidsstämpeln till ett märke flyttar knappen dit med den.
+
+## Utfall
+
+Flyttad, inte omdesignad: samma fem poster, samma ord, en annan kolumn. `.side-foot` är
+sist i sidomenyn, `position: sticky; bottom: 0` — `.side-brand`s pinne speglad, och skälet
+stod redan skrivet bredvid den bandet.
+
+**Två fynd som bara bygget kunde ge.**
+
+Datumet bröts efter ett bindestreck. I en 240px-spalt gav `2026-08-16` en rad som slutade
+på `2026-08-` och en nästa som började på `16 18:29 UTC` — två tal, inte ett datum.
+`footmeta` skriver två noder i stället för en sträng, och stämpeln är `nowrap`.
+
+Sidomenyns `padding-bottom: 16px` fanns för att sista reporaden inte skulle ligga dikt an.
+Med ett band där nere lade den en remsa *under* det som utger sig för att vara underkanten,
+och en `bottom: 0`-pinne som stannar 16px för högt ser fastnad ut i stället för pinnad.
+Luften ägs av bandet nu.
+
+**Tre premissrader flyttade med lådan i stället för att lappas:** foten låg *i* porten för
+att färdas med korten, den var pinnad i sidled (`left: -800` utan pinnen) för att porten
+skrollar sidledes, och puck-sidan tog bort den. Ingen av frågorna överlever en låda som
+inte finns. Listans fot hade samma sidledsfel — `left: -488`, sant sedan listan skrevs, och
+lämnat öppet som en egen sak i `bradans-egen-scrollruta` — och det stängs av samma
+borttagning. En reparation för en defekt med två hem.
+
+**Och flytten betalar en andra gång på puckssidan.** Den gamla foten stod i
+`body.viewing-puck`s gömlista, så en öppnad puck tog bort både skördetiden och `sync now`.
+`sync.test.mjs` dokumenterade det som luckan `.syncbar` fick täcka; den kontrollen mäter nu
+att bandet står kvar i stället.
+
+**Sabotage: fyra regler, tre föll direkt.** Den som inte föll är raden den gav upphov till:
+att ta tillbaka sidomenyns bottenpadding fällde ingenting, eftersom kontrollen bara mätte
+att bandet *inte rör sig* under en scroll — vilket den defekten klarar galant. Den frågar
+efter offset **0** nu. En pinne har två egenskaper, och att mäta den ena är hur den andra
+regredierar tyst.
+
+**1010 kontroller, 0 fel** före sabotaget; 250 i `chrome` efter att raden lagts till, och
+varje sabotage fäller sin egen.
+
+Färskheten-som-signal är **inte** byggd, med flit. Den står kvar som öppen fråga: värdet
+utvärderas när bandet stått där ett tag.

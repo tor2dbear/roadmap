@@ -630,6 +630,54 @@ hidden by default, restored at container widths 560 and 720). They must stay *af
 whole mechanism, and putting them beside `.list-row` cost a round of two-line rows with
 the date wrapped under the title.
 
+## UI: the footer was horizontal furniture in a vertical-scarce place
+
+The board had a footer: `117 pucks · generated … UTC`, `sync now`, and three links to the
+generated artifacts. It is now `.side-foot`, the last band in the sidebar, and the content
+did not change — only where it stands.
+
+- **The measurement is the argument.** On a 390×844 phone the row was **114px in three
+  wrapped lines**, with an orphaned `·` on the last. A sidebar is a vertical column where
+  that space is cheap, and on a phone it sits behind the menu button, where it costs
+  nothing at all.
+- **And the glance it was defending did not exist.** The case for a footer is that you
+  happen to see the harvest time. Measured on the board as it stood: the footer sat at
+  **y=1986** in an 844px window in kanban, and after 117 rows in the list. What the move
+  trades away is the belief in a glance, not a glance — which is what makes it cheap.
+- **Sticky against the bottom, which is `.side-brand`'s rule mirrored.** That band is
+  `position: sticky; top: 0` because it sits *inside* the sidebar's own scroller, so
+  "first" held only at offset 0. "Last" has the identical problem, so the foot is
+  `bottom: 0` and `margin-top: auto` keeps it down while the sections are short. Two
+  pinned bands, one at each end, and a check asserts both at once.
+- **The sidebar's bottom padding had to go, and no sabotage could find that.** `.sidebar`
+  carried `padding-bottom: 16px` so the last repo row was not flush; with a band down there
+  it laid a 16px stripe *below* the thing claiming to be the bottom, and a `bottom: 0`
+  sticky box that stops 16px short reads as stuck rather than pinned. The first check asked
+  only that the band does not move during a scroll, which that defect passes. It asks the
+  offset is **0** now — a pin has two properties and measuring one of them is how the other
+  regresses quietly.
+- **A date is one token however many hyphens it has.** A browser takes a hyphen as a break
+  opportunity, so in a 240px column `2026-08-16` broke after the month and left
+  `16 18:29 UTC` beginning the next line. `footmeta` writes two nodes rather than one string,
+  and the stamp is `nowrap`.
+- **Three premise rows went with the box rather than being patched**: the footer lived
+  *inside* the port so it would travel with the cards; it was pinned sideways
+  (`position: sticky; left: 0`) because the port scrolls horizontally and the row is only
+  port-wide (measured `left: -800` before the pin); and a puck page removed it entirely.
+  None of those questions survive a box that does not exist. The list's own footer had the
+  same sideways fault — `left: -488`, true since the day the list was written, and left
+  open as needing its own answer — and it is settled by the same removal: one repair for a
+  defect that had two homes.
+- **The puck page is where the move pays a second time.** The old footer stood in
+  `body.viewing-puck`'s hide list, so opening a puck took the harvest time *and* `sync now`
+  off the screen — `sync.test.mjs` documented that as the gap `.syncbar` had to cover. The
+  sidebar is a different column and stays.
+- **What was deliberately not done:** the content was moved, not redesigned. Whether the
+  freshness should stop being a number and become a *signal* — silent while the data is
+  fresh, speaking when it is not, which is the board's own idiom for "the declared state
+  disagrees with reality" — is written down as an open question in
+  `foten-flyttar-in-i-sidomenyn`, to be answered once the band has stood there a while.
+
 ## UI: which box scrolls
 
 `scrollPort()` answers it, and that it exists is the whole of this change. The question was
@@ -649,12 +697,14 @@ for `liftArchive()` and `sortChain()`.
   climbing. The sideways scrollbar had the same cause from the other end, sitting at the
   bottom of 4700px of cards instead of at the bottom of the window. A rule that explains a
   behaviour the layout stopped delivering is worse than no rule: it reads as true.
-- **The port is a box of its own, and the footer is why.** The obvious move is to make
-  `#board` the scroller — and it was, for one commit. The board lays its children out
-  `grid-auto-flow: column`, so a footer *inside* it is one more column; a footer *outside*
-  it never scrolls away. Reported from the phone: 114px of permanent furniture on an
-  844px screen. `.port` wraps the board and the footer, scrolls both, and the footer comes
-  after the last card again.
+- **The port is a box of its own, and the footer was why — then the footer left.** The
+  obvious move is to make `#board` the scroller, and it was, for one commit. The board lays
+  its children out `grid-auto-flow: column`, so a footer *inside* it is one more column; a
+  footer *outside* it never scrolls away. Reported from the phone: 114px of permanent
+  furniture on an 844px screen. `.port` wrapped both and scrolled both. The footer has since
+  moved to the sidebar (see *the footer was horizontal furniture*), so the port holds only
+  the board — **and the box stays**, for the reason below it rather than the one above: the
+  board must not be the scroll container, or a sticky column head resolves against it.
 - **So the board stops being a scroll container**, or a sticky column head resolves against
   *it* — a box with no height of its own to travel in — instead of the port. That is the
   list's arrangement exactly: `.board.as-list` has turned its own `overflow-x` off since the
@@ -1373,8 +1423,8 @@ truth is still the per-puck markdown in the source repos anyway.)
 **The board can ask for a harvest itself.** A puck edited in *this* repo redeploys on
 the push; one edited in any other source repo waits for the hourly schedule, and the
 person waiting is standing at the board reading the very timestamp that is stale. So
-the footer carries a **sync now** button beside that timestamp (and `Sync now` in ⌘K,
-same gate): it POSTs `workflow_dispatch` to `sync.yml`, waits for the run it created,
+the sidebar's foot carries a **sync now** button beside that timestamp (and `Sync now` in
+⌘K, same gate): it POSTs `workflow_dispatch` to `sync.yml`, waits for the run it created,
 and reloads. The Worker stays assets-only — no relay, no webhook, no second source of
 truth, which is the "close thin, via GitHub" rule the write path already follows.
 
@@ -1388,11 +1438,13 @@ truth, which is the "close thin, via GitHub" rule the write path already follows
   endpoint, so a probe could only distinguish them by attempting the dispatch, which is
   the very thing being gated. Failing loudly with the fix in the sentence is the honest
   alternative.
-- **The wait is shown at the top of the viewport, not in the footer.** `.syncbar` is
+- **The wait is shown at the top of the viewport, not beside the timestamp.** `.syncbar` is
   fixed and indeterminate (GitHub reports no fraction, so a percentage would be
-  invented). The footer's `syncing…` label was the whole indicator once, which held
-  only where the footer is visible — and the minute or two is spent scrolled down the
-  board or inside a puck, where it is off screen and removed respectively.
+  invented). The `syncing…` label was the whole indicator once, which held only where the
+  band is visible — and the minute or two was spent scrolled down the board or inside a
+  puck, where the old footer was off screen and removed respectively. The move to the
+  sidebar closes the second half of that (the band survives a puck page now, which
+  `sync.test.mjs` measures), and the bar stays for the first.
 - **The receipt outlives the reload.** `finishSync` reloads, which destroys the toast
   and the state that knows the run worked, so the run ended by restoring the page to
   exactly its starting state — button back at `sync now`, nothing said — which reads

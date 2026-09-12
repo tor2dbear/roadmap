@@ -1544,7 +1544,7 @@ export async function run({ open }) {
     }
   }
 
-  group("tavlan målar inte över foten");
+  group("tavlan svämmar inte ur sin ruta");
   {
     // Rapporterat från en telefon som fotens text mitt inne på brädan, bland korten.
     // `.work` är ett rutnät, och `#board` bär `overflow-x: auto` — vilket gör den till
@@ -1580,13 +1580,17 @@ export async function run({ open }) {
     ok(spill.innehåll > spill.ruta + 1,
       `det finns spill att måla med — i portens egen scroll: ${JSON.stringify(spill)}`);
     ok(spill.höjd <= 780, `och porten själv ryms i fönstret: ${JSON.stringify(spill)}`);
+    // Raden som mätte att foten började där brädan slutade är borta med foten: den flyttade
+    // till sidomenyn, och porten håller bara brädan nu. Kvar står frågan den egentligen
+    // ställde — målar brädan över något? — och svaret är att det inte finns något under
+    // den att måla över. Porten slutar där rutan slutar.
     const m = await p.evaluate(() => {
-      const b = document.getElementById("board").getBoundingClientRect();
-      const f = document.querySelector(".foot").getBoundingClientRect();
-      return { brädBotten: Math.round(b.bottom), fotTopp: Math.round(f.top) };
+      const pt = document.getElementById("port").getBoundingClientRect();
+      const w = document.querySelector(".work").getBoundingClientRect();
+      return { portBotten: Math.round(pt.bottom), arbetsBotten: Math.round(w.bottom) };
     });
-    ok(m.fotTopp >= m.brädBotten,
-      `foten börjar där brädan slutar, inte i fönstrets botten: ${JSON.stringify(m)}`);
+    ok(m.portBotten <= m.arbetsBotten + 1,
+      `porten svämmar inte ut ur .work: ${JSON.stringify(m)}`);
     // Sidled scrollar fortfarande — fixen får inte köpa ordningen genom att ta bort det
     // kolumnläget bygger på. Det är portens scroll nu, inte brädans.
     ok(await p.evaluate(() => { const pt = document.getElementById("port"); return pt.scrollWidth > pt.clientWidth; }),
@@ -1784,31 +1788,21 @@ export async function run({ open }) {
     ok(m.board > 0, `porten tog hjulet (${m.board} px) — den döda zonen är stängd i kanban också`);
     eq(m.work, 0, "och .work rörde sig inte, för den skrollar inte här");
 
-    // Foten hör till innehållet, inte till fönstret: den ligger *i* porten, efter brädan,
-    // så den kommer efter sista kortet och inte underst i rutan. Rapporterat från en
-    // telefon när den en commit långt stod fast i botten och tog 114px av 844.
-    const fot = await p.locator(".foot").boundingBox();
-    const portLåda = await p.locator("#port").boundingBox();
-    ok(fot.y > portLåda.y + portLåda.height - 1,
-      `foten står under portens nederkant (fot ${Math.round(fot.y)}, port slutar ${Math.round(portLåda.y + portLåda.height)}) — alltså skrollar man till den`);
-    eq(await p.evaluate(() => document.getElementById("port").contains(document.querySelector(".foot"))), true,
-      "och den ligger inuti porten, vilket är vad som får den att färdas med korten");
-
-    // Men bara i höjdled. Porten skrollar i sidled också, och foten är portbred — utan en
-    // sidledspinne står hela raden (tiden, `sync now`, länkarna) parkerad utanför skärmen
-    // så fort man läst sig åt höger. Mätt på 390px före regeln: left −800. Codex, #54.
-    const fot2 = await p.evaluate(() => {
-      const pt = document.getElementById("port");
-      pt.scrollLeft = pt.scrollWidth; pt.scrollTop = pt.scrollHeight;
-      const f = document.querySelector(".foot").getBoundingClientRect();
-      const r = pt.getBoundingClientRect();
-      // Mätt *mot porten*, inte mot fönstret: sidomenyn tar 240px när den är öppen, så
-      // portens vänsterkant är inte 0 på en bred skärm. Kostade en röd körning.
-      return { x: Math.round(pt.scrollLeft), kvar: Math.round(f.left - r.left),
-               vänster: Math.round(f.left), portVänster: Math.round(r.left) };
-    });
-    ok(fot2.x > 100, `porten är verkligen skrollad åt höger (${fot2.x} px)`);
-    eq(fot2.kvar, 0, `och foten står kvar vid portens vänsterkant: ${JSON.stringify(fot2)}`);
+    // Två premissrader låg här och bägges premiss är avskaffad, inte lappad: foten låg *i*
+    // porten så att den skulle färdas med korten, och den var pinnad i sidled
+    // (`position: sticky; left: 0`) för att porten skrollar sidledes och raden bara är
+    // portbred — läst åt höger stod tiden, `sync now` och länkarna utanför skärmen, mätt
+    // till left −800. Ingen av frågorna finns kvar: raden bor i sidomenyn nu, och porten
+    // håller bara brädan. Kontrollerna flyttade med den, till gruppen längre ner.
+    //
+    // Kvar här står det som faktiskt handlar om porten: den slutar där rutan slutar, så
+    // det som skrollar är kort och inte krom.
+    const portRam = await p.locator("#port").boundingBox();
+    const arbRam = await p.locator(".work").boundingBox();
+    ok(portRam.y + portRam.height <= arbRam.y + arbRam.height + 1,
+      `porten fyller .work utan att svämma ur den: port slutar ${Math.round(portRam.y + portRam.height)}, .work ${Math.round(arbRam.y + arbRam.height)}`);
+    eq(await p.evaluate(() => !!document.querySelector("#port .foot")), false,
+      "och ingen fot ligger kvar i porten");
 
     // Porten själv är inte vår att flytta: där skrollar webbläsaren.
     //
@@ -1926,6 +1920,73 @@ export async function run({ open }) {
     await p.waitForTimeout(250);
     ok(await p.evaluate(() => document.getElementById("port").scrollTop) > 0,
       "och brädan går att skrolla med hjulet efteråt — 0px är hur det fastnade tillståndet läses");
+  }
+
+  group("foten bor i sidomenyn, pinnad i den ände brand-bandet inte tar");
+  {
+    // Foten var vågrät möblering på det enda ställe där lodrätt utrymme är dyrt: mätt på
+    // 390×844 tog den 114px av fönstret i tre rader, med en föräldralös "·" på den sista.
+    // Sidomenyn är en lodrät spalt där utrymmet är billigt, och på en telefon ligger den
+    // bakom menyknappen — där kostar den noll.
+    const p = await open("", { viewport: { width: 1400, height: 380 } });
+    await p.waitForSelector(".column");
+    eq(await p.evaluate(() => !!document.querySelector(".foot")), false,
+      "den gamla foten finns inte kvar någonstans");
+    const band = await p.evaluate(() => {
+      const sf = document.querySelector(".side-foot");
+      return { finns: !!sf, höjd: sf ? Math.round(sf.getBoundingClientRect().height) : 0,
+               text: sf ? sf.textContent.replace(/\s+/g, " ").trim() : "" };
+    });
+    ok(band.finns && band.höjd > 0, `bandet står i sidomenyn: ${JSON.stringify(band)}`);
+    ok(/pucks · generated /.test(band.text) && /flat digest/.test(band.text) && /roadmap\.json/.test(band.text)
+       && /source/.test(band.text), `och bär skördens datum och de tre länkarna: ${band.text}`);
+
+    // Pinnen, och den är `.side-brand`s regel speglad: bägge banden ligger *inne i*
+    // sidomenyns egen scrollruta, så "först" och "sist" håller bara vid var sin ände av
+    // scrollen om ingen av dem pinnas. Ett kort fönster är vad som får listan att svämma
+    // över — utan spill mäter den här kontrollen ingenting alls, vilket är hur en
+    // pinnregel kan se rätt ut och vara död.
+    const pin = await p.evaluate(() => {
+      const sb = document.querySelector(".sidebar"), sf = document.querySelector(".side-foot");
+      const brand = document.querySelector(".side-brand");
+      const spill = sb.scrollHeight - sb.clientHeight;
+      const av = () => Math.round(sb.getBoundingClientRect().bottom - sf.getBoundingClientRect().bottom);
+      const före = av();
+      sb.scrollTop = sb.scrollHeight;
+      return { spill, före, efter: av(),
+               brandAv: Math.round(brand.getBoundingClientRect().top - sb.getBoundingClientRect().top) };
+    });
+    ok(pin.spill > 20, `sidomenyn skrollar verkligen, annars mäter pinnen ingenting: ${JSON.stringify(pin)}`);
+    eq(pin.efter, pin.före, `bandet står kvar vid sidomenyns underkant genom hela scrollen: ${JSON.stringify(pin)}`);
+    // Och *vid* kanten, inte bara stilla. Den här raden kom av ett sabotage som inte fällde
+    // något: `.sidebar` bar `padding-bottom: 16px` för att sista reporaden inte skulle ligga
+    // dikt an, och med ett band där nere lade den en remsa *under* det som utger sig för att
+    // vara underkanten — en `bottom: 0`-pinne som stannar 16px för högt ser fastnad ut i
+    // stället för pinnad. Att bara mäta att den inte rör sig missar det helt.
+    eq(pin.efter, 0, `och dikt an mot den, inte en remsa ovanför: ${JSON.stringify(pin)}`);
+    eq(pin.brandAv, 0, "och brand-bandet står kvar vid överkanten samtidigt — en pinne i var ände");
+
+    // Datumet är en token hur många bindestreck det än har. I en 240px-spalt bröt
+    // webbläsaren efter månaden och lade "16 18:29 UTC" på nästa rad, vilket läses som
+    // två tal och inte ett datum.
+    eq(await p.evaluate(() => getComputedStyle(document.querySelector(".fm-stamp")).whiteSpace),
+      "nowrap", "och skördestämpeln bryts inte mitt i");
+  }
+
+  group("bandet överlever en puckssida, vilket den gamla foten inte gjorde");
+  {
+    // Den gamla foten låg i `.maincol` och var med i `body.viewing-puck`s gömlista, så
+    // skördens datum och `sync now` försvann så fort man öppnade en puck — `sync.test`
+    // dokumenterade det som en begränsning syncbaren fick kompensera för. Sidomenyn är en
+    // annan kolumn och står kvar.
+    const p = await open("", { viewport: { width: 1400, height: 900 } });
+    await p.waitForSelector(".column");
+    const före = await p.evaluate(() => document.querySelector(".side-foot").getBoundingClientRect().height);
+    await p.evaluate(() => { location.hash = "alpha/a-now"; });
+    await p.waitForFunction(() => document.body.classList.contains("viewing-puck"));
+    const efter = await p.evaluate(() => document.querySelector(".side-foot").getBoundingClientRect().height);
+    ok(före > 0 && efter > 0 && Math.abs(efter - före) < 2,
+      `bandet är oförändrat på puckssidan: ${före} → ${efter}`);
   }
 
   group("tabbstoppet följer porten över ett layoutbyte");
