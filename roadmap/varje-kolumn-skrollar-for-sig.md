@@ -1,6 +1,6 @@
 ---
 title: Varje kolumn skrollar för sig
-status: inbox
+status: done
 tags: [ui]
 updated: 2026-09-12
 created: 2026-09-12
@@ -93,3 +93,62 @@ markupen, inte en CSS-rad.
   desktopfråga — HTML5-dnd finns inte på iOS touch alls.
 - **Scrollindikatorerna**, som `bradans-egen-scrollruta` lämnade öppna: varje låda blir
   enaxlig här, så den frågan kan lösas upp av sig själv i stället för att besvaras.
+
+## Utfall
+
+Byggd som prototypen mätte, med en rad till som inte syntes förrän den fattades, och med en
+konsekvens ingen av frågorna hade förutsett.
+
+**Regressionen togs bort av formen, inte av ett lås.** Codex hittade den på grenen (#54)
+medan den här pucken låg oskriven: porten var tvåaxlig och en diagonal svep drev åt sidan.
+Samma 42°-gest genom CDP, tre lägen:
+
+```
+main (innan brädan fick en port)   .work y, #board x   →  board.left 299, work.top 0
+grenen med tvåaxlig port           #port  x + y        →  port.left 299, port.top 337
+nu                                 port x, kolumn y    →  port.left   0, kolumn 331
+```
+
+Axlarna låg på två lådor från början. Porten slog ihop dem, och då fanns ingen box kvar för
+webbläsaren att välja mellan. Scroll per kolumn lägger tillbaka dem, en nivå in.
+
+**Och det bästa sabotaget fällde ingenting.** Att sätta tillbaka `overflow: auto` på porten
+lämnar driftkontrollen grön: gesten träffar den innersta scrollrutan, och det är kolumnen.
+Det som bär är att kolumnen *är* en scrollruta — tas `overflow-y` bort från `.cards` kommer
+driften tillbaka omedelbart (`portX: 514`), med eller utan portens rad. Portens
+`overflow-y: hidden` är alltså en avsiktsförklaring och inte mekanismen, precis som hjulets
+containment-guard. Det står nu i bägge filerna.
+
+**Svaren på de fyra öppna frågorna:**
+
+- **Foten** — avgjord i förväg och byggd som eget steg. Priset var betalt när det här
+  startade.
+- **Platsen blir N tal** — nej. `closeDetail` renderar inte om, så kolumnernas egna offsets
+  står kvar av sig själva; `exitPuckView` gör det och nollar dem, vilket är exakt det den
+  ska. Koden behövde ingen ändring, kontrollerna behövde mäta kolumnen i stället för porten.
+- **Hjulet över krommet** — den lodräta halvan är borta, och det är det ärliga utfallet:
+  det finns ingen skroll på brädnivå att forwarda till, och pekaren över topbaren står
+  ovanför ingen kolumn. Att välja en åt användaren vore att hitta på en destination.
+  Regeln är listans nu.
+- **Dra kort mellan kolumner** — orörd. HTML5-dnd autoskrollar inte åt oss i någotdera
+  läget, så frågan var teoretisk.
+
+**En femte läsare som ingen fråga hade ställt: låset.** `lockScroll` dolde portens overflow,
+och den lodräta skrollen bor inte där längre — mätt med ett hjul bakom ett öppet ark: kolumnen
+gick 0 → 300. Fixen är en CSS-klass och inte en lista av element, för arket som låser
+(Display) är också det som ritar om brädan: ihågkomna `.cards`-noder vore frånkopplade precis
+när de behövdes. Två `:not(.x)` bär specificiteten förbi kolumnregeln — utan dem beräknades
+`overflow-y: auto` och regeln gjorde ingenting, medan scrimen fick det att se ut som att den
+fungerade. **Sabotage kan inte fälla den**: scrimen äter hjulet oavsett. Kontrollen mäter
+därför den beräknade stilen, och att scrimen är det läsaren märker står nedskrivet.
+
+**Tabbstoppet fick följa med.** Varje kolumns kortlista är en egen `role="region"` med
+kolumnens namn, eftersom porten bara skrollar i sidled och Page Down annars inte flyttar
+något.
+
+**Sju kontroller flyttade med premisserna i ett svep** — rubriken pinnas, brädan svämmar ur
+porten i höjdled, porten tar hjulets `deltaY`, platsen är portens `scrollTop`, låset lägger
+tillbaka den, en popover läser brädans underkant, och spillet att måla med är portens. Alla
+sanna om en tvåaxlig port, alla meningslösa utan en.
+
+**255 kontroller i `chrome`, 1012 i hela sviten, 0 fel.**

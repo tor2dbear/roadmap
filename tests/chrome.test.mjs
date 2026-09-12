@@ -1455,8 +1455,9 @@ export async function run({ open }) {
       const pop = document.querySelector(".column .pop");
       if (!pop) return null;
       const r = pop.getBoundingClientRect();
+      const k = document.querySelector(".column .cards");
       return { bottom: Math.round(r.bottom), höjd: Math.round(r.height),
-               boardBottom: Math.round(document.getElementById("board").getBoundingClientRect().bottom),
+               kolSpill: k ? k.scrollHeight - k.clientHeight : 0,
                portBottom: Math.round(document.getElementById("port").getBoundingClientRect().bottom) };
     });
     ok(kol, "kolumnmenyn öppnas");
@@ -1464,8 +1465,12 @@ export async function run({ open }) {
     // innehållshöga och porten är fönsterhög. Det är precis det som gör en vandring som
     // stannar vid första träffen fel — den läser en underkant långt nedanför fönstret
     // (mätt: 473 mot 240) — och därför mäter passningen den *intersekterade* lådan.
-    ok(kol.boardBottom > kol.portBottom,
-      `tavlan sticker ut ur porten, alltså finns det en fel underkant att läsa: ${JSON.stringify(kol)}`);
+    // Tavlan stack ut ur porten i höjdled när den här skrevs, och gör det inte längre —
+    // brädan fyller porten och kolumnerna skrollar inuti sig själva. Den fel underkant en
+    // första-träff-vandring kan läsa är kolumnens innehållshöjd i stället, som fortfarande
+    // ligger långt under fönstret. Regeln är densamma: mät den intersekterade lådan.
+    ok(kol.kolSpill > 0,
+      `kolumnen har innehåll under sin egen kant, alltså finns en fel underkant att läsa: ${JSON.stringify(kol)}`);
     ok(kol.bottom <= kol.portBottom, `och menyn håller sig innanför porten: ${JSON.stringify(kol)}`);
   }
 
@@ -1573,12 +1578,18 @@ export async function run({ open }) {
     // rutan, och foten ligger i samma port efter brädan. En bräda som målar över foten går
     // alltså inte att arrangera längre — inte för att raden lappats, utan för att lådan
     // som kunde göra det inte finns.
+    // Spillet flyttade in i kolumnen när varje kolumn blev sin egen scrollruta: porten är
+    // enaxlig nu, så den har inget lodrätt spill att måla med. Frågan är densamma — finns
+    // det innehåll som *kan* måla utanför? — och den ställs till lådan som faktiskt har det.
     const spill = await p.evaluate(() => {
       const pt = document.getElementById("port");
-      return { höjd: Math.round(pt.getBoundingClientRect().height), innehåll: pt.scrollHeight, ruta: pt.clientHeight };
+      const k = [...document.querySelectorAll(".board > .column .cards")]
+        .reduce((a, c) => (c.scrollHeight - c.clientHeight) > (a.scrollHeight - a.clientHeight) ? c : a);
+      return { höjd: Math.round(pt.getBoundingClientRect().height),
+               innehåll: k.scrollHeight, ruta: k.clientHeight };
     });
     ok(spill.innehåll > spill.ruta + 1,
-      `det finns spill att måla med — i portens egen scroll: ${JSON.stringify(spill)}`);
+      `det finns spill att måla med — i kolumnens egen scroll: ${JSON.stringify(spill)}`);
     ok(spill.höjd <= 780, `och porten själv ryms i fönstret: ${JSON.stringify(spill)}`);
     // Raden som mätte att foten började där brädan slutade är borta med foten: den flyttade
     // till sidomenyn, och porten håller bara brädan nu. Kvar står frågan den egentligen
@@ -1707,73 +1718,60 @@ export async function run({ open }) {
     return { work: over(w), port: over(pt) };
   });
 
-  group("brädan är sin egen scrollruta, listan är inte det");
+  group("porten skrollar i sidled, kolumnen i höjdled, listan gör bägge i .work");
   {
+    // Den gamla formuleringen var "i kanban skrollar porten" utan axel, och det räckte
+    // medan porten var tvåaxlig. Det är just tvåaxligheten som togs bort.
     const kanban = await open("?view=all", { data: tall, viewport: { width: 900, height: 500 } });
-    eq(await ports(kanban), { work: false, port: true },
-      "i kanban skrollar porten och .work står stilla");
+    eq(await kanban.evaluate(() => {
+      const w = document.querySelector(".work"), pt = document.getElementById("port");
+      const över = (e, ax) => ax === "x" ? e.scrollWidth > e.clientWidth + 1 : e.scrollHeight > e.clientHeight + 1;
+      const kol = [...document.querySelectorAll(".board > .column .cards")].some((k) => över(k, "y"));
+      return { workY: över(w, "y"), portX: över(pt, "x"), portY: över(pt, "y"), kolY: kol };
+    }), { workY: false, portX: true, portY: false, kolY: true },
+      "porten tar sidled, kolumnerna höjdled, och .work står stilla");
 
     const lista = await open("?view=all&layout=list", { data: tall, viewport: { width: 900, height: 500 } });
     eq(await ports(lista), { work: true, port: false },
-      "i listan är det tvärtom — .board.as-list är ingen scrollruta, vilket är vad grupprubrikens lodräta pinne kostar");
+      "i listan är det .work som skrollar — `.board.as-list` är ingen scrollruta, vilket är vad grupprubrikens lodräta pinne kostar");
   }
 
-  group("kolumnrubriken fastnar, och ingenting glider förbi ovanför den");
+  group("kolumnrubriken står still för att den ligger utanför det som skrollar");
   {
+    // Den här gruppen hette "kolumnrubriken fastnar" och mätte en `position: sticky` mot
+    // portens överkant, med en läcka i brädans padding och en bakgrund som blödde 8px för
+    // att täcka ett bortskrollat korts skugga. Ingen av de mätningarna har något kvar att
+    // mäta: rubriken är syskon till `.cards`, inte förälder, så inget kort passerar under
+    // den och ingenting behöver pinnas. Regeln som ersätter dem är enklare och starkare —
+    // rubriken rör sig inte, oavsett hur långt kolumnen skrollas, och det gäller *varje*
+    // kolumn samtidigt.
     const p = await open("?view=all", { data: tall, viewport: { width: 390, height: 700 }, hasTouch: true });
     const m = await p.evaluate(() => {
-      const bd = document.getElementById("port");
-      const kol = [...document.querySelectorAll(".column")].reduce((a, c) => c.scrollHeight > a.scrollHeight ? c : a);
-      bd.scrollLeft = kol.getBoundingClientRect().left - bd.getBoundingClientRect().left + bd.scrollLeft;
-      bd.scrollTop = 200;
-      const h = kol.querySelector(".col-head").getBoundingClientRect(), r = bd.getBoundingClientRect();
-      // Rakt ovanför rubrikens överkant: ett kort där är läckan, inte rubriken.
-      const x = Math.round(h.left + 40);
-      const at = (y) => { const e = document.elementFromPoint(x, y); return e ? e.closest(".card, .col-head") : null; };
-      const band = at(Math.round(r.top) + 2);
-      return { kvar: Math.round(h.top) - Math.round(r.top), skroll: bd.scrollTop,
-               band: band ? (band.classList.contains("col-head") ? "col-head" : "card") : "inget" };
+      const pt = document.getElementById("port"), r = pt.getBoundingClientRect();
+      const y = () => [...document.querySelectorAll(".board > .column .col-head")]
+        .map((h) => Math.round(h.getBoundingClientRect().top - r.top));
+      const kol = [...document.querySelectorAll(".board > .column")]
+        .filter((c) => { const k = c.querySelector(".cards"); return k.scrollHeight > k.clientHeight + 1; });
+      const före = y();
+      kol.forEach((c) => { c.querySelector(".cards").scrollTop = 250; });
+      return { rullande: kol.length, alla: document.querySelectorAll(".board > .column").length,
+               flyttade: kol.map((c) => Math.round(c.querySelector(".cards").scrollTop)),
+               före, efter: y(),
+               pin: [...document.querySelectorAll(".board > .column .col-head")]
+                 .map((h) => getComputedStyle(h).position) };
     });
-    ok(m.skroll > 100, `brädan skrollade på riktigt (${m.skroll} px) — annars mäter resten ingenting`);
-    eq(m.kvar, 0, "rubriken står kvar vid portens överkant");
-    eq(m.band, "col-head", "och bandet ovanför den är rubriken själv, inte kortet bakom");
+    ok(m.rullande > 0, `minst en kolumn rullar, annars mäter resten ingenting: ${JSON.stringify(m)}`);
+    ok(m.flyttade.every((v) => v > 100), `och den rullade på riktigt: ${JSON.stringify(m.flyttade)}`);
+    eq(m.efter, m.före, `varje rubrik står exakt kvar: ${JSON.stringify(m)}`);
+    eq(m.pin.filter((v) => v === "sticky").length, 0,
+      `och ingen av dem är pinnad — det är hela poängen: ${JSON.stringify(m.pin)}`);
 
-    // Rapporterat från en telefon: "Now försvinner upp". En sticky-box kan bara färdas
-    // inuti sitt containing block, så en *kort* kolumn tog sin egen rubrik med sig ut ur
-    // rutan när korten tog slut — mätt vid scroll 380: `Now` på 106 med portens kant på
-    // 113, avklippt mitt i ordet, medan grannarna stod kvar. Banorna är lika höga nu.
-    const korta = await p.evaluate(() => {
-      const pt = document.getElementById("port");
-      pt.scrollTop = pt.scrollHeight / 2;
-      const r = pt.getBoundingClientRect();
-      // Bara de kolumner vars rubrik *är* pinnad. Facket (`HIDDEN`) deklarerar
-      // `align-self: start` och `position: static` på sin rubrik med flit — en streckad
-      // låda ska hugga sitt innehåll — så det hör inte till den här regeln. Frågan ställs
-      // till den beräknade stilen och inte till klassnamnet, så kontrollen följer regeln
-      // och inte en uppräkning.
-      return [...document.querySelectorAll(".column")].map((c) => {
-        const h = c.querySelector(".col-head");
-        return { namn: c.querySelector("h2").textContent.trim(),
-                 kort: c.querySelectorAll(".card").length,
-                 pinnad: getComputedStyle(h).position === "sticky",
-                 över: Math.round(h.getBoundingClientRect().top - r.top) };
-      }).filter((k) => k.pinnad);
-    });
-    ok(korta.length > 1, `flera kolumner att jämföra (${korta.length})`);
-    ok(korta.some((k) => k.kort === 0) || new Set(korta.map((k) => k.kort)).size > 1,
-      `kolumnerna är olika långa, annars mäter det här ingenting: ${JSON.stringify(korta.map((k) => k.kort))}`);
-    eq(korta.filter((k) => k.över !== 0).length, 0,
-      `varje rubrik står kvar vid portens kant, även den korta kolumnens: ${JSON.stringify(korta)}`);
-
-    // Och rubrikens bakgrund går förbi kortens kant, eftersom kortens *skugga* gör det.
-    // Kortet bakom är täckt; dess `0 2px 8px` målade en svag ram runt den pinnade titeln.
-    const bredd = await p.evaluate(() => {
-      const kol = document.querySelector(".column").getBoundingClientRect();
-      const h = document.querySelector(".col-head").getBoundingClientRect();
-      return { vänster: Math.round(kol.left - h.left), höger: Math.round(h.right - kol.right) };
-    });
-    ok(bredd.vänster >= 8 && bredd.höger >= 8,
-      `rubriken blöder förbi kolumnen minst skuggans 8px åt bägge håll: ${JSON.stringify(bredd)}`);
+    // Kolumnerna är olika långa, vilket är vad "Now försvinner upp" handlade om: en kort
+    // kolumn tog sin egen rubrik med sig ut ur rutan. Nu är banorna lika höga och rubriken
+    // ligger utanför skrollen, så den korta kolumnens rubrik står lika stilla som de andras
+    // — vilket raden ovanför redan mätte, för *alla* kolumner på en gång.
+    ok(m.alla > 1 && m.rullande < m.alla,
+      `och kolumnerna är olika långa, annars mäter det inget: ${m.rullande} av ${m.alla} rullar`);
   }
 
   group("hjulet över topbaren flyttar den ruta som skrollar");
@@ -1781,12 +1779,27 @@ export async function run({ open }) {
     const p = await open("?view=all", { data: tall, viewport: { width: 900, height: 500 } });
     const box = await p.locator(".topbar").boundingBox();
     await p.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-    await p.mouse.wheel(0, 300);
+    // Sidled är den axel porten har kvar, och den forwardas fortfarande.
+    await p.mouse.wheel(300, 0);
     await p.waitForTimeout(200);
     const m = await p.evaluate(() => ({
-      board: document.getElementById("port").scrollTop, work: document.querySelector(".work").scrollTop }));
-    ok(m.board > 0, `porten tog hjulet (${m.board} px) — den döda zonen är stängd i kanban också`);
+      x: document.getElementById("port").scrollLeft, work: document.querySelector(".work").scrollTop }));
+    ok(m.x > 0, `porten tog hjulets sidled (${m.x} px) — den döda zonen är stängd för den axeln`);
     eq(m.work, 0, "och .work rörde sig inte, för den skrollar inte här");
+
+    // Den lodräta halvan är däremot borta, och det är inte ett fel i forwardingen utan i
+    // premissen: brädan har ingen lodrät skroll på brädnivå längre, utan en per kolumn, och
+    // pekaren står över topbaren som ligger ovanför ingen av dem. Att välja en åt användaren
+    // — den vänstraste, den bredaste — vore att hitta på en destination. Regeln "chromet
+    // ovanför porten är ingen död zon" är en regel om listan nu, och den kontrollen står kvar
+    // i sin egen grupp.
+    await p.mouse.wheel(0, 300);
+    await p.waitForTimeout(200);
+    eq(await p.evaluate(() => ({
+      portY: document.getElementById("port").scrollTop,
+      kol: Math.round(document.querySelector(".board > .column .cards").scrollTop) })),
+      { portY: 0, kol: 0 },
+      "ett lodrätt hjul över krommet har ingen destination i kanban, och tar ingen");
 
     // Två premissrader låg här och bägges premiss är avskaffad, inte lappad: foten låg *i*
     // porten så att den skulle färdas med korten, och den var pinnad i sidled
@@ -1814,27 +1827,88 @@ export async function run({ open }) {
     // Positionen tas ur *porten*, inte brädan: brädans låda är bredare än fönstret nu
     // (kolumnerna svämmar över den synligt), så dess mittpunkt ligger utanför skärmen och
     // ett hjul där träffar ingenting. Kostade en röd körning.
-    const portRuta = await p.locator("#port").boundingBox();
-    const innan = await p.evaluate(() => { const b = document.getElementById("port"); b.scrollTop = 0; return b.scrollTop; });
-    await p.mouse.move(portRuta.x + portRuta.width / 2, portRuta.y + 60);
+    // Positionen tas ur en *kolumn* nu, eftersom det är den som skrollar lodrätt — och
+    // portens sidledsläge nollas först: hjulraden ovanför flyttade den 300px, så kolumnens
+    // ruta låg delvis under sidomenyn och hjulet landade där i stället. Kostade en röd
+    // körning, och är samma fälla som "positionen tas ur porten, inte brädan" en gång var.
+    await p.evaluate(() => { document.getElementById("port").scrollLeft = 0; });
+    await p.waitForTimeout(100);
+    const kolRuta = await p.locator(".board > .column .cards").first().boundingBox();
+    const innan = await p.evaluate(() => {
+      const k = document.querySelector(".board > .column .cards"); k.scrollTop = 0; return k.scrollTop; });
+    await p.mouse.move(kolRuta.x + kolRuta.width / 2, kolRuta.y + 60);
     await p.mouse.wheel(0, 200);
     await p.waitForTimeout(200);
-    const efter = await p.evaluate(() => document.getElementById("port").scrollTop);
-    eq(efter, 200, `ett hjul över brädan flyttar den en gång, inte två: ${JSON.stringify({ innan, efter })}`);
+    const efter = await p.evaluate(() => Math.round(document.querySelector(".board > .column .cards").scrollTop));
+    eq(efter, 200, `ett hjul över en kolumn flyttar den en gång, inte två: ${JSON.stringify({ innan, efter })}`);
+  }
+
+  group("en diagonal svep i kanban flyttar bara den axel den bad om");
+  {
+    // Den regression Codex hittade (#54), och som den här ändringen tar bort genom formen
+    // i stället för genom ett lås. Mätt före, med samma gest:
+    //
+    //   main (innan brädan fick en port)   .work y, #board x  →  board.left 299, work.top 0
+    //   grenen med tvåaxlig port           #port  x + y       →  port.left 299, port.top 337
+    //   nu                                 port x, kolumn y   →  port.left   0, kolumn 331
+    //
+    // Axlarna låg på två lådor från början och webbläsaren låste själv, eftersom den väljer
+    // *en* box att skrolla. Porten slog ihop dem och lämnade inget att välja mellan.
+    //
+    // Riktiga gester genom CDP, av samma skäl som listans axellås: en syntetisk `scrollTop`
+    // mäter aritmetiken, inte mekanismen. Och 42°, inte 20: Chromium låser axeln själv upp
+    // till ~36°, så en flackare diagonal kan inte skilja regeln från dess frånvaro.
+    //
+    // Vad som håller den här kontrollen är värt att veta innan någon "förenklar" något:
+    // **inte** portens `overflow-y: hidden` — sätt tillbaka `overflow: auto` och raden står
+    // grön, eftersom gesten träffar den innersta scrollrutan och det är kolumnen. Det som
+    // bär är att kolumnen *är* en scrollruta: tas `overflow-y` bort från `.cards` kommer
+    // sidledsdriften tillbaka omedelbart (mätt: `portX: 514`), med eller utan portens rad.
+    const p = await open("?view=all", { data: tall, viewport: { width: 390, height: 700 }, hasTouch: true });
+    await p.waitForSelector(".board .card");
+    const kol = await p.locator(".board > .column .cards").first().boundingBox();
+    ok(await p.evaluate(() => {
+      const k = document.querySelector(".board > .column .cards");
+      return k.scrollHeight > k.clientHeight + 1;
+    }), "kolumnen under fingret rullar, annars mäter gesten ingenting");
+    const cdp = await p.context().newCDPSession(p);
+    const x0 = Math.round(kol.x + kol.width / 2), y0 = Math.round(kol.y + kol.height / 2);
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: x0, y: y0 }] });
+    for (let i = 1; i <= 12; i++) {
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchMove",
+        touchPoints: [{ x: x0 - i * 20, y: y0 - i * 22 }] });   // 42°, upp-vänster
+    }
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await p.waitForTimeout(600);
+    const m = await p.evaluate(() => ({
+      portX: Math.round(document.getElementById("port").scrollLeft),
+      portY: Math.round(document.getElementById("port").scrollTop),
+      kol: Math.round(document.querySelector(".board > .column .cards").scrollTop) }));
+    ok(m.kol > 100, `kolumnen tog gesten den bad om: ${JSON.stringify(m)}`);
+    eq(m.portX, 0, `och ingenting drev i sidled — 299px var vad en tvåaxlig port gav: ${JSON.stringify(m)}`);
+    eq(m.portY, 0, `porten har ingen lodrät axel att ta: ${JSON.stringify(m)}`);
   }
 
   group("låset håller den ruta som skrollar");
   {
     const p = await open("?view=all", { data: tall, viewport: { width: 390, height: 700 }, hasTouch: true });
-    await p.evaluate(() => { document.getElementById("port").scrollTop = 150; });
+    await p.evaluate(() => { document.getElementById("port").scrollLeft = 150; });
     await p.locator("#filterBtn").click();
     await p.waitForSelector(".sheet");
     eq(await p.evaluate(() => getComputedStyle(document.getElementById("port")).overflow), "hidden",
-      "med ett ark uppe är brädans overflow dold");
+      "med ett ark uppe är portens overflow dold");
+    // Och kolumnerna, som är där den lodräta skrollen bor sedan varje kolumn blev sin egen
+    // ruta. Den mäts som beräknad stil och inte som en flyttad offset, eftersom arkets
+    // scrim ändå ligger över dem: sabotage av regeln fäller *inte* ett hjulprov, vilket är
+    // hur man upptäcker att den är försvar på djupet och inte mekanismen.
+    eq(await p.evaluate(() => getComputedStyle(document.querySelector(".board > .column .cards")).overflowY),
+      "hidden", "och kolumnerna med, eftersom det är de som skrollar");
     await p.keyboard.press("Escape");
     await p.waitForTimeout(300);
-    eq(await p.evaluate(() => document.getElementById("port").scrollTop), 150,
+    eq(await p.evaluate(() => document.getElementById("port").scrollLeft), 150,
       "och platsen är tillbaka när arket stängs");
+    eq(await p.evaluate(() => getComputedStyle(document.querySelector(".board > .column .cards")).overflowY),
+      "auto", "kolumnerna skrollar igen");
   }
 
   group("brädans plats överlever en puck, och lämnas när man byter tavla");
@@ -1851,7 +1925,8 @@ export async function run({ open }) {
     const p = await open("?view=all", { data: tall, viewport: { width: 900, height: 500 } });
     // Ett kort som redan syns: låter man webbläsaren skrolla dit försvinner det som mäts.
     await p.evaluate(() => {
-      const bd = document.getElementById("port"); bd.scrollTop = 180;
+      // Lodrätt bor i kolumnen sedan varje kolumn blev sin egen ruta; porten håller sidled.
+      const bd = document.querySelector(".board > .column .cards"); bd.scrollTop = 180;
       const r = bd.getBoundingClientRect();
       const c = [...document.querySelectorAll(".card")].find((c) => {
         const b = c.getBoundingClientRect(); return b.top > r.top + 10 && b.bottom < r.bottom - 10; });
@@ -1862,24 +1937,26 @@ export async function run({ open }) {
     eq(await p.evaluate(() => document.body.classList.contains("viewing-puck")), true, "pucken är öppen");
     await p.locator(".crumb-back").first().click();
     await p.waitForTimeout(400);
-    eq(await p.evaluate(() => document.getElementById("port").scrollTop), 180,
-      "tillbaka på brädan står den där den stod");
+    eq(await p.evaluate(() => Math.round(document.querySelector(".board > .column .cards").scrollTop)), 180,
+      "tillbaka på brädan står kolumnen där den stod");
 
     // Ur pucken via sidomenyn i stället: en annan tavla, alltså ingen plats att ärva.
     // Mätt före `exitPuckView`s nollning: den nya vyn öppnade 180px ner i en lista som
     // inte var densamma.
-    await p.evaluate(() => { document.getElementById("port").scrollTop = 180; });
+    await p.evaluate(() => { document.querySelector(".board > .column .cards").scrollTop = 180;
+      document.getElementById("port").scrollLeft = 120; });
     await p.locator("[data-probe='1']").click();
     await p.waitForTimeout(350);
     await p.getByRole("button", { name: /^Ready/ }).first().click();
     await p.waitForTimeout(400);
     const ut = await p.evaluate(() => ({
       puck: document.body.classList.contains("viewing-puck"),
-      board: document.getElementById("port").scrollTop,
+      portX: document.getElementById("port").scrollLeft,
+      kol: Math.round(document.querySelector(".board > .column .cards").scrollTop),
       work: document.querySelector(".work").scrollTop }));
     eq(ut.puck, false, "sidomenyn stänger pucken");
-    eq({ board: ut.board, work: ut.work }, { board: 0, work: 0 },
-      "och den nya tavlan ärver ingen plats — i bägge lådorna, för den ena höll puckens egen offset");
+    eq({ portX: ut.portX, kol: ut.kol, work: ut.work }, { portX: 0, kol: 0, work: 0 },
+      "och den nya tavlan ärver ingen plats — i alla tre lådorna: portens sidled, kolumnens höjdled, och .work som höll puckens egen offset");
   }
 
   group("låset släpper den låda det tog, inte den frågan svarar med nu");
@@ -1914,12 +1991,14 @@ export async function run({ open }) {
     await p.waitForTimeout(350);
     await p.keyboard.press("Escape");
     await p.waitForTimeout(300);
-    const box = await p.locator("#port").boundingBox();
-    await p.mouse.move(box.x + box.width / 2, box.y + 120);
+    // Kolumnen, inte porten: den lodräta skrollen bor där sedan varje kolumn blev sin egen
+    // ruta, så ett fastnat lås märks som en kolumn som inte går att skrolla.
+    const box = await p.locator(".board > .column .cards").first().boundingBox();
+    await p.mouse.move(box.x + box.width / 2, box.y + 60);
     await p.mouse.wheel(0, 300);
     await p.waitForTimeout(250);
-    ok(await p.evaluate(() => document.getElementById("port").scrollTop) > 0,
-      "och brädan går att skrolla med hjulet efteråt — 0px är hur det fastnade tillståndet läses");
+    ok(await p.evaluate(() => document.querySelector(".board > .column .cards").scrollTop) > 0,
+      "och kolumnen går att skrolla med hjulet efteråt — 0px är hur det fastnade tillståndet läses");
   }
 
   group("foten bor i sidomenyn, pinnad i den ände brand-bandet inte tar");

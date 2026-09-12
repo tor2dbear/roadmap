@@ -2219,6 +2219,14 @@
       // `.work` and the port would revive the bug rather than introduce it.
       var to = scrollPort() || port;
       if (to.contains(e.target) || scrollLocks || e.ctrlKey) return;
+      // In kanban the destination now scrolls sideways only, and a wheel over the chrome
+      // has no vertical answer at all — not because the forwarding broke but because the
+      // thing it forwarded to stopped existing. The board has no board-level vertical
+      // scroll any more; each column has its own, and the pointer is over the topbar,
+      // which is above none of them. Picking one (the leftmost, the widest) would be
+      // inventing a destination. `to.scrollTop` below is a no-op there and the wheel is
+      // simply not taken — which is the honest result, and the reason "the chrome above
+      // the port is not a dead zone" is now a rule about the list.
       // First refusal is per axis, and it is a *claim on that axis alone* rather than on
       // the gesture. The chip row scrolls vertically and cannot take a `deltaX` at all,
       // so two things went wrong in turn: asking `deltaY < 0` about a purely sideways
@@ -2386,6 +2394,17 @@
     lockedY = port.scrollTop;
     lockedX = port.scrollLeft;
     port.style.overflow = "hidden";
+    // And the columns, which is where the board's vertical scroll went. Hiding the port's
+    // overflow stopped holding the thing that moves the moment each column became its own
+    // scroller — measured with the Display sheet open on a phone: the port was `hidden`
+    // and a column still went 0 → 250 behind it.
+    //
+    // A class rather than a list of elements, and that is the load-bearing choice. The
+    // sheet that locks is the one that re-renders the board (Display changes what is
+    // drawn), so a stored set of `.cards` nodes would be detached the moment it mattered —
+    // the exact failure `relockScroll` exists to paper over for the port. A selector has
+    // no stale reference to keep: whatever the board draws next is already locked.
+    document.body.classList.add("board-locked");
   }
   // **Unlock the box that was locked, not the one the question answers now.** The layout
   // segment sits at the top of that very sheet, so switching to List with it open moved
@@ -2401,8 +2420,11 @@
     lockedEl = null;
     if (!port) return;
     port.style.overflow = "";
+    document.body.classList.remove("board-locked");
     // Hiding the overflow drops the scroll offset, so it is put back — the sheet closes
-    // onto the row you opened it from, not onto the top of the list.
+    // onto the row you opened it from, not onto the top of the list. The columns need no
+    // equivalent: `overflow: hidden` on a box that keeps its content keeps its offset too,
+    // and unlike the port nothing re-points at them mid-lock.
     port.scrollTop = lockedY;
     port.scrollLeft = lockedX;
   }
@@ -5165,6 +5187,16 @@
       if (columnTerm(g, grp.key)) head.appendChild(colMenu(g, grp.key, grp.label));
       col.appendChild(head);
       var cards = el("div", "cards");
+      // Each column is its own scrollport now, so each is its own keyboard target. The
+      // board had one tab stop while it had one scroller; with the vertical axis inside the
+      // columns, Page Down on the port moves nothing — it only scrolls sideways. Chrome
+      // puts overflowing boxes in the tab order by itself and Safari does not, which is the
+      // same asymmetry `markPort()` was written for, so it is said out loud here too.
+      // Labelled by the column, because "region" with no name is a landmark you cannot tell
+      // from the next one.
+      cards.tabIndex = 0;
+      cards.setAttribute("role", "region");
+      cards.setAttribute("aria-label", grp.label);
       if (grp.items.length === 0) cards.appendChild(el("div", "empty", "—"));
       else grp.items.forEach(function (it) { cards.appendChild(card(it)); });
       col.appendChild(cards);

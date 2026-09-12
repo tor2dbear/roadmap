@@ -497,31 +497,20 @@ body {
 .col-add:hover { color: var(--accent); border-color: var(--accent); }
 .col-add svg { width: 15px; height: 15px; }
 @media (hover: none) { .col-add { opacity: 1; } }
+/* Not pinned, and no longer needing to be. The head sits *outside* the box that scrolls —
+   `.cards` is the scroller, the head is its sibling — so the whole apparatus a pin
+   requires is gone rather than tuned: no `position: sticky`, no `top: 0` resolving against
+   a port's content box, no `z-index` ranking it over the cards, and no opaque background
+   bleeding 8px past the column to cover the `0 2px 8px` shadow of a card passing beneath
+   it. That shadow was a real report from a phone — "a small edge/shadow behind the other
+   titles" — and the repair is that nothing passes beneath any more.
+   (The list's heading is `.list-head` and is still pinned: `.work` is its scrollport and
+   the heading travels inside it.) */
 .col-head {
   display: flex;
   align-items: center;
   gap: 8px;
-  /* The background bleeds past the cards, because a card's shadow does too. A card that
-     has scrolled behind this box is hidden — the box is opaque and outranks it — but its
-     `0 2px 8px` shadow is painted outside that box and drew a faint rectangle around the
-     pinned title, reported from a phone as "a small edge/shadow behind the other titles".
-     Proved rather than guessed: with `box-shadow: none` on `.card` the edge is gone.
-     The bleed is 8px, the shadow's blur, taken as negative margin and given back as
-     padding so the text does not move (−8 + 10 = the 2px it had). It is the list's own
-     repair one layout over, where the group heading's background bleeds across the
-     gutter for the same reason. */
-  margin-inline: -8px;
-  padding-inline: 10px;
-  position: sticky;
-  /* Sticky resolves against the nearest scroll container, which is `.port` — the board
-     itself deliberately is not one, or this would pin against a box with no height to
-     travel in. That is why the board wraps in a port at all; see `scrollPort()`.
-     `top: 0` is the port's own edge, and the column's 18px gutter sits above it, so the
-     pin costs no travel. (The list's heading is `.list-head`, pinned against `.work`.) */
-  top: 0;
   padding-block: 4px 10px;
-  background: var(--bg);
-  z-index: 1;
 }
 .col-head .swatch { width: 10px; height: 10px; border-radius: var(--r-xs); }
 /* Two kinds of head, and until parent grouping arrived there was only one. A category
@@ -1140,6 +1129,17 @@ body.modal-open { overflow: hidden; }
    class — a fixed body with nothing to scroll is harmless, and its absence would be a
    silent behaviour change rather than a loud one. */
 body.scroll-locked { overflow: hidden; }
+/* The board's vertical scroll lives in the columns, so that is what a surface has to hold
+   still. Written as a selector and not as a set of elements on purpose: the surface that
+   locks is also the one that redraws the board, so any node the lock had remembered would
+   be detached by the time it was unlocked. See `lockScroll`.
+
+   The two `:not(.x)` are specificity, not logic, and they are load-bearing: the rule that
+   makes a column scroll is `body:not(.viewing-puck) .port > .board:not(.as-list) > .column
+   > .cards`, and a `:not()` counts as what is inside it — four classes to this rule's two.
+   Without them the lock computed `overflow-y: auto` and did nothing, while the sheet's own
+   scrim happened to swallow the wheel and made it look like it worked. */
+body.board-locked:not(.x) .port > .board:not(.x) > .column > .cards { overflow: hidden; }
 @media (max-width: 600px) {
   .modal-backdrop { padding: 0; }
   .modal { max-width: none; max-height: 100vh; height: 100%; border-radius: 0; border: none; border-left: none; }
@@ -1498,7 +1498,24 @@ body.scroll-locked { overflow: hidden; }
    columns' own height and the port grows straight back. */
 body:not(.viewing-puck) .work:has(> .port > .board:not(.as-list)) { grid-auto-rows: auto; }
 body:not(.viewing-puck) .work > .port:has(> .board:not(.as-list)) {
-  align-self: stretch; min-height: 0; overflow: auto;
+  align-self: stretch; min-height: 0;
+  /* One axis, and that is the whole of this change. The port used to be `overflow: auto`
+     — both axes in one box — and a box that can pan two ways is one the browser will pan
+     two ways: measured with a 42° drag on a phone, `left 299` *and* `top 337` from a
+     gesture meant as a read downwards. Before the board had a port at all the axes sat on
+     two boxes (`.work` scrolled y, `#board` scrolled x) and the browser picked one; the
+     port merged them and there was nothing left to pick between.
+     Sideways is the port's; downwards belongs to a column, one box further in.
+
+     **And this declaration is not what fixes it — the column being a scroller is.**
+     Sabotage says so: put `overflow: auto` back here and the drift check still passes,
+     because the gesture now targets the innermost scroller and that is the column. Take
+     `overflow-y` off `.cards` instead and the sideways drift returns at once (measured:
+     `portX: 514`), with or without this line. It stays as a statement of intent and as
+     the guard for the day something gives the board a vertical overflow again — the same
+     standing as the wheel forwarder's containment guard, which first refusal holds. */
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 /* And the board stops being a scroll container, or it — not the port — is what a sticky
    column head would resolve against, and it has no height of its own to travel in. This
@@ -1508,7 +1525,30 @@ body:not(.viewing-puck) .work > .port:has(> .board:not(.as-list)) {
    `overflow-x: auto` made the box a scroll container. Without it the widest unbreakable
    thing on the page decides the document's width again — measured at 652px on a 390px
    phone the last time that happened. */
-body:not(.viewing-puck) .port > .board:not(.as-list) { overflow: visible; min-width: 0; }
+body:not(.viewing-puck) .port > .board:not(.as-list) {
+  overflow: visible; min-width: 0;
+  /* The board fills the port rather than standing at its content height, because that is
+     what gives a column a definite height to scroll inside. Without it the board is as
+     tall as its tallest column (measured: 1833px in a 731px port), every column is
+     content-tall, and `.cards` has nothing to overflow — the rule below then does nothing
+     at all, silently. It is the least obvious line here and the one everything rests on. */
+  flex: 1; min-height: 0;
+  /* The bottom gutter was air after the last card, in a box that scrolled past it. The
+     port does not scroll downwards any more, so it would be dead space under every
+     column instead. Each column keeps its own. */
+  padding-bottom: 0;
+}
+/* A column is a head that stays and a list that moves. The head needs no `position:
+   sticky` — it is outside the box that scrolls, which is what dissolves the question
+   rather than answering it: no z-index against the cards, no pin resolving against a
+   port's content box, and no background bleeding to cover a card's shadow passing
+   underneath, because nothing passes underneath. */
+body:not(.viewing-puck) .port > .board:not(.as-list) > .column {
+  display: flex; flex-direction: column; min-height: 0;
+}
+body:not(.viewing-puck) .port > .board:not(.as-list) > .column > .cards {
+  overflow-y: auto; min-height: 0; flex: 1;
+}
 /* In the list the port is `.work`, so this box is structure and nothing else. */
 .port { min-width: 0; display: flex; flex-direction: column; }
 /* It is a tab stop (see `index.html`), so a click on the empty space beside the columns

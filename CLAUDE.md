@@ -756,6 +756,64 @@ for `liftArchive()` and `sortChain()`.
   written from a device report, and this one has none yet; extending it on symmetry alone
   would be the sort of unmeasured sweep the archive mark's guard was removed for.
 
+## UI: each column is its own scrollport
+
+The board's vertical scroll lives in the columns, and the port scrolls only sideways. It is
+Linear's shape, reported from there with a screenshot, and it dissolves three rules rather
+than tuning them.
+
+> **No box on the board scrolls two ways. The port takes sideways; a column takes
+> downwards.**
+
+- **What it fixes, and it was a regression this branch introduced.** Before the board had a
+  port at all, the axes sat on two boxes — `.work` scrolled y, `#board` scrolled x — and the
+  browser locked the axis by itself, because it picks *one* box to scroll. The port merged
+  them and left nothing to pick between: measured with a 42° CDP drag, `left 299` **and**
+  `top 337` from a gesture meant as a read downwards, against `board.left 299, work.top 0`
+  on `main`. Per-column scroll puts the axes back on two boxes, one layer in.
+- **The rule that holds it is the column, not the port.** `overflow-y: hidden` on `.port`
+  looks like the fix and is not: sabotage puts `overflow: auto` back and the drift check
+  stays green, because the gesture targets the innermost scroller. Take `overflow-y` off
+  `.cards` and the drift returns at once (`portX: 514`). The port's line is a statement of
+  intent, the same standing as the wheel forwarder's containment guard.
+- **The column head is not pinned, and needs nothing to stand still.** It is `.cards`'
+  *sibling*, so nothing scrolls under it. That retires `position: sticky`, the `top: 0`
+  resolving against a port's content box, the `z-index` over the cards, and the opaque
+  background bleeding 8px past the column to cover a card's `0 2px 8px` shadow — a real
+  phone report ("a small edge/shadow behind the other titles") whose cause is now absent.
+  The `HIDDEN` tray stops sliding out of view for the same reason (measured: head at −289
+  while scrolled, 11 after).
+- **`flex: 1; min-height: 0` on the board is the line everything rests on.** Without it the
+  board stands at its tallest column's height (measured 1833px in a 731px port), no column
+  has a definite height, `.cards` has nothing to overflow, and the rule below it does
+  nothing at all — silently.
+- **The lock had to follow the scroll, and it is a selector rather than a set of nodes.**
+  `lockScroll` hid the port's overflow; with the vertical axis in the columns that stopped
+  holding the thing that moves. `body.board-locked` plus a CSS rule covers whatever the
+  board draws next — which matters because the sheet that locks (Display) is also the one
+  that re-renders the board, so a remembered list of `.cards` would be detached exactly
+  when it was needed. That is the failure `relockScroll` exists to paper over for the port,
+  avoided rather than repeated. Two `:not(.x)` carry the rule's specificity past
+  `body:not(.viewing-puck) … .board:not(.as-list) …`, and without them it computed
+  `overflow-y: auto` and did nothing while the sheet's scrim made it look like it worked.
+  **Sabotage cannot fell it** — the scrim swallows the wheel either way — so the check
+  asserts the computed `overflow-y`, and this paragraph is the record that the scrim is
+  what the reader actually feels.
+- **Each column's card list is a tab stop**, labelled by the column. The board had one stop
+  while it had one scroller; with the vertical axis inside the columns, Page Down on the
+  port moves nothing but sideways. Chrome puts overflowing boxes in the tab order by itself
+  and Safari does not — the same asymmetry `markPort()` was written for.
+- **The wheel over the chrome loses its vertical half, and that is the honest result.**
+  "The chrome above the port is not a dead zone" was a rule about a scroll that existed.
+  There is no board-level vertical scroll now, and the pointer over the topbar is above no
+  column; choosing one — the leftmost, the widest — would be inventing a destination.
+  Sideways is still forwarded. The rule is the list's now.
+- **Seven checks moved with the premises rather than being patched**, in one sitting: the
+  head pins, the board overflows the port vertically, the port takes the wheel's `deltaY`,
+  the saved place is the port's `scrollTop`, the lock restores it, a popover reads the
+  board's bottom edge, and the spill to paint with is the port's. Every one of them was
+  true of a two-axis port and is meaningless without one.
+
 ## UI: the grouping with no values
 
 `group=none` is the list with no grouping at all: one bucket, no heading. It carries **no
