@@ -808,6 +808,19 @@ than tuning them.
   There is no board-level vertical scroll now, and the pointer over the topbar is above no
   column; choosing one — the leftmost, the widest — would be inventing a destination.
   Sideways is still forwarded. The rule is the list's now.
+- **A column takes one axis, and CSS will not leave it alone.** `overflow-y: auto` beside an
+  `overflow-x` of `visible` computes the *visible* one to `auto` — the same rule that forces
+  `#board` not to be a scroll container, read from the other direction — so one unbreakable
+  token in a card re-opened the second axis: measured with a URL in a title, 414px of
+  horizontal scroll beside 1337 of vertical, in the very box this arrangement exists to keep
+  to one axis. Two rules, and which does what is worth knowing: **`overflow-wrap: anywhere`
+  on the card title is the fix** (it removes the overflow: 414 → 0), while `overflow-x: clip`
+  on `.cards` is the **guarantee** for whatever overflows next. The guarantee has teeth —
+  with overflow still present it hides the text rather than scrolling to it, which is worse
+  for a reader than the bug — so the two belong together. `clip` buys nothing over `hidden`
+  here and is kept for intent: when the other axis scrolls, `clip` is specified to compute to
+  `hidden`, and measured it does, with `scrollLeft` writable under both. What either buys is
+  the half that matters: neither can be *dragged*, so the gesture stays on one axis.
 - **The reader's place in a column has to be carried across a redraw, and the carrying has
   its own trap.** `renderBoard` empties the board, which takes every `.cards` with it — so
   the promise one paragraph up ("nothing may measure the board while it is empty", written

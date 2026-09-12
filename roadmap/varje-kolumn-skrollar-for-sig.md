@@ -171,6 +171,20 @@ hamnade överst. Platsen läses ut per kolumnnyckel före rensningen och läggs 
    värden är `now` fortfarande `now` i nästa vy, så den gamla brädans plats lades tillbaka
    en låda längre in. `colPlaces` töms där, och kolumnerna nollas.
 
-**267 kontroller i `chrome`, 0 fel**, och vart och ett av de tre sabotagen fäller sin egen
-rad: ingen återställning alls, återställning i loopen, och `exitPuckView` som behåller
-platserna.
+**Och en sjunde: CSS ger inte kolumnen en axel bara för att man ber om det.** `overflow-y:
+auto` bredvid ett `overflow-x` som är `visible` beräknar den synliga till `auto` — samma
+regel som tvingar `#board` att inte vara scrollcontainer, läst åt andra hållet. Ett
+obrytbart ord i ett kort öppnade alltså andra axeln igen: mätt med en URL i en titel, 414px
+sidled jämte 1337 lodrätt. Vakten *"ingen låda skrollar åt två håll"* såg det inte, eftersom
+fixturens alla titlar bryts — den mätte en bräda där frågan aldrig ställdes.
+
+Två regler, och vilken som gör vad är värt att veta: `overflow-wrap: anywhere` på titeln är
+**fixen** (414 → 0), `overflow-x: clip` på `.cards` är **garantin** för nästa sak som råkar
+svämma över. Garantin har tänder — med spillet kvar göms texten i stället för att skrollas
+till — så de två hör ihop. `clip` köper inget över `hidden` här och behålls för avsikten:
+när den andra axeln skrollar är `clip` specificerat att beräknas till `hidden`, och mätt gör
+den det, med `scrollLeft` skrivbar under bägge.
+
+**269 kontroller i `chrome`, 0 fel**, och vart och ett av de fem sabotagen fäller sin egen
+rad: ingen återställning alls, återställning i loopen, `exitPuckView` som behåller platserna,
+ingen ombrytning, och ingen klippning.

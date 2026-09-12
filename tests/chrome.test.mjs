@@ -2151,6 +2151,27 @@ export async function run({ open }) {
     eq(lådor.kolumner.filter((a) => a.includes("x")).length, 0,
       `ingen kolumn skrollar i sidled — det är portens axel: ${JSON.stringify(lådor.kolumner)}`);
 
+    // Och med något obrytbart i ett kort, vilket är det fall vakten ovanför inte kan se:
+    // fixturens titlar bryts alla, så den mäter en bräda där frågan aldrig ställs. Codex
+    // hittade det (#54): `overflow-y: auto` med `overflow-x: visible` beräknas till `auto`
+    // på bägge axlarna — samma regel som tvingar `#board` att inte vara scrollcontainer,
+    // åt andra hållet. Mätt med en URL i en titel, före reglerna: 414px sidled jämte 1337
+    // lodrätt, i just den låda hela arrangemanget finns för att hålla enaxlig.
+    const bred = (d) => {
+      const en = d.items.find((i) => i.status === "now");
+      d.items.push(Object.assign({}, en, { id: "alpha/bred", slug: "bred",
+        title: "https://example.com/en/mycket/lang/och/obrytbar/adress/som/ingen/radbrytning/klarar" }));
+      return d;
+    };
+    const w = await open("?view=all", { data: (d) => bred(tall(d)), viewport: { width: 900, height: 600 } });
+    await w.waitForSelector(".board .card");
+    const m = await w.evaluate(() => [...document.querySelectorAll(".board > .column .cards")]
+      .map((k) => ({ ox: getComputedStyle(k).overflowX, spill: k.scrollWidth - k.clientWidth })));
+    eq(m.filter((k) => k.spill > 0).length, 0,
+      `en obrytbar titel ger ingen kolumn sidledsspill — ombrytningen tar bort det: ${JSON.stringify(m)}`);
+    eq(m.filter((k) => k.ox === "visible" || k.ox === "auto" || k.ox === "scroll").length, 0,
+      `och sidledsaxeln är stängd oavsett, för nästa sak som råkar svämma över: ${JSON.stringify(m)}`);
+
     // Och motmedlen ligger kvar där de hör hemma. Det är den andra halvan: att kanban klarar
     // sig utan dem betyder inte att listan gör det, och en svepande borttagning är precis vad
     // den här kontrollen finns för att stoppa.

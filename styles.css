@@ -1548,7 +1548,34 @@ body:not(.viewing-puck) .port > .board:not(.as-list) > .column {
 }
 body:not(.viewing-puck) .port > .board:not(.as-list) > .column > .cards {
   overflow-y: auto; min-height: 0; flex: 1;
+  /* One axis, said out loud, because CSS will not leave it alone otherwise: an `overflow`
+     of `visible` on one axis computes to `auto` when the other is not `visible`. This is
+     the rule the board already knows from the other direction — `overflow-x: auto` forcing
+     `overflow-y: auto` too, which is why `#board` must not be a scroll container — and it
+     bites here the moment a card holds something unbreakable. Measured with one URL in a
+     title: 414px of horizontal scroll beside 1337 of vertical, in the very box this whole
+     arrangement exists to keep to a single axis. Codex found it (#54).
+
+     `clip` states the intent — this axis is not a scroll axis — but be clear that it buys
+     nothing over `hidden` *here*: when the other axis scrolls, `clip` is specified to
+     compute to `hidden`, and it does (measured: `overflowX` reads `hidden`, and
+     `scrollLeft = 50` sticks at 50 under both). What either one buys is the half that
+     matters — neither can be *dragged* sideways, so the gesture stays on one axis. The
+     word is kept for the day the other axis stops scrolling and `clip` becomes literal.
+
+     **And this is the guarantee, not the fix.** With overflow still present it hides the
+     text instead of scrolling to it — measured, 414px of a title out of reach — which is
+     worse for a reader than the bug. The rule below is what removes the overflow; this one
+     is what stops anything *else* that overflows from re-opening a second axis. */
+  overflow-x: clip;
 }
+/* The content shrinks instead of overflowing, and that is the actual repair. A title is
+   the one field holding arbitrary text — a pasted URL is the ordinary case — and
+   `anywhere` is what lets an unbreakable token break at all. Measured against the clip
+   above: with the wrap the column's horizontal overflow is 0; without it, 414px, clipped.
+   The metadata row is `nowrap` by design and already has `min-width: 0` to shrink inside
+   the card; the title was the one with no way out. */
+.card h3 { overflow-wrap: anywhere; }
 /* In the list the port is `.work`, so this box is structure and nothing else. */
 .port { min-width: 0; display: flex; flex-direction: column; }
 /* It is a tab stop (see `index.html`), so a click on the empty space beside the columns
