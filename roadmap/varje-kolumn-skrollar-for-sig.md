@@ -123,9 +123,26 @@ containment-guard. Det står nu i bägge filerna.
 
 - **Foten** — avgjord i förväg och byggd som eget steg. Priset var betalt när det här
   startade.
-- **Platsen blir N tal** — nej. `closeDetail` renderar inte om, så kolumnernas egna offsets
-  står kvar av sig själva; `exitPuckView` gör det och nollar dem, vilket är exakt det den
-  ska. Koden behövde ingen ändring, kontrollerna behövde mäta kolumnen i stället för porten.
+- **Platsen blir N tal** — **ja, och det svaret var fel när det skrevs.** Första mätningen
+  visade att `closeDetail` inte renderar om, så kolumnernas offsets stod kvar av sig själva,
+  och slutsatsen blev "koden behövde ingen ändring". Den höll bara för den ena vägen in och
+  ut. Granskningen hittade tre till, och platsen är sedan dess verkligen N tal med ett eget
+  minne:
+  - **En omritning i en synlig bräda** (`loadWritableRepos` som landar) byter ut noderna.
+    `colPlaces` läses ut per kolumnnyckel före rensningen och läggs tillbaka i ett svep över
+    en *färdig* bräda — en återställning inne i loopen tvingar fram en layout av en halvbyggd
+    bräda och klampar portens `scrollLeft` till 0 (mätt: 90 → 0).
+  - **En omritning bakom en öppen puck** kan inte ta emot något alls: en dold scrollruta
+    rapporterar `scrollTop` som 0 och kan inte skrivas till. `openDetail` tar därför en
+    ögonblicksbild i `boardAt.cols` *medan brädan syns*, och `closeDetail` lägger tillbaka
+    den.
+  - **En navigering** ska inte ärva platsen. Brädan stämplas med vy + filter + gruppering,
+    och platsen läggs bara tillbaka när stämpeln är densamma — `NO_VALUE` är fyra
+    grupperingars nyckel, och `status` är samma gruppering i All som i Ready.
+
+  Lärdomen är inte att svaret var fel utan **varför**: det drogs ur en enda mätt väg och
+  formulerades som om det gällde alla. "Koden behövde ingen ändring" är en slutsats som
+  kräver att man letat efter vägarna, inte att den man råkade mäta höll.
 - **Hjulet över krommet** — den lodräta halvan är borta, och det är det ärliga utfallet:
   det finns ingen skroll på brädnivå att forwarda till, och pekaren över topbaren står
   ovanför ingen kolumn. Att välja en åt användaren vore att hitta på en destination.

@@ -844,7 +844,19 @@ than tuning them.
   `scrollLeft` to 0 (measured: 90 → 0). That is the same rule in a new disguise. `colPlaces`
   is cleared in `exitPuckView` too, because the keys are the grouping's own values, so `now`
   is `now` in the next view and the old board's place would otherwise be inherited one box
-  further in — the exact bug that function already exists to prevent.
+  further in — the exact bug that function already exists to prevent. **And the stamp the
+  restore is gated on says which *board* this is — view, filter and grouping — not just how
+  it is grouped**: `NO_VALUE` is the empty bucket for four groupings, and `status` is the
+  same grouping in All as in Ready, so either alone lets a destination open partway down
+  (measured: Ready's `now` at 260px, read in All). A display toggle is the same board with
+  more or less drawn, and returning to your place there is right.
+  **Two more paths, and the third is the one that reads wrong until you see it.** A redraw in
+  a *visible* board restores in one pass over a finished board — doing it per column inside
+  the loop forces a layout of a half-built one and clamps the port's own `scrollLeft` to 0
+  (90 → 0). A redraw *behind an open puck* cannot be restored at render time at all: a hidden
+  scroller reports `scrollTop` as 0 and cannot be written to, so the capture reads nothing and
+  the write goes nowhere. `openDetail` snapshots the columns into `boardAt.cols` while the
+  board is still visible, and `closeDetail` puts them back.
 - **A closed puck's outcome is true of the commit that wrote it, not of the PR it sits in.**
   `bradans-egen-scrollruta` was corrected once for describing an intermediate design, and
   then went stale a second time — because *later steps in the same branch* changed what it
