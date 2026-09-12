@@ -2168,6 +2168,37 @@ export async function run({ open }) {
       `ingen kolumn ärvde en plats över grupperingsbytet: ${JSON.stringify(efterByte)}`);
   }
 
+  group("facket linjerar med kolumnerna bredvid");
+  {
+    // Rapporterat från en telefon, med bägge rubrikerna markerade: `HIDDEN` stod högre än
+    // `LATER`. Två saker skilde, och bara den ena var paddingen — facket har en 1px
+    // streckad ram kolumnerna saknar, *och* dess rubrik håller inga kontroller, så den var
+    // 7px kortare och den centrerade titeln red upp med den. Mätt före: titeln på 15 mot
+    // kolumnernas 26.
+    //
+    // Det här är dessutom hälften av en tidigare rapport jag delade fel: när facket "låg
+    // lite off" mätte jag att det *gled ur rutan* vid skroll och visade att scroll per
+    // kolumn löste det. Linjeringen var ett eget fel som stod kvar.
+    const p = await open("?view=all", { data: tall, viewport: { width: 900, height: 700 } });
+    await p.waitForSelector(".hidden-cols");
+    const m = await p.evaluate(() => {
+      const pr = document.getElementById("port").getBoundingClientRect();
+      return [...document.querySelectorAll(".board > .column")].map((c) => ({
+        namn: c.querySelector(".col-head h2").textContent.trim(),
+        fack: c.classList.contains("hidden-cols"),
+        titel: Math.round(c.querySelector(".col-head h2").getBoundingClientRect().top - pr.top),
+        huvudH: Math.round(c.querySelector(".col-head").getBoundingClientRect().height) }));
+    });
+    ok(m.some((k) => k.fack), `facket är ritat, annars mäter det här ingenting: ${JSON.stringify(m)}`);
+    ok(m.length > 1, "och det finns kolumner att linjera mot");
+    eq(new Set(m.map((k) => k.titel)).size, 1,
+      `varje kolumntitel står på samma rad, facket inräknat: ${JSON.stringify(m)}`);
+    // Och rubrikerna är lika höga, vilket är *varför* titlarna linjerar: en rubrik utan
+    // kontroller är annars kortare än en med, och titeln är centrerad i sin rubrik.
+    eq(new Set(m.map((k) => k.huvudH)).size, 1,
+      `och rubrikerna är lika höga oavsett vilka kontroller de bär: ${JSON.stringify(m)}`);
+  }
+
   group("facket kapas vid porten och skrollar själv, korta fack hugger sitt innehåll");
   {
     // Codex, #54. Facket är den enda lådan på brädan utan tak: `align-self: start`, för att

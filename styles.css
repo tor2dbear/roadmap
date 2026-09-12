@@ -456,7 +456,18 @@ body {
    rows rather than cards, so it sets itself apart by weight — a dashed edge and a
    quieter head — instead of by size. The count on each row is the reason it exists:
    the chip row can say *what* is hidden, never how much is behind it. */
-.hidden-cols { border: 1px dashed var(--line); border-radius: var(--r-lg); padding: 10px; align-self: start; }
+/* The tray lines up with the columns beside it, and that takes two numbers because two
+   things differ. Its box has a 1px dashed border the columns do not, so the top padding is
+   one pixel short of theirs; and its head holds no controls, so it was shorter than a
+   column head and its centred title sat higher still. Reported from a phone with both
+   marked: measured, the title at 15 against the columns' 26. */
+.hidden-cols { border: 1px dashed var(--line); border-radius: var(--r-lg); padding: 17px 10px 10px; align-self: start; }
+/* The head's height is set by the tallest thing it may hold — the `⋯` button at 27px — so a
+   head carrying none is 7px shorter, and its centred title rides up with it. Stated so every
+   head is the same height whatever controls it happens to have, which is what puts the
+   titles on one line. 41 = the button's 27 plus this rule's own `padding-block: 4px 10px`;
+   `box-sizing` is border-box here, so the padding is inside the number. */
+.col-head { min-height: 41px; }
 .hidden-cols .col-head { position: static; background: none; color: var(--ink-3); }
 .hidden-cols .col-head h2 { color: var(--ink-3); }
 .hidden-col { gap: 8px; font-size: var(--fs-md); }
