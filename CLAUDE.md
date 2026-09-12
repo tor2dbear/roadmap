@@ -808,6 +808,15 @@ than tuning them.
   There is no board-level vertical scroll now, and the pointer over the topbar is above no
   column; choosing one — the leftmost, the widest — would be inventing a destination.
   Sideways is still forwarded. The rule is the list's now.
+- **A closed puck's outcome is true of the commit that wrote it, not of the PR it sits in.**
+  `bradans-egen-scrollruta` was corrected once for describing an intermediate design, and
+  then went stale a second time — because *later steps in the same branch* changed what it
+  describes (the footer left the port; the port lost an axis; the head stopped being
+  pinned). Third occurrence of one mistake, so the rule is sharpened: **when a later step
+  touches code a closed puck describes, re-read that puck's outcome before the PR moves on**
+  — check the closed pucks in the branch's diff, not only the open ones. The repair is a
+  `## Sedan dess` section rather than a rewrite: the narrative is the record, but no
+  sentence may claim something about *today* that is no longer true.
 - **Seven checks moved with the premises rather than being patched**, in one sitting: the
   head pins, the board overflows the port vertically, the port takes the wheel's `deltaY`,
   the saved place is the port's `scrollTop`, the lock restores it, a popover reads the

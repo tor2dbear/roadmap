@@ -89,15 +89,16 @@ den andra höll inte.)
 `scrollPort()` finns, och att den finns är hela ändringen. De två CSS-raderna stod kvar som
 de var mätta; svansen blev ungefär vad pucken förutsåg, med tre tillägg den inte hade.
 
-**Porten blev en egen låda, och foten är skälet.** Det uppenbara är att göra `#board` till
+**Porten blev en egen låda, och foten var skälet.** Det uppenbara är att göra `#board` till
 scrollrutan, och så byggdes det först. Men brädan lägger ut sina barn `grid-auto-flow:
 column`, så en fot *inuti* den blir bara ännu en kolumn — och en fot *utanför* den låda som
 skrollar är en fot som aldrig skrollar bort. Den stod fast underst i fönstret i en commit,
-rapporterad från telefonen: 114px av 844. `.port` wrappar brädan **och** foten och skrollar
-bägge axlarna; brädan går tillbaka till att svämma över synligt, vilket den måste, för en
-sticky-box löser upp mot närmaste scrollcontainer och får inte hitta brädan. Det är exakt
-listans arrangemang en layout bort — `.board.as-list` har stängt av sin egen `overflow-x`
-sedan listan skrevs, av samma skäl.
+rapporterad från telefonen: 114px av 844. `.port` wrappade därför brädan **och** foten och
+skrollade bägge axlarna; brädan gick tillbaka till att svämma över synligt, vilket den måste,
+för en sticky-box löser upp mot närmaste scrollcontainer och får inte hitta brädan. Det är
+exakt listans arrangemang en layout bort — `.board.as-list` har stängt av sin egen
+`overflow-x` sedan listan skrevs, av samma skäl. (Lådan står kvar och skälet är nu det
+andra: se *Sedan dess* nedan.)
 
 **Frågan hade fyra läsare, inte tre.** Hjulet, låset och puckssidans sparade plats stod i
 pucken. Den fjärde var **tabbstoppet**: `.work` bär `tabindex="0"` i markupen sedan regeln
@@ -125,8 +126,11 @@ layout bort, och samma reparation: luften flyttar till lådan som färdas, `.col
   Den *stod* underst i fönstret så länge brädan var porten, och det var fel: foten hör till
   innehållet. Mätt på 390px efter omstruktureringen: y=10352, alltså sist bland korten.
   Skärmdump tagen och visad före commit, som pucken bad om — det var den som avgjorde.
-- **Ska rubriken fastna på en telefon?** Ja. Den är en rad, inte ett block — till skillnad
-  från listans frysta namnkolumn, som mättes till 368px och retirerade av just det skälet.
+  (Frågan är sedan dess avskaffad: foten finns inte.)
+- **Ska rubriken fastna på en telefon?** Ja, var svaret här. Den är en rad, inte ett block —
+  till skillnad från listans frysta namnkolumn, som mättes till 368px och retirerade av just
+  det skälet. (Också avskaffad: rubriken pinnas inte längre, den ligger utanför det som
+  skrollar.)
 
 **Sabotaget fällde åtta av elva regler, och de tre som stod kvar är fynden.**
 
@@ -148,11 +152,25 @@ listans axellås: `touch-action`, sidledsstudsen och de gömda indikatorerna är
 vara ett direkt barn när den fick en förälder. Fem kontroller föll på en gång, ingen av dem
 om det här bytet.
 
-## Kvar
+## Sedan dess
 
-Listan gömmer sina inbyggda scrollindikatorer under `(pointer: coarse)`, eftersom en port
-med två axlar ritar dem illa — den lodräta stapeln målar under de klibbiga rubrikerna, och
-en snärt nedåt blinkar till den vågräta. Kanbanporten är tvåaxlig nu också, så samma sak
-kan gälla den. Den regeln skrevs från en rapport från en riktig enhet; den här har ingen,
-och att bredda den på symmetri vore precis den omätta svepning arkivmärkets vakt togs bort
-för.
+**Tre saker i utfallet ovan var sanna när de skrevs och är det inte längre**, och de ändrades
+av arbete i samma PR. Det står här i stället för att retuscheras bort: berättelsen är
+protokollet, men ingen mening ska påstå något om *idag* som inte gäller.
+
+| vad utfallet säger | vad som gäller nu | av |
+| --- | --- | --- |
+| `.port` håller brädan **och** foten | porten håller bara brädan; foten finns inte | `foten-flyttar-in-i-sidomenyn` |
+| porten skrollar bägge axlarna | porten skrollar i sidled, kolumnen i höjdled | `varje-kolumn-skrollar-for-sig` |
+| rubriken ska fastna, och gör det | rubriken pinnas inte — den ligger utanför det som skrollar | `varje-kolumn-skrollar-for-sig` |
+
+Med dem gick också 18px-läckan (en sticky-box fäster mot portens innehållsbox — ingen sticky,
+ingen läcka) och frågan om scrollindikatorerna: den ställdes för att kanbanporten blivit
+tvåaxlig, och den är enaxlig igen.
+
+**Och lärdomen, för tredje gången på det här brädet.** `ea58358` rättade `sortering-ar-en-kedja`,
+`2b3e61a` rättade den här pucken en gång, och det här är samma fel en tredje: ett utfall är
+sant om den commit som skrev det, inte om PR:en det ligger i. Skärpt regel, eftersom den
+uppenbarligen behöver det: **ändrar ett senare steg i samma PR kod som en stängd puck
+beskriver, ska den puckens utfall läsas om innan PR:en går vidare.** Det är inte en fråga om
+minne utan om ordning — kolla de stängda puckerna i grenens diff, inte bara de öppna.
