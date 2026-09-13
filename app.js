@@ -4358,7 +4358,16 @@
     // the kanban layout is `#board` and not `.work`.
     var from = document.body.classList.contains("viewing-puck") ? null : scrollPort();
     if (from) {
-      boardAt = { x: from.scrollLeft, y: from.scrollTop, group: boardEl && boardEl.dataset.group, cols: {} };
+      // `el`: *which box* the offsets were read from, not merely how much. The layout can
+      // change while the puck is open — ⌘K still offers `Layout: list/board`, and
+      // `setDisplay` does not close the puck — so `scrollPort()` can answer with a different
+      // box on the way out than it did on the way in, and the kanban port's `scrollLeft`
+      // would be written straight into the list's `.work`. Measured at 700px: the port
+      // read at 200, switched to the list behind the puck, and closing left `.work` at
+      // **178** — its whole horizontal range, a list opened fully shifted sideways. Codex
+      // found it (#54). Same shape and same cure as `lockedEl` in `lockScroll`, which this
+      // file already chose for the identical problem: remember the box, not the question.
+      boardAt = { el: from, x: from.scrollLeft, y: from.scrollTop, group: boardEl && boardEl.dataset.group, cols: {} };
       // The columns' places too, and *here* rather than at the next render: a hidden
       // scroller reports `scrollTop` as 0 (Chromium remembers it and gives it back when the
       // box is shown, but only for a box that survives). A redraw behind an open puck —
@@ -4463,8 +4472,15 @@
     // after the class comes off, or the port asked for would still be the puck's.
     var back = boardAt && scrollPort();
     if (back) {
-      back.scrollTop = boardAt.y;
-      back.scrollLeft = boardAt.x;
+      // Only into the box the numbers came from. `.work` and `#port` both outlive every
+      // redraw (`renderBoard` replaces the board's children, not its ancestors), so identity
+      // is an exact answer where the layout class would be a proxy for it. A layout switched
+      // behind the puck drops the place rather than moving it somewhere it never belonged —
+      // `boardAt` is cleared either way, because that place no longer exists.
+      if (back === boardAt.el) {
+        back.scrollTop = boardAt.y;
+        back.scrollLeft = boardAt.x;
+      }
       // And each column, from the snapshot taken on the way in. It is written here whether
       // or not the board was redrawn behind the puck: if it was not, the nodes still hold
       // these very numbers and the write is a no-op; if it was, this is the first moment

@@ -938,6 +938,25 @@ than tuning them.
   NUL, `TRAY_KEY`), and none of those belong in one. Same idiom the board already uses twice:
   `segmented()` puts the pressed segment back after a rebuild, and `toggleGroup` finds its
   control again by `data-fold`.
+- **`boardAt` remembers the box, not just the numbers.** `closeDetail` asked `scrollPort()`
+  where the place should go back — but the layout can change *while the puck is open*: ⌘K
+  still offers `Layout: list/board`, and `setDisplay` closes no puck. `scrollPort()` then
+  answers with a different box on the way out than on the way in, and the kanban port's
+  `scrollLeft` went straight into the list's `.work` — measured at 700px, the port read at
+  200 and the list opened at **178**, its whole horizontal range. Codex found it (#54). The
+  place is restored only when `scrollPort()` answers with the same node; a layout switched
+  behind the puck drops it instead. Same shape and same cure as `lockedEl` in `lockScroll`,
+  which this file already chose for the identical problem — *two functions that must agree
+  about a moving answer is the shape this file cleans up.* Identity rather than the layout
+  class, because the class is only a proxy for it, and `.work` and `#port` both outlive every
+  redraw (`renderBoard` replaces the board's children, not its ancestors).
+- **A test may not wait on a proxy for the thing it measures.** The tab-stop check waited for
+  a draggable card as a sign the redraw had happened, and failed 1 run in 5 with a column
+  still carrying its old `tabindex`: a proxy answers when something *else* happens to become
+  true. It marks the nodes first and waits for them to be replaced, and reads the hidden state
+  and the stops in one `evaluate` so a visible board fells the line that names the cause
+  rather than the one that measures the symptom. Same lesson the port's `overflow-y` taught:
+  measure the mechanism, not what usually comes with it.
 - **A closed puck's outcome is true of the commit that wrote it, not of the PR it sits in.**
   `bradans-egen-scrollruta` was corrected once for describing an intermediate design, and
   then went stale a second time — because *later steps in the same branch* changed what it

@@ -349,3 +349,26 @@ med en attributselektor: en nyckel är ett grupperingsvärde — ett reponamn me
 
 Samma idiom brädan redan använder två gånger: `segmented()` lägger tillbaka det tryckta
 segmentet efter en ombyggnad, och `toggleGroup` hittar sin kontroll igen på `data-fold`.
+
+**Ett nionde, och det sista av formens lådor som fick svara på fel fråga.** `closeDetail`
+frågade `scrollPort()` om var platsen skulle tillbaka, men layouten kan ändras *medan pucken
+är öppen*: ⌘K erbjuder fortfarande `Layout: list/board`, och `setDisplay` stänger ingen puck.
+`scrollPort()` svarar då med en annan låda på vägen ut än på vägen in, och kanbanportens
+`scrollLeft` skrevs rakt in i listans `.work`. Mätt vid 700px: porten läst på 200, layouten
+bytt bakom pucken, och efter stängning stod `.work` på **178** — hela dess sidledsrum, alltså
+en lista öppnad helt förskjuten. Codex fann det (#54).
+
+`boardAt` minns **lådan**, inte bara talen, och platsen läggs tillbaka bara när `scrollPort()`
+svarar med samma nod. Det är samma form och samma bot som `lockedEl` i `lockScroll`, som den
+här filen redan valt en gång för exakt samma problem: *två funktioner som måste vara överens
+om ett rörligt svar är formen den här filen städar bort*. Identitet är dessutom ett exakt svar
+där layoutklassen bara vore ett ombud för det — och `.work` och `#port` överlever varje
+omritning, eftersom `renderBoard` byter ut brädans barn och inte dess förfäder.
+
+**Och en av mina egna kontroller visade sig flaka, 1 gång på 5.** Den väntade på ett draggbart
+kort som tecken på att omritningen skett — ett **ombud** för det den mäter, inte det den mäter.
+Ett ombud svarar när något *annat* råkar bli sant. Den markerar noderna före och väntar på att
+de är utbytta nu, och läser dolt-läget och stoppen i samma `evaluate`, så att en synlig bräda
+fäller den rad som namnger orsaken i stället för den som mäter symptomet. Fyra rena körningar
+efter. Det är samma lärdom som `bradans-egen-scrollruta` fick om portens `overflow-y`: mät
+mekanismen, inte något som brukar följa med den.

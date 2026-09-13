@@ -2907,12 +2907,31 @@ export async function run({ open }) {
     eq(await p.evaluate(() => getComputedStyle(document.getElementById("board")).display), "none",
       "brädan är dold, vilket är hela premissen");
 
+    // Väntan går på *noderna*, inte på `draggable`. Första versionen väntade på ett
+    // draggbart kort, vilket är ett ombud för omritningen och inte omritningen — och den
+    // föll 1 gång på 5 med en kolumn som fortfarande bar sitt gamla `tabindex`. Ett ombud
+    // svarar när något annat råkar bli sant; det här svarar när det som mäts har hänt.
+    await p.evaluate(() => {
+      document.querySelectorAll(".board > .column > .cards[data-col]").forEach((k) => { k.dataset.gammal = "1"; });
+    });
     släpp();                                  // sonden landar → renderBoard() bakom pucken
-    await p.waitForFunction(() => !!document.querySelector('.card[draggable="true"]'), null, { timeout: 8000 });
+    await p.waitForFunction(() => {
+      const k = document.querySelector(".board > .column > .cards[data-col]");
+      return !!k && !k.dataset.gammal;        // noderna är utbytta
+    }, null, { timeout: 8000 });
     // Bakom pucken *ska* de vara borta — en dold låda rullar inte, och passet har inget
     // annat svar att ge. Det är inte felet; felet var att ingen frågade om igen.
-    const under = await stopp();
-    eq(under.filter((k) => k.tab === "0").length, 0,
+    //
+    // Dolt-läget och stoppen läses i *samma* evaluate: skulle brädan mot förmodan vara
+    // synlig faller den rad som namnger orsaken, i stället för den som mäter symptomet.
+    const under = await p.evaluate(() => ({
+      dold: getComputedStyle(document.getElementById("board")).display === "none",
+      lådor: [...document.querySelectorAll(".board > .column > .cards[data-col]")]
+        .map((k) => ({ kol: k.dataset.col, tab: k.getAttribute("tabindex"),
+                       rullar: k.scrollHeight > k.clientHeight + 1 })),
+    }));
+    eq(under.dold, true, `brädan är fortfarande dold när stoppen läses: ${JSON.stringify(under)}`);
+    eq(under.lådor.filter((k) => k.tab === "0").length, 0,
       `bakom pucken svarar varje låda 0 och inget är ett stopp: ${JSON.stringify(under)}`);
 
     await p.evaluate(() => history.back());
@@ -3083,5 +3102,64 @@ export async function run({ open }) {
     await p.waitForTimeout(250);
     eq(await p.evaluate(() => document.activeElement.className.split(" ")[0]), före,
       "och står kvar där — platsen läggs tillbaka, fokus rörs inte");
+  }
+
+  group("ett layoutbyte bakom en öppen puck flyttar inte platsen till fel låda");
+  {
+    // Codex, #54. Layouten kan ändras medan pucken är öppen — ⌘K erbjuder fortfarande
+    // `Layout: list/board`, och `setDisplay` stänger ingen puck — så `scrollPort()` kan
+    // svara med en *annan* låda på vägen ut än på vägen in. Kanbanportens `scrollLeft`
+    // skrevs då rakt in i listans `.work`. Mätt vid 700px: porten läst på 200, layouten
+    // bytt bakom pucken, och efter stängning stod `.work` på **178** — hela dess sidledsrum,
+    // alltså en lista öppnad helt förskjuten.
+    //
+    // Samma form och samma bot som `lockedEl` i `lockScroll`: minns lådan, inte frågan.
+    const breda = (p) => {
+      const frö = p.items.find((i) => i.status === "now");
+      for (let n = 0; n < 14; n++) {
+        p.items.push({ ...frö, id: frö.id + "-x" + n, slug: frö.slug + "-x" + n,
+          title: "Fyllnad " + n + " med en ganska lång titel som gör listan bred" });
+      }
+      return p;
+    };
+    const p = await open("?view=all", { data: breda, viewport: { width: 700, height: 420 } });
+    await p.waitForSelector(".board .card");
+    const rum = await p.evaluate(() => {
+      const pt = document.getElementById("port");
+      pt.scrollLeft = 200;
+      return { portrum: pt.scrollWidth - pt.clientWidth, satt: Math.round(pt.scrollLeft) };
+    });
+    ok(rum.portrum > 200 && rum.satt === 200,
+      `porten står skrollad i sidled innan pucken öppnas: ${JSON.stringify(rum)}`);
+
+    await p.evaluate(() => document.querySelector(".card").click());
+    await p.waitForFunction(() => document.body.classList.contains("viewing-puck"));
+
+    await p.keyboard.press("Meta+k");
+    await p.waitForTimeout(300);
+    await p.keyboard.type("Layout: list");
+    await p.waitForTimeout(300);
+    await p.keyboard.press("Enter");
+    await p.waitForTimeout(400);
+    eq(await p.evaluate(() => ({
+      puck: document.body.classList.contains("viewing-puck"),
+      lista: document.getElementById("board").classList.contains("as-list") })),
+      { puck: true, lista: true },
+      "layouten går att byta med pucken kvar öppen — det är hela premissen");
+
+    await p.keyboard.press("Escape");
+    await p.waitForTimeout(400);
+    const efter = await p.evaluate(() => {
+      const w = document.querySelector(".work");
+      return { puck: document.body.classList.contains("viewing-puck"),
+               lista: document.getElementById("board").classList.contains("as-list"),
+               workX: Math.round(w.scrollLeft),
+               xrum: w.scrollWidth - w.clientWidth };
+    });
+    eq(efter.puck, false, "pucken är stängd");
+    ok(efter.xrum > 0,
+      `listan har sidledsrum att bli förskjuten i, annars mäter det här ingenting: ${JSON.stringify(efter)}`);
+    eq(efter.workX, 0,
+      `och står på sin egen början — kanbanportens tal följde inte med: ${JSON.stringify(efter)}`);
   }
 }
