@@ -453,15 +453,19 @@ body {
 
 /* The hidden-columns tray — a column-shaped place at the end of the board holding the
    ones the filter took away. It is not a column: nothing drops into it, and it carries
-   rows rather than cards, so it sets itself apart by weight — a dashed edge and a
-   quieter head — instead of by size. The count on each row is the reason it exists:
+   rows rather than cards, so it sets itself apart by weight — a quieter head, and rows that
+   look nothing like cards — instead of by size. The count on each row is the reason it exists:
    the chip row can say *what* is hidden, never how much is behind it. */
-/* The tray lines up with the columns beside it, and that takes two numbers because two
-   things differ. Its box has a 1px dashed border the columns do not, so the top padding is
-   one pixel short of theirs; and its head holds no controls, so it was shorter than a
-   column head and its centred title sat higher still. Reported from a phone with both
-   marked: measured, the title at 15 against the columns' 26. */
-.hidden-cols { border: 1px dashed var(--line); border-radius: var(--r-lg); padding: 17px 10px 10px; align-self: start; }
+/* The tray lines up with the columns beside it, and the alignment is now a matter of
+   having nothing to align: the dashed edge is gone at the user's request, and with it the
+   1px border and 10px side padding that inset everything inside it. Measured before:
+   the tray's title 11px from its own left edge against a column's 18px, and its rows 11px
+   in where the cards beside them start at 0 — a seven-pixel and an eleven-pixel drift,
+   both of them paid for by a box that no longer exists. What is left is `align-self:
+   start` (a list of four rows should not be column-tall) — `.column`'s own `padding-top`
+   and `border-radius` say the rest, which is the point: the tray is a column.
+   It sets itself apart by its head and its rows now, not by a line around it. */
+.hidden-cols { align-self: start; }
 /* The head's height is set by the tallest thing it may hold — the `⋯` button at 27px — so a
    head carrying none is 7px shorter, and its centred title rides up with it. Stated so every
    head is the same height whatever controls it happens to have, which is what puts the
@@ -469,6 +473,13 @@ body {
    `box-sizing` is border-box here, so the padding is inside the number. */
 .col-head { min-height: 41px; }
 .hidden-cols .col-head { position: static; background: none; color: var(--ink-3); }
+/* The tray keeps the column head's *shape* without its mark: a swatch is a colour, and a
+   tray of four columns has no one colour to show. Blank, it is the slot rather than the
+   mark — and the slot is what puts `HIDDEN` on the same line as `NOW` and `NEXT`. Stated
+   as an absent background rather than as a left padding of 18px, so the width stays owned
+   by `.col-head .swatch` and the gap by the head: a padding would be those two numbers
+   written down a second time, in the one place nothing would keep them in step. */
+.hidden-cols .col-head .swatch { background: none; }
 .hidden-cols .col-head h2 { color: var(--ink-3); }
 .hidden-col { gap: 8px; font-size: var(--fs-md); }
 .hidden-col .swatch { width: 10px; height: 10px; border-radius: var(--r-xs); flex: none; background: var(--ink-3); }
@@ -1623,6 +1634,26 @@ body:not(.viewing-puck) .port > .board:not(.as-list) > .column > .cards {
   --bar-lane: 8px;
   margin-right: calc(-1 * var(--bar-lane));
   padding-right: var(--bar-lane);
+  /* And the bar drawn in that lane is the sidebar's, which has been the board's one
+     self-effacing scrollbar since it was written: a thin thumb in `--line`, no track, and
+     `--ink-3` while the pointer is over the box. Both themes are already answered, because
+     both tokens are — `--line` is a hairline on the page's own ground in each. The standard
+     properties only, deliberately no `::-webkit-scrollbar`: a width there is what turns an
+     overlay bar into a classic one, and a classic bar takes its width out of `clientWidth`,
+     which would shrink the cards by 8px and walk them out of line with `.col-head` — the
+     exact register the lane exists to keep. Measured in the test browser: `clientWidth` 288
+     before and after, the card's right edge 302 against the head's 302, both ways. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+  /* The card's shadow needs somewhere to fall on the left, and a scrollport clips at its
+     padding box. With no left padding the card's left edge *was* the clip edge — measured,
+     scroller and card both at 262 — so `0 2px 8px` fell softly into the lane on the right
+     and was cut flat on the left. One card, two different edges. Four pixels is the blur's
+     own reach (half of 8), bled and re-inset exactly like the lane above it, so the card's
+     box does not move: it stays column-wide and in register with the head. */
+  --card-bleed: 4px;
+  margin-left: calc(-1 * var(--card-bleed));
+  padding-left: var(--card-bleed);
   /* One axis, said out loud, because CSS will not leave it alone otherwise: an `overflow`
      of `visible` on one axis computes to `auto` when the other is not `visible`. This is
      the rule the board already knows from the other direction — `overflow-x: auto` forcing
@@ -1644,6 +1675,11 @@ body:not(.viewing-puck) .port > .board:not(.as-list) > .column > .cards {
      is what stops anything *else* that overflows from re-opening a second axis. */
   overflow-x: clip;
 }
+/* Findable when you reach for it, invisible when you are not. Guarded, because `:hover` is
+   a state a finger cannot leave — the convention the list's own controls already follow. */
+@media (hover: hover) {
+  body:not(.viewing-puck) .port > .board:not(.as-list) > .column > .cards:hover { scrollbar-color: var(--ink-3) transparent; }
+}
 /* The content shrinks instead of overflowing, and that is the actual repair. A title is
    the one field holding arbitrary text — a pasted URL is the ordinary case — and
    `anywhere` is what lets an unbreakable token break at all. Measured against the clip
@@ -1653,10 +1689,17 @@ body:not(.viewing-puck) .port > .board:not(.as-list) > .column > .cards {
 .card h3 { overflow-wrap: anywhere; }
 /* In the list the port is `.work`, so this box is structure and nothing else. */
 .port { min-width: 0; display: flex; flex-direction: column; }
-/* It is a tab stop (see `index.html`), so a click on the empty space beside the columns
-   focuses it. The ring belongs to the keyboard route only — the same rule the focus
-   buttons follow. */
-.work:focus:not(:focus-visible) { outline: none; }
+/* The scrollports are tab stops (see `markPort` and `renderColumns`), so a click on the
+   empty space beside the columns — or on a column's own background — lands on one. The
+   ring belongs to the keyboard route only, the same rule the focus buttons follow.
+   All three, because "the scrollport" stopped being one box: `.work` in the list and on a
+   puck page, `.port` in kanban, and every `.cards` since the columns took the vertical
+   axis. Written for `.work` alone it covered the layout that was, and in kanban a mouse
+   click landed a ring on the port or on the column it was aimed at — measured, `.work`
+   holding no `tabindex` at all there while `.port` and the columns hold theirs. */
+.work:focus:not(:focus-visible),
+.port:focus:not(:focus-visible),
+.cards:focus:not(:focus-visible) { outline: none; }
 /* One axis per drag, decided before the gesture rather than corrected after it: the
    browser is told it may not pan this box sideways, and `armAxisLock` drives `scrollLeft`
    itself when a drag turns out to be a sideways one. `pinch-zoom` stays, or the board

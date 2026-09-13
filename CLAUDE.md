@@ -801,6 +801,16 @@ than tuning them.
   **Sabotage cannot fell it** — the scrim swallows the wheel either way — so the check
   asserts the computed `overflow-y`, and this paragraph is the record that the scrim is
   what the reader actually feels.
+- **The focus ring names all three ports, because "the scrollport" stopped being one box.**
+  `.work:focus:not(:focus-visible)` was written when `.work` was the only one; in kanban it
+  holds no `tabindex` at all, so a mouse click landed a ring on a box the rule did not name.
+  `.work`, `.port` and `.cards` now, which is `scrollPort()`'s own list one file over. Its
+  check measures **coverage, not the ring**, and sabotage is what decided that: Chromium's
+  own stylesheet rings only on `:focus-visible`, so a mouse focus is ringless here by
+  default and narrowing the rule back to `.work` felled no behavioural check at all. The
+  rule is defence-in-depth for browsers that ring on a plain `:focus`; what is measurable,
+  and what was actually wrong, is which boxes it names. The behavioural half is kept and
+  labelled as such — otherwise the coverage would read as proof of a behaviour.
 - **Each column's card list is a tab stop**, labelled by the column. The board had one stop
   while it had one scroller; with the vertical axis inside the columns, Page Down on the
   port moves nothing but sideways. Chrome puts overflowing boxes in the tab order by itself
@@ -821,6 +831,35 @@ than tuning them.
   fells its own check — drop the bleed and the cards shrink out of line with the head; drop
   the inset and the scroller no longer extends past them. The bar itself is an overlay the
   test browser does not draw, so the checks assert the lane and the device confirms the bar.
+  **The bar in it is the sidebar's**, which has been this board's one self-effacing scrollbar
+  since it was written: `scrollbar-width: thin`, a thumb in `--line`, no track, `--ink-3`
+  under the pointer. Both themes come free because both tokens do. Deliberately *no*
+  `::-webkit-scrollbar` rules, unlike the sidebar: a width there is what turns an overlay bar
+  into a classic one, and a classic bar takes its width out of `clientWidth` — which would
+  shrink the cards by 8px and walk them out of the very register the lane exists to keep
+  (measured: `clientWidth` 288 and the card's right edge at the head's 302, both ways).
+- **The card's shadow needs a lane of its own on the left, for the same reason and half the
+  width.** A scrollport clips at its padding box, and with no left padding the card's left
+  edge *was* the clip edge — measured, scroller and card both at 262 — so `0 2px 8px` fell
+  softly into the lane on the right and was cut flat on the left. One card, two different
+  edges. `--card-bleed: 4px` is the blur's own reach (half of 8), bled and re-inset exactly
+  like the lane above it, so the card's box does not move. The gap arithmetic still works:
+  16px between columns, 8 for the bar and 4 for the shadow, and the two never meet.
+- **The drop line goes before `.col-add`, not last in the container.** `dropPointAt` reads
+  `.card` and answers `null` for "after them all"; `showDropLine` appended, and the container
+  stopped being only cards when the `+` moved inside the scroller — measured with three
+  cards, the line at y=487 against a last card ending at 433, with the button's 443–474 in
+  between. 54px below where the drop would actually write, which is the one thing a drop
+  line exists to say. The same sentence has to be said in both places now.
+- **The tray is a column, and the dashed border was the last thing pretending otherwise.**
+  Removed at the user's request — and removing it was also the rest of the misalignment they
+  had reported three times: the 1px border and 10px side padding put the tray's title 11px
+  from its own left edge where a column's stands at 18, and its rows 11px in where the cards
+  beside them start at 0. What is left is `align-self: start`; `.column`'s own `padding-top`
+  and `border-radius` say the rest. The 18px is the swatch plus the head's gap, so the tray
+  keeps the swatch's **slot** without its mark — four columns have no one colour — rather
+  than restating those two numbers as a padding in the one place nothing would keep them in
+  step.
 - **A column takes one axis, and CSS will not leave it alone.** `overflow-y: auto` beside an
   `overflow-x` of `visible` computes the *visible* one to `auto` — the same rule that forces
   `#board` not to be a scroll container, read from the other direction — so one unbreakable

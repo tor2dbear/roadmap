@@ -1916,9 +1916,17 @@
     var seq = kids.map(function (c) { return byId[c.getAttribute("data-id")]; }).filter(Boolean);
     return { before: kids[idx] || null, prev: seq[idx - 1] || null, next: seq[idx] || null };
   }
+  // The end of the list is the last *card*, not the last child. `.col-add` moved inside
+  // the scroller when `.cards` became the column's scrollport, so appending drew the line
+  // below the `+` — measured with three cards: the line at y=487 against a last card
+  // ending at 433, with the button's 443–474 in between. 54px below where the drop would
+  // actually write, which is the one thing a drop line exists to say. `dropPointAt` reads
+  // `.card` and hands back `null` for "after them all"; this is the same sentence, and it
+  // has to be said twice because the container holds more than cards now.
   function showDropLine(container, before) {
     var line = container.querySelector(".drop-line") || el("div", "drop-line");
-    if (before) container.insertBefore(line, before);
+    var at = before || container.querySelector(":scope > .col-add");
+    if (at) container.insertBefore(line, at);
     else container.appendChild(line);
   }
 
@@ -2223,14 +2231,24 @@
       var cards = col.querySelector(":scope > .cards");
       if (!cards || cards.contains(e.target)) return;  // the browser already has it
       if (cards.scrollHeight <= cards.clientHeight + 1) return;  // nothing to move
-      // Only the room in the direction asked for, or a column at its end would swallow a
-      // gesture the page could still have used — the rule `armAxisLock` states about
-      // claiming an axis at an edge.
+      // Only the room in the direction asked for. The listener is passive now, so a column
+      // at its end no longer *swallows* anything — it just writes a `scrollTop` that clamps
+      // to where it already was. The guard is kept because it still says the true thing:
+      // this column has no answer to that gesture. Same rule `armAxisLock` states about
+      // claiming an axis at an edge, minus the claim.
       var room = e.deltaY < 0 ? cards.scrollTop > 0 : cards.scrollTop < cards.scrollHeight - cards.clientHeight - 1;
       if (!room) return;
-      e.preventDefault();
+      // Passive, and that is the whole per-axis rule here: `preventDefault` cancels a wheel
+      // event *whole*, so cancelling to claim the vertical half threw the sideways half away
+      // with it — measured over a column head with 490px of port to the right, a diagonal
+      // (120, 12) moved the column 12 and the port 0, against 120 when the same gesture
+      // landed on a head whose column had nothing to scroll and the handler returned early.
+      // A claim on one axis may not cost the other; the rule is `armChromeWheel`'s, and so
+      // is the answer. Nothing double-scrolls, because the port is `overflow-y: hidden` and
+      // the page below it does not scroll at all: measured, the uncancelled `deltaY` reaches
+      // no scroller anywhere (`.work` 0, document 0), so this line is still the only writer.
       cards.scrollTop += e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? cards.clientHeight : 1);
-    }, { passive: false });
+    }, { passive: true });
   }
 
   function armChromeWheel(port) {
@@ -4872,6 +4890,9 @@
     hidden.forEach(function (h) { trayColumns.keys[h.key] = 1; });
     var tray = el("div", "column hidden-cols");
     var head = el("div", "col-head");
+    // The swatch slot, empty. See `.hidden-cols .col-head .swatch`: it carries no colour,
+    // it carries the 18px that every column title stands behind.
+    head.appendChild(el("span", "swatch"));
     head.appendChild(el("h2", null, "Hidden"));
     head.appendChild(el("span", "count", String(hidden.length)));
     tray.appendChild(head);

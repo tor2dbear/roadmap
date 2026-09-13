@@ -14,6 +14,14 @@ async function palettePick(page, label) {
   await page.waitForTimeout(250);
 }
 
+// `--line` är hex i stylesheeten och `scrollbar-color` läses tillbaka som rgb; jämförelsen
+// ska vara mellan två färger, inte mellan två stavningar.
+function hexTillRgb(hex) {
+  const h = hex.replace("#", "");
+  const n = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+  return "rgb(" + [0, 2, 4].map((i) => parseInt(n.slice(i, i + 2), 16)).join(", ") + ")";
+}
+
 export async function run({ open }) {
   group("sidomenyns sektioner fälls");
   {
@@ -2264,10 +2272,11 @@ export async function run({ open }) {
   group("facket linjerar med kolumnerna bredvid");
   {
     // Rapporterat från en telefon, med bägge rubrikerna markerade: `HIDDEN` stod högre än
-    // `LATER`. Två saker skilde, och bara den ena var paddingen — facket har en 1px
-    // streckad ram kolumnerna saknar, *och* dess rubrik håller inga kontroller, så den var
+    // `LATER`. Två saker skilde, och bara den ena var paddingen — facket hade då en 1px
+    // streckad ram kolumnerna saknade, *och* dess rubrik håller inga kontroller, så den var
     // 7px kortare och den centrerade titeln red upp med den. Mätt före: titeln på 15 mot
-    // kolumnernas 26.
+    // kolumnernas 26. Ramen är sedan dess borttagen (se gruppen nedanför), så bara den
+    // andra halvan står kvar som orsak — men mätningen är densamma och gäller bägge.
     //
     // Det här är dessutom hälften av en tidigare rapport jag delade fel: när facket "låg
     // lite off" mätte jag att det *gled ur rutan* vid skroll och visade att scroll per
@@ -2576,5 +2585,287 @@ export async function run({ open }) {
     await p.waitForTimeout(200);
     eq(await marks(), ["work:-:-", "port:0:Board"],
       "efter bytet till kanban har stoppet och namnet flyttat till porten — utan omladdning");
+  }
+
+  group("facket är en kolumn, inte en ruta bredvid kolumnerna");
+  {
+    // Begärt: "Vill även ta bort dashed border runt hidden." Ramen bar två inskjut ingen
+    // hade bett om — 1px ram plus 10px sidpadding — och de var hela den kvarvarande
+    // fellinjeringen, den användaren rapporterade en tredje gång. Mätt före: fackets titel
+    // 11px från dess egen vänsterkant mot en kolumns 18, och dess rader 11px in där korten
+    // bredvid börjar på 0.
+    //
+    // 18:an är svatchen och rubrikens gap. Facket bär ingen svatch — fyra kolumner har
+    // ingen gemensam färg — så det behåller *platsen* utan märket, vilket är vad som
+    // sätter `HIDDEN` på samma rad som `NOW`.
+    const p = await open("?view=all", { data: tall, viewport: { width: 900, height: 700 } });
+    await p.waitForSelector(".hidden-cols");
+    const m = await p.evaluate(() => {
+      const fack = document.querySelector(".hidden-cols");
+      const kol = document.querySelector(".board > .column:not(.hidden-cols)");
+      const V = (e) => Math.round(e.getBoundingClientRect().left);
+      const cs = getComputedStyle(fack);
+      return {
+        ram: cs.borderTopStyle, ramBredd: cs.borderTopWidth,
+        vänsterPad: cs.paddingLeft, högerPad: cs.paddingRight, toppPad: cs.paddingTop,
+        kolToppPad: getComputedStyle(kol).paddingTop,
+        titelDx: V(fack.querySelector(".col-head h2")) - V(fack),
+        kolTitelDx: V(kol.querySelector(".col-head h2")) - V(kol),
+        radDx: V(fack.querySelector(".hidden-col")) - V(fack),
+        kortDx: V(kol.querySelector(".card")) - V(kol),
+        // Svatchen är platsen, inte märket: den ritas, och den ritas färglös.
+        svatch: !!fack.querySelector(".col-head .swatch"),
+        svatchBg: fack.querySelector(".col-head .swatch")
+          ? getComputedStyle(fack.querySelector(".col-head .swatch")).backgroundColor : null,
+      };
+    });
+    eq(m.ram, "none", `ingen streckad ram kvar: ${JSON.stringify(m)}`);
+    eq(m.ramBredd, "0px", "och ingen ram alls — `none` utan bredd vore en ram som råkar vara osynlig");
+    eq([m.vänsterPad, m.högerPad], ["0px", "0px"],
+      `och inget sidinskjut kvar heller — det var ramens, inte fackets: ${JSON.stringify(m)}`);
+    eq(m.toppPad, m.kolToppPad,
+      `topppaddingen är kolumnens egen nu, inte en kompensation för 1px: ${JSON.stringify(m)}`);
+    eq(m.titelDx, m.kolTitelDx,
+      `titeln står på kolumnernas indrag: ${JSON.stringify(m)}`);
+    eq(m.radDx, m.kortDx,
+      `och raderna där korten bredvid börjar: ${JSON.stringify(m)}`);
+    eq(m.svatch, true, "facket behåller svatchens plats");
+    eq(m.svatchBg, "rgba(0, 0, 0, 0)", "men inte märket — det finns ingen färg att visa");
+    // Och 18:an är inte skriven någonstans: den kommer ur svatchens bredd och rubrikens gap.
+    ok(m.titelDx > 0, `indraget är verkligt, inte noll i bägge leden: ${JSON.stringify(m)}`);
+  }
+
+  group("scrollisten är diskret i bägge teman, och kostar inga kortpixlar");
+  {
+    // Begärt: "om det är möjligt att göra skrollbar mer diskret på både light och dark".
+    // Sidomenyn har svarat på det sedan den skrevs — tunn tumme i `--line`, inget spår —
+    // och bägge teman är redan besvarade eftersom tokenen är det.
+    //
+    // Avsiktligt *inga* `::-webkit-scrollbar`-regler: en bredd där gör en overlay-list
+    // klassisk, och en klassisk list tar sin bredd ur `clientWidth`. Det hade krympt korten
+    // med 8px och gått ur register med `.col-head` — precis det körfältet finns för.
+    for (const tema of ["light", "dark"]) {
+      const p = await open("?view=all", { data: tall, colorScheme: tema, viewport: { width: 900, height: 600 } });
+      await p.waitForSelector(".board .card");
+      const m = await p.evaluate(() => {
+        const kol = document.querySelector(".board > .column");
+        const k = kol.querySelector(".cards"), c = k.querySelector(".card");
+        const h = kol.querySelector(".col-head");
+        const cs = getComputedStyle(k);
+        const linje = getComputedStyle(document.documentElement).getPropertyValue("--line").trim();
+        return { bredd: cs.scrollbarWidth, färg: cs.scrollbarColor, linje,
+                 rullar: k.scrollHeight > k.clientHeight + 1,
+                 kortH: Math.round(c.getBoundingClientRect().right),
+                 rubrikH: Math.round(h.getBoundingClientRect().right) };
+      });
+      ok(m.rullar, `kolumnen rullar, annars finns ingen list att mäta: ${JSON.stringify(m)}`);
+      eq(m.bredd, "thin", `${tema}: tunn list`);
+      ok(/transparent|rgba\(0, 0, 0, 0\)/.test(m.färg),
+        `${tema}: inget spår bakom tummen: ${JSON.stringify(m)}`);
+      // Tumfärgen *är* temats hårfinaste linje — samma token i bägge, vilket är varför en
+      // regel räcker för två teman.
+      ok(m.färg.startsWith(hexTillRgb(m.linje)),
+        `${tema}: tummen är temats egen --line (${m.linje}): ${JSON.stringify(m)}`);
+      eq(m.kortH, m.rubrikH,
+        `${tema}: och korten står kvar i register med rubriken — listen tog inga pixlar: ${JSON.stringify(m)}`);
+    }
+  }
+
+  group("kortets skugga får falla åt bägge håll");
+  {
+    // En scrollruta klipper vid sin paddingruta. Utan vänsterpadding *var* kortets
+    // vänsterkant klippkanten — mätt, scrollruta och kort bägge på 262 — så `0 2px 8px`
+    // föll mjukt ut i körfältet till höger och kapades rakt av till vänster. Ett kort, två
+    // olika kanter.
+    const p = await open("?view=all", { data: tall, viewport: { width: 900, height: 600 } });
+    await p.waitForSelector(".board .card");
+    const m = await p.evaluate(() => {
+      const kolumner = [...document.querySelectorAll(".board > .column:not(.hidden-cols)")];
+      const kol = kolumner[0];
+      const k = kol.querySelector(".cards"), c = k.querySelector(".card"), h = kol.querySelector(".col-head");
+      const V = (e) => Math.round(e.getBoundingClientRect().left);
+      const H = (e) => Math.round(e.getBoundingClientRect().right);
+      const cs = getComputedStyle(k);
+      // Suddet i `0 2px 8px` når halva sudden ut åt varje håll.
+      const sudd = Math.max(...(getComputedStyle(c).boxShadow.match(/(\d+(?:\.\d+)?)px/g) || [])
+        .map((x) => parseFloat(x)));
+      const granne = kolumner[1] && kolumner[1].querySelector(".cards");
+      return { kortV: V(c), rutaV: V(k), rubrikV: V(h), kortH: H(c), rutaH: H(k),
+               blöd: cs.marginLeft, insk: cs.paddingLeft, sudd,
+               grannLucka: granne ? V(granne) - H(k) : null };
+    });
+    ok(m.kortV - m.rutaV > 0,
+      `kortets vänsterkant ligger inne i rutan, inte på klippkanten: ${JSON.stringify(m)}`);
+    ok(m.kortV - m.rutaV >= m.sudd / 2,
+      `och med minst suddets egen räckvidd (${m.sudd / 2}px) att falla i: ${JSON.stringify(m)}`);
+    eq(m.blöd, "-" + m.insk, `blödningen och inskjutet är samma tal, så kortlådan står stilla: ${JSON.stringify(m)}`);
+    eq(m.kortV, m.rubrikV, "vilket är det som mäts: kortets vänsterkant ligger kvar i linje med rubrikens");
+    // Och grannens körfält möter inte vårt: gapet är 16, körfältet 8 och skuggremsan 4.
+    ok(m.grannLucka > 0, `grannens scrollruta börjar efter vår slutar: ${JSON.stringify(m)}`);
+  }
+
+  group("släpplinjen ritas där släppet faktiskt landar");
+  {
+    // Codex, #54. `dropPointAt` svarar `null` för "efter alla korten" och `showDropLine` la
+    // då linjen sist i behållaren — men behållaren är inte bara kort längre: `.col-add`
+    // flyttade in i skrollrutan när `.cards` blev kolumnens scrollruta. Mätt med tre kort:
+    // linjen på y=487 mot ett sista kort som slutar på 433, med knappens 443–474 emellan.
+    // 54px under det släppet skriver, vilket är det enda en släpplinje finns för att säga.
+    //
+    // **Genom en riktig dragning, inte genom att göra om vad `showDropLine` gör.** Första
+    // versionen la linjen själv med samma två rader som funktionen — och mätte alltså sin
+    // egen kopia: sabotaget som satte tillbaka `appendChild` fällde ingenting alls. Ett
+    // `dragstart` på ett kort sätter `dragItem`, ett `dragover` under sista kortet ger
+    // `before == null`, och det är appens egen funktion som ritar.
+    const p = await open("?view=all", { data: tall, viewport: { width: 1200, height: 700 }, token: true,
+      github: (route) => route.fulfill({ status: 200, contentType: "application/json",
+        body: JSON.stringify({ login: "t", permissions: { push: true } }) }) });
+    await p.waitForSelector(".board .col-add");
+    const m = await p.evaluate(() => {
+      const kol = document.querySelector(".board > .column");
+      const k = kol.querySelector(".cards");
+      const kort = [...k.querySelectorAll(".card")];
+      const sista = kort[kort.length - 1];
+      const dt = new DataTransfer();
+      kort[0].dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: dt }));
+      // Under sista kortet: `dropPointAt` hittar inget kort vars mittlinje ligger under
+      // pekaren och svarar `before: null` — fallet där linjen ska stå sist bland korten.
+      k.dispatchEvent(new DragEvent("dragover", { bubbles: true, cancelable: true, dataTransfer: dt,
+        clientX: Math.round(k.getBoundingClientRect().left + 20),
+        clientY: Math.round(sista.getBoundingClientRect().bottom + 2) }));
+      const linje = k.querySelector(".drop-line");
+      const vid = k.querySelector(":scope > .col-add");
+      return { ritad: !!linje, harAdd: !!vid,
+               barn: [...k.children].map((e) => e.className.split(" ")[0]),
+               index: linje ? [...k.children].indexOf(linje) : null,
+               antalKort: kort.length,
+               linjeY: linje ? Math.round(linje.getBoundingClientRect().top) : null,
+               sistaKortBotten: Math.round(sista.getBoundingClientRect().bottom),
+               addY: vid ? Math.round(vid.getBoundingClientRect().top) : null,
+               // Avståndet är kolumnens eget: flex-gapet plus linjens övre marginal. Mätt
+               // mot de talen och inte mot ett påhittat tak.
+               gap: linje ? parseFloat(getComputedStyle(k).rowGap) : null,
+               margin: linje ? parseFloat(getComputedStyle(linje).marginTop) : null };
+    });
+    ok(m.ritad, `dragningen nådde appens egen \`showDropLine\`: ${JSON.stringify(m)}`);
+    ok(m.harAdd, `kolumnens + är ritat, annars mäter det här ingenting: ${JSON.stringify(m)}`);
+    eq(m.index, m.antalKort, `linjen står efter sista kortet, inte sist i behållaren: ${JSON.stringify(m)}`);
+    eq(m.barn[m.barn.length - 1], "col-add", "knappen är fortfarande den sista — linjen gick före den, inte förbi den");
+    ok(m.linjeY < m.addY, `och ritas ovanför knappen: ${JSON.stringify(m)}`);
+    eq(m.linjeY - m.sistaKortBotten, m.gap + m.margin,
+      `strax under sista kortet, på kolumnens eget avstånd, där släppet skriver: ${JSON.stringify(m)}`);
+  }
+
+  group("hjulet över kolumnrubriken tar bara den axel den kan använda");
+  {
+    // `preventDefault` avbryter ett hjulevent *helt*, så att avbryta för att ta lodrätt
+    // kastade sidled med sig. Mätt över en kolumnrubrik med 490px port till höger: en
+    // diagonal (120, 12) flyttade kolumnen 12 och porten 0 — mot 120 när samma gest landade
+    // på en rubrik vars kolumn inget hade att skrolla och lyssnaren gick ur direkt.
+    // Regeln är `armChromeWheel`s: ett anspråk på en axel får inte kosta den andra.
+    const p = await open("?view=all", { data: tall, viewport: { width: 700, height: 420 } });
+    await p.waitForSelector(".board .card");
+    const mål = await p.evaluate(() => {
+      const k = [...document.querySelectorAll(".board > .column > .cards")].find((x) => x.scrollHeight > x.clientHeight + 1);
+      if (!k) return null;
+      k.closest(".column").dataset.probe = "1";
+      const r = k.closest(".column").querySelector(".col-head").getBoundingClientRect();
+      const pt = document.getElementById("port");
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2, portRum: pt.scrollWidth - pt.clientWidth };
+    });
+    ok(mål && mål.portRum > 120,
+      `det finns en rullande kolumn och port att flytta åt bägge håll: ${JSON.stringify(mål)}`);
+    const läs = () => p.evaluate(() => ({ portX: document.getElementById("port").scrollLeft,
+      kolY: document.querySelector('.column[data-probe] > .cards').scrollTop }));
+    const noll = () => p.evaluate(() => { document.getElementById("port").scrollLeft = 0;
+      document.querySelector('.column[data-probe] > .cards').scrollTop = 0; });
+
+    await noll();
+    await p.mouse.move(mål.x, mål.y);
+    await p.mouse.wheel(120, 12);
+    await p.waitForTimeout(300);
+    const diag = await läs();
+    ok(diag.kolY > 0, `diagonalen flyttar kolumnen: ${JSON.stringify(diag)}`);
+    ok(diag.portX > 0, `och porten — den halva som gick förlorad: ${JSON.stringify(diag)}`);
+
+    await noll();
+    await p.mouse.wheel(0, 120);
+    await p.waitForTimeout(300);
+    const ned = await läs();
+    ok(ned.kolY > 0, `rakt ned flyttar kolumnen: ${JSON.stringify(ned)}`);
+    eq(ned.portX, 0, "och inte porten — en axel utan delta är inget anspråk");
+  }
+
+  group("fokusringen namnger de lådor som faktiskt är tabbstopp");
+  {
+    // Regeln skrevs för `.work`, som var scrollrutan då. Den är det inte i kanban:
+    // `markPort` flyttar stoppet till `.port` och varje rullande kolumn är ett eget. Ett
+    // musklick bredvid korten landade alltså på en låda regeln inte nämnde.
+    //
+    // **Mätt som täckning, inte som ring, och det är sabotaget som avgjorde det.** Chromiums
+    // egen stilmall ringar bara på `:focus-visible`, så ett musfokus är ringlöst av sig
+    // självt här: att ta bort `.port` och `.cards` ur regeln fällde ingen beteendekontroll
+    // alls. Regeln är alltså defence-in-depth för webbläsare som ringar på rena `:focus` —
+    // och det som *går* att mäta, och som var felet, är vilka lådor den namnger.
+    const p = await open("?view=all", { data: tall, viewport: { width: 700, height: 420 } });
+    await p.waitForSelector(".board .card");
+    const m = await p.evaluate(() => {
+      // Regelns egen selektor, läst ur stilmallen: den som stänger av ringen utanför
+      // tangentbordsvägen. Att leta efter deklarationen och inte efter en textsträng är
+      // vad som gör kontrollen till en fråga om täckning.
+      const sel = [];
+      for (const ark of document.styleSheets) {
+        let regler; try { regler = ark.cssRules; } catch (e) { continue; }
+        for (const r of regler) {
+          if (r.selectorText && /:focus:not\(:focus-visible\)/.test(r.selectorText) &&
+              r.style && r.style.outline === "none") sel.push(r.selectorText);
+        }
+      }
+      // Lådorna regeln namnger, alltså selektorn utan sina pseudoklasser: `matches` mot
+      // `:focus` svarar nej om elementet inte råkar ha fokus just nu, och frågan här är
+      // vilka lådor regeln *gäller*, inte vilken som står i fokus.
+      const lådor = sel.join(",").split(",")
+        .map((d) => d.trim().replace(/:focus:not\(:focus-visible\)$/, ""))
+        .filter(Boolean);
+      const täcker = (e) => lådor.some((d) => e.matches(d));
+      const stopp = [document.getElementById("work"), document.getElementById("port"),
+        ...document.querySelectorAll(".board > .column > .cards")]
+        .filter((e) => e && e.getAttribute("tabindex") === "0");
+      return { selektorer: sel, lådor,
+               stopp: stopp.map((e) => ({ vad: e.id || e.className.split(" ")[0], täckt: täcker(e) })),
+               // Och listan är inte tom i det här läget, annars mäter slingan ingenting.
+               antal: stopp.length };
+    });
+    ok(m.selektorer.length > 0, `regeln finns i stilmallen: ${JSON.stringify(m)}`);
+    ok(m.antal >= 2, `kanban har flera tabbstopp att täcka: ${JSON.stringify(m)}`);
+    eq(m.stopp.filter((s) => !s.täckt), [],
+      `varje tabbstopp namnges av regeln: ${JSON.stringify(m)}`);
+
+    // Och beteendet, som defence-in-depth: musvägen är ringlös och tangentbordsvägen är det
+    // inte. Bägge är Chromiums egna här — de fälls inte av att regeln smalnar — men de är
+    // det regeln finns för, och en kontroll som inte säger det låter täckningen se ut som
+    // ett beteendebevis.
+    const ruta = await p.evaluate(() => {
+      const k = [...document.querySelectorAll(".board > .column > .cards")].find((x) => x.scrollHeight > x.clientHeight + 1);
+      const r = k.getBoundingClientRect();
+      return { x: Math.round(r.right - 3), y: Math.round(r.bottom - 3) };
+    });
+    await p.mouse.click(ruta.x, ruta.y);
+    await p.waitForTimeout(150);
+    eq(await p.evaluate(() => {
+      const a = document.activeElement;
+      return { klass: a.className.split(" ")[0], ring: getComputedStyle(a).outlineStyle, fv: a.matches(":focus-visible") };
+    }), { klass: "cards", ring: "none", fv: false }, "ett musklick i kolumnen ger ingen ring");
+
+    // Tangenttrycket först är inte kosmetik: `:focus-visible` följer *senaste* inmatningssättet,
+    // och klicket ovanför har just satt det till mus, så ett `focus()` utan det mäter musvägen
+    // en gång till och kallar det tangentbordet.
+    await p.keyboard.press("Tab");
+    await p.waitForTimeout(100);
+    eq(await p.evaluate(() => {
+      const k = document.querySelector(".board > .column > .cards[tabindex]");
+      k.focus();
+      return { fv: k.matches(":focus-visible"), ring: getComputedStyle(k).outlineStyle };
+    }), { fv: true, ring: "auto" }, "men fokus utan mus behåller ringen");
   }
 }

@@ -2,7 +2,7 @@
 title: Varje kolumn skrollar för sig
 status: done
 tags: [ui]
-updated: 2026-09-12
+updated: 2026-09-13
 created: 2026-09-12
 priority: medium
 owner: tor2dbear
@@ -205,3 +205,75 @@ den det, med `scrollLeft` skrivbar under bägge.
 **269 kontroller i `chrome`, 0 fel**, och vart och ett av de fem sabotagen fäller sin egen
 rad: ingen återställning alls, återställning i loopen, `exitPuckView` som behåller platserna,
 ingen ombrytning, och ingen klippning.
+
+## Sedan dess
+
+Fem fel till, funna efter att pucken stängts — två rapporterade av användaren, tre av en
+granskningsomgång. De hör hemma här och inte i en egen puck: vart och ett är en följd av
+att `.cards` blev en scrollruta, och det är den här puckens ändring.
+
+**Regeln pucken skrevs av är alltså tillämpad på sig själv** — *"när ett senare steg rör kod
+en stängd puck beskriver, läs om dess utfall innan PR:en går vidare"* — och det här är den
+läsningen. Inget ovanför är osant; det som stod där gällde koden som den var när det skrevs.
+
+- **Släpplinjen ritades under kolumnens `+`.** `.col-add` flyttade in i skrollrutan i det
+  här arbetet, och `showDropLine` la linjen *sist i behållaren* för "efter alla korten".
+  Mätt med tre kort: linjen på y=487 mot ett sista kort som slutar på 433, med knappens
+  443–474 emellan — 54px under det släppet faktiskt skriver. `dropPointAt` läser `.card` och
+  svarar `null` för slutet; den meningen måste nu sägas två gånger, eftersom behållaren
+  håller mer än kort.
+- **Kortets skugga kapades rakt av till vänster.** En scrollruta klipper vid sin paddingruta,
+  och `.cards` hade ingen vänsterpadding: mätt, scrollruta och kort bägge på 262. `0 2px 8px`
+  föll alltså mjukt ut i körfältet till höger och tvärt av till vänster — ett kort, två olika
+  kanter. Fyra pixlar (suddets halva räckvidd) blöds och skjuts in precis som körfältet, så
+  kortlådan står stilla och register med `.col-head` hålls.
+- **Hjulet över kolumnrubriken tog hela gesten.** `preventDefault` avbryter ett hjulevent
+  *helt*, så att avbryta för att ta lodrätt kastade sidled med sig: mätt, en diagonal
+  (120, 12) över en rubrik gav kolumnen 12 och porten **0**, medan samma gest över en rubrik
+  vars kolumn inget hade att skrolla gav porten 120. Lyssnaren är passiv nu och skriver bara
+  `scrollTop`; webbläsaren tar sidled själv. Ingenting dubbelskrollar, och det är mätt och
+  inte antaget: porten är `overflow-y: hidden` och sidan under skrollar inte alls, så det
+  oavbrutna `deltaY` når ingen scrollruta någonstans.
+- **Fokusringen namngav fel låda.** `.work:focus:not(:focus-visible)` skrevs när `.work` var
+  scrollrutan. I kanban är den inte det — `markPort` flyttar stoppet till `.port` och varje
+  rullande kolumn är ett eget — så ett musklick bredvid korten drog en ring runt lådan man
+  just pekat på. Alla tre namnges nu.
+- **Facket hade inte bara en streckad ram, det hade ramens inskjut.** Begärt borttaget, och
+  borttagandet var samtidigt resten av fellinjeringen användaren rapporterade en tredje
+  gång: 1px ram plus 10px sidpadding la fackets titel 11px från dess egen vänsterkant där en
+  kolumns står på 18, och dess rader 11px in där korten bredvid börjar på 0. Kvar är
+  `align-self: start`; `.column` säger resten, vilket är poängen — facket *är* en kolumn.
+  18:an är svatchen plus rubrikens gap, så facket behåller svatchens **plats** utan märket:
+  fyra kolumner har ingen gemensam färg, och en padding vore samma två tal nedskrivna en
+  gång till, på det enda ställe ingenting håller dem i takt.
+
+**Och listen blev diskret, i bägge teman med en regel.** Sidomenyn har svarat på det sedan
+den skrevs — tunn tumme i `--line`, inget spår, `--ink-3` under pekaren — och bägge teman är
+redan besvarade eftersom tokenen är det. Avsiktligt *inga* `::-webkit-scrollbar`-regler,
+till skillnad från sidomenyn: en bredd där gör en overlay-list klassisk, och en klassisk
+list tar sin bredd ur `clientWidth`. Det hade krympt korten med 8px och gått ur register med
+`.col-head` — precis det körfältet finns för. Mätt: `clientWidth` 288 före och efter,
+kortets högerkant 302 mot rubrikens 302, bägge vägarna.
+
+**Och sabotaget fällde två av de sju kontrollerna som skrevs för det här — bägge mina.**
+Det är hela skälet till att sabotera innan man litar:
+
+- **Släpplinjens kontroll gjorde om vad `showDropLine` gör** i stället för att anropa den —
+  samma två rader, i testets `evaluate`. Den mätte alltså sin egen kopia, och att sätta
+  tillbaka `appendChild` fällde ingenting alls. Den driver en riktig dragning nu: ett
+  `dragstart` på ett kort sätter `dragItem`, ett `dragover` under sista kortet ger
+  `before == null`, och det är appens funktion som ritar. Sabotaget fäller fyra rader.
+- **Fokusringens kontroll gick inte att fälla alls, och det var webbläsarens förtjänst.**
+  Chromiums egen stilmall ringar bara på `:focus-visible`, så ett musfokus är ringlöst av
+  sig självt här — regeln är defence-in-depth för webbläsare som ringar på rena `:focus`.
+  Det som *går* att mäta, och som var felet, är **täckningen**: regelns selektor läses ur
+  stilmallen, pseudoklasserna skalas av (`matches` mot `:focus` svarar nej om lådan inte
+  står i fokus just då, och frågan är vilka lådor regeln gäller), och varje tabbstopp i
+  kanban ska namnges av den. Smalna regeln till `.work` igen och den faller. Beteendet står
+  kvar som kontroll och står nu utskrivet som det defence-in-depth det är — annars hade
+  täckningen sett ut som ett beteendebevis.
+
+**357 kontroller i `chrome`, 0 fel**, och vart och ett av de sju sabotagen fäller sin egen
+rad: ramen tillbaka, svatchens plats borta, ingen diskret list, inget körfält åt skuggan,
+linjen sist i behållaren, hjulet som avbryter hela gesten, och regeln som bara namnger
+`.work`.
