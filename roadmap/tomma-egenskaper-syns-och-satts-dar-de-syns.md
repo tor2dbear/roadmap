@@ -1,8 +1,8 @@
 ---
 title: Tomma egenskaper syns, och sätts där de syns
-status: next
+status: done
 tags: [ui, product]
-updated: 2026-09-12
+updated: 2026-09-13
 created: 2026-09-12
 priority: medium
 owner: tor2dbear
@@ -88,3 +88,75 @@ kolumnen säger det redan — och då ska ingen platshållare ritas heller. Det 
 - **Hover är inget på en telefon.** Linear avslöjar affordansen vid hover. Brädan har regeln
   utskriven elva gånger: `:hover` är ett tillstånd man inte kan lämna på touch. Platshållaren
   måste alltså synas utan hover, och träffytan får inte hänga på den.
+
+## Utfall
+
+Byggd som pucken skisserade — en `empty`-medlem per egenskap i `PROPS`, en gren i
+cellvandringen, ingen ny yta. Tre av de fem öppna frågorna besvarades av mätning i stället
+för av resonemang, och två av dem tvärtemot vad som stod skrivet här.
+
+**Märket alltid, pickern bara med skrivrätt** — och den delningen kunde inte lånas från
+railen. `propPicker({ editable: false })` lämnar en `<button disabled>`, vilket är rätt i
+railen där ingenting lyssnar ovanför den och fel i en rad vars hela uppgift är att öppna
+pucken: en avstängd knapp sväljer klicket helt. Mätt på 1200px utan token, ett tryck på
+första radens prioritetscell: med den avstängda knappen stod `location.hash` kvar på `""`
+och ingen puck öppnades; med en `<span>` öppnades `#alpha/a-parent`, som varje annan pixel
+i raden. Utan skrivrätt är märket alltså ren text.
+
+**Chipet visar märket, inte värdets namn.** `null` *är* ett värde för de här fälten, så
+menyn bockar `No priority` och har rätt i det — men chipet är en annan fråga. Målat med
+värdets egen etikett radbröts det till tre rader: 58×47 i en 44px-cell, och raden gick från
+39px till 71. `blank` i `propPicker` är hela skillnaden: ett värde, två bredder.
+
+**`.list-empty` var upptaget.** Det är `No matching parts`-stubben, och den bär
+`display: flex; width: 100%; padding: 6px 6px 6px 12px`. Skrivet så först ärvde märket allt
+det: omslaget fyllde sin 44px-cell, stod 35px högt och strecket låg 12px in. Samma misstag
+som `FIELDS` en fil bort, och samma bot — namnet hör till en sak. `.prop-empty` nu, bredvid
+`.prop-muted` och `.prop-pick` det ritas ur.
+
+**En yta som ritas inuti något klickbart fanns det ingen regel för.** En ankrad popover
+monteras i sin egen `anchorWrap`, och den har hittills alltid suttit i något inert — topbar,
+kolumnrubrik, rail. Pickern i en rad la den inuti radens klickyta, och menyns egna rader
+bubblade rakt in i den: mätt skrev `High` från en rads prioritetscell filen **och** lämnade
+brädan på `#alpha/a-parent` med puckssidan öppen. Stoppat i ytans rot, inte i pickern —
+nästa yta som ankras i något klickbart har samma fel och ingen anledning att minnas det här.
+Bubbelfasen bara: utklicksvakten lyssnar på dokumentet i *capture* och avgör fortfarande
+själv vad som räknas som utanför.
+
+**Svaren på de fem frågorna:**
+
+- **Kortet** — bara raden, som pucken föreslog. Listan reserverar datumspåret oavsett vad
+  pucken bär, så märket kostar ingen layout där; kortet har inga spår alls. `dateCells`
+  tredje argument är hela skillnaden, och att listan och kortet går isär står utskrivet
+  hellre än att smygas in.
+- **Utan token** — ja, som ren text. Se ovan.
+- **Vilka egenskaper** — `priority`, `agent`, `target`. Inte `status`: dess `has` svarar
+  alltid sant, så den är aldrig tom. Inte `owner`: det är ett frontmatter-fält utan
+  `change*`, och railen drar redan samma slutsats när den döljer Assignee-raden helt. Inte
+  `created`/`updated`/`repo`/`rollup`/`count`: härledda vid skörd. Listan är explicit i
+  `PROPS`, inte "allt som har `has`".
+- **Omritningen** — **nej, det följde inte av det som redan fanns.** Porten behåller sin
+  plats av sig själv (`renderBoard` tömmer och fyller utan att mäta däremellan), men raden
+  gör det inte: en skrivning bumpar `updated`, som är andra nyckeln i standardkedjan, så
+  raden sorteras om under en offset som aldrig rörde sig. Mätt i en 40-radig lista på
+  1200×500, skrollad till 400: porten stod kvar på 400 och raden gick från y=220 till
+  **y=-241** — 461px, ut ur fönstret upptill. Under `group=none` står den still, men bara
+  därför att den grupperingen föreslår `status,order` och `updated` inte ingår; det är en
+  egenskap hos en gruppering, inte hos brädan. `rowPlace()` är samma idiom brädan redan
+  använder tre gånger — `toggleGroup` för en fällkontroll, `segmented` för ett tryckt
+  segment, `colFocus` för en fokuserad kolumn. Med den: 400 → 0 och raden 220 → 159, för ett
+  färskt `updated` sorterar den till listans huvud och det finns ingen offset kvar att hålla.
+  Att följa raden man rörde till toppen är svaret; att tappa den ut ur fönstret är det inte.
+  Under en ordning skrivningen inte rör är den en no-op — `sort=title`, samma lista, 400 →
+  400 och 220 → 220.
+- **Hover** — märket syns i vila och bara *rutan* väntar på en pekare. `.pick-chip.editable:hover`
+  var railens och ovaktad, skriven när ett chip bara någonsin stod i en yta; i en rad målar
+  den en bakgrund och står sedan kvar under fingret. Neutraliserad och återinförd bakom
+  `(hover: hover)`. Svepet i `tree.test.mjs` fick en tredje bräda med token, eftersom de två
+  kontrollerna bara ritas för den som får skriva — och svepet säger vad det såg, annars
+  smalnar en ändrad fixtur tyst av regeln.
+
+**Vad som avsiktligt inte gjordes:** en *fylld* cell är fortfarande inte tryckbar. Pucken
+handlar om märket för ett saknat värde; att göra varje ifylld cell till en picker vore att
+ändra en befintlig interaktion i förbigående. Det är nästa fråga, och den har ett eget svar
+att hitta — bland annat om raden då fortfarande kan öppna pucken någonstans.

@@ -3309,4 +3309,31 @@ export async function run({ open }) {
     eq(tillbaka.filter((k) => k.rum === 0 && k.tab !== null), [],
       `en kolumn som slutade svämma över är inte längre ett stopp: ${JSON.stringify(tillbaka)}`);
   }
+  group("det tomma märket är lika stort som värdena i sin kolumn");
+  {
+    // `datePicker`s trigger är railens kontroll, och dess formgivning bor under `.prop`.
+    // I en rad får den bara den globala knapp-återställningen: mätt med regeln borttagen,
+    // 13px mitt i en kolumn med 11px-datum, och en 12×20-låda att träffa.
+    //
+    // De två halvorna svarar på olika saker, och bägge behövs. Paddingen *är* träffytan;
+    // den negativa marginalen betalar tillbaka den, så tankstrecket ändå står på kolumnens
+    // egen linje i stället för 7px in från den. Utan återbetalningen flyttar sig
+    // kolumnens högerkant beroende på om raden råkar ha ett värde.
+    const gh = githubStub();
+    const p = await open("?layout=list&done=1&props=target", { token: true, github: gh.handler });
+    await p.waitForSelector(".list-dt .prop-trigger");
+    const m = await p.evaluate(() => {
+      const txt = (n) => { const r = document.createRange(); r.selectNodeContents(n); return Math.round(r.getBoundingClientRect().right); };
+      const mark = document.querySelector(".list-dt .prop-trigger");
+      const date = document.querySelector(".list-dt .target-date");
+      const r = mark.getBoundingClientRect();
+      return { markFS: getComputedStyle(mark).fontSize, dateFS: getComputedStyle(date).fontSize,
+               markText: txt(mark), dateText: txt(date),
+               w: Math.round(r.width), h: Math.round(r.height) };
+    });
+    eq(m.markFS, m.dateFS, `märket har datumens storlek: ${JSON.stringify(m)}`);
+    ok(Math.abs(m.markText - m.dateText) <= 2,
+      `och står på deras linje, inte på knappens: ${m.markText} mot ${m.dateText}`);
+    ok(m.w >= 24 && m.h >= 24, `med en träffyta att ta på: ${m.w}×${m.h}`);
+  }
 }

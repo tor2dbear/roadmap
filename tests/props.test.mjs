@@ -3,6 +3,7 @@
 // property off takes its grid track with it, and that the automatic date rule keeps its
 // place: in the absence of a choice, never over one.
 import { group, eq, ok } from "./assert.mjs";
+import { githubStub } from "./fixture.mjs";
 
 // The row's cells, by class, in DOM order — which is also track order, so this is what
 // says whether a column left with its property or stayed behind as reserved width.
@@ -169,9 +170,14 @@ export async function run({ open }) {
     // `?.` on the cell, not `.`: the sabotage this check exists for is a row that skips
     // the cell entirely, and reading `textContent` off the absent one threw — which takes
     // the rest of the file down with it instead of failing here, where the sentence is.
+    //
+    // "A puck without a target" used to be found by an *empty* date cell. It is not empty
+    // any more — a missing value draws a mark now — so the row is found by the mark
+    // instead. The sentence this check makes is unchanged: the cell belongs to the view,
+    // so it stands whatever the puck holds.
     const utan = await p.evaluate(() => {
       const rows = [...document.querySelectorAll(".list-row")];
-      const tom = rows.find((r) => !(r.querySelector(".list-dt")?.textContent || "").trim());
+      const tom = rows.find((r) => r.querySelector(".list-dt .prop-empty"));
       return tom ? [...tom.children].map((c) =>
         c.classList.contains("puck-glyph") ? "puck-glyph"
           : [...c.classList].filter((x) => x !== "list-cell").join(" ")) : null;
@@ -183,7 +189,7 @@ export async function run({ open }) {
     // automatic rule falls back to `updated`, because there it picked the field itself.
     eq(await p.evaluate(() => {
       const rows = [...document.querySelectorAll(".list-row")];
-      return rows.filter((r) => (r.querySelector(".list-dt")?.textContent || "").trim()).length > 0;
+      return rows.filter((r) => r.querySelector(".list-dt .target-date")).length > 0;
     }), true, "och de som har ett target visar det");
   }
 
@@ -440,4 +446,183 @@ export async function run({ open }) {
     eq(await p.evaluate(() => document.getElementById("displayDot").hidden), true,
       "och pricken slocknar");
   }
+  // ── an empty property draws a mark, and the mark is where you set it ──────────
+  // Two things, and they are deliberately different: *readability* (a column with holes
+  // in it does not read as a column) and *the write path* (setting a value should not
+  // cost opening the puck). The first is for everyone; the second needs write rights.
+
+  group("en egenskap utan värde ritar ett märke");
+  {
+    const p = await open("?layout=list&done=1&props=priority,agent,target,repo,owner");
+    const m = await p.evaluate(() => {
+      const row = [...document.querySelectorAll(".list-row")].find((r) => r.getAttribute("data-id") === "alpha/a-parent");
+      const mark = (c) => !!row.querySelector("." + c + " .prop-empty");
+      return { pri: mark("list-pri"), agent: mark("list-agent"), dt: mark("list-dt"),
+               repo: mark("list-repo"), owner: mark("list-owner"),
+               // the cells are all still there — the mark is what fills them, not what
+               // replaces them
+               cells: [...row.children].length };
+    });
+    ok(m.pri, "prioritet utan värde har ett märke");
+    ok(m.agent, "agent likaså");
+    ok(m.dt, "och target, vars picker är en kalender och inte en lista");
+    eq(m.repo, false, "men inte repo — det är härlett och har ingen skrivare");
+    eq(m.owner, false, "och inte owner heller: en platshållare som inte går att fylla är en död ruta");
+  }
+
+  group("utan skrivrätt är märket text, och raden öppnas som vanligt");
+  {
+    // The rail answers this with a disabled button, which is right there and wrong here:
+    // a disabled button swallows the click outright, so the mark would be a dead patch in
+    // the middle of a row whose whole job is to open the puck. Measured with one: the
+    // click left `location.hash` empty. A span has nothing to swallow.
+    const p = await open("?layout=list&done=1&props=priority");
+    // The sabotage this check exists for is a cell that draws nothing, so the name of the
+    // absent node has to be a value and not a throw — the same rule the date-cell check
+    // above already follows, for the same reason.
+    eq(await p.evaluate(() => {
+      const c = document.querySelectorAll(".list-row")[0].querySelector(".list-pri");
+      return c && c.firstChild ? c.firstChild.tagName : null;
+    }), "SPAN", "utan token är märket ren text");
+    eq(await p.evaluate(() => !!document.querySelector(".list-pri .pick-chip")), false,
+      "och ingen kontroll alls — den som inte kan skriva får inget som ser tryckbart ut");
+    await p.locator(".list-row").nth(0).locator(".list-pri").click();
+    await p.waitForTimeout(250);
+    ok(await p.evaluate(() => document.body.classList.contains("viewing-puck")),
+      "ett tryck på märket öppnar pucken, som varje annan pixel i raden");
+  }
+
+  group("med skrivrätt är märket pickern");
+  {
+    const gh = githubStub();
+    const p = await open("?layout=list&done=1&props=priority", { token: true, github: gh.handler });
+    await p.waitForTimeout(400); // loadWritableRepos decides whether the chip is drawn
+    const chip = await p.evaluate(() => {
+      const c = document.querySelectorAll(".list-row")[0].querySelector(".list-pri .pick-chip");
+      const r = c.getBoundingClientRect();
+      return { aria: c.getAttribute("aria-label"), text: c.textContent.trim(),
+               w: Math.round(r.width), rowH: Math.round(document.querySelectorAll(".list-row")[0].getBoundingClientRect().height) };
+    });
+    eq(chip.text, "\u2014", "chipet visar märket, inte värdets namn");
+    // `null` is a real value for priority, so the *menu* ticks "No priority" and is right
+    // to — but the chip is a different question. Painted with the value's own label it
+    // wrapped to three lines: 58×47 inside a 44px cell, and the row went from 39px to 71.
+    ok(chip.w <= 44, `och ryms i sin 44px-cell: ${chip.w}px`);
+    ok(chip.rowH < 48, `så raden behåller sin höjd: ${chip.rowH}px`);
+    eq(chip.aria, "Priority, not set",
+      "med ett namn, eftersom ett tankstreck inte är ett");
+
+    await p.locator(".list-row").nth(0).locator(".list-pri .pick-chip").click();
+    await p.waitForTimeout(200);
+    eq(await p.evaluate(() => [...document.querySelectorAll(".pop .pick-mi")].map((r) => r.textContent.trim())),
+      ["No priority", "Urgent", "High", "Medium", "Low"],
+      "och öppnar samma picker som railen");
+    await p.locator(".pop .pick-mi").nth(2).click();
+    await p.waitForTimeout(500);
+    eq(gh.writes.map((w) => w.message), ["roadmap: a-parent priority high"],
+      "valet skriver pucken");
+    // The popover mounts inside its own anchor, which here sits inside the row. Its rows
+    // bubbled straight into the row's handler: the write landed *and* the puck page
+    // opened. Stopped at the surface root, so every surface anchored inside something
+    // clickable is covered rather than this one picker.
+    eq(await p.evaluate(() => document.body.classList.contains("viewing-puck")), false,
+      "men öppnar inte pucken — ett val i en yta är inget klick på det den råkar ritas i");
+  }
+
+  group("raden man skrev i står kvar under fingret");
+  {
+    // It does not follow from what was already there. The port keeps its place by itself
+    // (`renderBoard` clears and refills without measuring in between) but the row does
+    // not: a write bumps `updated`, which is the second key of the default chain, so the
+    // row re-sorts under an offset that never moved. Measured without the repair: the
+    // port stayed at 400 and the row went from y=220 to y=-241.
+    const gh = githubStub();
+    const many = (d) => {
+      const base = d.items[0];
+      for (let i = 0; i < 40; i++) {
+        d.items.push({ ...base, id: "alpha/x" + i, slug: "x" + i, title: "Filler " + i,
+          priority: null, agent: null, target: null, children: [], progress: null,
+          parent: null, parentRef: null });
+      }
+      return d;
+    };
+    // `sort=title`, where the write moves nothing: the repair has to be a no-op there, or
+    // it is not keeping a place but inventing one.
+    const still = await open("?layout=list&done=1&props=priority&sort=title",
+      { data: many, token: true, github: gh.handler, viewport: { width: 1200, height: 500 } });
+    await still.waitForTimeout(400);
+    const a = await rowAt(still, 400);
+    await pickHigh(still);
+    eq(await rowAt(still, null, a.id), { top: a.top, scroll: 400 },
+      `en ordning skrivningen inte rör lämnar allt still: ${JSON.stringify(a)}`);
+
+    // And where it *does* move: a fresh `updated` sorts the row to the head of the whole
+    // list, so the port follows it there. It clamps honestly — there is no offset left to
+    // hold — and the point is that the row is still on screen at all.
+    const gh2 = githubStub();
+    const moves = await open("?layout=list&done=1&props=priority",
+      { data: many, token: true, github: gh2.handler, viewport: { width: 1200, height: 500 } });
+    await moves.waitForTimeout(400);
+    const b = await rowAt(moves, 400);
+    await pickHigh(moves);
+    const after = await rowAt(moves, null, b.id);
+    ok(after.top >= 0 && after.top < 500,
+      `raden är kvar i fönstret efter omsorteringen: ${b.top} \u2192 ${after.top}`);
+  }
+
+  group("kortet får inget märke");
+  {
+    // The list reserves the date track whatever the puck holds, so a mark there costs no
+    // layout. A card has no tracks at all, so every unset property would *add* something
+    // to the densest thing the board draws — and the row and the card parting company is
+    // the price, written down rather than slipped in.
+    const gh = githubStub();
+    const p = await open("?done=1&props=priority,agent,target", { token: true, github: gh.handler });
+    await p.waitForTimeout(400);
+    eq(await p.evaluate(() => document.querySelectorAll(".card .prop-empty").length), 0,
+      "inga märken på korten");
+    ok(await p.evaluate(() => document.querySelectorAll(".card").length) > 0,
+      "på en tavla som faktiskt ritar kort");
+  }
+
+  group("det grupperingen redan säger får inget märke heller");
+  {
+    // `groupSays` sits before `has` in the walk, so the whole cell goes — the mark cannot
+    // outlive the column it would have stood in. No `props` here, deliberately: the rule
+    // is a *default* and a tick beats it (`propOn` asks the set first), so a board that
+    // named `priority` would draw the cell and this check would be measuring the override
+    // rather than the rule.
+    const p = await open("?layout=list&done=1&group=priority");
+    eq(await p.evaluate(() => document.querySelectorAll(".list-row .list-pri").length), 0,
+      "under group=priority ritas ingen prioritetscell alls");
+    ok(await p.evaluate(() => document.querySelectorAll(".list-row .list-agent .prop-empty").length) > 0,
+      "men agentens märke står kvar — regeln gäller den egenskap grupperingen namnger");
+  }
+}
+
+// The row's distance from the port's top edge, and the port's own offset. Given a
+// `scrollTo` it scrolls there first and picks a row below the fold to work on; given an
+// `id` it measures that row again.
+async function rowAt(p, scrollTo, id) {
+  return p.evaluate(([to, want]) => {
+    const port = document.querySelector(".work");
+    if (to != null) port.scrollTop = to;
+    const rows = [...document.querySelectorAll(".list-row")];
+    const r = want
+      ? rows.find((n) => n.getAttribute("data-id") === want)
+      : rows.find((n) => n.getBoundingClientRect().top > 200 && n.querySelector(".list-pri .pick-chip"));
+    if (!r) return null;
+    return { id: r.getAttribute("data-id"), top: Math.round(r.getBoundingClientRect().top),
+             scroll: Math.round(port.scrollTop) };
+  }, [scrollTo, id]).then((o) => (id ? { top: o.top, scroll: o.scroll } : o));
+}
+
+async function pickHigh(p) {
+  await p.evaluate(() => {
+    const r = [...document.querySelectorAll(".list-row")].find((n) => n.getBoundingClientRect().top > 200 && n.querySelector(".list-pri .pick-chip"));
+    r.querySelector(".list-pri .pick-chip").click();
+  });
+  await p.waitForTimeout(200);
+  await p.locator(".pop .pick-mi").nth(2).click();
+  await p.waitForTimeout(600);
 }
