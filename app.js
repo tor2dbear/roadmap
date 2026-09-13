@@ -2447,6 +2447,29 @@
     port.setAttribute("role", "region");
     port.setAttribute("aria-label", document.body.classList.contains("viewing-puck") ? "Puck" : "Board");
   }
+  // Which columns are keyboard stops, and it has two callers on purpose. Chrome puts
+  // *overflowing* boxes in the tab order by itself and Safari puts none there; matching
+  // the first is the whole point, so an empty or short column is not a stop. What it
+  // cannot follow is a resize that changes the answer without a redraw: rare, and a stale
+  // stop is a far smaller cost than seven inert ones on every filtered board.
+  //
+  // The second caller is `closeDetail`, and it is the third face of one rule: **a hidden
+  // scroller cannot be measured and cannot be written to.** A board redrawn behind an open
+  // puck (`loadWritableRepos` landing, an edit) measures a `display: none` subtree where
+  // every box answers 0, so the pass at the end of `renderColumns` runs and decides *no
+  // column is a stop* — measured, a 15-card column `tabindex="0"` before, gone after, and
+  // still gone once the puck closed and it was scrolling again. Codex found it (#54). The
+  // place had both its repairs already (the snapshot on the way in, the restore on the way
+  // out); the stop had none, and the comment beside that pass said the opposite — "the
+  // pass still runs, because it also decides the tab stops" — which is true of the call
+  // and false of the answer.
+  function markColumnStops(board) {
+    if (!board) return;
+    Array.prototype.forEach.call(board.querySelectorAll(".cards[data-col]"), function (k) {
+      if (k.scrollHeight > k.clientHeight + 1) k.tabIndex = 0;
+      else k.removeAttribute("tabindex");
+    });
+  }
   function lockScroll() {
     if (scrollLocks++) return;
     var port = scrollPort();
@@ -4447,6 +4470,11 @@
       }
       boardAt = null;
     }
+    // The stops, unconditionally — not inside the gate above. A redraw behind the puck
+    // took them from every column, and that happened whether or not a place was snapshotted
+    // and whether or not the grouping still matches. This is the first moment a column has
+    // a layout to be measured in again. See `markColumnStops`.
+    markColumnStops(boardEl);
   }
 
   // A table row — full-width, aligned columns (Name · Priority · Agent · Repo ·
@@ -5439,16 +5467,12 @@
     Array.prototype.forEach.call(board.querySelectorAll(".cards[data-col]"), function (k) {
       var v = samma ? colPlaces[k.dataset.col] : 0;
       if (v) k.scrollTop = v;
-      // And the tab stop, decided here because here is where measuring is allowed — the
-      // rule at the top of `renderBoard` forbids it only between the clear and the fill.
-      // Chrome puts *overflowing* boxes in the tab order by itself and Safari puts none
-      // there; matching the first is the whole point, and it means an empty or short
-      // column is not a stop. What it cannot follow is a resize that changes the answer
-      // without a redraw: rare, and a stale stop is a far smaller cost than seven inert
-      // ones on every filtered board.
-      if (k.scrollHeight > k.clientHeight + 1) k.tabIndex = 0;
-      else k.removeAttribute("tabindex");
     });
+    // And the tab stops, decided here because here is where measuring is allowed — the
+    // rule at the top of `renderBoard` forbids it only between the clear and the fill.
+    // Behind an open puck this answers "none", which is why `closeDetail` asks again;
+    // see `markColumnStops`.
+    markColumnStops(board);
   }
 
   // Fold a group shut or open it. Display state, so it travels the same road as the

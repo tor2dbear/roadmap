@@ -277,3 +277,23 @@ Det är hela skälet till att sabotera innan man litar:
 rad: ramen tillbaka, svatchens plats borta, ingen diskret list, inget körfält åt skuggan,
 linjen sist i behållaren, hjulet som avbryter hela gesten, och regeln som bara namnger
 `.work`.
+
+**Ett sjätte fynd, i samma omgång och med samma orsak som de tre platsbuggarna:
+tabbstoppet.** Regeln är *en dold scrollruta går varken att mäta eller skriva till*, och
+den har nu visat sig från tre håll. Platsen hade bägge sina lagningar — ögonblicksbilden i
+`openDetail` på väg in, återställningen i `closeDetail` på väg ut. Stoppet hade ingen: passet
+sist i `renderColumns` mäter ett `display: none`-träd där varje låda svarar 0, så en omritning
+bakom en öppen puck (`loadWritableRepos` som landar, en redigering) kör passet och beslutar
+att *ingen* kolumn är ett stopp. Mätt: `tabindex="0"` före, borta bakom pucken, och **kvar
+borta** när pucken stängts och kolumnen rullade igen. I Safari slutar den kolumnen vara
+nåbar från tangentbordet, vilket är just den asymmetri stoppet finns för. Codex fann det (#54).
+
+`markColumnStops()` är den enda skrivaren, och `closeDetail` frågar om — **utanför**
+ögonblicksbildens grind, eftersom omritningen tar stoppen oavsett om en plats sparades och
+oavsett om grupperingen fortfarande stämmer. Den *räknar om* i stället för att återställa: en
+kolumn som slutade svämma över medan pucken var öppen ska inte få tillbaka ett stopp.
+
+Och kommentaren bredvid passet sa motsatsen — *"passet kör ändå, för det avgör också
+tabbstoppen"* — vilket är sant om anropet och falskt om svaret. Det är samma sorts mening som
+den här pucken redan rättats för en gång: en som var sann när den skrevs och som ingen läste
+om när lådan under den ändrades.

@@ -896,6 +896,20 @@ than tuning them.
   scroller reports `scrollTop` as 0 and cannot be written to, so the capture reads nothing and
   the write goes nowhere. `openDetail` snapshots the columns into `boardAt.cols` while the
   board is still visible, and `closeDetail` puts them back.
+- **The tab stop is the third face of that same rule, and it had no repair at all.** A hidden
+  scroller cannot be *measured* either: behind an open puck every `.cards` answers
+  `scrollHeight` 0 and `clientHeight` 0, so the pass at the end of `renderColumns` runs and
+  decides no column is a stop — measured, a 15-card column `tabindex="0"` before, gone after
+  a redraw behind the puck, and **still gone** once the puck closed and it was scrolling
+  again. In Safari that column stops being keyboard-reachable, which is the one asymmetry the
+  stop exists for. Codex found it (#54). The place had both its repairs by then; the stop had
+  none, and the comment beside the pass claimed the opposite — *"the pass still runs, because
+  it also decides the tab stops"* — which is true of the call and false of the answer.
+  `markColumnStops()` is the one writer and `closeDetail` asks it again, unconditionally:
+  a redraw takes the stops whether or not a place was snapshotted and whether or not the
+  grouping still matches, so it cannot sit inside that gate. It **recomputes** rather than
+  restoring — a column that stopped overflowing while the puck was open must not get a stop
+  back.
 - **A closed puck's outcome is true of the commit that wrote it, not of the PR it sits in.**
   `bradans-egen-scrollruta` was corrected once for describing an intermediate design, and
   then went stale a second time — because *later steps in the same branch* changed what it

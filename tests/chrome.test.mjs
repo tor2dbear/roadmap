@@ -2868,4 +2868,58 @@ export async function run({ open }) {
       return { fv: k.matches(":focus-visible"), ring: getComputedStyle(k).outlineStyle };
     }), { fv: true, ring: "auto" }, "men fokus utan mus behåller ringen");
   }
+
+  group("en omritning bakom en öppen puck tappar inte tabbstoppet heller");
+  {
+    // Codex, #54, och tredje ansiktet på en regel: **en dold scrollruta går varken att
+    // mäta eller skriva till.** Platsen hade bägge sina lagningar (ögonblicksbilden på väg
+    // in, återställningen på väg ut); tabbstoppet hade ingen. Passet sist i
+    // `renderColumns` mäter ett `display: none`-träd där varje låda svarar 0, så det kör —
+    // och beslutar att *ingen* kolumn är ett stopp. Mätt: `tabindex="0"` före, borta bakom
+    // pucken, och kvar borta när pucken stängts och kolumnen rullade igen.
+    //
+    // Kommentaren bredvid det passet påstod motsatsen — "passet kör ändå, för det avgör
+    // också tabbstoppen" — vilket är sant om anropet och falskt om svaret.
+    let släpp;
+    const spärr = new Promise((ok) => { släpp = ok; });
+    const p = await open("?view=all", {
+      data: tall, viewport: { width: 1000, height: 600 }, token: true,
+      github: async (route) => {
+        if (/\/repos\//.test(route.request().url())) await spärr;
+        return route.fulfill({ status: 200, contentType: "application/json",
+          body: JSON.stringify({ login: "t", permissions: { push: true } }) });
+      },
+    });
+    await p.waitForSelector(".board .card");
+    const stopp = () => p.evaluate(() => [...document.querySelectorAll(".board > .column > .cards[data-col]")]
+      .map((k) => ({ kol: k.dataset.col, tab: k.getAttribute("tabindex"),
+                     rullar: k.scrollHeight > k.clientHeight + 1 })));
+    const före = await stopp();
+    ok(före.some((k) => k.rullar && k.tab === "0"),
+      `en rullande kolumn är ett stopp innan pucken öppnas: ${JSON.stringify(före)}`);
+
+    await p.evaluate(() => document.querySelector(".card").click());
+    await p.waitForFunction(() => document.body.classList.contains("viewing-puck"));
+    eq(await p.evaluate(() => getComputedStyle(document.getElementById("board")).display), "none",
+      "brädan är dold, vilket är hela premissen");
+
+    släpp();                                  // sonden landar → renderBoard() bakom pucken
+    await p.waitForFunction(() => !!document.querySelector('.card[draggable="true"]'), null, { timeout: 8000 });
+    // Bakom pucken *ska* de vara borta — en dold låda rullar inte, och passet har inget
+    // annat svar att ge. Det är inte felet; felet var att ingen frågade om igen.
+    const under = await stopp();
+    eq(under.filter((k) => k.tab === "0").length, 0,
+      `bakom pucken svarar varje låda 0 och inget är ett stopp: ${JSON.stringify(under)}`);
+
+    await p.evaluate(() => history.back());
+    await p.waitForFunction(() => !document.body.classList.contains("viewing-puck"));
+    await p.waitForTimeout(250);
+    const efter = await stopp();
+    ok(efter.some((k) => k.rullar),
+      `en kolumn rullar igen när brädan är tillbaka: ${JSON.stringify(efter)}`);
+    eq(efter.filter((k) => k.rullar && k.tab !== "0"), [],
+      `och varje rullande kolumn är ett stopp igen: ${JSON.stringify(efter)}`);
+    eq(efter.filter((k) => !k.rullar && k.tab !== null), [],
+      `medan de korta inte är det — svaret räknas om, det återställs inte: ${JSON.stringify(efter)}`);
+  }
 }
