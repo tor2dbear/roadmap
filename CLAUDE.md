@@ -815,6 +815,25 @@ than tuning them.
   while it had one scroller; with the vertical axis inside the columns, Page Down on the
   port moves nothing but sideways. Chrome puts overflowing boxes in the tab order by itself
   and Safari does not — the same asymmetry `markPort()` was written for.
+- **And the port earns its own stop the same way.** It was unconditional, written when it
+  was the board's only scroller: a kanban view that *fits* — Inbox, a board filtered to one
+  column — has no travel at all, and measured at 1400×900 `#port` carried `tabindex="0"`
+  with 0 on both axes and no column a stop either, so the keyboard stopped where nothing
+  moves. Codex found it (#54). `markPort` now owns only the **name** (role and label) and
+  `markStops` owns every `tabindex` — and the split is load-bearing rather than tidy:
+  `markPort` runs from `renderBoard` *before* the board is filled, where every box measures
+  0, and a stop is a question about size. The name stays either way, since landmarks are
+  navigated by name rather than by Tab.
+- **A stop goes stale when the box changes size without a render**, and this file used to
+  say that gap was rare and acceptable. It is not: a window from 900 to 300 tall left two
+  columns with 22 and 53 of range and no stop at all — a rotated tablet, a resized window,
+  the sidebar opening. One `ResizeObserver` on `#board`, not one per column: the board is
+  the box both the window and the sidebar move, and its children's heights follow it.
+  `markStops` writes nothing but `tabindex`, so it cannot change layout and the observer
+  cannot loop. **This was declined once**, in a PR thread, as more machinery than the gap
+  was worth — a fair answer about *that* gap, and wrong about this one, because the
+  intervening change made the port's stop conditional too and so doubled it. A refusal is
+  true of the code it was given about.
 - **The wheel over the chrome loses its vertical half, and that is the honest result.**
   "The chrome above the port is not a dead zone" was a rule about a scroll that existed.
   There is no board-level vertical scroll now, and the pointer over the topbar is above no

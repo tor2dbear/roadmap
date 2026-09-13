@@ -3234,4 +3234,79 @@ export async function run({ open }) {
     eq(await p.evaluate(() => Math.round(document.getElementById("port").scrollLeft)), 200,
       "platsen kommer tillbaka när brädan och lådan är desamma");
   }
+
+  group("en port utan resa är inget tabbstopp, men behåller sitt namn");
+  {
+    // Codex, #54. Portens stopp skrevs ovillkorligt när porten var brädans enda scrollruta.
+    // En kanbanvy som *får plats* — Inbox, en bräda filtrerad till en kolumn — har ingen
+    // resa alls: mätt vid 1400×900, `#port` med `tabindex="0"` och 0 att flytta på bägge
+    // axlar, och ingen kolumn som stopp heller. Tangentbordet stannade alltså på ett ställe
+    // där pilar, Page Down och blanksteg inte gör något.
+    //
+    // Namnet står kvar: landmärken navigeras på namn och inte med Tab, så det kostar inga
+    // tangenttryck — samma mening `renderColumns` redan säger om en kolumn.
+    const p = await open("?view=inbox", { viewport: { width: 1400, height: 900 } });
+    await p.waitForTimeout(400);
+    const m = await p.evaluate(() => {
+      const pt = document.getElementById("port");
+      return { tab: pt.getAttribute("tabindex"), roll: pt.getAttribute("role"),
+               namn: pt.getAttribute("aria-label"),
+               x: pt.scrollWidth - pt.clientWidth, y: pt.scrollHeight - pt.clientHeight,
+               stopp: [...document.querySelectorAll(".board > .column > .cards[data-col]")]
+                 .filter((k) => k.getAttribute("tabindex") === "0").length };
+    });
+    eq([m.x, m.y], [0, 0], `porten har ingen resa att göra, vilket är premissen: ${JSON.stringify(m)}`);
+    eq(m.stopp, 0, `och ingen kolumn är ett stopp heller: ${JSON.stringify(m)}`);
+    eq(m.tab, null, `så porten är inget stopp: ${JSON.stringify(m)}`);
+    eq([m.roll, m.namn], ["region", "Board"], "men den är fortfarande en namngiven region");
+
+    // Motprovet i samma grupp: en bräda som *inte* får plats gör porten till ett stopp igen,
+    // annars vore raden ovan en avstängning och inte ett villkor.
+    const q = await open("?view=all", { data: tall, viewport: { width: 700, height: 500 } });
+    await q.waitForSelector(".board .card");
+    const n = await q.evaluate(() => {
+      const pt = document.getElementById("port");
+      return { tab: pt.getAttribute("tabindex"), x: pt.scrollWidth - pt.clientWidth };
+    });
+    ok(n.x > 0, `den smala brädan har sidledsresa: ${JSON.stringify(n)}`);
+    eq(n.tab, "0", `och då är porten ett stopp: ${JSON.stringify(n)}`);
+  }
+
+  group("stoppen räknas om när fönstret ändrar storlek");
+  {
+    // Codex, #54. Ett stopp svarar på en fråga om *storlek*, och storlek ändras utan en
+    // omritning: ett fönster som ändras, en platta som vrids, sidomenyn som öppnas.
+    // Kommentaren bredvid `markColumnStops` kallade den luckan sällsynt och accepterade ett
+    // inaktuellt svar. Mätt: ett fönster från 900 till 300 högt gav två kolumner 22 och 53
+    // av resa — utan stopp alls.
+    const kort = (p) => {
+      const frö = p.items.find((i) => i.status === "now");
+      for (let n = 0; n < 6; n++) {
+        p.items.push({ ...frö, id: frö.id + "-x" + n, slug: frö.slug + "-x" + n, title: "Fyllnad " + n });
+      }
+      return p;
+    };
+    const p = await open("?view=all", { data: kort, viewport: { width: 1000, height: 900 } });
+    await p.waitForSelector(".board .card");
+    const läs = () => p.evaluate(() => [...document.querySelectorAll(".board > .column:not(.hidden-cols) > .cards")]
+      .map((k) => ({ tab: k.getAttribute("tabindex"), rum: k.scrollHeight - k.clientHeight })));
+    const före = await läs();
+    ok(före.some((k) => k.rum === 0 && k.tab === null),
+      `någon kolumn är kort och utan stopp från början: ${JSON.stringify(före)}`);
+
+    await p.setViewportSize({ width: 1000, height: 300 });
+    await p.waitForTimeout(500);
+    const efter = await läs();
+    ok(efter.filter((k) => k.rum > 0).length > före.filter((k) => k.rum > 0).length,
+      `omskalningen gav fler kolumner resa, annars mäter det här ingenting: ${JSON.stringify([före, efter])}`);
+    eq(efter.filter((k) => k.rum > 0 && k.tab !== "0"), [],
+      `och var och en av dem är ett stopp nu, utan omritning: ${JSON.stringify(efter)}`);
+
+    // Och åt andra hållet: ett fönster som växer tar stoppen med sig.
+    await p.setViewportSize({ width: 1000, height: 1200 });
+    await p.waitForTimeout(500);
+    const tillbaka = await läs();
+    eq(tillbaka.filter((k) => k.rum === 0 && k.tab !== null), [],
+      `en kolumn som slutade svämma över är inte längre ett stopp: ${JSON.stringify(tillbaka)}`);
+  }
 }

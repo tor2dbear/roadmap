@@ -2023,8 +2023,26 @@
       // it is the box the chrome sits above, not the box that scrolls; what it forwards
       // to it asks `scrollPort()` per event.
       if (workEl) { armAxisLock(workEl); armChromeWheel(workEl); }
-    if (boardEl) armColumnWheel(boardEl);
+    if (boardEl) { armColumnWheel(boardEl); armStopWatch(boardEl); }
     }
+  }
+
+  // A stop answers a question about *size*, and size changes without a render: a window
+  // resized, a tablet rotated, the sidebar opened or closed. The comment beside
+  // `markColumnStops` used to call that gap rare and accept a stale answer — the
+  // measurement says otherwise (a window from 900 to 300 tall left two columns with 22 and
+  // 53 of range and no stop at all), and with the port's own stop now conditional too there
+  // were two answers going stale rather than one. Codex found it (#54).
+  //
+  // One observer, on `#board`, rather than one per column: the board is the box both the
+  // window and the sidebar move, and its children's heights follow it. `markStops` writes
+  // nothing but `tabindex`, so it cannot change layout and the observer cannot loop. It
+  // fires once on `observe` too, which is simply the first correct answer.
+  var stopWatchArmed = false;
+  function armStopWatch(board) {
+    if (stopWatchArmed || !board || !window.ResizeObserver) return;
+    stopWatchArmed = true;
+    new ResizeObserver(function () { markStops(board); }).observe(board);
   }
 
   // ── one axis per drag ───────────────────────────────────────────────────────
@@ -2431,19 +2449,24 @@
   // scrollers in the tab order by itself where Safari does not. So the marks follow the
   // port rather than sitting on `.work` in the markup: a box that no longer scrolls is
   // not a stop, and a region with no name is worse than no region.
+  // Who the port *is* — its name and its role. Not its tab stop: this runs from
+  // `renderBoard` before the board is filled, where every box measures 0, and a stop is a
+  // question about size. `markStops` owns `tabindex` for both boxes and is called where
+  // measuring is allowed.
   function markPort() {
     var port = scrollPort();
     if (!port) return;
     [workEl, portEl].forEach(function (n) {
       if (!n || n === port) return;
-      n.removeAttribute("tabindex");
       n.removeAttribute("role");
       n.removeAttribute("aria-label");
     });
-    port.setAttribute("tabindex", "0");
     // Both ports are plain `div`s, so both want the role. It is `#board` that must never
     // have it — a `<main>` is already a landmark and `region` would replace it with a
     // weaker one — and the board stopped being a port when `.port` took the job.
+    // A named region whether or not it is a stop: landmarks are navigated by name rather
+    // than by Tab, so the name costs no keystrokes and the stop is the thing that must be
+    // earned. Same sentence `renderColumns` already says about a column.
     port.setAttribute("role", "region");
     port.setAttribute("aria-label", document.body.classList.contains("viewing-puck") ? "Puck" : "Board");
   }
@@ -2463,6 +2486,26 @@
   // out); the stop had none, and the comment beside that pass said the opposite — "the
   // pass still runs, because it also decides the tab stops" — which is true of the call
   // and false of the answer.
+  // Every `tabindex` the board and its ports carry, decided in one pass, because they all
+  // answer the same question — *does this box have anything to scroll?* — and a box that
+  // does not is a target where arrows, Page Down and Space do nothing.
+  //
+  // The port was the one exception, and it was written as an unconditional stop back when
+  // it was the only scroller on the board. A kanban view that fits — Inbox, a board
+  // filtered to one column — has no range at all: measured at 1400×900, `#port` carrying
+  // `tabindex="0"` with 0 of travel on both axes, and no column a stop either, so the
+  // keyboard stopped somewhere nothing moves. Codex found it (#54). Either axis counts:
+  // the list's `.work` is two-axis, and a list that only overflows sideways is still a box
+  // Page Down has an answer for.
+  function markStops(board) {
+    [workEl, portEl].forEach(function (n) {
+      if (!n) return;
+      var isPort = n === scrollPort();
+      if (isPort && (n.scrollHeight > n.clientHeight + 1 || n.scrollWidth > n.clientWidth + 1)) n.tabIndex = 0;
+      else n.removeAttribute("tabindex");
+    });
+    markColumnStops(board);
+  }
   function markColumnStops(board) {
     if (!board) return;
     // Columns only — the tray is deliberately not a stop, and the reason is its rows rather
@@ -4529,8 +4572,8 @@
     // The stops, unconditionally — not inside the gate above. A redraw behind the puck
     // took them from every column, and that happened whether or not a place was snapshotted
     // and whether or not the grouping still matches. This is the first moment a column has
-    // a layout to be measured in again. See `markColumnStops`.
-    markColumnStops(boardEl);
+    // a layout to be measured in again. See `markStops`.
+    markStops(boardEl);
   }
 
   // A table row — full-width, aligned columns (Name · Priority · Agent · Repo ·
@@ -5541,8 +5584,8 @@
     // And the tab stops, decided here because here is where measuring is allowed — the
     // rule at the top of `renderBoard` forbids it only between the clear and the fill.
     // Behind an open puck this answers "none", which is why `closeDetail` asks again;
-    // see `markColumnStops`.
-    markColumnStops(board);
+    // see `markStops`.
+    markStops(board);
     // The keyboard's place, after the stops — a column has to *be* a stop before it can be
     // focused, so the order is load-bearing rather than tidy. Only the same board (the stamp
     // already gates the offsets, for the reason `NO_VALUE` taught), only a column that is

@@ -400,3 +400,33 @@ Tre delar, tre sabotage, och de fäller olika rader: utan stämpelvakten faller
 grupperingskontrollen, utan identitetsvakten faller layoutkontrollen, och utan nollställningen
 faller grupperingskontrollen igen. En fjärde kontroll är motprovet — en **oförändrad** bräda
 ska få sin plats tillbaka, annars vore de två vakterna en avstängning och inte vakter.
+
+**Ett elfte och ett tolfte, och de stänger den lucka den här pucken själv hade skrivit ned
+som acceptabel.** Bägge handlar om tabbstoppet, och bägge kom från Codex (#54).
+
+**Porten var ett stopp ovillkorligt**, skrivet när den var brädans enda scrollruta. En
+kanbanvy som *får plats* — Inbox, en bräda filtrerad till en kolumn — har ingen resa alls:
+mätt vid 1400×900, `#port` med `tabindex="0"` och 0 att flytta på bägge axlar, och ingen
+kolumn som stopp heller. Tangentbordet stannade alltså på ett ställe där pilar, Page Down
+och blanksteg inte gör något. Det är exakt regeln kolumnerna redan fick av ett tidigare
+fynd, en låda upp.
+
+`markPort` äger nu bara *namnet* — rollen och etiketten — och `markStops` äger varje
+`tabindex`. Delningen är inte kosmetisk: `markPort` anropas från `renderBoard` **innan**
+brädan är fylld, där varje låda mäter 0, och ett stopp är en fråga om storlek. Namnet står
+kvar oavsett, för landmärken navigeras på namn och inte med Tab.
+
+**Och storlek ändras utan en omritning.** Kommentaren bredvid `markColumnStops` kallade den
+luckan *"rare, and a stale stop is a far smaller cost than seven inert ones"* och accepterade
+ett inaktuellt svar. Mätningen säger något annat: ett fönster från 900 till 300 högt gav två
+kolumner 22 och 53 av resa — utan stopp alls. Och med portens eget stopp villkorat fanns det
+nu **två** svar som kunde bli inaktuella i stället för ett.
+
+En `ResizeObserver` på `#board` — en, inte en per kolumn, eftersom brädan är lådan som både
+fönstret och sidomenyn flyttar och barnens höjder följer den. `markStops` skriver ingenting
+utom `tabindex`, så den kan inte ändra layout och observern kan inte loopa.
+
+**Jag avslog det här en gång, i en tråd på PR:en**, med motiveringen att en observer var mer
+maskineri än luckan var värd. Det var ett rimligt svar om den luckan — och fel om den här,
+eftersom den mellanliggande ändringen villkorade portens stopp och därmed gjorde luckan
+dubbelt så bred. Ett avslag är sant om koden det gavs om.
