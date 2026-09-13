@@ -403,8 +403,10 @@ phone, with the topbar and chip row (sized to the viewport) sitting in 60% of th
 `min-width: 0` on `.board.as-list` is the fix — `min-width: 0` on the *label* lets it
 shrink but does not lower what it contributes.
 
-**The shell is a fixed-height column with one scrollport (`.work`), not a page that
-scrolls.** Its rows say `grid-auto-rows: max-content`, and they have to say it out loud:
+**The shell is a fixed-height column with one scrollport per layout, not a page that
+scrolls** — `.work` in the list and on a puck page, `.port` in kanban; `scrollPort()` is
+the one place that answers, and *the section below it is the one to read before touching
+any of this*. Its rows say `grid-auto-rows: max-content`, and they have to say it out loud:
 `#board` carries `overflow-x: auto`, which makes it a scroll container in both axes, and a
 scroll container contributes almost nothing to its row's height — it can scroll, so it need
 not be tall. Left `auto`, row one took only the leftover space (573px) while the board stood
@@ -516,7 +518,7 @@ sideways is a scroll container in *both* axes, so before the change a group head
   scroll runs on the compositor, and writing `scrollTop` while the finger is down does not
   reach it** — a test that moves the offsets itself measures the arithmetic, not the
   mechanism. So the port carries `touch-action: pan-y pinch-zoom` (scoped by
-  `.work:has(> .board.as-list)`, since the kanban board is its own sideways scroller and
+  `.work:has(> .port > .board.as-list)`, since the kanban board is its own sideways scroller and
   `pan-y` on an ancestor would forbid it), and sideways is `armAxisLock`'s to drive: the
   first 8px pick the axis, and a sideways one refuses the browser's vertical pan and moves
   `scrollLeft` by the finger's delta — but only where there is room *in the direction being
@@ -600,7 +602,7 @@ sideways is a scroll container in *both* axes, so before the change a group head
   all directions at once. The heading's offset is its resting one, `--list-pad` +
   `--head-pad`, which makes the travel zero.
 - **The scroll lock moved with the scroll.** `body { position: fixed }` held the page's
-  offset; the page has none now, so `lockScroll` hides `.work`'s overflow and restores its
+  offset; the page has none now, so `lockScroll` hides the port's overflow and restores its
   offset. Anything else that reaches for `window.scrollTo` is reaching for the wrong box —
   the puck page and the editor's `reveal()` both scroll the port.
 
@@ -627,6 +629,380 @@ hidden by default, restored at container widths 560 and 720). They must stay *af
 `.list-cell { display: flex }` in the file — equal specificity, so source order is the
 whole mechanism, and putting them beside `.list-row` cost a round of two-line rows with
 the date wrapped under the title.
+
+## UI: the footer was horizontal furniture in a vertical-scarce place
+
+The board had a footer: `117 pucks · generated … UTC`, `sync now`, and three links to the
+generated artifacts. It is now `.side-foot`, the last band in the sidebar, and the content
+did not change — only where it stands.
+
+- **The measurement is the argument.** On a 390×844 phone the row was **114px in three
+  wrapped lines**, with an orphaned `·` on the last. A sidebar is a vertical column where
+  that space is cheap, and on a phone it sits behind the menu button, where it costs
+  nothing at all.
+- **And the glance it was defending did not exist.** The case for a footer is that you
+  happen to see the harvest time. Measured on the board as it stood: the footer sat at
+  **y=1986** in an 844px window in kanban, and after 117 rows in the list. What the move
+  trades away is the belief in a glance, not a glance — which is what makes it cheap.
+- **Sticky against the bottom, which is `.side-brand`'s rule mirrored.** That band is
+  `position: sticky; top: 0` because it sits *inside* the sidebar's own scroller, so
+  "first" held only at offset 0. "Last" has the identical problem, so the foot is
+  `bottom: 0` and `margin-top: auto` keeps it down while the sections are short. Two
+  pinned bands, one at each end, and a check asserts both at once.
+- **The sidebar's bottom padding had to go, and no sabotage could find that.** `.sidebar`
+  carried `padding-bottom: 16px` so the last repo row was not flush; with a band down there
+  it laid a 16px stripe *below* the thing claiming to be the bottom, and a `bottom: 0`
+  sticky box that stops 16px short reads as stuck rather than pinned. The first check asked
+  only that the band does not move during a scroll, which that defect passes. It asks the
+  offset is **0** now — a pin has two properties and measuring one of them is how the other
+  regresses quietly.
+- **A date is one token however many hyphens it has.** A browser takes a hyphen as a break
+  opportunity, so in a 240px column `2026-08-16` broke after the month and left
+  `16 18:29 UTC` beginning the next line. `footmeta` writes two nodes rather than one string,
+  and the stamp is `nowrap`.
+- **Three premise rows went with the box rather than being patched**: the footer lived
+  *inside* the port so it would travel with the cards; it was pinned sideways
+  (`position: sticky; left: 0`) because the port scrolls horizontally and the row is only
+  port-wide (measured `left: -800` before the pin); and a puck page removed it entirely.
+  None of those questions survive a box that does not exist. The list's own footer had the
+  same sideways fault — `left: -488`, true since the day the list was written, and left
+  open as needing its own answer — and it is settled by the same removal: one repair for a
+  defect that had two homes.
+- **The puck page is where the move pays a second time.** The old footer stood in
+  `body.viewing-puck`'s hide list, so opening a puck took the harvest time *and* `sync now`
+  off the screen — `sync.test.mjs` documented that as the gap `.syncbar` had to cover. The
+  sidebar is a different column and stays.
+- **What was deliberately not done:** the content was moved, not redesigned. Whether the
+  freshness should stop being a number and become a *signal* — silent while the data is
+  fresh, speaking when it is not, which is the board's own idiom for "the declared state
+  disagrees with reality" — is written down as an open question in
+  `foten-flyttar-in-i-sidomenyn`, to be answered once the band has stood there a while.
+
+## UI: which box scrolls
+
+`scrollPort()` answers it, and that it exists is the whole of this change. The question was
+asked in four places — the wheel forwarder, the scroll lock, the puck page's saved place and
+the tab stop — and each of them answered `.work`, because until now that was true. Four
+copies of one fact is how they come to disagree; the cure is the one the board already uses
+for `liftArchive()` and `sortChain()`.
+
+> **`.port` is the kanban scrollport. In the list it scrolls nothing. A puck page is
+> neither — there `.work` holds the content.**
+
+- **What was broken, and it was in the default layout.** `.col-head` has been
+  `position: sticky` all along, with a comment beside it explaining that it pins against the
+  board "since `overflow-x: auto` forces `overflow-y: auto` too". The board had no *height*
+  to scroll within — `.work` did the scrolling and the board stood at its content height — so
+  the heading pinned against nothing: measured at 390px, 133px above the port's top edge and
+  climbing. The sideways scrollbar had the same cause from the other end, sitting at the
+  bottom of 4700px of cards instead of at the bottom of the window. A rule that explains a
+  behaviour the layout stopped delivering is worse than no rule: it reads as true.
+- **The port is a box of its own, and the footer was why — then the footer left.** The
+  obvious move is to make `#board` the scroller, and it was, for one commit. The board lays
+  its children out `grid-auto-flow: column`, so a footer *inside* it is one more column; a
+  footer *outside* it never scrolls away. Reported from the phone: 114px of permanent
+  furniture on an 844px screen. `.port` wrapped both and scrolled both. The footer has since
+  moved to the sidebar (see *the footer was horizontal furniture*), so the port holds only
+  the board — **and the box stays**, for the reason below it rather than the one above: the
+  board must not be the scroll container, or a sticky column head resolves against it.
+- **So the board stops being a scroll container**, or a sticky column head resolves against
+  *it* — a box with no height of its own to travel in — instead of the port. That is the
+  list's arrangement exactly: `.board.as-list` has turned its own `overflow-x` off since the
+  day the list was written. `min-width: 0` comes with it, because a grid item's automatic
+  minimum is its min-content and it was only 0 here because `overflow-x: auto` made the box
+  a scroll container (the 652px document on a 390px phone is what that costs).
+- **Two CSS lines on top of that, and they are not the work.** `grid-auto-rows: auto` on
+  `.work` plus `align-self: stretch; min-height: 0` on `.port` makes the row the port's
+  height and the port fill it. The `max-content` those replace was right while `.work` was
+  the only port (a content-tall board in a row sized to the leftover space painted over the
+  footer); stretched, there is no leftover to get wrong. Both are scoped
+  `body:not(.viewing-puck)`, the same guard three rules above them already carry, because a
+  hidden `#board` keeps its layout class — without it a puck page sizes its only row to the
+  port and clips its own content.
+- **The list's rules had to follow the board down a level.** `touch-action: pan-y`, the
+  sideways `overscroll-behavior` and the hidden indicators are all scoped
+  `.work:has(> .board.as-list)` — a *direct* child selector, deliberately precise, and the
+  board stopped being a direct child. Five checks fell at once: the axis lock, the rubber
+  band and the fling, none of which the port change is otherwise about. They read
+  `> .port > .board.as-list` now.
+- **A sticky box pins against the scrollport's *content* box, so the port's own top padding
+  is a band that belongs to nobody.** `#board` carried `padding: 18px …`, and the cards
+  scrolled up through those 18 pixels with a strip of the one behind standing above the
+  pinned heading — measured, `elementFromPoint` in that band answering `card` with the head
+  sitting 18px below the port's edge. It is the list's leak (two frozen cells with a 14px
+  grid gap between them) one layout over, and the same repair: the gutter moves to the box
+  that travels, `.column`, where it scrolls away with the column's own first screen.
+- **The tab stop is the fourth reader, and the easiest to forget.** "The port is a tab stop,
+  because the page stopped being one" was written about `.work` and stamped into the markup;
+  a port that scrolls while `.work` holds the `tabindex` gives Page Down nothing to move
+  again. `markPort()` moves `tabindex`, `role="region"` and the label, called from
+  `renderBoard` (the layout switches without a puck ever opening) and from both sides of the
+  puck page. Both ports are plain `div`s and take the role; `#board` must never have it —
+  it is a `<main>`, and `region` would replace a landmark with a weaker one.
+- **`armAxisLock` still takes `.work`, and that is not an oversight.** The axis lock is the
+  *list's* — `touch-action: pan-y` is scoped by `:has(> .port > .board.as-list)` — and in the list
+  `.work` is the port. `armChromeWheel` also takes `.work`, for a different reason: it is the
+  box the chrome sits *above*, not the box that moves. What it forwards to, it asks per
+  event, because arming happens once and the layout changes many times after it.
+- **Order matters at both ends of the puck page.** `openDetail` asks before adding
+  `viewing-puck` (the answer is still the board's port) and `closeDetail` asks after removing
+  it (so the place goes back into the box that holds it). `exitPuckView` zeroes *both* boxes:
+  it runs after the class is off, so the port it is handed is the board's, while the offset
+  the puck was read at is still standing in `.work`.
+- **Settled since, and the settling is the point:** this section once ended with an open
+  question — the list hides its native scroll indicators under `(pointer: coarse)` because a
+  two-axis port draws them badly (the vertical bar painting under the sticky headings, a
+  flick down flashing the horizontal one), and the kanban port had just become two-axis too.
+  It is not any more. Every box on the board takes one axis (see *each column is its own
+  scrollport*), so each draws one indicator on its own axis, which is the ordinary case. The
+  question dissolved rather than being answered, and no device report was needed for a cause
+  that is gone.
+
+## UI: each column is its own scrollport
+
+The board's vertical scroll lives in the columns, and the port scrolls only sideways. It is
+Linear's shape, reported from there with a screenshot, and it dissolves three rules rather
+than tuning them.
+
+> **No box on the board scrolls two ways. The port takes sideways; a column takes
+> downwards.**
+
+- **What it fixes, and it was a regression this branch introduced.** Before the board had a
+  port at all, the axes sat on two boxes — `.work` scrolled y, `#board` scrolled x — and the
+  browser locked the axis by itself, because it picks *one* box to scroll. The port merged
+  them and left nothing to pick between: measured with a 42° CDP drag, `left 299` **and**
+  `top 337` from a gesture meant as a read downwards, against `board.left 299, work.top 0`
+  on `main`. Per-column scroll puts the axes back on two boxes, one layer in.
+- **The rule that holds it is the column, not the port.** `overflow-y: hidden` on `.port`
+  looks like the fix and is not: sabotage puts `overflow: auto` back and the drift check
+  stays green, because the gesture targets the innermost scroller. Take `overflow-y` off
+  `.cards` and the drift returns at once (`portX: 514`). The port's line is a statement of
+  intent, the same standing as the wheel forwarder's containment guard.
+- **The column head is not pinned, and needs nothing to stand still.** It is `.cards`'
+  *sibling*, so nothing scrolls under it. That retires `position: sticky`, the `top: 0`
+  resolving against a port's content box, the `z-index` over the cards, and the opaque
+  background bleeding 8px past the column to cover a card's `0 2px 8px` shadow — a real
+  phone report ("a small edge/shadow behind the other titles") whose cause is now absent.
+  The `HIDDEN` tray stops sliding out of view for the same reason (measured: head at −289
+  while scrolled, 11 after).
+- **`flex: 1; min-height: 0` on the board is the line everything rests on.** Without it the
+  board stands at its tallest column's height (measured 1833px in a 731px port), no column
+  has a definite height, `.cards` has nothing to overflow, and the rule below it does
+  nothing at all — silently.
+- **The lock had to follow the scroll, and it is a selector rather than a set of nodes.**
+  `lockScroll` hid the port's overflow; with the vertical axis in the columns that stopped
+  holding the thing that moves. `body.board-locked` plus a CSS rule covers whatever the
+  board draws next — which matters because the sheet that locks (Display) is also the one
+  that re-renders the board, so a remembered list of `.cards` would be detached exactly
+  when it was needed. That is the failure `relockScroll` exists to paper over for the port,
+  avoided rather than repeated. Two `:not(.x)` carry the rule's specificity past
+  `body:not(.viewing-puck) … .board:not(.as-list) …`, and without them it computed
+  `overflow-y: auto` and did nothing while the sheet's scrim made it look like it worked.
+  **Sabotage cannot fell it** — the scrim swallows the wheel either way — so the check
+  asserts the computed `overflow-y`, and this paragraph is the record that the scrim is
+  what the reader actually feels.
+- **The focus ring names all three ports, because "the scrollport" stopped being one box.**
+  `.work:focus:not(:focus-visible)` was written when `.work` was the only one; in kanban it
+  holds no `tabindex` at all, so a mouse click landed a ring on a box the rule did not name.
+  `.work`, `.port` and `.cards` now, which is `scrollPort()`'s own list one file over. Its
+  check measures **coverage, not the ring**, and sabotage is what decided that: Chromium's
+  own stylesheet rings only on `:focus-visible`, so a mouse focus is ringless here by
+  default and narrowing the rule back to `.work` felled no behavioural check at all. The
+  rule is defence-in-depth for browsers that ring on a plain `:focus`; what is measurable,
+  and what was actually wrong, is which boxes it names. The behavioural half is kept and
+  labelled as such — otherwise the coverage would read as proof of a behaviour.
+- **Each column's card list is a tab stop**, labelled by the column. The board had one stop
+  while it had one scroller; with the vertical axis inside the columns, Page Down on the
+  port moves nothing but sideways. Chrome puts overflowing boxes in the tab order by itself
+  and Safari does not — the same asymmetry `markPort()` was written for.
+- **And the port earns its own stop the same way.** It was unconditional, written when it
+  was the board's only scroller: a kanban view that *fits* — Inbox, a board filtered to one
+  column — has no travel at all, and measured at 1400×900 `#port` carried `tabindex="0"`
+  with 0 on both axes and no column a stop either, so the keyboard stopped where nothing
+  moves. Codex found it (#54). `markPort` now owns only the **name** (role and label) and
+  `markStops` owns every `tabindex` — and the split is load-bearing rather than tidy:
+  `markPort` runs from `renderBoard` *before* the board is filled, where every box measures
+  0, and a stop is a question about size. The name stays either way, since landmarks are
+  navigated by name rather than by Tab.
+- **A stop goes stale when the box changes size without a render**, and this file used to
+  say that gap was rare and acceptable. It is not: a window from 900 to 300 tall left two
+  columns with 22 and 53 of range and no stop at all — a rotated tablet, a resized window,
+  the sidebar opening. One `ResizeObserver` on `#board`, not one per column: the board is
+  the box both the window and the sidebar move, and its children's heights follow it.
+  `markStops` writes nothing but `tabindex`, so it cannot change layout and the observer
+  cannot loop. **This was declined once**, in a PR thread, as more machinery than the gap
+  was worth — a fair answer about *that* gap, and wrong about this one, because the
+  intervening change made the port's stop conditional too and so doubled it. A refusal is
+  true of the code it was given about.
+- **The wheel over the chrome loses its vertical half, and that is the honest result.**
+  "The chrome above the port is not a dead zone" was a rule about a scroll that existed.
+  There is no board-level vertical scroll now, and the pointer over the topbar is above no
+  column; choosing one — the leftmost, the widest — would be inventing a destination.
+  Sideways is still forwarded. The rule is the list's now.
+- **The scrollbar gets a lane, not the cards' right edge.** A scroller exactly as wide as its
+  content leaves an overlay bar nowhere to go but on top of it — reported from a phone, with
+  Linear beside it: the bar drawn across the right edge of every card in the column being
+  read. Linear's scroller is simply wider than its cards. `.cards` borrows 8px of the 16px
+  the board already keeps between columns, bleeding right by `--bar-lane` and insetting its
+  content by the same number: measured, the column ends at 302, the card ends at 302 (in
+  line with `.col-head`, which is a sibling and does not move), the scroller ends at 310,
+  and the next column still starts at 318. The two declarations are one idea and each half
+  fells its own check — drop the bleed and the cards shrink out of line with the head; drop
+  the inset and the scroller no longer extends past them. The bar itself is an overlay the
+  test browser does not draw, so the checks assert the lane and the device confirms the bar.
+  **The bar in it is the sidebar's**, which has been this board's one self-effacing scrollbar
+  since it was written: `scrollbar-width: thin`, a thumb in `--line`, no track, `--ink-3`
+  under the pointer. Both themes come free because both tokens do. Deliberately *no*
+  `::-webkit-scrollbar` rules, unlike the sidebar: a width there is what turns an overlay bar
+  into a classic one, and a classic bar takes its width out of `clientWidth` — which would
+  shrink the cards by 8px and walk them out of the very register the lane exists to keep
+  (measured: `clientWidth` 288 and the card's right edge at the head's 302, both ways).
+- **The card's shadow needs a lane of its own on the left, for the same reason and half the
+  width.** A scrollport clips at its padding box, and with no left padding the card's left
+  edge *was* the clip edge — measured, scroller and card both at 262 — so `0 2px 8px` fell
+  softly into the lane on the right and was cut flat on the left. One card, two different
+  edges. `--card-bleed: 4px` is the blur's own reach (half of 8), bled and re-inset exactly
+  like the lane above it, so the card's box does not move. The gap arithmetic still works:
+  16px between columns, 8 for the bar and 4 for the shadow, and the two never meet.
+- **The drop line goes before `.col-add`, not last in the container.** `dropPointAt` reads
+  `.card` and answers `null` for "after them all"; `showDropLine` appended, and the container
+  stopped being only cards when the `+` moved inside the scroller — measured with three
+  cards, the line at y=487 against a last card ending at 433, with the button's 443–474 in
+  between. 54px below where the drop would actually write, which is the one thing a drop
+  line exists to say. The same sentence has to be said in both places now.
+- **The tray is a column, and the dashed border was the last thing pretending otherwise.**
+  Removed at the user's request — and removing it was also the rest of the misalignment they
+  had reported three times: the 1px border and 10px side padding put the tray's title 11px
+  from its own left edge where a column's stands at 18, and its rows 11px in where the cards
+  beside them start at 0. What is left is `align-self: start`; `.column`'s own `padding-top`
+  and `border-radius` say the rest. The 18px is the swatch plus the head's gap, so the tray
+  keeps the swatch's **slot** without its mark — four columns have no one colour — rather
+  than restating those two numbers as a padding in the one place nothing would keep them in
+  step.
+- **The tray scrolls too, and it is the one box on the board that is not a grouping value.**
+  Every offset snapshot asks `.cards[data-col]`, and `renderHiddenTray` set no key — so a
+  redraw threw the reader back to the top of the one list whose entire point is the eyes
+  further down it (measured: eleven archive-hidden repos in a 300px window give 469 against
+  128, a real scroller). Codex found it (#54). `TRAY_KEY` is `NO_VALUE`'s trick one row over:
+  a NUL-prefixed string no harvest can produce, so it cannot collide with a repo, a status,
+  an agent or a tag. **It is still not a tab stop, and the reason is its rows rather than its
+  key** — a column's cards are `div`s with nothing focusable inside, so the scroller is the
+  only keyboard route to what is down there, while the tray's rows are `<button>`s that Tab
+  already reaches and the browser scrolls into view. Chrome draws the same line by itself
+  (measured in the tab order: a column's `.cards`, 0 focusable children, is in it; the
+  tray's, 11, is not), so marking it would be a new stop rather than the Safari parity
+  `markColumnStops` exists for. Two questions, two queries.
+- **A column takes one axis, and CSS will not leave it alone.** `overflow-y: auto` beside an
+  `overflow-x` of `visible` computes the *visible* one to `auto` — the same rule that forces
+  `#board` not to be a scroll container, read from the other direction — so one unbreakable
+  token in a card re-opened the second axis: measured with a URL in a title, 414px of
+  horizontal scroll beside 1337 of vertical, in the very box this arrangement exists to keep
+  to one axis. Two rules, and which does what is worth knowing: **`overflow-wrap: anywhere`
+  on the card title is the fix** (it removes the overflow: 414 → 0), while `overflow-x: clip`
+  on `.cards` is the **guarantee** for whatever overflows next. The guarantee has teeth —
+  with overflow still present it hides the text rather than scrolling to it, which is worse
+  for a reader than the bug — so the two belong together. `clip` buys nothing over `hidden`
+  here and is kept for intent: when the other axis scrolls, `clip` is specified to compute to
+  `hidden`, and measured it does, with `scrollLeft` writable under both. What either buys is
+  the half that matters: neither can be *dragged*, so the gesture stays on one axis.
+- **The reader's place in a column has to be carried across a redraw, and the carrying has
+  its own trap.** `renderBoard` empties the board, which takes every `.cards` with it — so
+  the promise one paragraph up ("nothing may measure the board while it is empty", written
+  so `loadWritableRepos` resolving does not throw the reader to the top) stopped covering
+  the axis that matters. The places are read out by column key before the clear and put back
+  **in one pass over a finished board**: doing it per column inside the loop forces a layout
+  of a half-built board, and the port — wider than two of four columns — clamps its own
+  `scrollLeft` to 0 (measured: 90 → 0). That is the same rule in a new disguise. `colPlaces`
+  is cleared in `exitPuckView` too, because the keys are the grouping's own values, so `now`
+  is `now` in the next view and the old board's place would otherwise be inherited one box
+  further in — the exact bug that function already exists to prevent. **And the stamp the
+  restore is gated on says which *board* this is — view, filter and grouping — not just how
+  it is grouped**: `NO_VALUE` is the empty bucket for four groupings, and `status` is the
+  same grouping in All as in Ready, so either alone lets a destination open partway down
+  (measured: Ready's `now` at 260px, read in All). A display toggle is the same board with
+  more or less drawn, and returning to your place there is right.
+  **Two more paths, and the third is the one that reads wrong until you see it.** A redraw in
+  a *visible* board restores in one pass over a finished board — doing it per column inside
+  the loop forces a layout of a half-built one and clamps the port's own `scrollLeft` to 0
+  (90 → 0). A redraw *behind an open puck* cannot be restored at render time at all: a hidden
+  scroller reports `scrollTop` as 0 and cannot be written to, so the capture reads nothing and
+  the write goes nowhere. `openDetail` snapshots the columns into `boardAt.cols` while the
+  board is still visible, and `closeDetail` puts them back.
+- **The tab stop is the third face of that same rule, and it had no repair at all.** A hidden
+  scroller cannot be *measured* either: behind an open puck every `.cards` answers
+  `scrollHeight` 0 and `clientHeight` 0, so the pass at the end of `renderColumns` runs and
+  decides no column is a stop — measured, a 15-card column `tabindex="0"` before, gone after
+  a redraw behind the puck, and **still gone** once the puck closed and it was scrolling
+  again. In Safari that column stops being keyboard-reachable, which is the one asymmetry the
+  stop exists for. Codex found it (#54). The place had both its repairs by then; the stop had
+  none, and the comment beside the pass claimed the opposite — *"the pass still runs, because
+  it also decides the tab stops"* — which is true of the call and false of the answer.
+  `markColumnStops()` is the one writer and `closeDetail` asks it again, unconditionally:
+  a redraw takes the stops whether or not a place was snapshotted and whether or not the
+  grouping still matches, so it cannot sit inside that gate. It **recomputes** rather than
+  restoring — a column that stopped overflowing while the puck was open must not get a stop
+  back.
+- **The keyboard's place is the same question as the reader's, and it needed its own answer.**
+  Restoring the *offset* is half of it: `renderBoard` replaces the node, so focus falls to the
+  document and Page Down then moves nothing at all — measured, focus on `.cards[data-col=now]`
+  with its place held at 120, and Page Down giving **120 → 120**. A regression from per-column
+  scroll: while `.work` was the one port it was a stable target no redraw touched. Codex found
+  it (#54). `colFocus` is captured before the clear and put back *after* the stops are set —
+  the order is load-bearing, since a column must **be** a stop before it can be focused — and
+  only for the same board, never behind an open puck, and **only if focus was inside the
+  board**: a redraw while the reader is in the sidebar, a field or a surface must not pull
+  focus onto a column. `preventScroll`, because focusing a box scrolls it into view and would
+  undo the port's `scrollLeft` restored three lines above. Found by scanning rather than by an
+  attribute selector — a key is a grouping's own value (a repo name with a slash, `NO_VALUE`'s
+  NUL, `TRAY_KEY`), and none of those belong in one. Same idiom the board already uses twice:
+  `segmented()` puts the pressed segment back after a rebuild, and `toggleGroup` finds its
+  control again by `data-fold`.
+- **`boardAt` remembers the box, not just the numbers.** `closeDetail` asked `scrollPort()`
+  where the place should go back — but the layout can change *while the puck is open*: ⌘K
+  still offers `Layout: list/board`, and `setDisplay` closes no puck. `scrollPort()` then
+  answers with a different box on the way out than on the way in, and the kanban port's
+  `scrollLeft` went straight into the list's `.work` — measured at 700px, the port read at
+  200 and the list opened at **178**, its whole horizontal range. Codex found it (#54). The
+  place is restored only when `scrollPort()` answers with the same node; a layout switched
+  behind the puck drops it instead. Same shape and same cure as `lockedEl` in `lockScroll`,
+  which this file already chose for the identical problem — *two functions that must agree
+  about a moving answer is the shape this file cleans up.* Identity rather than the layout
+  class, because the class is only a proxy for it, and `.work` and `#port` both outlive every
+  redraw (`renderBoard` replaces the board's children, not its ancestors).
+- **Two guards, and neither implies the other.** `el` answers *the same box*: the layout can
+  change behind an open puck. The stamp answers *the same board*: a grouping change keeps the
+  very same `.port`, so identity alone said yes to a board that no longer exists — measured,
+  `all␀␀status` at 200 switched to `all␀␀repo` from ⌘K, and closing opened a three-column repo
+  board 200px in with 202 of range. A layout switch keeps the stamp; a grouping switch keeps
+  the box. **And the repair is not "don't restore" — it is to zero.** Hiding the board empties
+  the port and clamps it, and *Chromium hands that offset back by itself when the content
+  returns* — the behaviour `openDetail`'s comment notes, working against us. Measured with our
+  restore deleted outright: the port still came back at 200. So the guards decide whether the
+  place is *ours* to put back; when it is not, the browser's copy is what remains, and only a
+  write of 0 removes it. Zeroing the box left *behind* by a layout switch was written and
+  removed: nothing could fell it, because the browser's memory outlives a write made while the
+  box had no range — and that memory is right, since it is the same board the reader scrolled.
+- **A test may not wait on a proxy for the thing it measures.** The tab-stop check waited for
+  a draggable card as a sign the redraw had happened, and failed 1 run in 5 with a column
+  still carrying its old `tabindex`: a proxy answers when something *else* happens to become
+  true. It marks the nodes first and waits for them to be replaced, and reads the hidden state
+  and the stops in one `evaluate` so a visible board fells the line that names the cause
+  rather than the one that measures the symptom. Same lesson the port's `overflow-y` taught:
+  measure the mechanism, not what usually comes with it.
+- **A closed puck's outcome is true of the commit that wrote it, not of the PR it sits in.**
+  `bradans-egen-scrollruta` was corrected once for describing an intermediate design, and
+  then went stale a second time — because *later steps in the same branch* changed what it
+  describes (the footer left the port; the port lost an axis; the head stopped being
+  pinned). Third occurrence of one mistake, so the rule is sharpened: **when a later step
+  touches code a closed puck describes, re-read that puck's outcome before the PR moves on**
+  — check the closed pucks in the branch's diff, not only the open ones. The repair is a
+  `## Sedan dess` section rather than a rewrite: the narrative is the record, but no
+  sentence may claim something about *today* that is no longer true.
+- **Seven checks moved with the premises rather than being patched**, in one sitting: the
+  head pins, the board overflows the port vertically, the port takes the wheel's `deltaY`,
+  the saved place is the port's `scrollTop`, the lock restores it, a popover reads the
+  board's bottom edge, and the spill to paint with is the port's. Every one of them was
+  true of a two-axis port and is meaningless without one.
 
 ## UI: the grouping with no values
 
@@ -1295,8 +1671,8 @@ truth is still the per-puck markdown in the source repos anyway.)
 **The board can ask for a harvest itself.** A puck edited in *this* repo redeploys on
 the push; one edited in any other source repo waits for the hourly schedule, and the
 person waiting is standing at the board reading the very timestamp that is stale. So
-the footer carries a **sync now** button beside that timestamp (and `Sync now` in ⌘K,
-same gate): it POSTs `workflow_dispatch` to `sync.yml`, waits for the run it created,
+the sidebar's foot carries a **sync now** button beside that timestamp (and `Sync now` in
+⌘K, same gate): it POSTs `workflow_dispatch` to `sync.yml`, waits for the run it created,
 and reloads. The Worker stays assets-only — no relay, no webhook, no second source of
 truth, which is the "close thin, via GitHub" rule the write path already follows.
 
@@ -1310,11 +1686,13 @@ truth, which is the "close thin, via GitHub" rule the write path already follows
   endpoint, so a probe could only distinguish them by attempting the dispatch, which is
   the very thing being gated. Failing loudly with the fix in the sentence is the honest
   alternative.
-- **The wait is shown at the top of the viewport, not in the footer.** `.syncbar` is
+- **The wait is shown at the top of the viewport, not beside the timestamp.** `.syncbar` is
   fixed and indeterminate (GitHub reports no fraction, so a percentage would be
-  invented). The footer's `syncing…` label was the whole indicator once, which held
-  only where the footer is visible — and the minute or two is spent scrolled down the
-  board or inside a puck, where it is off screen and removed respectively.
+  invented). The `syncing…` label was the whole indicator once, which held only where the
+  band is visible — and the minute or two was spent scrolled down the board or inside a
+  puck, where the old footer was off screen and removed respectively. The move to the
+  sidebar closes the second half of that (the band survives a puck page now, which
+  `sync.test.mjs` measures), and the bar stays for the first.
 - **The receipt outlives the reload.** `finishSync` reloads, which destroys the toast
   and the state that knows the run worked, so the run ended by restoring the page to
   exactly its starting state — button back at `sync now`, nothing said — which reads

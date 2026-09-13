@@ -60,8 +60,8 @@ export async function run({ open }) {
   {
     const p = await open();
     eq(await shown(p), false, "utloggad: ingen synkknapp på skärmen");
-    eq(await p.evaluate(() => [...document.querySelectorAll(".foot")]
-      .map((f) => f.textContent.replace(/\s+/g, " ").trim())[0]).then((t) => / · · /.test(t)),
+    eq(await p.evaluate(() => document.querySelector(".side-foot")
+      .textContent.replace(/\s+/g, " ").trim()).then((t) => / · · /.test(t)),
       false, "och ingen kvarlämnad avdelare där den skulle ha stått");
 
     const q = await open("", { token: true, github: actionsStub().handler });
@@ -157,16 +157,20 @@ export async function run({ open }) {
     await p.waitForTimeout(600);
     eq(await barShown(), true, "raden syns under körningen");
     eq(await p.evaluate(() => getComputedStyle(document.getElementById("syncBar")).position),
-      "fixed", "fäst i vyporten, inte i flödet — annars scrollar den bort med foten");
+      "fixed", "fäst i vyporten, inte i flödet — annars skrollar den bort med brädan");
 
-    // The case the footer cannot answer at all: a puck page removes `.foot` entirely.
+    // Raden är fortfarande rätt svar, men inte längre av det gamla skälet. Den gamla foten
+    // låg i `.maincol` och stod i `body.viewing-puck`s gömlista, så en öppnad puck tog
+    // bort både skördetiden och knappen — det var *den* luckan syncbaren fyllde. Bandet
+    // bor i sidomenyn nu och står kvar, så det som mäts här är att bägge gör det.
     await p.evaluate(() => { location.hash = "alpha/a-now"; });
     await p.waitForTimeout(400);
     eq(await p.evaluate(() => {
-      const f = document.querySelector(".foot");
+      const f = document.querySelector(".side-foot");
       return !!(f && f.getBoundingClientRect().height > 0);
-    }), false, "puck-sidan tar bort foten");
-    eq(await barShown(), true, "men raden står kvar — signalen överlever sidbytet");
+    }), true, "puckssidan tar inte bort bandet längre");
+    eq(await shown(p), true, "och synkknappen står kvar i det");
+    eq(await barShown(), true, "raden står kvar — signalen överlever sidbytet oavsett");
   }
 
   group("kvittot överlever omladdningen");
