@@ -324,3 +324,28 @@ står på klassen nu, samma rad som `markColumnStops` frågar med.
 **En andra egen miss, fångad av samma körning:** jag skrev att en kolumns `.cards` har noll
 fokuserbara barn. Det gäller utan token — med token ligger `.col-add` inne i skrollrutan. Rätt
 mätning är *innehållet*: inget `.card` är fokuserbart, varje `.hidden-col` är det.
+
+**Ett åttonde, och det är platsens fråga ställd om tangentbordet.** Att lägga tillbaka
+*offseten* är bara halva saken: `renderBoard` byter ut noden, så fokus faller till dokumentet
+och Page Down flyttar därefter ingenting alls. Mätt: fokus på `.cards[data-col=now]`, platsen
+kvar på 120 — och Page Down gav **120 → 120**. Det är en regression härifrån; medan `.work`
+var enda porten var den ett stabilt mål ingen omritning rörde. Codex fann det (#54).
+
+`colFocus` fångas före rensningen och läggs tillbaka efter att stoppen satts — ordningen bär,
+för en kolumn måste *vara* ett stopp innan den kan fokuseras. Tre villkor, och vart och ett
+har en anledning:
+
+- **Samma bräda** (`samma`), samma stämpel som offseten redan grindas på.
+- **Aldrig bakom en öppen puck** — fokus hör till puckssidan där, och `display: none` hade
+  ändå gjort anropet till en tyst nolla.
+- **Bara om fokus låg *inne i* brädan.** En omritning medan läsaren står i sidomenyn, ett
+  fält eller en yta får inte dra fokus till en kolumn. Sabotaget som tar bort den vakten
+  fäller sin egen rad.
+
+`preventScroll`, eftersom fokus på en låda skrollar fram den — vilket hade rivit upp portens
+`scrollLeft` som återställs tre rader ovanför. Och nyckeln söks genom att *scanna* och inte
+med en attributselektor: en nyckel är ett grupperingsvärde — ett reponamn med snedstreck,
+`NO_VALUE`s NUL, `TRAY_KEY` — och inget av det hör hemma i en selektor.
+
+Samma idiom brädan redan använder två gånger: `segmented()` lägger tillbaka det tryckta
+segmentet efter en ombyggnad, och `toggleGroup` hittar sin kontroll igen på `data-fold`.

@@ -3002,4 +3002,86 @@ export async function run({ open }) {
     eq(kol.filter((k) => k.fokuserbaraKort > 0), [],
       `och inget kort är fokuserbart — därför är rutan den enda vägen dit ner: ${JSON.stringify(kol)}`);
   }
+
+  group("tangentbordets plats i kolumnen överlever en omritning");
+  {
+    // Codex, #54. Att lägga tillbaka *offseten* är bara halva saken: noden byts ut, så
+    // fokus faller till dokumentet och Page Down flyttar därefter ingenting alls. Mätt:
+    // fokus på `.cards[data-col=now]` och dess plats bägge kvar på 120, och Page Down gav
+    // 120 → 120. Det är en regression från scroll per kolumn — medan `.work` var enda
+    // porten var den ett stabilt mål ingen omritning rörde.
+    //
+    // Samma idiom brädan redan använder två gånger: `segmented()` lägger tillbaka det
+    // tryckta segmentet efter en ombyggnad, och `toggleGroup` hittar sin kontroll igen på
+    // `data-fold`.
+    let släpp;
+    const spärr = new Promise((ok) => { släpp = ok; });
+    const p = await open("?view=all", {
+      data: tall, viewport: { width: 1000, height: 500 }, token: true,
+      github: async (route) => {
+        if (/\/repos\//.test(route.request().url())) await spärr;
+        return route.fulfill({ status: 200, contentType: "application/json",
+          body: JSON.stringify({ login: "t", permissions: { push: true } }) });
+      },
+    });
+    await p.waitForSelector(".board .card");
+    const vem = () => p.evaluate(() => {
+      const a = document.activeElement;
+      return { klass: (a.className || "").split(" ")[0], kol: a.dataset ? (a.dataset.col ?? null) : null };
+    });
+    const plats = () => p.evaluate(() =>
+      Math.round(document.querySelector(".board > .column > .cards").scrollTop));
+
+    await p.evaluate(() => {
+      const k = [...document.querySelectorAll(".board > .column > .cards[tabindex]")][0];
+      k.focus(); k.scrollTop = 120;
+    });
+    await p.waitForTimeout(120);
+    eq(await vem(), { klass: "cards", kol: "now" }, "tangentbordet står i kolumnen före omritningen");
+
+    släpp();                                  // sonden landar → renderBoard()
+    await p.waitForFunction(() => !!document.querySelector('.card[draggable="true"]'), null, { timeout: 8000 });
+    await p.waitForTimeout(250);
+    eq(await vem(), { klass: "cards", kol: "now" }, "och står kvar där efteråt");
+    eq(await plats(), 120, "med platsen kvar — de två är olika frågor och bägge måste svaras");
+
+    // Och beviset på att det spelar roll: tangentbordet kan flytta kolumnen igen.
+    const innan = await plats();
+    await p.keyboard.press("PageDown");
+    await p.waitForTimeout(250);
+    const efter = await plats();
+    ok(efter > innan, `Page Down flyttar kolumnen igen: ${innan} → ${efter}`);
+  }
+
+  group("en omritning stjäl inte fokus från något utanför brädan");
+  {
+    // Andra halvan av regeln, och den som gör den säker: en omritning medan läsaren står i
+    // sidomenyn, ett fält eller en yta får inte dra fokus till en kolumn. `colFocus` sätts
+    // bara när `document.activeElement` faktiskt ligger *inne i* brädan.
+    let släpp;
+    const spärr = new Promise((ok) => { släpp = ok; });
+    const p = await open("?view=all", {
+      data: tall, viewport: { width: 1000, height: 500 }, token: true,
+      github: async (route) => {
+        if (/\/repos\//.test(route.request().url())) await spärr;
+        return route.fulfill({ status: 200, contentType: "application/json",
+          body: JSON.stringify({ login: "t", permissions: { push: true } }) });
+      },
+    });
+    await p.waitForSelector(".board .card");
+    await p.evaluate(() => {
+      const k = document.querySelector(".board > .column > .cards[tabindex]");
+      if (k) k.scrollTop = 120;                       // en plats finns, men fokus är inte här
+      document.querySelector(".sidebar button").focus();
+    });
+    await p.waitForTimeout(120);
+    const före = await p.evaluate(() => document.activeElement.className.split(" ")[0]);
+    ok(före && före !== "cards", `fokus står utanför brädan före omritningen: ${före}`);
+
+    släpp();
+    await p.waitForFunction(() => !!document.querySelector('.card[draggable="true"]'), null, { timeout: 8000 });
+    await p.waitForTimeout(250);
+    eq(await p.evaluate(() => document.activeElement.className.split(" ")[0]), före,
+      "och står kvar där — platsen läggs tillbaka, fokus rörs inte");
+  }
 }

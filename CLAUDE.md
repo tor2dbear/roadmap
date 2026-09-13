@@ -923,6 +923,21 @@ than tuning them.
   grouping still matches, so it cannot sit inside that gate. It **recomputes** rather than
   restoring — a column that stopped overflowing while the puck was open must not get a stop
   back.
+- **The keyboard's place is the same question as the reader's, and it needed its own answer.**
+  Restoring the *offset* is half of it: `renderBoard` replaces the node, so focus falls to the
+  document and Page Down then moves nothing at all — measured, focus on `.cards[data-col=now]`
+  with its place held at 120, and Page Down giving **120 → 120**. A regression from per-column
+  scroll: while `.work` was the one port it was a stable target no redraw touched. Codex found
+  it (#54). `colFocus` is captured before the clear and put back *after* the stops are set —
+  the order is load-bearing, since a column must **be** a stop before it can be focused — and
+  only for the same board, never behind an open puck, and **only if focus was inside the
+  board**: a redraw while the reader is in the sidebar, a field or a surface must not pull
+  focus onto a column. `preventScroll`, because focusing a box scrolls it into view and would
+  undo the port's `scrollLeft` restored three lines above. Found by scanning rather than by an
+  attribute selector — a key is a grouping's own value (a repo name with a slash, `NO_VALUE`'s
+  NUL, `TRAY_KEY`), and none of those belong in one. Same idiom the board already uses twice:
+  `segmented()` puts the pressed segment back after a rebuild, and `toggleGroup` finds its
+  control again by `data-fold`.
 - **A closed puck's outcome is true of the commit that wrote it, not of the PR it sits in.**
   `bradans-egen-scrollruta` was corrected once for describing an intermediate design, and
   then went stale a second time — because *later steps in the same branch* changed what it

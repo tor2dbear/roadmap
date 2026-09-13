@@ -5310,6 +5310,10 @@
   // It earns the exception by being write-once-read-once within a single render: anything
   // longer-lived would be a second source of truth for where the reader is.
   var colPlaces = {};
+  // The column the keyboard was in when the board was replaced, by the same key as the
+  // places above. Null unless focus was actually inside the board — a redraw while the
+  // reader is in a sheet, the sidebar or a field must not pull focus onto a column.
+  var colFocus = null;
   // Which grouping `colPlaces` was read out of. The keys are the grouping's own values and
   // `NO_VALUE` belongs to four of them, so the key alone cannot say whether a place is this
   // board's.
@@ -5491,6 +5495,24 @@
     // Behind an open puck this answers "none", which is why `closeDetail` asks again;
     // see `markColumnStops`.
     markColumnStops(board);
+    // The keyboard's place, after the stops — a column has to *be* a stop before it can be
+    // focused, so the order is load-bearing rather than tidy. Only the same board (the stamp
+    // already gates the offsets, for the reason `NO_VALUE` taught), only a column that is
+    // still a stop, and never behind an open puck: focus belongs to the puck page there, and
+    // `display: none` would make the call a silent no-op anyway.
+    // `preventScroll`, because focusing a box scrolls it into view — which would undo the
+    // port's `scrollLeft` that was restored three lines above this.
+    // Found by scanning rather than by a selector: a key is a grouping's own value — a repo
+    // name with a slash in it, `NO_VALUE`'s NUL, `TRAY_KEY` — and none of those belong in an
+    // attribute selector. The places pass two lines up compares the same way.
+    if (samma && colFocus && !document.body.classList.contains("viewing-puck")) {
+      Array.prototype.some.call(board.querySelectorAll(".cards[data-col]"), function (k) {
+        if (k.dataset.col !== colFocus || !k.hasAttribute("tabindex")) return false;
+        k.focus({ preventScroll: true });
+        return true;
+      });
+    }
+    colFocus = null;
   }
 
   // Fold a group shut or open it. Display state, so it travels the same road as the
@@ -6166,6 +6188,16 @@
     Array.prototype.forEach.call(board.querySelectorAll(".cards[data-col]"), function (k) {
       if (k.scrollTop) colPlaces[k.dataset.col] = k.scrollTop;
     });
+    // And which column the keyboard was standing in. Restoring the *offset* is only half of
+    // it: the node is replaced, so focus falls back to the document and Page Down then moves
+    // nothing at all — measured, focus on `.cards[data-col=now]` and its place both held at
+    // 120, and Page Down gave 120 → 120. That is a regression from per-column scroll; while
+    // `.work` was the one port it was a stable target that no redraw touched. Codex found it
+    // (#54). Same idiom the board already uses twice: `segmented()` puts the pressed segment
+    // back after a rebuild, and `toggleGroup` finds its control again by `data-fold`.
+    colFocus = null;
+    var aktiv = document.activeElement;
+    if (aktiv && aktiv.dataset && aktiv.dataset.col && board.contains(aktiv)) colFocus = aktiv.dataset.col;
     board.innerHTML = "";
     // The layout is whatever the toggle says — in every view.
     //
