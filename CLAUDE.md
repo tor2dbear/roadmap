@@ -950,6 +950,19 @@ than tuning them.
   about a moving answer is the shape this file cleans up.* Identity rather than the layout
   class, because the class is only a proxy for it, and `.work` and `#port` both outlive every
   redraw (`renderBoard` replaces the board's children, not its ancestors).
+- **Two guards, and neither implies the other.** `el` answers *the same box*: the layout can
+  change behind an open puck. The stamp answers *the same board*: a grouping change keeps the
+  very same `.port`, so identity alone said yes to a board that no longer exists — measured,
+  `all␀␀status` at 200 switched to `all␀␀repo` from ⌘K, and closing opened a three-column repo
+  board 200px in with 202 of range. A layout switch keeps the stamp; a grouping switch keeps
+  the box. **And the repair is not "don't restore" — it is to zero.** Hiding the board empties
+  the port and clamps it, and *Chromium hands that offset back by itself when the content
+  returns* — the behaviour `openDetail`'s comment notes, working against us. Measured with our
+  restore deleted outright: the port still came back at 200. So the guards decide whether the
+  place is *ours* to put back; when it is not, the browser's copy is what remains, and only a
+  write of 0 removes it. Zeroing the box left *behind* by a layout switch was written and
+  removed: nothing could fell it, because the browser's memory outlives a write made while the
+  box had no range — and that memory is right, since it is the same board the reader scrolled.
 - **A test may not wait on a proxy for the thing it measures.** The tab-stop check waited for
   a draggable card as a sign the redraw had happened, and failed 1 run in 5 with a column
   still carrying its old `tabindex`: a proxy answers when something *else* happens to become

@@ -4472,21 +4472,53 @@
     // after the class comes off, or the port asked for would still be the puck's.
     var back = boardAt && scrollPort();
     if (back) {
-      // Only into the box the numbers came from. `.work` and `#port` both outlive every
-      // redraw (`renderBoard` replaces the board's children, not its ancestors), so identity
-      // is an exact answer where the layout class would be a proxy for it. A layout switched
-      // behind the puck drops the place rather than moving it somewhere it never belonged —
-      // `boardAt` is cleared either way, because that place no longer exists.
-      if (back === boardAt.el) {
+      // **Two questions, and the place goes back only when both answer yes** — because
+      // neither implies the other, and each was reported on its own.
+      //
+      // `el` is the same *box*: the layout can change behind an open puck (⌘K still offers
+      // `Layout: list/board`, and `setDisplay` closes no puck), and the kanban port's
+      // `scrollLeft` then went into the list's `.work` — measured, 200 read and `.work`
+      // opened at 178, its whole range. `.work` and `#port` both outlive every redraw
+      // (`renderBoard` replaces the board's children, not its ancestors), so identity is an
+      // exact answer where the layout class would only be a proxy for it.
+      //
+      // The stamp is the same *board*: a grouping change behind the puck keeps the very same
+      // `.port`, so identity alone said yes to a board that no longer exists — measured,
+      // `all␀␀status` scrolled to 200, switched to `all␀␀repo` from ⌘K, and closing opened a
+      // three-column repo board 200px in with 202 of range, Alpha and Beta off screen.
+      // Codex found both halves (#54), one after the other.
+      //
+      // Either way `boardAt` is cleared: that place no longer exists, and keeping it would
+      // only defer the same wrong write.
+      var sammaBräda = boardAt.group === (boardEl && boardEl.dataset.group);
+      if (back === boardAt.el && sammaBräda) {
         back.scrollTop = boardAt.y;
         back.scrollLeft = boardAt.x;
+      } else {
+        // **Not restoring is not enough — the offset has to be taken away.** Hiding the
+        // board empties the port, which clamps it to 0, and *Chromium gives that offset back
+        // by itself when the content returns* — the very behaviour `openDetail`'s comment
+        // notes one screen up, here working against us. Measured with our restore deleted
+        // outright: the port still came back at 200. So the guards above decide whether the
+        // place is *ours* to put back; when it is not, the browser's copy is what is left,
+        // and zeroing is the only thing that removes it. Same write `exitPuckView` does for
+        // a navigation, for the same reason: the place belongs to a board that is gone.
+        back.scrollTop = 0;
+        back.scrollLeft = 0;
+        // Only the box being handed back. Zeroing the *other* one as well — the kanban port
+        // left behind when the layout moved — was written first and removed: nothing could
+        // fell it. Switching back to kanban gives 200 either way, because Chromium's memory
+        // outlives a write made while the box had no range to hold it. And it is right that
+        // it does: that is the same board, and the reader did scroll it there. A declaration
+        // that cannot apply is not a guard, it is a claim.
       }
       // And each column, from the snapshot taken on the way in. It is written here whether
       // or not the board was redrawn behind the puck: if it was not, the nodes still hold
       // these very numbers and the write is a no-op; if it was, this is the first moment
-      // there is a scroll range to write into at all. The grouping is checked for the same
-      // reason the render-time restore checks it — `NO_VALUE` is four groupings' key.
-      if (boardEl && boardAt.cols && boardAt.group === boardEl.dataset.group) {
+      // there is a scroll range to write into at all. The same stamp as above — it has
+      // always been checked here, for the reason the render-time restore checks it, and the
+      // port simply had not been asking the same question yet.
+      if (boardEl && boardAt.cols && sammaBräda) {
         Array.prototype.forEach.call(boardEl.querySelectorAll(".cards[data-col]"), function (k) {
           var v = boardAt.cols[k.dataset.col];
           if (v) k.scrollTop = v;

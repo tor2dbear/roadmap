@@ -372,3 +372,31 @@ de är utbytta nu, och läser dolt-läget och stoppen i samma `evaluate`, så at
 fäller den rad som namnger orsaken i stället för den som mäter symptomet. Fyra rena körningar
 efter. Det är samma lärdom som `bradans-egen-scrollruta` fick om portens `overflow-y`: mät
 mekanismen, inte något som brukar följa med den.
+
+**Och ett tionde, direkt efter det nionde och inte samma sak.** Identitetsvakten löste ett
+byte av *låda*; ett **grupperingsbyte** behåller samma `.port`, så den vakten sa ja till en
+bräda som inte finns längre. Mätt vid 700px: `all␀␀status` skrollad till 200, bytt till
+`all␀␀repo` från ⌘K bakom pucken, och efter stängning öppnade en trekolumnersbräda 200px in
+med 202 av rum — Alpha och Beta utanför skärmen. Codex fann bägge halvorna, en efter en, och
+**ingen av dem följer av den andra**: ett layoutbyte behåller stämpeln, ett grupperingsbyte
+behåller lådan.
+
+**Men lagningen var inte att låta bli att återställa, och det tog en mätning att se.** Att
+dölja brädan tömmer porten, vilket klampar den till 0 — och *Chromium ger tillbaka offseten
+av sig själv när innehållet kommer åter*. Det är exakt beteendet `openDetail`s egen kommentar
+noterar (*"Chromium remembers it and gives it back when the box is shown, but only for a box
+that survives"*), här arbetande emot oss. Mätt med vår återställning **helt borttagen**: porten
+kom ändå tillbaka på 200. Vakterna avgör alltså om platsen är *vår* att lägga tillbaka; är den
+inte det är webbläsarens kopia det som står kvar, och bara en nollställning tar bort den.
+
+**En rad skrevs och togs bort igen, och skälet hör hit.** Jag nollade först även den *andra*
+lådan — kanbanporten som lämnas bakom när layouten byts. Inget kunde fälla den: går man
+tillbaka till kanban står porten på 200 oavsett, eftersom webbläsarens minne överlever en
+skrivning gjord medan lådan inte hade något rum att hålla den i. Och det är dessutom *rätt*
+att den gör det — det är samma bräda, och läsaren skrollade den dit. En deklaration som inte
+kan gälla är inte en vakt, den är ett påstående.
+
+Tre delar, tre sabotage, och de fäller olika rader: utan stämpelvakten faller
+grupperingskontrollen, utan identitetsvakten faller layoutkontrollen, och utan nollställningen
+faller grupperingskontrollen igen. En fjärde kontroll är motprovet — en **oförändrad** bräda
+ska få sin plats tillbaka, annars vore de två vakterna en avstängning och inte vakter.

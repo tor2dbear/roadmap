@@ -3162,4 +3162,76 @@ export async function run({ open }) {
     eq(efter.workX, 0,
       `och står på sin egen början — kanbanportens tal följde inte med: ${JSON.stringify(efter)}`);
   }
+
+  group("ett grupperingsbyte bakom en öppen puck lämnar inte brädan förskjuten");
+  {
+    // Codex, #54, direkt efter layoutfyndet och *inte* samma sak. Identitetsvakten där löste
+    // en byte av låda; ett grupperingsbyte behåller samma `.port`, så den vakten säger ja
+    // till en bräda som inte finns längre. Mätt vid 700px: stämpeln `all␀␀status` skrollad
+    // till 200, bytt till `all␀␀repo` från ⌘K bakom pucken, och efter stängning öppnade en
+    // trekolumnersbräda 200px in med 202 av rum — Alpha och Beta utanför skärmen.
+    //
+    // **Och lagningen är inte att låta bli att återställa.** Att dölja brädan tömmer porten,
+    // vilket klampar den till 0, och *Chromium ger tillbaka offseten av sig själv när
+    // innehållet kommer åter* — samma beteende `openDetail`s kommentar noterar, här emot oss.
+    // Mätt med vår återställning helt borttagen: porten kom ändå tillbaka på 200. Vakterna
+    // avgör alltså om platsen är *vår* att lägga tillbaka; är den inte det är webbläsarens
+    // kopia det som står kvar, och bara en nollställning tar bort den.
+    const p = await open("?view=all", { data: tall, viewport: { width: 700, height: 420 } });
+    await p.waitForSelector(".board .card");
+    const start = await p.evaluate(() => {
+      const pt = document.getElementById("port");
+      pt.scrollLeft = 200;
+      return { rum: pt.scrollWidth - pt.clientWidth, satt: Math.round(pt.scrollLeft),
+               stämpel: document.getElementById("board").dataset.group };
+    });
+    ok(start.rum > 200 && start.satt === 200,
+      `porten står skrollad i sidled innan pucken öppnas: ${JSON.stringify(start)}`);
+
+    await p.evaluate(() => document.querySelector(".card").click());
+    await p.waitForFunction(() => document.body.classList.contains("viewing-puck"));
+
+    await p.keyboard.press("Meta+k");
+    await p.waitForTimeout(300);
+    await p.keyboard.type("Group by repo");
+    await p.waitForTimeout(300);
+    await p.keyboard.press("Enter");
+    await p.waitForTimeout(400);
+    const under = await p.evaluate(() => ({
+      puck: document.body.classList.contains("viewing-puck"),
+      stämpel: document.getElementById("board").dataset.group }));
+    eq(under.puck, true, "grupperingen går att byta med pucken kvar öppen — det är premissen");
+    ok(under.stämpel && under.stämpel !== start.stämpel,
+      `och brädan är en annan nu: ${JSON.stringify([start.stämpel, under.stämpel])}`);
+
+    await p.keyboard.press("Escape");
+    await p.waitForTimeout(400);
+    const efter = await p.evaluate(() => {
+      const pt = document.getElementById("port");
+      return { puck: document.body.classList.contains("viewing-puck"),
+               portX: Math.round(pt.scrollLeft), rum: pt.scrollWidth - pt.clientWidth,
+               kolumner: [...document.querySelectorAll(".board > .column .col-head h2")]
+                 .map((h) => h.textContent.trim()) };
+    });
+    eq(efter.puck, false, "pucken är stängd");
+    ok(efter.kolumner.length > 1, `den nya brädan har kolumner: ${JSON.stringify(efter)}`);
+    eq(efter.portX, 0,
+      `och står på sin egen början — den gamla grupperingens offset är borta: ${JSON.stringify(efter)}`);
+  }
+
+  group("en oförändrad bräda får sin plats tillbaka, vilket är vad vakterna inte får kosta");
+  {
+    // Motprovet, och det som gör de två vakterna ovan till vakter i stället för en avstängning:
+    // utan byte av vare sig låda eller bräda ska platsen komma tillbaka precis som förut.
+    const p = await open("?view=all", { data: tall, viewport: { width: 700, height: 420 } });
+    await p.waitForSelector(".board .card");
+    await p.evaluate(() => { document.getElementById("port").scrollLeft = 200; });
+    await p.waitForTimeout(150);
+    await p.evaluate(() => document.querySelector(".card").click());
+    await p.waitForFunction(() => document.body.classList.contains("viewing-puck"));
+    await p.keyboard.press("Escape");
+    await p.waitForTimeout(400);
+    eq(await p.evaluate(() => Math.round(document.getElementById("port").scrollLeft)), 200,
+      "platsen kommer tillbaka när brädan och lådan är desamma");
+  }
 }
