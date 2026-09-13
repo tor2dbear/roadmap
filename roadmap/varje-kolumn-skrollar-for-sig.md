@@ -297,3 +297,30 @@ Och kommentaren bredvid passet sa motsatsen — *"passet kör ändå, för det a
 tabbstoppen"* — vilket är sant om anropet och falskt om svaret. Det är samma sorts mening som
 den här pucken redan rättats för en gång: en som var sann när den skrevs och som ingen läste
 om när lådan under den ändrades.
+
+**Ett sjunde, och det är den sista lådan som inte hade fått formens regler: facket.** Det är
+den enda lådan på brädan som skrollar utan att vara ett *grupperingsvärde* — det håller rader,
+inte kort — och varje ögonblicksbild frågar `.cards[data-col]`. `renderHiddenTray` satte ingen
+nyckel, så alla fyra gick rakt förbi den. Mätt med elva arkivgömda repon i ett 300px-fönster:
+469 mot 128, alltså en riktig scrollruta, vars enda innehåll är de ögon man skrollade dit för.
+En omritning kastade läsaren till toppen av just den listan. Codex fann det (#54).
+
+`TRAY_KEY` är `NO_VALUE`s trick en rad över: en NUL-prefixad sträng ingen skörd kan producera,
+alltså kollisionsfri mot ett repo, en status, en agent eller en tagg.
+
+**Men den blir inget tabbstopp, och skälet är raderna och inte nyckeln.** En kolumns kort är
+`div`ar med en klicklyssnare och inget fokuserbart i sig, så scrollrutan är den *enda*
+tangentbordsvägen till det som ligger där nere. Fackets rader är `<button>`, så Tab når varje
+öga och webbläsaren skrollar fram det. Chrome drar samma gräns själv — mätt i tabbordningen:
+kolumnens `.cards` ligger i den, fackets gör det inte. Att märka facket vore alltså ett *nytt*
+stopp, inte den Safari-paritet `markColumnStops` finns för. Två frågor, två urval.
+
+**Och den befintliga sviten fällde min egen ändring innan jag hann köra sabotaget**, vilket är
+det bästa som kan hända: kontrollen *"bara en kolumn som kan skrolla är ett tabbstopp"* valde
+sina lådor med `[data-col]` och krävde `role="region"` av var och en. I samma stund facket fick
+en nyckel föll den. Premissen som bar — *facket har ingen nyckel* — höll inte längre, så urvalet
+står på klassen nu, samma rad som `markColumnStops` frågar med.
+
+**En andra egen miss, fångad av samma körning:** jag skrev att en kolumns `.cards` har noll
+fokuserbara barn. Det gäller utan token — med token ligger `.col-add` inne i skrollrutan. Rätt
+mätning är *innehållet*: inget `.card` är fokuserbart, varje `.hidden-col` är det.

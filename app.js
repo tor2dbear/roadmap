@@ -2465,7 +2465,15 @@
   // and false of the answer.
   function markColumnStops(board) {
     if (!board) return;
-    Array.prototype.forEach.call(board.querySelectorAll(".cards[data-col]"), function (k) {
+    // Columns only — the tray is deliberately not a stop, and the reason is its rows rather
+    // than its key. A column's cards are `div`s with a click handler and nothing focusable
+    // inside, so the scroller is the *only* keyboard route to what is down there; the tray's
+    // rows are `<button>`s, so Tab already reaches every eye and the browser scrolls each one
+    // into view. Chrome draws the same line by itself: measured in the tab order, a column's
+    // `.cards` (0 focusable children) is in it and the tray's (11) is not. Marking the tray
+    // would be a new stop rather than the Safari parity this exists for. It still carries
+    // `data-col` — the offset snapshots want it, and that is a different question.
+    Array.prototype.forEach.call(board.querySelectorAll(".column:not(.hidden-cols) > .cards[data-col]"), function (k) {
       if (k.scrollHeight > k.clientHeight + 1) k.tabIndex = 0;
       else k.removeAttribute("tabindex");
     });
@@ -4568,6 +4576,11 @@
   // an empty column is a real drop target. Open domains (agent, repo, priority) list
   // only the values actually on screen, so they can't produce phantom columns.
   var NO_VALUE = "\u0000"; // the "none" bucket — a key no real value can collide with
+  // The tray's own snapshot key. It is the one box on the board that scrolls but is not a
+  // grouping value — it holds rows rather than cards — so it needs a key no grouping can
+  // produce. Same trick as `NO_VALUE` one line up: a repo, a status, an agent and a tag are
+  // all plain text out of a harvest, so a NUL-prefixed string cannot collide with one.
+  var TRAY_KEY = "\u0000tray";
   function presentKeys(items, keyOf, rank) {
     var seen = {}, out = [];
     items.forEach(function (it) { var k = keyOf(it); if (!seen[k]) { seen[k] = 1; out.push(k); } });
@@ -4925,6 +4938,11 @@
     head.appendChild(el("span", "count", String(hidden.length)));
     tray.appendChild(head);
     var list = el("div", "cards");
+    // A tall tray scrolls (measured: 469 against 128 with eleven archive-hidden repos in a
+    // 300px window), and without a key every offset snapshot walked straight past it —
+    // they all ask `.cards[data-col]`. A redraw then threw the reader back to the top of
+    // the one list whose whole purpose is the eyes further down it. Codex found it (#54).
+    list.dataset.col = TRAY_KEY;
     hidden.forEach(function (h) {
       var b = el("button", "row hidden-col");
       b.type = "button";

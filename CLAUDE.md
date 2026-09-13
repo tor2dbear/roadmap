@@ -860,6 +860,19 @@ than tuning them.
   keeps the swatch's **slot** without its mark — four columns have no one colour — rather
   than restating those two numbers as a padding in the one place nothing would keep them in
   step.
+- **The tray scrolls too, and it is the one box on the board that is not a grouping value.**
+  Every offset snapshot asks `.cards[data-col]`, and `renderHiddenTray` set no key — so a
+  redraw threw the reader back to the top of the one list whose entire point is the eyes
+  further down it (measured: eleven archive-hidden repos in a 300px window give 469 against
+  128, a real scroller). Codex found it (#54). `TRAY_KEY` is `NO_VALUE`'s trick one row over:
+  a NUL-prefixed string no harvest can produce, so it cannot collide with a repo, a status,
+  an agent or a tag. **It is still not a tab stop, and the reason is its rows rather than its
+  key** — a column's cards are `div`s with nothing focusable inside, so the scroller is the
+  only keyboard route to what is down there, while the tray's rows are `<button>`s that Tab
+  already reaches and the browser scrolls into view. Chrome draws the same line by itself
+  (measured in the tab order: a column's `.cards`, 0 focusable children, is in it; the
+  tray's, 11, is not), so marking it would be a new stop rather than the Safari parity
+  `markColumnStops` exists for. Two questions, two queries.
 - **A column takes one axis, and CSS will not leave it alone.** `overflow-y: auto` beside an
   `overflow-x` of `visible` computes the *visible* one to `auto` — the same rule that forces
   `#board` not to be a scroll container, read from the other direction — so one unbreakable

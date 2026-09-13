@@ -2399,9 +2399,13 @@ export async function run({ open }) {
     // landmärken navigeras på namn och kostar inga tangenttryck.
     const p = await open("?view=all&empty=1", { data: tall, viewport: { width: 900, height: 600 } });
     await p.waitForSelector(".board .card");
-    // `[data-col]`: facket (`HIDDEN`) har också en `.cards`, men ritas av `renderHiddenTray`
-    // och är ingen grupperad kolumn — den hör inte till regeln.
-    const m = await p.evaluate(() => [...document.querySelectorAll(".board > .column .cards[data-col]")].map((k) => ({
+    // `.column:not(.hidden-cols)`: facket har också en `.cards` — och sedan Codex fynd om
+    // dess plats även en `data-col` — men den är ingen grupperad kolumn och hör inte till
+    // regeln. Urvalet står nu på klassen och inte på nyckelns frånvaro, vilket är samma rad
+    // som `markColumnStops` frågar med. Den gamla `[data-col]`-varianten fällde den här
+    // kontrollen i samma stund facket fick sin nyckel, vilket är precis vad den ska göra:
+    // premissen "facket har ingen nyckel" var det som bar, och den höll inte.
+    const m = await p.evaluate(() => [...document.querySelectorAll(".board > .column:not(.hidden-cols) > .cards[data-col]")].map((k) => ({
       namn: k.getAttribute("aria-label"), roll: k.getAttribute("role"),
       rullar: k.scrollHeight > k.clientHeight + 1, tab: k.getAttribute("tabindex") })));
     ok(m.some((k) => k.rullar) && m.some((k) => !k.rullar),
@@ -2921,5 +2925,81 @@ export async function run({ open }) {
       `och varje rullande kolumn är ett stopp igen: ${JSON.stringify(efter)}`);
     eq(efter.filter((k) => !k.rullar && k.tab !== null), [],
       `medan de korta inte är det — svaret räknas om, det återställs inte: ${JSON.stringify(efter)}`);
+  }
+
+  group("facket minns sin plats över en omritning, men blir inget tabbstopp");
+  {
+    // Codex, #54. Facket är den enda lådan på brädan som skrollar utan att vara ett
+    // grupperingsvärde, och varje ögonblicksbild frågar `.cards[data-col]` — så de gick
+    // rakt förbi den. Mätt med elva arkivgömda repon i ett 300px-fönster: 469 mot 128,
+    // alltså en riktig scrollruta, vars enda innehåll är de ögon man skrollar dit för.
+    //
+    // **Men inget tabbstopp, och skälet är raderna och inte nyckeln.** En kolumns kort är
+    // `div`ar utan något fokuserbart i sig, så scrollrutan är den *enda* tangentbordsvägen
+    // dit ner; fackets rader är `<button>`, så Tab når varje öga och webbläsaren skrollar
+    // fram det. Chrome drar samma gräns själv — mätt i tabbordningen: kolumnens `.cards`
+    // (0 fokuserbara barn) ligger i den, fackets (11) gör det inte.
+    const landade = (p) => {
+      const frö = p.items[0];
+      for (let n = 0; n < 10; n++) {
+        p.sources.push({ repo: "o/r" + n, name: "Landat" + n, color: "#888", adapter: "pucks", count: 1 });
+        p.items.push({ ...frö, id: "r" + n + "/x", slug: "x" + n, title: "P" + n,
+          repo: "o/r" + n, repoName: "Landat" + n, repoColor: "#888", status: "done" });
+      }
+      return p;
+    };
+    let släpp;
+    const spärr = new Promise((ok) => { släpp = ok; });
+    const p = await open("?view=all&group=repo", {
+      data: landade, viewport: { width: 900, height: 300 }, token: true,
+      github: async (route) => {
+        if (/\/repos\//.test(route.request().url())) await spärr;
+        return route.fulfill({ status: 200, contentType: "application/json",
+          body: JSON.stringify({ login: "t", permissions: { push: true } }) });
+      },
+    });
+    await p.waitForSelector(".hidden-cols .cards");
+    const läs = () => p.evaluate(() => {
+      const k = document.querySelector(".hidden-cols .cards");
+      return { nyckel: k.dataset.col ?? null, plats: Math.round(k.scrollTop),
+               tab: k.getAttribute("tabindex"), rullar: k.scrollHeight > k.clientHeight + 1,
+               rader: document.querySelectorAll(".hidden-col").length,
+               // Innehållet, inte lådan: fackets rader *är* det man skrollar fram, och de
+               // är fokuserbara i sig. (Inte varje fokuserbart barn — en kolumn med token
+               // bär `.col-add` inne i skrollrutan, och den är inte kolumnens innehåll.)
+               fokuserbaraRader: [...k.querySelectorAll(".hidden-col")]
+                 .filter((r) => r.matches("button, a[href], [tabindex]")).length };
+    });
+    const start = await läs();
+    ok(start.rullar, `facket rullar, annars mäter det här ingenting: ${JSON.stringify(start)}`);
+    ok(start.nyckel, `och har en nyckel att sparas under: ${JSON.stringify(start)}`);
+
+    await p.evaluate(() => { document.querySelector(".hidden-cols .cards").scrollTop = 60; });
+    await p.waitForTimeout(120);
+    const före = await läs();
+    ok(före.plats > 40, `facket står skrollat före omritningen: ${JSON.stringify(före)}`);
+
+    släpp();                                  // sonden landar → renderBoard()
+    await p.waitForFunction(() => !!document.querySelector('.card[draggable="true"]'), null, { timeout: 8000 });
+    await p.waitForTimeout(200);
+    const efter = await läs();
+    eq(efter.plats, före.plats,
+      `och står kvar där efteråt — ögonen man skrollade fram är kvar framme: ${JSON.stringify(efter)}`);
+
+    // Och stoppet: facket är inget, kolumnerna är det.
+    eq(efter.tab, null, `facket är inget tabbstopp: ${JSON.stringify(efter)}`);
+    eq(efter.fokuserbaraRader, efter.rader,
+      `— för att varje rad är fokuserbar i sig, vilket är hela skälet: ${JSON.stringify(efter)}`);
+    const kol = await p.evaluate(() => [...document.querySelectorAll(".board > .column:not(.hidden-cols) > .cards")]
+      .map((k) => ({ tab: k.getAttribute("tabindex"), rullar: k.scrollHeight > k.clientHeight + 1,
+                     kort: k.querySelectorAll(".card").length,
+                     fokuserbaraKort: [...k.querySelectorAll(".card")]
+                       .filter((c) => c.matches("button, a[href], [tabindex]")).length })));
+    ok(kol.some((k) => k.rullar), `det finns en rullande kolumn att jämföra med: ${JSON.stringify(kol)}`);
+    eq(kol.filter((k) => k.rullar && k.tab !== "0"), [],
+      `medan varje rullande kolumn är ett stopp: ${JSON.stringify(kol)}`);
+    ok(kol.some((k) => k.kort > 0), `kolumnerna har kort att mäta: ${JSON.stringify(kol)}`);
+    eq(kol.filter((k) => k.fokuserbaraKort > 0), [],
+      `och inget kort är fokuserbart — därför är rutan den enda vägen dit ner: ${JSON.stringify(kol)}`);
   }
 }
