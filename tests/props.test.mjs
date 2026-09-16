@@ -3,6 +3,7 @@
 // property off takes its grid track with it, and that the automatic date rule keeps its
 // place: in the absence of a choice, never over one.
 import { group, eq, ok } from "./assert.mjs";
+import { githubStub } from "./fixture.mjs";
 
 // The row's cells, by class, in DOM order — which is also track order, so this is what
 // says whether a column left with its property or stayed behind as reserved width.
@@ -608,5 +609,53 @@ export async function run({ open }) {
     ok(m.spill <= 0, `märket ryms i cellen: ${m.spill}px utanför (${JSON.stringify(m)})`);
     ok(m.över <= 1, `och ingenting klipps: ${m.över}px över`);
     eq(m.prober, 0, "och mätstickan är borta igen — den mäter, den ritar inte");
+  }
+  group("en dold bräda mäts inte, och listan hittas igen när pucken stängs");
+  {
+    // **Fjärde ansiktet på regeln `CLAUDE.md` redan skriver tre gånger** — platsen i en
+    // kolumn, tabbstoppet och tangentbordets fokus behövde vart sitt svar på den, och det
+    // här är det värsta av de fyra: vandringen misslyckas inte bara med att räkna ut en
+    // plan, den *förstör* den som står där. Bakom en öppen puck är `#board`
+    // `display: none`, varje rektangel läser 0, och `0 <= 0.5` säger att allt ryms — men
+    // återställningen har redan tagit bort märkena och visat pillren igen, och ingenting
+    // sätter tillbaka dem.
+    //
+    // Mätt med typsnittet landande medan en puck var öppen: att stänga den gav en rad utan
+    // märke och **136px klippta etiketter** — precis den bugg hela funktionen finns för.
+    // Codex hittade det (#56).
+    const many = (d) => {
+      d.items[0].tags = ["collab", "permissions", "supabase", "scheduling"];
+      return d;
+    };
+    const gh = githubStub();
+    // Pucken öppen från hashen: brädan ritas dold, och typsnittet landar bakom den.
+    const p = await open("?layout=list&done=1&props=tags#alpha/a-now-2",
+      { data: many, viewport: { width: 390, height: 844 }, token: true, github: gh.handler, slowFonts: 3000 });
+    await p.waitForSelector(".list-row", { state: "attached" });
+    const dold = await p.evaluate(() => ({
+      puck: document.body.classList.contains("viewing-puck"),
+      display: getComputedStyle(document.getElementById("board")).display,
+      // Klassen överlever döljandet, vilket är varför `as-list` ensamt inte räcker som grind.
+      asList: document.getElementById("board").classList.contains("as-list"),
+    }));
+    eq([dold.puck, dold.display, dold.asList], [true, "none", true],
+      `brädan är dold men behåller sin layoutklass: ${JSON.stringify(dold)}`);
+
+    await p.evaluate(() => document.fonts.ready);
+    await p.waitForTimeout(400);
+    await p.evaluate(() => { location.hash = ""; });
+    await p.waitForTimeout(400);
+    const m = await p.evaluate(() => {
+      const row = [...document.querySelectorAll(".list-row")]
+        .find((r) => r.getAttribute("data-id") === "alpha/a-now");
+      const c = row.querySelector(".list-tags"), more = c.querySelector(".list-more");
+      return { märken: c.querySelectorAll(".list-more").length,
+               dolda: [...c.children].filter((k) => k.hidden).length,
+               säger: more ? more.textContent : null,
+               över: c.scrollWidth - c.clientWidth };
+    });
+    eq(m.märken, 1, `pucken stängd: raden har sitt märke: ${JSON.stringify(m)}`);
+    eq(m.säger, "+" + m.dolda, "och siffran är sann");
+    ok(m.över <= 1, `och ingenting är klippt: ${m.över}px över`);
   }
 }

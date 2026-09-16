@@ -1265,6 +1265,21 @@ heading from one walk.
   survivor. 72 of the 123 cut in *both* states with a different count, and those are the
   only rows that fell the reset; with only the first row in the fixture, deleting it
   changed nothing.
+- **A hidden board cannot be measured, and this is the fourth face of that rule** — the
+  place in a column, the tab stop and the keyboard's focus each needed their own answer, and
+  this one is the worst, because the pass does not merely fail to compute a plan: it
+  *destroys* the one that is there. Behind an open puck `#board` is `display: none`, every
+  rect reads 0, and `0 <= 0.5` says every cell fits — so the reset has already dropped the
+  badges and unhidden the pills, and nothing puts them back. Measured with the fonts landing
+  while a puck was open: closing it gave a row with no badge and **136px of clipped
+  labels**, this function's own bug fully restored. Codex found it (#56). `fitTagCells`
+  returns early on a board with no `offsetParent` — before the reset, or it wrecks the plan
+  it cannot rebuild — and `closeDetail` re-fits unconditionally, beside `markStops`, for the
+  identical reason. **Sabotage says which of the two carries it**: deleting the guard fells
+  nothing, because every way out of a puck funnels through `closeDetail` (`exitPuckView`
+  calls it too) and the damage is undone before a reader sees it; deleting the re-fit brings
+  the whole 136px back. The guard stays at the standing `.port`'s `overflow-y: hidden` has —
+  a statement of intent, written down as such.
 - **The probe lied twice before it held, and both lies generalise.** It first answered
   *zero*: the font delay has to outlast the **render**, or the swap lands before the first
   measurement and the probe compares Geist with Geist — 8 000 rows against 1 500ms had

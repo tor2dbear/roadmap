@@ -1840,6 +1840,30 @@
   function fitTagCells(board) {
     var cells = board.querySelectorAll(".list-tags"), i, j;
     if (!cells.length) return;
+    // **A hidden box cannot be measured, and this is the fourth face of that rule** — the
+    // place in a column, the tab stop and the keyboard's focus each needed their own answer
+    // to it, and this one is the worst of the four, because the pass does not merely fail
+    // to compute a plan: it *destroys* the one that is there. Behind an open puck
+    // `body.viewing-puck #board` is `display: none`, every rect reads 0, and `0 <= 0.5`
+    // says every cell fits — so the reset has already dropped the badges and unhidden the
+    // pills, and nothing puts them back. Measured with the fonts landing while a puck was
+    // open: closing it gave a row with no badge and **136px of clipped labels**, which is
+    // precisely the bug this whole function exists to prevent. Codex found it (#56).
+    //
+    // Before the reset, therefore, not after. `offsetParent` is the question itself — is
+    // this box laid out at all — where `viewing-puck` would only be the commonest reason
+    // for the answer.
+    //
+    // **The repair is `closeDetail`, and sabotage says so: deleting this line fells
+    // nothing.** Every way out of a puck funnels through `closeDetail` — `exitPuckView`
+    // calls it too — and it re-fits there unconditionally, exactly as it does for the
+    // stops, so the destruction is undone before a reader can see it. Deleting *that* call
+    // fells the check with the full 136px back. This line is kept anyway and at the same
+    // standing as `.port`'s own `overflow-y: hidden`: a statement of intent. A pass that can
+    // only compute a wrong answer should not run, and not happening is a better guarantee
+    // than being undone afterwards — but the paragraph is the record that the undoing is
+    // what the reader actually feels.
+    if (!board.offsetParent) return;
     // The badge's width is *reserved* rather than measured, and that is not laziness: how
     // wide `+N` renders depends on N, which depends on how many pills fit, which depends
     // on how wide the badge is. A fixed reservation cuts the circle, and `min-width` on
@@ -4690,6 +4714,11 @@
     // and whether or not the grouping still matches. This is the first moment a column has
     // a layout to be measured in again. See `markStops`.
     markStops(boardEl);
+    // And the tag cells, for the identical reason one line up: anything that measured them
+    // while the board was hidden read zeros and declined to answer (see `fitTagCells`), so
+    // a redraw behind the puck — an edit, a ⌘K layout change — or a font landing there
+    // leaves the list unfitted. This is the first moment it can be measured again.
+    if (boardEl && boardEl.classList.contains("as-list")) fitTagCells(boardEl);
   }
 
   // A table row — full-width, aligned columns (Name · Priority · Agent · Repo ·
