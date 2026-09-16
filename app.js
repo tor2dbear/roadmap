@@ -1844,6 +1844,16 @@
     // wide `+N` renders depends on N, which depends on how many pills fit, which depends
     // on how wide the badge is. A fixed reservation cuts the circle, and `min-width` on
     // `.list-more` is what makes the badge honour the number this reads.
+    // **Idempotent, and that is a requirement rather than tidiness**: the font swap below
+    // re-runs this over a board it has already cut, and a second pass over its own output
+    // would hide the survivors and stack a second badge. Reset first — all writes, before
+    // a single measurement is taken.
+    for (i = 0; i < cells.length; i++) {
+      var stale = cells[i].querySelector(".list-more");
+      if (stale) cells[i].removeChild(stale);
+      var back = cells[i].children;
+      for (j = 0; j < back.length; j++) back[j].hidden = false;
+    }
     var moreW = parseInt(getComputedStyle(board).getPropertyValue("--more-w"), 10) || 0;
     var gap = parseInt(getComputedStyle(cells[0]).columnGap, 10) || 0;
     var plan = [];
@@ -2079,8 +2089,30 @@
       // it is the box the chrome sits above, not the box that scrolls; what it forwards
       // to it asks `scrollPort()` per event.
       if (workEl) { armAxisLock(workEl); armChromeWheel(workEl); }
-    if (boardEl) { armColumnWheel(boardEl); armStopWatch(boardEl); }
+    if (boardEl) { armColumnWheel(boardEl); armStopWatch(boardEl); armFontRefit(boardEl); }
     }
+  }
+
+  // `fitTagCells` answers a question about *text*, and the text changes width without a
+  // render: `styles.css` ships the typefaces with `font-display: swap`, so a cold load
+  // paints the fallback first and the real metrics arrive afterwards. Measured with the
+  // woff2 held back, `document.fonts.check("11px Geist")` answers **false** while the board
+  // draws and a `#mcp` pill stands at **43px** against Geist's 44 — and one pixel per pill
+  // crosses the boundary often enough to matter: over 256 two-tag combinations, **16**
+  // planned differently before and after the swap. `#ui #editing #extra` keeps two pills in
+  // the fallback and one in Geist, so a cold load drew two pills and `+1` where only one
+  // fits — the second clipped, and the count wrong by one. Codex found it (#56).
+  //
+  // One re-fit when the fonts land, which is the whole reason the pass had to become
+  // idempotent. It is the same shape as `armStopWatch` one function down: a fact measured
+  // at render time that something other than a render can change.
+  function armFontRefit(board) {
+    if (!document.fonts || !document.fonts.ready) return;
+    document.fonts.ready.then(function () {
+      // The board it was armed on outlives every redraw, but the *layout* may have moved
+      // on: the fit is the list's, and asking a kanban board for its tag cells finds none.
+      if (board.classList.contains("as-list")) fitTagCells(board);
+    });
   }
 
   // A stop answers a question about *size*, and size changes without a render: a window

@@ -1242,6 +1242,26 @@ heading from one walk.
   hangs 14px outside its own cell. It names what it holds back (`title` + `aria-label`), so
   the number is answerable — but it is a `<span>`, not a control: unlike the archive's eye
   there is nothing to toggle, the labels are on the puck page.
+- **`font-display: swap` means the first render measures the wrong font.** `fitTagCells`
+  answers a question about *text*, and text changes width without a render: measured with
+  the woff2 held back, `document.fonts.check("11px Geist")` answers **false** while the
+  board draws, and a `#supabase` pill stands at 69.8px against Geist's 71. Over 4 000 rows
+  of 2–5 labels, **123 planned differently** across the swap — `#observability #supabase`
+  fits in the fallback with no badge at all and overflows in Geist, so a cold load drew two
+  pills and no number and then clipped the second one silently: this section's own bug,
+  back through the door. `armFontRefit` re-fits on `document.fonts.ready`, which is why
+  `fitTagCells` had to become **idempotent** — it resets (unhide, drop the badge) before it
+  measures, or a second pass over its own output stacks a second badge and hides the
+  survivor. 72 of the 123 cut in *both* states with a different count, and those are the
+  only rows that fell the reset; with only the first row in the fixture, deleting it
+  changed nothing.
+- **The probe lied twice before it held, and both lies generalise.** It first answered
+  *zero*: the font delay has to outlast the **render**, or the swap lands before the first
+  measurement and the probe compares Geist with Geist — 8 000 rows against 1 500ms had
+  `document.fonts.check` already `true` at reading one, a probe that never opened the
+  window it existed for, and it nearly got a real finding written off. Then it answered the
+  right *count* with the wrong *example*: it keyed on DOM order, and the list sorts, so cell
+  `i` is not candidate `i`. Key on the row's `data-id`.
 - **`FIELDS` was taken.** The query language's field table has owned that name since the
   filter was written, and the redeclaration blanked it: no term matched, twelve checks fell,
   and nothing threw. The properties are `PROPS` and the key is `props`, so "field" means one

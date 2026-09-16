@@ -496,4 +496,80 @@ export async function run({ open }) {
     eq(m.kort.more, null, "en cell som rymmer allt får inget märke");
     eq(m.kort.hidden.length, 0, "och gömmer ingenting");
   }
+  group("taggcellerna mäts om när typsnittet landar");
+  {
+    // `font-display: swap`: på en kall laddning ritas brädan mot reservtypsnittets mått och
+    // de riktiga kommer efteråt. Mätt med woff2:an hållen tillbaka svarar
+    // `document.fonts.check("11px Geist")` **false** medan brädan ritas, och ett `#mcp`-piller
+    // står på 43px mot Geists 44. En pixel per piller låter försumbart och är det inte: över
+    // 256 tvåtaggskombinationer planerade **16** olika före och efter bytet.
+    //
+    // Mätt över 4 000 rader med 2–5 etiketter: **123** planerar olika över bytet.
+    // `#observability #supabase` är den renaste — två etiketter, bägge ryms i reserven och
+    // cellen får **inget märke alls**; i Geist ryms bara den första. En kall laddning ritar
+    // alltså två piller och ingen siffra, och efter bytet klipps det andra **tyst**: precis
+    // den bugg hela den här ändringen finns för, tillbaka bakvägen. Codex hittade det (#56).
+    //
+    // **Sökningen ljög två gånger innan den höll, och bägge lögnerna är värda att minnas.**
+    // Först sa den noll: fördröjningen måste överleva *renderingen*, annars hinner
+    // typsnittet fram före första mätningen och proben jämför Geist med Geist — med 8 000
+    // rader och 1 500ms stod `document.fonts.check` på `true` redan vid avläsning ett, en
+    // probe som aldrig öppnade fönstret den fanns för. Sedan sa den rätt *antal* med fel
+    // *exempel*: den nycklade på DOM-ordningen, och listan sorterar, så cell `i` är inte
+    // kandidat `i`. Nyckeln är radens `data-id`.
+    //
+    // **Två rader, och de prövar olika saker.** Den första går från *ryms* till *svämmar
+    // över*, vilket är ommätningen själv. Den andra klipper i **bägge** tillstånden men
+    // olika mycket (`+1` i reserven, `+2` i Geist) — 72 av de 123 gör det — och det är den
+    // enda sorts rad som prövar återställningen: utan den skulle andra vandringen hitta
+    // gårdagens märke och sin egen dolda granne, stapla ett andra märke och gömma den som
+    // överlevde. Med bara den första raden går sabotaget av återställningen fritt.
+    const flip = (d) => {
+      d.items[0].tags = ["observability", "supabase"];
+      d.items[1].tags = ["infrastructure", "qa", "content"];
+      return d;
+    };
+    const p = await open("?layout=list&done=1&props=tags",
+      { data: flip, viewport: { width: 390, height: 844 }, slowFonts: true });
+    await p.waitForSelector(".list-row");
+    // Raden vid `data-id`, inte den första `.list-tags` i dokumentet: den hör till vilken
+    // puck ordningen råkar lägga överst, och de flesta har inga taggar alls.
+    const cellOf = (id) => p.evaluate((id) => {
+      const row = [...document.querySelectorAll(".list-row")]
+        .find((r) => r.getAttribute("data-id") === id);
+      const c = row.querySelector(".list-tags"), more = c.querySelector(".list-more");
+      return {
+        geist: document.fonts.check("11px Geist"),
+        över: c.scrollWidth - c.clientWidth,
+        märken: c.querySelectorAll(".list-more").length,
+        dolda: [...c.children].filter((k) => k.hidden).length,
+        säger: more ? more.textContent : null,
+        synliga: [...c.children].filter((k) => !k.hidden && k !== more).length,
+      };
+    }, id);
+    const vid = await cellOf("alpha/a-now");
+    const vidKlippt = await cellOf("alpha/a-now-2");
+    eq(vid.geist, false, "brädan ritas medan reservtypsnittet fortfarande gäller");
+    eq([vid.synliga, vid.märken], [2, 0],
+      `och mot reservens mått ryms bägge utan märke: ${JSON.stringify(vid)}`);
+    // Efter bytet: cellen ska vara sann mot de mått som nu gäller, oavsett vad den ritades
+    // mot. Utan omätningen står den kvar med reservens plan.
+    await p.evaluate(() => document.fonts.ready);
+    await p.waitForTimeout(300);
+    const efter = await cellOf("alpha/a-now");
+    const efterKlippt = await cellOf("alpha/a-now-2");
+    eq(efter.geist, true, "och typsnittet har landat när vi mäter igen");
+    ok(efter.över <= 1, `ingenting klipps mot de mått som nu gäller: ${efter.över}px över`);
+    eq(efter.märken, 1, "ett märke, inte två — vandringen är idempotent");
+    eq(efter.säger, "+" + efter.dolda,
+      `och siffran är sann mot den nya planen: ${JSON.stringify(efter)}`);
+    ok(efter.synliga < vid.synliga,
+      `planen krympte med de bredare pillren: ${vid.synliga} → ${efter.synliga}`);
+    // Den andra raden: klippt i bägge tillstånden, och det är den som prövar återställningen.
+    eq(vidKlippt.säger, "+1", `reserven klipper redan här: ${JSON.stringify(vidKlippt)}`);
+    eq(efterKlippt.märken, 1, "efter bytet står det fortfarande *ett* märke där, inte två");
+    eq(efterKlippt.säger, "+" + efterKlippt.dolda,
+      `och det räknar om i stället för att lägga till: ${JSON.stringify(efterKlippt)}`);
+    ok(efterKlippt.över <= 1, `utan att lämna något klippt: ${efterKlippt.över}px över`);
+  }
 }
