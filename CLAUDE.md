@@ -1237,9 +1237,19 @@ heading from one walk.
   down), and interleaving a read and a write per row is that same layout 109 times. Two
   layouts for the whole list. The badge's width is **reserved** rather than measured, and
   that is not laziness — how wide `+N` renders depends on N, which depends on how many
-  pills fit, which depends on the badge; `--more-w` cuts the circle and `min-width` on
-  `.list-more` makes the badge keep to it. Sabotaged by dropping the reservation, the badge
-  hangs 14px outside its own cell. It names what it holds back (`title` + `aria-label`), so
+  pills fit, which depends on the badge. **And the reservation is measured, not a constant** —
+  the count is unbounded and the badge's width follows its digits: `+1` and `+9` sit at the
+  30px floor, `+10` at 33, `+100` at 40, so a flat 30 kept a pill the real badge then pushed
+  out (measured: `#backend #editing`, ending at 125, plus ten more labels put `+10` 2px past
+  the 160px edge — this function's own failure one level up; Codex found it). The circle is
+  cut by the *bound* rather than by a guess: N can never exceed the cell's own pill count, so
+  the widest badge a cell could need is known before anything is hidden. One `.tag-probe` per
+  distinct worst case, out of flow and `visibility: hidden` (a box that is not laid out
+  cannot be measured), carrying the badge's own classes so what is measured is what the cell
+  will get — and gone again before the writes. Measuring rather than deriving from a digit
+  width is also what keeps the reservation true across the font swap above. Sabotaged back to
+  the constant, the badge hangs 2px outside its cell; sabotaged by dropping the reservation
+  entirely, 14px. It names what it holds back (`title` + `aria-label`), so
   the number is answerable — but it is a `<span>`, not a control: unlike the archive's eye
   there is nothing to toggle, the labels are on the puck page.
 - **`font-display: swap` means the first render measures the wrong font.** `fitTagCells`

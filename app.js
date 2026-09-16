@@ -1848,13 +1848,39 @@
     // re-runs this over a board it has already cut, and a second pass over its own output
     // would hide the survivors and stack a second badge. Reset first — all writes, before
     // a single measurement is taken.
+    //
+    // The probes go up in the same pass, and **the reservation is measured, never a
+    // constant**. The count is unbounded — a puck may carry any number of labels — and the
+    // badge's width follows its digits: measured, `+1` and `+9` sit at the 30px floor,
+    // `+10` at 33 and `+100` at 40. A flat 30 therefore kept a pill the real badge then
+    // pushed out: with `#backend #editing` (ending at 125) and ten more labels, `+10` ran
+    // 2px past the 160px edge and was clipped — this function's own failure, one level up.
+    // Codex found it (#56). It is not circular, and that is the trick: N can never exceed
+    // the cell's own pill count, so the **widest badge this cell could need** is known
+    // before anything is hidden. Measuring it rather than deriving it from a digit width
+    // also keeps the reservation true across a font swap, which is the paragraph below.
+    var need = {};
     for (i = 0; i < cells.length; i++) {
       var stale = cells[i].querySelector(".list-more");
       if (stale) cells[i].removeChild(stale);
       var back = cells[i].children;
       for (j = 0; j < back.length; j++) back[j].hidden = false;
+      need["+" + back.length] = 1;
     }
-    var moreW = parseInt(getComputedStyle(board).getPropertyValue("--more-w"), 10) || 0;
+    // One probe per distinct worst case, not one per cell: most rows carry the same few
+    // counts. Out of flow and hidden, so it cannot disturb the cells it is measured beside.
+    var rack = el("div", "tag-probe");
+    Object.keys(need).forEach(function (t) {
+      var s = el("span", "tagpill list-more", t);
+      s.setAttribute("data-probe", t);
+      rack.appendChild(s);
+    });
+    board.appendChild(rack);
+
+    var moreW = {};
+    Array.prototype.forEach.call(rack.children, function (s) {
+      moreW[s.getAttribute("data-probe")] = s.getBoundingClientRect().width;
+    });
     var gap = parseInt(getComputedStyle(cells[0]).columnGap, 10) || 0;
     var plan = [];
     for (i = 0; i < cells.length; i++) {
@@ -1864,10 +1890,12 @@
       for (j = 0; j < pills.length; j++) ends.push(pills[j].getBoundingClientRect().right - left);
       // Sub-pixel: a cell whose last pill lands exactly on the edge is not overflowing.
       if (ends[ends.length - 1] <= room + 0.5) { plan.push(-1); continue; }
+      var res = moreW["+" + pills.length] || 0;
       var keep = 0;
-      while (keep < ends.length && ends[keep] + gap + moreW <= room) keep++;
+      while (keep < ends.length && ends[keep] + gap + res <= room) keep++;
       plan.push(keep);
     }
+    board.removeChild(rack);
     for (i = 0; i < cells.length; i++) {
       if (plan[i] < 0) continue;
       var c = cells[i], kids = Array.prototype.slice.call(c.children), cut = [];

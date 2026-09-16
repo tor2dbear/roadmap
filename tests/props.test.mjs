@@ -572,4 +572,41 @@ export async function run({ open }) {
       `och det räknar om i stället för att lägga till: ${JSON.stringify(efterKlippt)}`);
     ok(efterKlippt.över <= 1, `utan att lämna något klippt: ${efterKlippt.över}px över`);
   }
+  group("reservationen mäts, för märket blir bredare med fler siffror");
+  {
+    // Antalet är obegränsat — en puck får bära hur många etiketter som helst — och märkets
+    // bredd följer sina siffror: mätt sitter `+1` och `+9` på 30px-golvet, `+10` på 33 och
+    // `+100` på 40. En platt reservation på 30 behöll därför ett piller som det *riktiga*
+    // märket sedan tryckte ut ur cellen. Codex hittade det (#56).
+    //
+    // Fönstret är smalt och fixturen är byggd för att träffa det: `#backend #editing` slutar
+    // på 125px, så 125 + 4 + 30 ryms i 160 men 125 + 4 + **33** gör det inte. Tio etiketter
+    // till gör siffran tvåsiffrig.
+    const tio = (d) => {
+      d.items[0].tags = ["backend", "editing",
+        "a", "b", "c", "d", "e", "f", "g", "h", "i", "j"];
+      return d;
+    };
+    const p = await open("?layout=list&done=1&props=tags",
+      { data: tio, viewport: { width: 390, height: 844 } });
+    await p.waitForSelector(".list-row");
+    const m = await p.evaluate(() => {
+      const row = [...document.querySelectorAll(".list-row")]
+        .find((r) => r.getAttribute("data-id") === "alpha/a-now");
+      const c = row.querySelector(".list-tags"), more = c.querySelector(".list-more");
+      return {
+        säger: more ? more.textContent : null,
+        siffror: more ? more.textContent.replace("+", "").length : 0,
+        bredd: more ? Math.round(more.getBoundingClientRect().width) : null,
+        spill: more ? Math.round(more.getBoundingClientRect().right - c.getBoundingClientRect().right) : null,
+        över: c.scrollWidth - c.clientWidth,
+        // Ingen probe får bli kvar på brädan efter vandringen.
+        prober: document.querySelectorAll(".tag-probe").length,
+      };
+    });
+    ok(m.siffror >= 2, `siffran är tvåsiffrig, vilket är hela fallet: ${m.säger}`);
+    ok(m.spill <= 0, `märket ryms i cellen: ${m.spill}px utanför (${JSON.stringify(m)})`);
+    ok(m.över <= 1, `och ingenting klipps: ${m.över}px över`);
+    eq(m.prober, 0, "och mätstickan är borta igen — den mäter, den ritar inte");
+  }
 }
