@@ -440,4 +440,60 @@ export async function run({ open }) {
     eq(await p.evaluate(() => document.getElementById("displayDot").hidden), true,
       "och pricken slocknar");
   }
+  // ── the tags track was the only one that gave, and the only one with nothing to gain ──
+
+  group("taggspåret är en fast bredd, inte ett tak som aldrig nås");
+  {
+    // `minmax(80px, 160px)` når sitt tak bara när rutnätet har ledigt utrymme, och en rad
+    // vars `min-width` är summan av dess egna spår har aldrig något. Taket hade alltså
+    // aldrig gällt: mätt vid 390px mot den riktiga datan stod cellen på sitt **golv** och
+    // 61 av 109 rader klipptes, värst 215px innehåll i 80px med sista pillret 135px utanför
+    // kanten. Klämningen köpte ingenting heller — raden scrollar redan i sidled.
+    const p = await open("?layout=list&done=1&props=tags", { viewport: { width: 390, height: 844 } });
+    await p.waitForSelector(".list-row");
+    const spår = await p.evaluate(() =>
+      getComputedStyle(document.querySelector(".list-row")).gridTemplateColumns.split(" ").pop());
+    eq(spår, "160px", `sista spåret är en fast bredd: ${spår}`);
+  }
+
+  group("en cell som inte rymmer allt säger hur mycket den håller tillbaka");
+  {
+    // En bredd är en trimning, aldrig en garanti: en puck med fem etiketter i morgon
+    // klipper igen, och *tyst* — vilket är hela klagomålet. Cellen säger `+2` i stället.
+    const many = (d) => {
+      d.items[0].tags = ["collab", "permissions", "supabase", "scheduling"];
+      d.items[1].tags = ["ui"];
+      return d;
+    };
+    const p = await open("?layout=list&done=1&props=tags",
+      { data: many, viewport: { width: 390, height: 844 } });
+    await p.waitForSelector(".list-row");
+    const m = await p.evaluate(() => {
+      const cellOf = (id) => [...document.querySelectorAll(".list-row")]
+        .find((r) => r.getAttribute("data-id") === id).querySelector(".list-tags");
+      const read = (c) => {
+        const kids = [...c.children], more = c.querySelector(".list-more");
+        const box = c.getBoundingClientRect();
+        return {
+          shown: kids.filter((k) => !k.hidden && k !== more).map((k) => k.textContent),
+          hidden: kids.filter((k) => k.hidden).map((k) => k.textContent),
+          more: more ? more.textContent : null,
+          title: more ? more.title : null,
+          // Reservationen är vad som köper det här: märket ligger *inne* i cellen.
+          spill: more ? Math.round(more.getBoundingClientRect().right - box.right) : null,
+          över: c.scrollWidth - c.clientWidth,
+        };
+      };
+      return { full: read(cellOf("alpha/a-now")), kort: read(cellOf("alpha/a-now-2")) };
+    });
+    ok(m.full.shown.length > 0, `några etiketter ritas: ${JSON.stringify(m.full.shown)}`);
+    eq(m.full.more, "+" + m.full.hidden.length,
+      `och märket räknar precis de som göms: ${JSON.stringify(m.full)}`);
+    eq(m.full.shown.length + m.full.hidden.length, 4, "alla fyra är med, ritade eller räknade");
+    eq(m.full.title, m.full.hidden.join(" "), "märket namnger dem, så siffran går att svara på");
+    ok(m.full.spill <= 0, `märket ryms i cellen det står i: ${m.full.spill}px utanför`);
+    ok(m.full.över <= 1, `och ingenting klipps längre: ${m.full.över}px över`);
+    eq(m.kort.more, null, "en cell som rymmer allt får inget märke");
+    eq(m.kort.hidden.length, 0, "och gömmer ingenting");
+  }
 }

@@ -1781,7 +1781,20 @@
   // here for the same reason: it is the floor the title's 220px sits on top of, and a
   // floor computed from a track list that is no longer the track list is a row whose
   // declared minimum is not its actual one.
-  var LIST_TAGS_TRACK = "minmax(80px, 160px)";
+  // A fixed width like every other track, and the number is the ceiling that never
+  // applied. It was `minmax(80px, 160px)`, and a `minmax` track reaches its ceiling only
+  // when the grid has free space — a row whose `min-width` is the sum of its own tracks
+  // never has any, so on every screen narrower than that sum the cell stood at its
+  // **floor**. Measured at 390px against the live board under `group=none`: 61 of 109 rows
+  // clipped, the worst `#collab #permissions #supabase` at 215px of content in 80px with
+  // the last pill 135px past the edge and `overflow: hidden` for a pair of scissors.
+  //
+  // And the squeeze bought nothing: the row already scrolls sideways — that is what
+  // `min-width` is for — so a wider column costs scroll distance, not legibility. Tags
+  // were the only track that gave, and the only one with nothing to gain by giving.
+  // Distribution of the content widths: median 96, p90 142, p95 157, max 215. At 160 the
+  // same data clips 5 rows instead of 61; `fitTagCells` answers for those.
+  var LIST_TAGS_TRACK = "160px";
   // The date track is the one that grows, because it is the one holding a variable number
   // of things. A fixed 92px fits one bare date and nothing else: with `Created` and
   // `Updated` both ticked, the cell is right-aligned, so the overflow ran *leftwards* and
@@ -1799,7 +1812,7 @@
       px += parseInt(f.track, 10) || 0;
     });
     if (dn) { tracks.push(dateTrack(dn) + "px"); px += dateTrack(dn); }
-    if (propOn("tags")) { tracks.push(LIST_TAGS_TRACK); px += 80; }
+    if (propOn("tags")) { tracks.push(LIST_TAGS_TRACK); px += parseInt(LIST_TAGS_TRACK, 10); }
     return { tracks: tracks.join(" "), fixed: px, gaps: tracks.length + 1 };
   }
   function applyListTracks(node) {
@@ -1814,6 +1827,49 @@
     node.style.setProperty("--list-tracks", t.tracks || " ");
     node.style.setProperty("--list-track-px", t.fixed + "px");
     node.style.setProperty("--list-gaps", String(t.gaps));
+  }
+  // What the fixed width above cannot promise: a width is a tuning, never a guarantee. A
+  // puck with five labels tomorrow clips again, and **silently**, which is the actual
+  // complaint — the cell said nothing about what it had cut. So the cell says `+2`.
+  //
+  // **One pass over a finished board, every read before every write.** Doing it per cell
+  // inside the render loop would force a layout of a half-built board, which is the trap
+  // `colPlaces` already documents one screen down; interleaving a read and a write per row
+  // is that same layout 109 times over. Reads first into `plan`, writes after, so the
+  // whole list costs two layouts rather than two hundred.
+  function fitTagCells(board) {
+    var cells = board.querySelectorAll(".list-tags"), i, j;
+    if (!cells.length) return;
+    // The badge's width is *reserved* rather than measured, and that is not laziness: how
+    // wide `+N` renders depends on N, which depends on how many pills fit, which depends
+    // on how wide the badge is. A fixed reservation cuts the circle, and `min-width` on
+    // `.list-more` is what makes the badge honour the number this reads.
+    var moreW = parseInt(getComputedStyle(board).getPropertyValue("--more-w"), 10) || 0;
+    var gap = parseInt(getComputedStyle(cells[0]).columnGap, 10) || 0;
+    var plan = [];
+    for (i = 0; i < cells.length; i++) {
+      var cell = cells[i], pills = cell.children;
+      if (!pills.length) { plan.push(-1); continue; }
+      var left = cell.getBoundingClientRect().left, room = cell.clientWidth, ends = [];
+      for (j = 0; j < pills.length; j++) ends.push(pills[j].getBoundingClientRect().right - left);
+      // Sub-pixel: a cell whose last pill lands exactly on the edge is not overflowing.
+      if (ends[ends.length - 1] <= room + 0.5) { plan.push(-1); continue; }
+      var keep = 0;
+      while (keep < ends.length && ends[keep] + gap + moreW <= room) keep++;
+      plan.push(keep);
+    }
+    for (i = 0; i < cells.length; i++) {
+      if (plan[i] < 0) continue;
+      var c = cells[i], kids = Array.prototype.slice.call(c.children), cut = [];
+      for (j = plan[i]; j < kids.length; j++) { kids[j].hidden = true; cut.push(kids[j].textContent); }
+      var b = el("span", "tagpill list-more", "+" + cut.length);
+      // The names it is holding back, so the mark is answerable rather than just a number.
+      // Not a repair like the archive's eye — there is nothing to toggle, the labels are
+      // on the puck page — which is why it is a `<span>` and not a control.
+      b.title = cut.join(" ");
+      b.setAttribute("aria-label", cut.length + " more: " + cut.join(" "));
+      c.appendChild(b);
+    }
   }
   function dateCells(item, cls) {
     var fs = dateFields(), out = [], many = fs.length > 1;
@@ -6318,8 +6374,13 @@
     var visible = DATA.items.filter(matches).sort(sortComparator());
     var groups = groupsOf(visible);
 
-    if (layout === "list") renderList(groups);
-    else renderColumns(groups);
+    if (layout === "list") {
+      renderList(groups);
+      // After the fill, never inside it — see the function's own note. It writes nothing
+      // that changes a row's width (the track is fixed), so it cannot shift the layout it
+      // has just measured.
+      fitTagCells(board);
+    } else renderColumns(groups);
 
     var shown = visible.length;
     updateViewHeader(shown);

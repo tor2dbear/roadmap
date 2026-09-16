@@ -1218,6 +1218,30 @@ heading from one walk.
   and the heading's swatch (both carry the repo colour), the ⚠ badge, and the archive mark.
   The last two are the same rule from opposite ends — a drift signal you can hide is a
   problem you can hide, and the mark is the one click that gets the archived cards back.
+- **The tags track was the only one that gave, and the only one with nothing to gain by
+  giving.** It was `minmax(80px, 160px)`, and a `minmax` track reaches its ceiling only
+  when the grid has free space — a row whose `min-width` is the sum of its own tracks never
+  has any, so on every screen narrower than that sum the cell stood at its **floor** and the
+  ceiling had never applied at all. Measured at 390px against the live board under
+  `group=none`: **61 of 109 rows clipped**, the worst `#collab #permissions #supabase` at
+  215px of content in an 80px cell, the last pill 135px past the edge, cut by
+  `overflow: hidden` with nothing saying so. The squeeze bought nothing either: the row
+  already scrolls sideways — that is what `min-width` is for — so a wider column costs
+  scroll distance, not legibility, and every other track is a fixed pixel width. The
+  distribution is the argument for the number: median 96, p90 142, p95 157, max 215; at 160
+  the same data clips 5 rows instead of 61.
+- **A width is a tuning, never a guarantee, so the cell says `+2`.** Five labels tomorrow
+  clip again and *silently*, which was the actual complaint. `fitTagCells` is **one pass
+  over a finished board, every read before every write**: per cell inside the render loop
+  would force a layout of a half-built board (the trap `colPlaces` documents two sections
+  down), and interleaving a read and a write per row is that same layout 109 times. Two
+  layouts for the whole list. The badge's width is **reserved** rather than measured, and
+  that is not laziness — how wide `+N` renders depends on N, which depends on how many
+  pills fit, which depends on the badge; `--more-w` cuts the circle and `min-width` on
+  `.list-more` makes the badge keep to it. Sabotaged by dropping the reservation, the badge
+  hangs 14px outside its own cell. It names what it holds back (`title` + `aria-label`), so
+  the number is answerable — but it is a `<span>`, not a control: unlike the archive's eye
+  there is nothing to toggle, the labels are on the puck page.
 - **`FIELDS` was taken.** The query language's field table has owned that name since the
   filter was written, and the redeclaration blanked it: no term matched, twelve checks fell,
   and nothing threw. The properties are `PROPS` and the key is `props`, so "field" means one
