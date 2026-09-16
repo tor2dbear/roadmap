@@ -52,9 +52,15 @@
   var PRIORITY_LABEL = { urgent: "Urgent", high: "High", medium: "Medium", low: "Low" };
   // A small priority badge: filled signal bars, Linear-style. Level → filled bars.
   var PRIORITY_BARS = { urgent: 3, high: 3, medium: 2, low: 1 };
+  // `null` is a value here, not a missing one — `priority` is urgent/high/medium/low **or
+  // null = none** — so the badge draws its own emptiness rather than leaving that to a
+  // caller. It needed no new artwork and cannot drift from the filled form, because the
+  // empty one is what the component has drawn all along with nothing lit: the bars sit at
+  // `opacity: .3` and `.on` is the only thing that raises them. Three faint bars, which is
+  // the mark the reference draws as `---`.
   function priorityBadge(level) {
-    var b = el("span", "pri pri-" + level);
-    b.title = "Priority: " + (PRIORITY_LABEL[level] || level);
+    var b = el("span", "pri pri-" + (level || "none"));
+    b.title = level ? "Priority: " + (PRIORITY_LABEL[level] || level) : "No priority";
     if (level === "urgent") {
       // Was the character "!" in a red square — the fourth mark on this board drawn as
       // text rather than as a path, after `warn`, `x` and the agent arrow. It slipped
@@ -88,10 +94,16 @@
   function statusPill(st, cls) {
     return el("span", (cls ? cls + " " : "") + "status-pill status-" + st, STATUS_LABEL[st] || st);
   }
+  // Same rule as `priorityBadge` one field over: the badge knows what it looks like with
+  // nothing in it. The glyph alone, in the stylesheet's own placeholder shape
+  // (`badge--dashed`, which `.adapted-badge` has used since it was written) — an agent
+  // handle is text, so unlike the priority bars there is no faint version of the value to
+  // show, and the dashed outline is what says *a handle belongs here*.
   function agentBadge(name) {
-    var b = el("span", "agent-badge");
-    b.title = "Routed to " + name;
+    var b = el("span", "agent-badge" + (name ? "" : " agent-none badge--dashed"));
+    b.title = name ? "Routed to " + name : "No agent";
     b.appendChild(icon("agent", "agent-glyph"));
+    if (!name) return b;
     // The name in a box of its own, because the badge is an `inline-flex` and
     // `text-overflow` needs a block container — a bare text node there clips mid-letter
     // instead of ellipsising. The badge is the second field in a card's metadata row with
@@ -1315,6 +1327,14 @@
     return new Date(Date.UTC(Number(p[0]), Number(p[1]), 0)).toISOString().slice(0, 10);
   }
   function targetEl(date, cls) {
+    // The third of the same rule: the clock without a time. No dashed box here — a date is
+    // text on this board, not a badge, so there is no outline to draw the placeholder in.
+    if (!date) {
+      var e = el("span", (cls || "card-date") + " target-date target-none", "\u25f7");
+      e.title = "No target";
+      e.setAttribute("aria-label", e.title);
+      return e;
+    }
     var passed = daysSince(date) > 0;
     var d = el("span", (cls || "card-date") + " target-date" + (passed ? " past" : ""), "◷ " + targetLabel(date));
     d.title = "Target " + date + (passed ? " — horizon passed" : "");
@@ -1658,26 +1678,36 @@
   // `#alpha/a-parent`, like every other pixel of the row. A `<span>` has nothing to
   // swallow.
   //
-  // `\u2014` rather than a word, and the board chose it already: `propPicker`'s own default
-  // placeholder and the rail's empty Target row are both an em dash. The picker names the
-  // real thing once it is open; the cell is 44px wide and has room for a mark, not a
-  // sentence.
+  // **`mark()` is the ghost of the value, not one em dash for all of them.** The first
+  // version drew `\u2014` everywhere — `propPicker`'s own placeholder and the rail's empty
+  // Target row both use it, so the board had chosen it already. Reported from a phone with
+  // the reference beside it, and the report is right: in the rail that dash sits next to a
+  // label saying *Priority*, and a row has no label, so three identical dashes said which
+  // cells were empty and nothing at all about which columns they were. Each field's own
+  // builder now knows its empty form (`priorityBadge(null)`, `agentBadge(null)`,
+  // `targetEl(null)`), which is one writer per mark rather than a second table here, and it
+  // costs no vertical space — the other half of the reference, a header row naming the
+  // columns, is a question about the *filled* cells too and is left to its own puck.
   function emptyMark(item, opts) {
-    if (!itemEditable(item)) return el("span", "prop-muted prop-empty", "\u2014");
+    if (!itemEditable(item)) {
+      var plain = opts.mark();
+      plain.classList.add("prop-empty");
+      return plain;
+    }
     var node = propPicker({
       title: opts.title,
       editable: true,
-      blank: true,
+      blank: opts.mark,
       current: null,
       options: opts.options(),
       valueNode: opts.valueNode,
       onPick: opts.onPick,
     });
     node.classList.add("prop-empty");
-    // The button's whole content is an em dash, so it has no accessible name worth the
-    // word — the rail's chips are named by the label standing beside them and a row has
-    // no such label. The state belongs in the name too: "Priority" alone would read as a
-    // heading rather than as a field with nothing in it.
+    // The button's whole content is a mark, so it has no accessible name worth the word —
+    // the rail's chips are named by the label standing beside them and a row has no such
+    // label. The state belongs in the name too: "Priority" alone would read as a heading
+    // rather than as a field with nothing in it.
     var btn = node.querySelector(".pick-chip");
     if (btn) btn.setAttribute("aria-label", opts.title + ", not set");
     return node;
@@ -1711,6 +1741,7 @@
       empty: function (i) {
         return emptyMark(i, {
           title: "Priority",
+          mark: function () { return priorityBadge(null); },
           options: function () {
             return [{ value: null, label: "No priority" }].concat(
               PRIORITIES.map(function (p) { return { value: p, label: PRIORITY_LABEL[p] }; }));
@@ -1730,6 +1761,7 @@
       empty: function (i) {
         return emptyMark(i, {
           title: "Agent",
+          mark: function () { return agentBadge(null); },
           options: function () {
             return [{ value: null, label: "Unassigned" }].concat(
               agentOptions().map(function (a) { return { value: a, label: agentLabel(a) }; }));
@@ -1870,8 +1902,12 @@
   // list — `datePicker` is the rail's own control and already takes the item, so there is
   // nothing to route through `propPicker`.
   function targetMark(item) {
-    if (!itemEditable(item)) return el("span", "prop-muted prop-empty", "\u2014");
-    var node = datePicker(item, null, "\u2014");
+    if (!itemEditable(item)) {
+      var plain = targetEl(null, "list-date");
+      plain.classList.add("prop-empty");
+      return plain;
+    }
+    var node = datePicker(item, null, targetEl(null, "list-date"));
     node.classList.add("prop-empty");
     return node;
   }
@@ -3523,13 +3559,16 @@
     var chip = el("button", "pick-chip");
     chip.type = "button";
     function paint(node) { chip.innerHTML = ""; chip.appendChild(node); }
-    // `blank` paints the placeholder even when the current value *is* one the list names.
-    // `null` is a real value for these fields — "No priority", "Unassigned" — so the menu
-    // ticks that row and is right to; the chip is a different question. In the rail it has
-    // a column to say the words in; in a list row it has 44px, and "No priority" wrapped to
-    // three lines there, took the chip to 58×47 inside a 44px cell and pushed the whole row
-    // from 40px to 71px. One value, two widths, and the mark is the narrow spelling of it.
-    paint(!opts.blank && cur ? opts.valueNode(cur) : el("span", "prop-muted", opts.placeholder || "\u2014"));
+    // `blank` is what the chip shows for an absent value, and it wins over the resolved
+    // one. `null` is a real value for these fields — "No priority", "Unassigned" — so the
+    // menu ticks that row and is right to; the chip is a different question. In the rail it
+    // has a column to say the words in; in a list row it has 44px, and "No priority"
+    // wrapped to three lines there, took the chip to 58×47 inside a 44px cell and pushed
+    // the whole row from 40px to 71px. One value, two spellings, and the mark is the narrow
+    // one. A node rather than a string, because the narrow spelling is a *shape*: the
+    // priority bars unlit, the agent glyph in a dashed outline.
+    if (opts.blank) paint(opts.blank());
+    else paint(cur ? opts.valueNode(cur) : el("span", "prop-muted", opts.placeholder || "\u2014"));
     if (!opts.editable) { chip.classList.add("static"); chip.disabled = true; return chip; }
     chip.classList.add("editable");
     // A chip whose value is bare text has nothing of its own to look like, so it
@@ -9966,21 +10005,21 @@
   function ymd(d) { return d.toISOString().slice(0, 10); }
   //   content: the node to show inside the trigger (the current target), or null
   //   for the empty state, which labels itself.
-  // `emptyText` is what the trigger says with no date on it. The rail says "Set target",
+  // `emptyNode` is what the trigger shows with no date on it. The rail says "Set target",
   // which is a sentence in a column with room for one; a row's date track is 92px and
-  // right-aligned beside four other cells, so there it is the same em dash every other
-  // empty cell draws. The default keeps the rail's wording where the rail is the caller.
-  function datePicker(item, content, emptyText) {
+  // right-aligned beside four other cells, so there it is the mark `targetEl` draws for an
+  // absent date. The default keeps the rail's wording where the rail is the caller.
+  function datePicker(item, content, emptyNode) {
     var wrap = el("div", "prop-pick");
     var btn = el("button", "linklike prop-trigger" + (content ? " has-value" : ""));
     btn.type = "button";
     if (content) btn.appendChild(content);
-    else {
-      btn.appendChild(document.createTextNode(emptyText || "Set target"));
-      // An em dash is not a name. The rail's trigger says what it does in words and needs
-      // none; a row's cannot, so the words move to the accessible name instead.
-      if (emptyText) btn.setAttribute("aria-label", "Target, not set");
-    }
+    else if (emptyNode) {
+      btn.appendChild(emptyNode);
+      // A clock glyph is not a name. The rail's trigger says what it does in words and
+      // needs none; a row's cannot, so the words move to the accessible name instead.
+      btn.setAttribute("aria-label", "Target, not set");
+    } else btn.appendChild(document.createTextNode("Set target"));
     wrap.appendChild(btn);
     var open = null;
 

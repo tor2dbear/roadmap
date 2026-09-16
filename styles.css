@@ -903,6 +903,21 @@ body {
    Same mistake as `FIELDS` one file over, and the same cure: the name belongs to one
    thing. This is `PROPS`' empty, so it is `.prop-empty`, beside `.prop-muted` and
    `.prop-pick` it is drawn out of. */
+/* **The mark is the ghost of the value, and two of the three needed no rule at all.**
+   `.pri-none` is the priority badge with nothing lit: the bars already sit at
+   `opacity: .3` and `.on` is the only thing that raises them, so the empty form is what
+   the component has drawn all along — it cannot drift from the filled one, and it is the
+   `---` the reference draws. `.agent-none` borrows `.badge--dashed`, the stylesheet's own
+   placeholder shape since `.adapted-badge` was written: an agent handle is text, so there
+   is no faint value to show and the dashed outline is what says a handle belongs here.
+   Only the two colours are new, and they are the same colour every empty mark has had. */
+.agent-badge.agent-none, .target-date.target-none { color: var(--ink-3); }
+/* The glyph is `--accent` wherever an agent *is* routed — that is the routing mark, and it
+   is meant to catch the eye. An empty mark must not: measured on the dark theme, the badge
+   and its dashed border came out at `--ink-3` and `--line` as intended while the robot
+   inside stayed `#c17985`, so the quietest of the three cells was the loudest thing in the
+   row. `inherit`, so it follows the badge rather than naming a second colour. */
+.agent-badge.agent-none .icn.agent-glyph { color: inherit; }
 .prop-empty { color: var(--ink-3); font-size: var(--fs-md); }
 .list-dt .prop-empty { font-size: var(--fs-sm); }
 /* The date mark's control is `datePicker`'s trigger, and its styling lives under `.prop` —

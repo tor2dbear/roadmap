@@ -160,3 +160,35 @@ själv vad som räknas som utanför.
 handlar om märket för ett saknat värde; att göra varje ifylld cell till en picker vore att
 ändra en befintlig interaktion i förbigående. Det är nästa fråga, och den har ett eget svar
 att hitta — bland annat om raden då fortfarande kan öppna pucken någonstans.
+
+## Sedan dess
+
+**Tankstrecket höll inte, och rapporten som fällde det kom från en telefon med Linear
+bredvid.** Tre likadana streck sa *vilka* celler som var tomma och ingenting om *vilka
+kolumner* de var. Argumentet för dashen stod i den här pucken — "the board chose it
+already" — och det var sant om railen, där märket står bredvid en etikett som säger
+Priority. En rad har ingen etikett. Samma lucka som `aria-label` redan lappade för
+skärmläsaren; den visuella halvan hade inget.
+
+Varje fälts egen byggare kan sin tomma form nu, vilket är en skrivare per märke i stället
+för en andra tabell i `emptyMark`:
+
+- `priorityBadge(null)` — tre staplar, ingen tänd. **Gratis**: staplarna ligger redan på
+  `opacity: .3` och `.on` är det enda som tänder dem, så formen med inget tänt är den
+  komponenten alltid ritat. Den kan alltså inte glida isär från den ifyllda.
+- `agentBadge(null)` — glyfen ensam i `badge--dashed`, stilmallens egen platshållarform
+  sedan `.adapted-badge` skrevs. Ett agenthandtag är text och har ingen svag version av sig
+  självt, så den streckade ramen är det som säger *här hör ett handtag hemma*.
+- `targetEl(null)` — klockan utan tid.
+
+**En ny regel behövdes, och den hittades i en skärmdump.** Glyfen är `--accent` där en
+agent *är* dirigerad; det är routningsmärket och ska fånga ögat. Mätt på mörka temat kom
+brickan och dess streckade ram ut på `--ink-3` och `--line` som avsett medan roboten inuti
+stod kvar på `#c17985` — den tystaste cellen i raden var det högljuddaste i den.
+
+**Andra halvan av rapporten är inte den här pucken.** Referensen namnger också en
+kolumnrubrik, och en rubrik handlar inte om tomrum: en *ifylld* prioritetscell är precis
+lika onamngiven. Det är en fråga om hela listan, den kostar en permanent rad på 390px, och
+den måste pinnas i sidled som grupprubriken och följa `--list-tracks`. Egen puck
+(`listan-behover-kolumnrubriker`).
+

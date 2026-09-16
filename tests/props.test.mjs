@@ -484,6 +484,8 @@ export async function run({ open }) {
       const c = document.querySelectorAll(".list-row")[0].querySelector(".list-pri");
       return c && c.firstChild ? c.firstChild.tagName : null;
     }), "SPAN", "utan token är märket ren text");
+    eq(await p.evaluate(() => !!document.querySelector(".list-pri .pri-none")), true,
+      "och samma märke som med token — grinden styr kontrollen, aldrig läsbarheten");
     eq(await p.evaluate(() => !!document.querySelector(".list-pri .pick-chip")), false,
       "och ingen kontroll alls — den som inte kan skriva får inget som ser tryckbart ut");
     await p.locator(".list-row").nth(0).locator(".list-pri").click();
@@ -500,10 +502,10 @@ export async function run({ open }) {
     const chip = await p.evaluate(() => {
       const c = document.querySelectorAll(".list-row")[0].querySelector(".list-pri .pick-chip");
       const r = c.getBoundingClientRect();
-      return { aria: c.getAttribute("aria-label"), text: c.textContent.trim(),
+      return { aria: c.getAttribute("aria-label"), mark: (c.firstElementChild || {}).className,
                w: Math.round(r.width), rowH: Math.round(document.querySelectorAll(".list-row")[0].getBoundingClientRect().height) };
     });
-    eq(chip.text, "\u2014", "chipet visar märket, inte värdets namn");
+    eq(chip.mark, "pri pri-none", "chipet visar märket, inte värdets namn");
     // `null` is a real value for priority, so the *menu* ticks "No priority" and is right
     // to — but the chip is a different question. Painted with the value's own label it
     // wrapped to three lines: 58×47 inside a 44px cell, and the row went from 39px to 71.
@@ -597,6 +599,59 @@ export async function run({ open }) {
       "under group=priority ritas ingen prioritetscell alls");
     ok(await p.evaluate(() => document.querySelectorAll(".list-row .list-agent .prop-empty").length) > 0,
       "men agentens märke står kvar — regeln gäller den egenskap grupperingen namnger");
+  }
+
+  group("märket är den saknade formens skugga, inte ett tankstreck");
+  {
+    // Rapporterat från en telefon med Linear bredvid: tre likadana tankstreck sa *vilka*
+    // celler som var tomma och ingenting om *vilka kolumner* de var. I railen står den
+    // dashen bredvid en etikett som säger Priority; en rad har ingen etikett.
+    //
+    // Varje fälts egen byggare kan sin tomma form, så det är en skrivare per märke och inte
+    // en andra tabell — och prioritetens var gratis: staplarna ligger redan på
+    // `opacity: .3` och `.on` är det enda som tänder dem, så formen med inget tänt är den
+    // komponenten alltid ritat.
+    const gh = githubStub();
+    const p = await open("?layout=list&done=1&props=priority,agent,target", { token: true, github: gh.handler });
+    await p.waitForSelector(".list-row .pick-chip");
+    // Varje läsning tål att märket inte finns: sabotaget den här kontrollen är skriven för
+    // är att alla tre faller tillbaka till ett tankstreck, och då finns ingen `.pri` att
+    // läsa `className` ur. Läses det rakt av kastar filen i stället för att falla här, där
+    // meningen står — samma regel datumcellens kontroll längre upp redan följer.
+    const m = await p.evaluate(() => {
+      const row = [...document.querySelectorAll(".list-row")].find((r) => r.getAttribute("data-id") === "alpha/a-parent");
+      const pri = row.querySelector(".list-pri .pri") || {};
+      const ag = row.querySelector(".list-agent .agent-badge") || {};
+      const tg = row.querySelector(".list-dt .target-date") || {};
+      const q = (n, sel) => (n.querySelectorAll ? n.querySelectorAll(sel).length : -1);
+      const glyph = ag.querySelector ? ag.querySelector(".icn") : null;
+      return {
+        priCls: pri.className || "", bars: q(pri, ".pri-bar"),
+        lit: q(pri, ".pri-bar.on"), priTitle: pri.title || "",
+        agCls: ag.className || "", agName: q(ag, ".agent-name"), agTitle: ag.title || "",
+        tgCls: tg.className || "", tgText: (tg.textContent || "").trim(), tgTitle: tg.title || "",
+        glyphColor: glyph ? getComputedStyle(glyph).color : null,
+        accent: getComputedStyle(document.documentElement).getPropertyValue("--accent").trim(),
+        ink3: getComputedStyle(document.documentElement).getPropertyValue("--ink-3").trim(),
+      };
+    });
+    eq([m.bars, m.lit], [3, 0], "prioritet: tre staplar, ingen tänd — referensens `---`");
+    ok(m.priCls.split(" ").indexOf("pri-none") !== -1, `och den säger vad den är: ${m.priCls}`);
+    eq(m.priTitle, "No priority", "med ett namn, inte \"Priority: null\"");
+    ok(m.agCls.split(" ").indexOf("badge--dashed") !== -1,
+      `agent: stilmallens egen platshållarform, inte en ny: ${m.agCls}`);
+    eq(m.agName, 0, "och utan namnruta — det är handtaget som fattas");
+    eq(m.agTitle, "No agent", "namngiven som sådan");
+    eq(m.tgText, "\u25f7", "target: klockan utan tid");
+    eq(m.tgTitle, "No target", "och namnet säger det");
+    // Tre märken som går att skilja åt är hela poängen — annars är de tre tankstreck igen.
+    eq(new Set([m.priCls, m.agCls, m.tgCls]).size, 3, "och de tre är olika former");
+    // Glyfen är `--accent` där en agent *är* dirigerad; det är routningsmärket och ska
+    // fånga ögat. Ett tomt märke får inte: mätt på mörka temat kom brickan och dess
+    // streckade ram ut på --ink-3 och --line som avsett medan roboten inuti stod kvar på
+    // accentfärgen, så den tystaste cellen var det högljuddaste i raden.
+    const rgb = (h) => "rgb(" + [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)).join(", ") + ")";
+    eq(m.glyphColor, rgb(m.ink3), `glyfen är dämpad, inte accentfärgad (${m.accent})`);
   }
 }
 
