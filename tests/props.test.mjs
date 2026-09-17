@@ -446,6 +446,224 @@ export async function run({ open }) {
     eq(await p.evaluate(() => document.getElementById("displayDot").hidden), true,
       "och pricken slocknar");
   }
+  // ── the tags track was the only one that gave, and the only one with nothing to gain ──
+
+  group("taggspåret är en fast bredd, inte ett tak som aldrig nås");
+  {
+    // `minmax(80px, 160px)` når sitt tak bara när rutnätet har ledigt utrymme, och en rad
+    // vars `min-width` är summan av dess egna spår har aldrig något. Taket hade alltså
+    // aldrig gällt: mätt vid 390px mot den riktiga datan stod cellen på sitt **golv** och
+    // 61 av 109 rader klipptes, värst 215px innehåll i 80px med sista pillret 135px utanför
+    // kanten. Klämningen köpte ingenting heller — raden scrollar redan i sidled.
+    const p = await open("?layout=list&done=1&props=tags", { viewport: { width: 390, height: 844 } });
+    await p.waitForSelector(".list-row");
+    const spår = await p.evaluate(() =>
+      getComputedStyle(document.querySelector(".list-row")).gridTemplateColumns.split(" ").pop());
+    eq(spår, "160px", `sista spåret är en fast bredd: ${spår}`);
+  }
+
+  group("en cell som inte rymmer allt säger hur mycket den håller tillbaka");
+  {
+    // En bredd är en trimning, aldrig en garanti: en puck med fem etiketter i morgon
+    // klipper igen, och *tyst* — vilket är hela klagomålet. Cellen säger `+2` i stället.
+    const many = (d) => {
+      d.items[0].tags = ["collab", "permissions", "supabase", "scheduling"];
+      d.items[1].tags = ["ui"];
+      return d;
+    };
+    const p = await open("?layout=list&done=1&props=tags",
+      { data: many, viewport: { width: 390, height: 844 } });
+    await p.waitForSelector(".list-row");
+    const m = await p.evaluate(() => {
+      const cellOf = (id) => [...document.querySelectorAll(".list-row")]
+        .find((r) => r.getAttribute("data-id") === id).querySelector(".list-tags");
+      const read = (c) => {
+        const kids = [...c.children], more = c.querySelector(".list-more");
+        const box = c.getBoundingClientRect();
+        return {
+          shown: kids.filter((k) => !k.hidden && k !== more).map((k) => k.textContent),
+          hidden: kids.filter((k) => k.hidden).map((k) => k.textContent),
+          more: more ? more.textContent : null,
+          title: more ? more.title : null,
+          // Reservationen är vad som köper det här: märket ligger *inne* i cellen.
+          spill: more ? Math.round(more.getBoundingClientRect().right - box.right) : null,
+          över: c.scrollWidth - c.clientWidth,
+        };
+      };
+      return { full: read(cellOf("alpha/a-now")), kort: read(cellOf("alpha/a-now-2")) };
+    });
+    ok(m.full.shown.length > 0, `några etiketter ritas: ${JSON.stringify(m.full.shown)}`);
+    eq(m.full.more, "+" + m.full.hidden.length,
+      `och märket räknar precis de som göms: ${JSON.stringify(m.full)}`);
+    eq(m.full.shown.length + m.full.hidden.length, 4, "alla fyra är med, ritade eller räknade");
+    eq(m.full.title, m.full.hidden.join(" "), "märket namnger dem, så siffran går att svara på");
+    ok(m.full.spill <= 0, `märket ryms i cellen det står i: ${m.full.spill}px utanför`);
+    ok(m.full.över <= 1, `och ingenting klipps längre: ${m.full.över}px över`);
+    eq(m.kort.more, null, "en cell som rymmer allt får inget märke");
+    eq(m.kort.hidden.length, 0, "och gömmer ingenting");
+  }
+  group("taggcellerna mäts om när typsnittet landar");
+  {
+    // `font-display: swap`: på en kall laddning ritas brädan mot reservtypsnittets mått och
+    // de riktiga kommer efteråt. Mätt med woff2:an hållen tillbaka svarar
+    // `document.fonts.check("11px Geist")` **false** medan brädan ritas, och ett `#mcp`-piller
+    // står på 43px mot Geists 44. En pixel per piller låter försumbart och är det inte: över
+    // 256 tvåtaggskombinationer planerade **16** olika före och efter bytet.
+    //
+    // Mätt över 4 000 rader med 2–5 etiketter: **123** planerar olika över bytet.
+    // `#observability #supabase` är den renaste — två etiketter, bägge ryms i reserven och
+    // cellen får **inget märke alls**; i Geist ryms bara den första. En kall laddning ritar
+    // alltså två piller och ingen siffra, och efter bytet klipps det andra **tyst**: precis
+    // den bugg hela den här ändringen finns för, tillbaka bakvägen. Codex hittade det (#56).
+    //
+    // **Sökningen ljög två gånger innan den höll, och bägge lögnerna är värda att minnas.**
+    // Först sa den noll: fördröjningen måste överleva *renderingen*, annars hinner
+    // typsnittet fram före första mätningen och proben jämför Geist med Geist — med 8 000
+    // rader och 1 500ms stod `document.fonts.check` på `true` redan vid avläsning ett, en
+    // probe som aldrig öppnade fönstret den fanns för. Sedan sa den rätt *antal* med fel
+    // *exempel*: den nycklade på DOM-ordningen, och listan sorterar, så cell `i` är inte
+    // kandidat `i`. Nyckeln är radens `data-id`.
+    //
+    // **Två rader, och de prövar olika saker.** Den första går från *ryms* till *svämmar
+    // över*, vilket är ommätningen själv. Den andra klipper i **bägge** tillstånden men
+    // olika mycket (`+1` i reserven, `+2` i Geist) — 72 av de 123 gör det — och det är den
+    // enda sorts rad som prövar återställningen: utan den skulle andra vandringen hitta
+    // gårdagens märke och sin egen dolda granne, stapla ett andra märke och gömma den som
+    // överlevde. Med bara den första raden går sabotaget av återställningen fritt.
+    const flip = (d) => {
+      d.items[0].tags = ["observability", "supabase"];
+      d.items[1].tags = ["infrastructure", "qa", "content"];
+      return d;
+    };
+    const p = await open("?layout=list&done=1&props=tags",
+      { data: flip, viewport: { width: 390, height: 844 }, slowFonts: true });
+    await p.waitForSelector(".list-row");
+    // Raden vid `data-id`, inte den första `.list-tags` i dokumentet: den hör till vilken
+    // puck ordningen råkar lägga överst, och de flesta har inga taggar alls.
+    const cellOf = (id) => p.evaluate((id) => {
+      const row = [...document.querySelectorAll(".list-row")]
+        .find((r) => r.getAttribute("data-id") === id);
+      const c = row.querySelector(".list-tags"), more = c.querySelector(".list-more");
+      return {
+        geist: document.fonts.check("11px Geist"),
+        över: c.scrollWidth - c.clientWidth,
+        märken: c.querySelectorAll(".list-more").length,
+        dolda: [...c.children].filter((k) => k.hidden).length,
+        säger: more ? more.textContent : null,
+        synliga: [...c.children].filter((k) => !k.hidden && k !== more).length,
+      };
+    }, id);
+    const vid = await cellOf("alpha/a-now");
+    const vidKlippt = await cellOf("alpha/a-now-2");
+    eq(vid.geist, false, "brädan ritas medan reservtypsnittet fortfarande gäller");
+    eq([vid.synliga, vid.märken], [2, 0],
+      `och mot reservens mått ryms bägge utan märke: ${JSON.stringify(vid)}`);
+    // Efter bytet: cellen ska vara sann mot de mått som nu gäller, oavsett vad den ritades
+    // mot. Utan omätningen står den kvar med reservens plan.
+    await p.evaluate(() => document.fonts.ready);
+    await p.waitForTimeout(300);
+    const efter = await cellOf("alpha/a-now");
+    const efterKlippt = await cellOf("alpha/a-now-2");
+    eq(efter.geist, true, "och typsnittet har landat när vi mäter igen");
+    ok(efter.över <= 1, `ingenting klipps mot de mått som nu gäller: ${efter.över}px över`);
+    eq(efter.märken, 1, "ett märke, inte två — vandringen är idempotent");
+    eq(efter.säger, "+" + efter.dolda,
+      `och siffran är sann mot den nya planen: ${JSON.stringify(efter)}`);
+    ok(efter.synliga < vid.synliga,
+      `planen krympte med de bredare pillren: ${vid.synliga} → ${efter.synliga}`);
+    // Den andra raden: klippt i bägge tillstånden, och det är den som prövar återställningen.
+    eq(vidKlippt.säger, "+1", `reserven klipper redan här: ${JSON.stringify(vidKlippt)}`);
+    eq(efterKlippt.märken, 1, "efter bytet står det fortfarande *ett* märke där, inte två");
+    eq(efterKlippt.säger, "+" + efterKlippt.dolda,
+      `och det räknar om i stället för att lägga till: ${JSON.stringify(efterKlippt)}`);
+    ok(efterKlippt.över <= 1, `utan att lämna något klippt: ${efterKlippt.över}px över`);
+  }
+  group("reservationen mäts, för märket blir bredare med fler siffror");
+  {
+    // Antalet är obegränsat — en puck får bära hur många etiketter som helst — och märkets
+    // bredd följer sina siffror: mätt sitter `+1` och `+9` på 30px-golvet, `+10` på 33 och
+    // `+100` på 40. En platt reservation på 30 behöll därför ett piller som det *riktiga*
+    // märket sedan tryckte ut ur cellen. Codex hittade det (#56).
+    //
+    // Fönstret är smalt och fixturen är byggd för att träffa det: `#backend #editing` slutar
+    // på 125px, så 125 + 4 + 30 ryms i 160 men 125 + 4 + **33** gör det inte. Tio etiketter
+    // till gör siffran tvåsiffrig.
+    const tio = (d) => {
+      d.items[0].tags = ["backend", "editing",
+        "a", "b", "c", "d", "e", "f", "g", "h", "i", "j"];
+      return d;
+    };
+    const p = await open("?layout=list&done=1&props=tags",
+      { data: tio, viewport: { width: 390, height: 844 } });
+    await p.waitForSelector(".list-row");
+    const m = await p.evaluate(() => {
+      const row = [...document.querySelectorAll(".list-row")]
+        .find((r) => r.getAttribute("data-id") === "alpha/a-now");
+      const c = row.querySelector(".list-tags"), more = c.querySelector(".list-more");
+      return {
+        säger: more ? more.textContent : null,
+        siffror: more ? more.textContent.replace("+", "").length : 0,
+        bredd: more ? Math.round(more.getBoundingClientRect().width) : null,
+        spill: more ? Math.round(more.getBoundingClientRect().right - c.getBoundingClientRect().right) : null,
+        över: c.scrollWidth - c.clientWidth,
+        // Ingen probe får bli kvar på brädan efter vandringen.
+        prober: document.querySelectorAll(".tag-probe").length,
+      };
+    });
+    ok(m.siffror >= 2, `siffran är tvåsiffrig, vilket är hela fallet: ${m.säger}`);
+    ok(m.spill <= 0, `märket ryms i cellen: ${m.spill}px utanför (${JSON.stringify(m)})`);
+    ok(m.över <= 1, `och ingenting klipps: ${m.över}px över`);
+    eq(m.prober, 0, "och mätstickan är borta igen — den mäter, den ritar inte");
+  }
+  group("en dold bräda mäts inte, och listan hittas igen när pucken stängs");
+  {
+    // **Fjärde ansiktet på regeln `CLAUDE.md` redan skriver tre gånger** — platsen i en
+    // kolumn, tabbstoppet och tangentbordets fokus behövde vart sitt svar på den, och det
+    // här är det värsta av de fyra: vandringen misslyckas inte bara med att räkna ut en
+    // plan, den *förstör* den som står där. Bakom en öppen puck är `#board`
+    // `display: none`, varje rektangel läser 0, och `0 <= 0.5` säger att allt ryms — men
+    // återställningen har redan tagit bort märkena och visat pillren igen, och ingenting
+    // sätter tillbaka dem.
+    //
+    // Mätt med typsnittet landande medan en puck var öppen: att stänga den gav en rad utan
+    // märke och **136px klippta etiketter** — precis den bugg hela funktionen finns för.
+    // Codex hittade det (#56).
+    const many = (d) => {
+      d.items[0].tags = ["collab", "permissions", "supabase", "scheduling"];
+      return d;
+    };
+    const gh = githubStub();
+    // Pucken öppen från hashen: brädan ritas dold, och typsnittet landar bakom den.
+    const p = await open("?layout=list&done=1&props=tags#alpha/a-now-2",
+      { data: many, viewport: { width: 390, height: 844 }, token: true, github: gh.handler, slowFonts: 3000 });
+    await p.waitForSelector(".list-row", { state: "attached" });
+    const dold = await p.evaluate(() => ({
+      puck: document.body.classList.contains("viewing-puck"),
+      display: getComputedStyle(document.getElementById("board")).display,
+      // Klassen överlever döljandet, vilket är varför `as-list` ensamt inte räcker som grind.
+      asList: document.getElementById("board").classList.contains("as-list"),
+    }));
+    eq([dold.puck, dold.display, dold.asList], [true, "none", true],
+      `brädan är dold men behåller sin layoutklass: ${JSON.stringify(dold)}`);
+
+    await p.evaluate(() => document.fonts.ready);
+    await p.waitForTimeout(400);
+    await p.evaluate(() => { location.hash = ""; });
+    await p.waitForTimeout(400);
+    const m = await p.evaluate(() => {
+      const row = [...document.querySelectorAll(".list-row")]
+        .find((r) => r.getAttribute("data-id") === "alpha/a-now");
+      const c = row.querySelector(".list-tags"), more = c.querySelector(".list-more");
+      return { märken: c.querySelectorAll(".list-more").length,
+               dolda: [...c.children].filter((k) => k.hidden).length,
+               säger: more ? more.textContent : null,
+               över: c.scrollWidth - c.clientWidth };
+    });
+    eq(m.märken, 1, `pucken stängd: raden har sitt märke: ${JSON.stringify(m)}`);
+    eq(m.säger, "+" + m.dolda, "och siffran är sann");
+    ok(m.över <= 1, `och ingenting är klippt: ${m.över}px över`);
+  }
+
   // ── an empty property draws a mark, and the mark is where you set it ──────────
   // Two things, and they are deliberately different: *readability* (a column with holes
   // in it does not read as a column) and *the write path* (setting a value should not

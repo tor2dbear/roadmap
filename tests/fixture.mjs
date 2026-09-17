@@ -69,13 +69,26 @@ export async function makeOpener(getBrowser, origin) {
         typeof opts.token === "string" ? opts.token : "ghp_test");
     }
     if (opts.github) await page.route("https://api.github.com/**", opts.github);
+    // A cold load, which is the only state where `font-display: swap` is observable: the
+    // woff2 is held back so the board renders against the fallback metrics and the real
+    // ones arrive afterwards. Anything measuring text at render time is wrong in that
+    // window, and right again only if something re-measures.
+    if (opts.slowFonts) {
+      await page.route("**/*.woff2", async (route) => {
+        await new Promise((r) => setTimeout(r, opts.slowFonts === true ? 1500 : opts.slowFonts));
+        return route.continue();
+      });
+    }
     const payload = opts.data ? opts.data(structuredClone(PAYLOAD)) : PAYLOAD;
     await page.route("**/data/roadmap.js", (route) =>
       route.fulfill({
         contentType: "text/javascript; charset=utf-8",
         body: "window.__ROADMAP__ = " + JSON.stringify(payload) + ";",
       }));
-    await page.goto(origin + "/index.html" + query);
+    // `load` waits for every subresource, the delayed woff2 included — which would close
+    // the very window `slowFonts` exists to open. `commit` returns as soon as navigation
+    // starts; the board is waited for below either way.
+    await page.goto(origin + "/index.html" + query, opts.slowFonts ? { waitUntil: "commit" } : undefined);
     // The board renders from the payload synchronously on load; this waits for the
     // first paint of a column rather than for a fixed delay, so a slow machine does
     // not turn into a flake.
