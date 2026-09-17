@@ -6,6 +6,7 @@
 // med ett namn som är för långt för en telefon. Bägge är fall som fanns i den riktiga
 // datan och i ingen kontroll.
 import { group, eq, ok } from "./assert.mjs";
+import { githubStub } from "./fixture.mjs";
 
 const LONG = "Hierarkin på riktigt: parent, nästling och ordning";
 
@@ -515,11 +516,26 @@ export async function run({ open }) {
     //
     // `isMobile`, inte bara `hasTouch`: det förra är vad som får `(hover: hover)` att svara
     // falskt. Med bara `hasTouch` mäter kontrollen en skrivbordsdator och kan inte falla.
+    //
+    // Den tredje brädan har en token, och det är inte en variant utan de enda två
+    // kontrollerna svepet annars aldrig ser: en tom egenskaps chip och datumcellens
+    // trigger ritas bara för den som får skriva. De är också precis det fallet regeln
+    // handlar om — de målar en bakgrund *och* står kvar under fingret — och `.pick-chip`s
+    // egen hover-regel är railens, skriven ovaktad när ett chip bara stod i en yta.
     const sett = [], målar = [];
-    for (const data of [träd, arkiveratBarnbarn]) {
-      const p = await open("?layout=list&group=parent",
-        { data, viewport: { width: 390, height: 800 }, hasTouch: true, isMobile: true });
+    const gh = githubStub();
+    const brädor = [
+      [träd, {}],
+      [arkiveratBarnbarn, {}],
+      [träd, { token: true, github: gh.handler, query: "&props=priority,agent,target" }],
+    ];
+    for (const [data, extra] of brädor) {
+      const p = await open("?layout=list&group=parent" + (extra.query || ""),
+        { data, viewport: { width: 390, height: 800 }, hasTouch: true, isMobile: true,
+          token: extra.token, github: extra.github });
       await p.waitForSelector(".lh-toggle");
+      // `loadWritableRepos` avgör om chipet ritas alls, och det svarar över nätet.
+      if (extra.token) await p.waitForSelector(".list-row .pick-chip", { timeout: 5000 });
       eq(await p.evaluate(() => matchMedia("(hover: hover)").matches), false,
         "mätningen görs i en vy utan pekare");
       const cdp = await p.context().newCDPSession(p);
@@ -548,7 +564,7 @@ export async function run({ open }) {
     }
     // Vad svepet faktiskt fick syn på. Utan den här raden räckte det att en fixtur slutade
     // rita en kontroll för att dess regel skulle sluta vara vaktad, tyst.
-    ["lh-toggle", "list-fold", "list-archived", "col-archived"].forEach(function (k) {
+    ["lh-toggle", "list-fold", "list-archived", "col-archived", "pick-chip", "prop-trigger"].forEach(function (k) {
       ok(sett.some((c) => c.split(" ").indexOf(k) !== -1),
         `svepet nådde .${k}: ${JSON.stringify(sett)}`);
     });
