@@ -5355,13 +5355,34 @@
     hidden.forEach(function (h) {
       var b = el("button", "row hidden-col");
       b.type = "button";
-      b.title = "Show " + h.label + " again";
+      // Two causes, two sentences — and until this was written the archive borrowed the
+      // query's. `Show Done again` is a promise about *one column*, which is exactly what
+      // the eye delivers when a term hid it: `unhideColumn` mends that term and nothing
+      // else. The archive has no such per-column lever — `liftArchive` writes
+      // `state.showDone`, one switch for all of `TERMINAL` — so the same sentence over the
+      // same eye promised one column and gave every archived card on the board.
+      // Reported from the board, and the report's second half is the proof rather than a
+      // second fault: `⋯ → Hide column` on Cancelled writes `-status:cancelled` and hides
+      // *only* that, so the column menu keeps its word while the eye beside it does not.
+      // Measured on the live data: the tray offered `Done 142` and `Cancelled 2`, and the
+      // eye on Done put both on the board. Not a status-only fault either — two repos
+      // entirely in the archive give `Beta 3` and `Landed 1`, and the eye on Beta brings
+      // both *and* grows the column already standing (5 → 7), because that is what the
+      // switch does.
+      //
+      // So the row says which category is holding it, in the same words `archivedMark`
+      // uses one wall over — the board already had the vocabulary and the tray was the
+      // one place not speaking it. The two are deliberately one door (*"the same repair
+      // in a different place"*); this is what makes them carry the same sign.
+      b.title = h.archive ? "Show archived pucks" : "Show " + h.label + " again";
       if (g.cls) b.classList.add(g.cls(h.key));
       b.appendChild(el("span", "swatch"));
       b.appendChild(el("span", "hidden-label", h.label));
       // The count is the point: it is what the chip row cannot say, and what you
-      // actually want to know before deciding to bring a column back.
-      b.appendChild(el("span", "count", String(h.n)));
+      // actually want to know before deciding to bring a column back. The word rides
+      // *in* it rather than beside it, for `.col-archived`'s own reason one file over:
+      // a bare number next to a column's name reads as a count of that column.
+      b.appendChild(el("span", "count", h.archive ? h.n + " archived" : String(h.n)));
       b.appendChild(icon("eye"));
       b.addEventListener("click", function () { unhideColumn(g, h.key, h.archive); });
       list.appendChild(b);

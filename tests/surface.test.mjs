@@ -251,4 +251,56 @@ export async function run({ open }) {
     ok(total > 0, `${variant.name}: det finns kontroller att mäta`);
     eq(small, [], `${variant.name}: ingen kontroll under 30px hög`);
   }
+
+  group("handtaget är bandet, inte bara pillret");
+  {
+    // Rapporterat från en telefon: ett drag nedåt på handtaget drog *sidan* ner, med
+    // iOS egen uppdateringssnurra överst — och det fungerade "när jag drar längre ner".
+    // Orsaken är att marginaler inte tillhör något element. Ett 40×5-pillret med
+    // `margin: 4px auto 14px` gav en låda på fem pixlar som bar `touch-action: none`;
+    // resten av arkets översta 30px löste ut som `.sheet`, som måste vara `pan-y` för
+    // att listan under ska få panorera alls. Sex pixlar var våra, tjugofyra
+    // webbläsarens, och där den tar gesten finns ingen scrollruta att panorera — så
+    // den går till sidan.
+    //
+    // Kontrollen går den väg webbläsaren själv går: `touch-action` avgörs genom att
+    // skära värdena från träffpunktens element och uppåt, så en `auto` på `.sheet-title`
+    // är oskadlig medan dess förälder säger `none`. Att bara läsa elementets eget
+    // värde hade dömt ut titeln och friat pillret — precis fel båda gångerna.
+    const p = await open("", { viewport: PHONE, hasTouch: true });
+    await p.locator("#displayBtn").click();
+    await p.waitForSelector(".sheet .surface-body");
+    await p.waitForTimeout(200);
+    const m = await p.evaluate(() => {
+      const sheet = document.querySelector(".sheet");
+      const box = sheet.getBoundingClientRect();
+      const head = document.querySelector(".sheet-head").getBoundingClientRect();
+      const kanPanorera = (el) => {
+        for (let n = el; n; n = n.parentElement) {
+          if (getComputedStyle(n).touchAction === "none") return false;
+          if (n === sheet) return true;      // skärningen slutar vid arket
+        }
+        return true;
+      };
+      const släpper = [];
+      for (let y = Math.ceil(box.top) + 1; y < head.bottom; y += 2) {
+        const el = document.elementFromPoint(195, y);
+        if (el && kanPanorera(el)) släpper.push({ dy: Math.round(y - box.top), el: el.className });
+      }
+      const grip = document.querySelector(".sheet-grip");
+      const g = grip.getBoundingClientRect(), pill = getComputedStyle(grip, "::before");
+      return {
+        släpper, krom: Math.round(head.bottom - box.top),
+        band: { h: Math.round(g.height), w: Math.round(g.width) },
+        pill: { w: pill.width, h: pill.height, topp: Math.round(g.top - box.top) + parseFloat(getComputedStyle(grip).paddingTop) },
+      };
+    });
+    ok(m.krom > 60, `det finns ett krom att mäta: ${m.krom}px ner till huvudets underkant`);
+    eq(m.släpper, [], "ingen pixel i arkets krom lämnar gesten till webbläsaren");
+    // Bandet, och inte pillret, är det som ska ha vuxit: geometrin är oförändrad.
+    ok(m.band.h >= 24, `handtagets träffyta är ett band: ${m.band.h}px högt`);
+    ok(m.band.w > 300, `och hela arkets bredd: ${m.band.w}px`);
+    eq(m.pill.w + " " + m.pill.h, "40px 5px", "pillret är sig likt");
+    eq(m.pill.topp, 11, "och står kvar på sin pixel");
+  }
 }
