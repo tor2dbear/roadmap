@@ -1,6 +1,6 @@
 ---
 title: Trycka på show Done visar även cancelled
-status: next
+status: done
 updated: 2026-09-18
 created: 2026-09-13
 priority: high
@@ -59,9 +59,42 @@ Samma dörr, två skyltar, och bara den ena är sann om rummet.
 Trayets arkivrader har alltså lånat den frågedolda radens kläder. Det är den enda raden på
 brädan som namnger en kolumn och utför en kategori.
 
+## Utfall
+
+**Formen blev B: raderna behöll sin plats och bytte språk.** Arkivets trayrader säger
+`Done 142 archived` i `archivedMark`s egna ord, och deras titel lovar kategorin
+(`Show archived pucks`) där en frågegömd rad lovar sin kolumn (`Show Later again`). Två
+orsaker, två meningar — och `unhideColumn` är orörd, för termhalvan var aldrig fel.
+
+Spaken står kvar som den var, och det är hela poängen: `board.test.mjs` har sedan den
+skrevs asserterat att ögat *"lyfter växeln, inte bara sin egen kolumn"*. Beteendet var
+alltså känt, avsiktligt och kontrollerat — det var skylten som ljög.
+
+**Tre kontroller, var och en sabbad för sig:** ett rent antal tillbaka faller 10; en titel
+som lovar kolumnen även för en arkivrad faller 2; ett eget ord i stället för märkets
+faller 10, och stavningsregeln faller från *bägge* håll — byt ordet i märket i stället för
+i facket och den fälls ändå (plus tre befintliga kontroller om märket). Sex befintliga
+förväntningar flyttade med premissen: varenda en var en arkivrad, ingen var en frågegömd,
+vilket är kvittot på att ändringen träffar exakt det den skulle.
+
+1239 kontroller, 0 fel.
+
+## Vad som avsiktligt inte gjordes
+
+- **Ögat skriver ingen term åt dig.** Mätt: kolumnen som redan står växer ändå (5 → 7),
+  frågan får ett term ingen bad om, och under `group=target` finns inget term att skriva
+  (`columnTerm` svarar null för en månad). Ett löfte som går att hålla i en gruppering och
+  inte i en annan är inte hållet.
+- **Kolumnmärkets egen mening är orörd.** `Show N archived pucks in this column` är
+  ofullständig på samma sätt som `Show Done again` var — men märket bär redan
+  kategoriordet synligt, vilket var det som gjorde jobbet. Om meningen också ska sluta
+  hävda en omfattning den inte har är en egen fråga, och den fanns inte i rapporten.
+
 ## Open questions
 
-- **Vilken form ska arkivets trayrader ta?** Tre kandidater, alla mätbara:
+*(Besvarade — se Utfall. Kvar står bara den sista.)*
+
+- ~~**Vilken form ska arkivets trayrader ta?**~~ Tre kandidater, alla mätbara:
   - **A. Kollapsa till en rad** — `144 archived 👁`, i kolumnmärkets eget språk, med
     kolumnnamnen som underrad (`Done · Cancelled`). Ärlig om spaken, men tappar
     per-kolumn-siffrorna (142/2) och gör arkivraden till ett undantag bland trayrader.
