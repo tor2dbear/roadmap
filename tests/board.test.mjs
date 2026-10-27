@@ -19,7 +19,8 @@ export async function run({ open }) {
     eq(s.columns, ["Now", "Next", "Later"], "arkivet av visar bara de levande kolumnerna");
     // Done has three pucks in the fixture, Cancelled one — the tray answers for the
     // archive toggle, which is the hole #21 closed.
-    eq(s.tray, ["Done3", "Cancelled1"], "facket svarar för arkivväxeln, med antal");
+    eq(s.tray, ["Done3 archived", "Cancelled1 archived"],
+      "facket svarar för arkivväxeln, med antal — och med kategorin som håller dem");
     eq(s.chips, [], "arkivet är inget chip — det är brädans viloläge");
   }
 
@@ -31,6 +32,49 @@ export async function run({ open }) {
     eq(s.columns, ["Now", "Next", "Later", "Done", "Cancelled"], "ögat lyfter växeln, inte bara sin egen kolumn");
     eq(s.tray, [], "facket är tomt när ingenting är gömt");
     eq(new URL(p.url()).search, "?done=1", "växeln skrivs till URL:en");
+  }
+
+  // The eye above has asserted since it was written that it lifts the *switch* and not
+  // just its own column — which is the behaviour. The row over it said `Show Done again`,
+  // which is a promise about one column, and that is what was reported: pressing Done
+  // showed Cancelled too. The fix is the sign, not the lever: two causes, two sentences.
+  group("en arkivrad säger vilken kategori som håller den; en frågegömd gör inte det");
+  {
+    // One board with both causes on it, so the two rows are read against each other
+    // rather than against a remembered board: `-status:later` hides Later, the archive
+    // holds Done and Cancelled.
+    const p = await open("?q=-status%3Alater");
+    const rows = await p.evaluate(() => [...document.querySelectorAll(".hidden-col")].map((r) => ({
+      namn: r.querySelector(".hidden-label").textContent,
+      antal: r.querySelector(".count").textContent,
+      titel: r.title,
+    })));
+    const by = (n) => rows.find((r) => r.namn === n);
+    eq(rows.length, 3, "tre rader: en frågegömd och två arkivgömda");
+    eq(by("Later").antal, "2", "den frågegömda raden bär ett rent antal");
+    eq(by("Later").titel, "Show Later again", "och lovar sin egen kolumn, vilket är vad ögat ger den");
+    eq(by("Done").antal, "3 archived", "arkivraden namnger kategorin i antalet");
+    eq(by("Cancelled").antal, "1 archived", "bägge arkivrader, inte bara den som trycktes");
+    eq(by("Done").titel, "Show archived pucks", "och lovar kategorin, inte kolumnen");
+    eq(by("Done").titel, by("Cancelled").titel,
+      "samma mening på bägge — det är en spak, och raderna slutar hävda annat");
+  }
+
+  group("facket och kolumnhuvudet stavar arkivet likadant");
+  {
+    // `archivedMark` has carried the word since it was written — *"Word included, not a
+    // bare number"* — and the tray was the one place on the board not speaking it. The
+    // two are deliberately one door ("the same repair in a different place"), so a second
+    // spelling here would be the door growing a second sign rather than the same one.
+    const p = await open("?group=repo");
+    const both = await p.evaluate(() => ({
+      fack: document.querySelector(".hidden-col .count").textContent,
+      huvud: document.querySelector(".col-archived .count").textContent,
+    }));
+    ok(/^\d+ archived$/.test(both.huvud), `kolumnhuvudets märke: ${both.huvud}`);
+    ok(/^\d+ archived$/.test(both.fack), `fackets rad: ${both.fack}`);
+    eq(both.fack.replace(/^\d+/, ""), both.huvud.replace(/^\d+/, ""),
+      "ett ord, inte två — samma dörr, samma skylt");
   }
 
   group("göm en kolumn via ⋯");
@@ -139,7 +183,7 @@ export async function run({ open }) {
   group("gömd av både term och arkivet");
   {
     const p = await open("?q=-status%3Adone");
-    eq((await snapshot(p)).tray, ["Done3", "Cancelled1"], "facket listar den ändå");
+    eq((await snapshot(p)).tray, ["Done3 archived", "Cancelled1 archived"], "facket listar den ändå");
     await trayEye(p, "Done");
     const s = await snapshot(p);
     eq(s.columns.includes("Done"), true, "ETT klick räcker — växeln och termen lagas ihop");

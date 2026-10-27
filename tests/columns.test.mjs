@@ -16,7 +16,7 @@ export async function run({ open }) {
     const s = await snapshot(p);
     eq(s.columns, ["Alpha", "Beta"], "arkivet av: repon med levande puckar");
     // Landed holds one puck and it is archived, so the toggle takes the whole column.
-    eq(s.tray, ["Landed1"], "ett helt arkiverat repo blir en gömd kolumn");
+    eq(s.tray, ["Landed1 archived"], "ett helt arkiverat repo blir en gömd kolumn");
     eq(s.chips, [], "och arkivet får inget chip");
   }
   {
@@ -73,9 +73,10 @@ export async function run({ open }) {
     // column and then swallows it.
     const noCancelled = (p) => { p.items = p.items.filter((i) => i.status !== "cancelled"); return p; };
     const off = await open("?empty=0", { data: noCancelled });
-    eq((await snapshot(off)).tray, ["Done3"], "empty=0: ingen tom rad i facket");
+    eq((await snapshot(off)).tray, ["Done3 archived"], "empty=0: ingen tom rad i facket");
     const on = await open("?empty=1", { data: noCancelled });
-    eq((await snapshot(on)).tray, ["Done3", "Cancelled0"], "empty=1: raden står kvar, för klicket ger en kolumn");
+    eq((await snapshot(on)).tray, ["Done3 archived", "Cancelled0 archived"],
+      "empty=1: raden står kvar, för klicket ger en kolumn");
   }
 
   group("en arkivgömd målmånad behöver inget namn");
@@ -86,7 +87,7 @@ export async function run({ open }) {
     const p = await open("?group=target");
     const s = await snapshot(p);
     eq(s.columns.includes("Mar 2026"), false, "mars har bara arkiverade puckar och saknas");
-    eq(s.tray, ["Mar 20262"], "men listas i facket, med sina två");
+    eq(s.tray, ["Mar 20262 archived"], "men listas i facket, med sina två");
     await trayEye(p, "Mar 2026");
     const after = await snapshot(p);
     eq(after.columns.includes("Mar 2026"), true, "ögat tänder växeln och månaden kommer fram");
