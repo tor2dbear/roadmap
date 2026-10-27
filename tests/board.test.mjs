@@ -19,7 +19,8 @@ export async function run({ open }) {
     eq(s.columns, ["Now", "Next", "Later"], "arkivet av visar bara de levande kolumnerna");
     // Done has three pucks in the fixture, Cancelled one — the tray answers for the
     // archive toggle, which is the hole #21 closed.
-    eq(s.tray, ["Done3", "Cancelled1"], "facket svarar för arkivväxeln, med antal");
+    eq(s.tray, ["Done3 archived", "Cancelled1 archived"],
+      "facket svarar för arkivväxeln, med antal — och med kategorin som håller dem");
     eq(s.chips, [], "arkivet är inget chip — det är brädans viloläge");
   }
 
@@ -31,6 +32,49 @@ export async function run({ open }) {
     eq(s.columns, ["Now", "Next", "Later", "Done", "Cancelled"], "ögat lyfter växeln, inte bara sin egen kolumn");
     eq(s.tray, [], "facket är tomt när ingenting är gömt");
     eq(new URL(p.url()).search, "?done=1", "växeln skrivs till URL:en");
+  }
+
+  // The eye above has asserted since it was written that it lifts the *switch* and not
+  // just its own column — which is the behaviour. The row over it said `Show Done again`,
+  // which is a promise about one column, and that is what was reported: pressing Done
+  // showed Cancelled too. The fix is the sign, not the lever: two causes, two sentences.
+  group("en arkivrad säger vilken kategori som håller den; en frågegömd gör inte det");
+  {
+    // One board with both causes on it, so the two rows are read against each other
+    // rather than against a remembered board: `-status:later` hides Later, the archive
+    // holds Done and Cancelled.
+    const p = await open("?q=-status%3Alater");
+    const rows = await p.evaluate(() => [...document.querySelectorAll(".hidden-col")].map((r) => ({
+      namn: r.querySelector(".hidden-label").textContent,
+      antal: r.querySelector(".count").textContent,
+      titel: r.title,
+    })));
+    const by = (n) => rows.find((r) => r.namn === n);
+    eq(rows.length, 3, "tre rader: en frågegömd och två arkivgömda");
+    eq(by("Later").antal, "2", "den frågegömda raden bär ett rent antal");
+    eq(by("Later").titel, "Show Later again", "och lovar sin egen kolumn, vilket är vad ögat ger den");
+    eq(by("Done").antal, "3 archived", "arkivraden namnger kategorin i antalet");
+    eq(by("Cancelled").antal, "1 archived", "bägge arkivrader, inte bara den som trycktes");
+    eq(by("Done").titel, "Show archived pucks", "och lovar kategorin, inte kolumnen");
+    eq(by("Done").titel, by("Cancelled").titel,
+      "samma mening på bägge — det är en spak, och raderna slutar hävda annat");
+  }
+
+  group("facket och kolumnhuvudet stavar arkivet likadant");
+  {
+    // `archivedMark` has carried the word since it was written — *"Word included, not a
+    // bare number"* — and the tray was the one place on the board not speaking it. The
+    // two are deliberately one door ("the same repair in a different place"), so a second
+    // spelling here would be the door growing a second sign rather than the same one.
+    const p = await open("?group=repo");
+    const both = await p.evaluate(() => ({
+      fack: document.querySelector(".hidden-col .count").textContent,
+      huvud: document.querySelector(".col-archived .count").textContent,
+    }));
+    ok(/^\d+ archived$/.test(both.huvud), `kolumnhuvudets märke: ${both.huvud}`);
+    ok(/^\d+ archived$/.test(both.fack), `fackets rad: ${both.fack}`);
+    eq(both.fack.replace(/^\d+/, ""), both.huvud.replace(/^\d+/, ""),
+      "ett ord, inte två — samma dörr, samma skylt");
   }
 
   group("göm en kolumn via ⋯");
@@ -62,6 +106,64 @@ export async function run({ open }) {
     eq(s.columns.includes("Cancelled"), true, "den tomma kolumnen står kvar där den stod");
   }
 
+  group("sortering på status läser tavlan utplattad");
+  {
+    // Statusstegen sorterade redan något: `childItems()` ordnar en parents delar
+    // `status → manuell rank → titel`, "the order you'd work them". Den komparatorn hade
+    // bara aldrig nått toppnivån — det här är den, en våning upp, så en lista sorterad på
+    // status läser varje grupp precis som brädan skulle läsa den vänster till höger.
+    const ordnad = (d) => {
+      // Distinkta `order` behövs: fixturens pucker har alla 10, så andra nyckeln föll
+      // igenom till titeln och kontrollen hade inte kunnat se skillnad på rank och namn.
+      const sätt = (slug, o, st) => { const i = d.items.find((x) => x.slug === slug); i.order = o; if (st) i.status = st; };
+      // `a-parent` sist trots att den kommer först alfabetiskt — så raden bevisar att det
+      // är rangen som avgör och inte titeln.
+      sätt("a-now", 30); sätt("a-now-2", 10); sätt("a-next", 20); sätt("a-parent", 40);
+      return d;
+    };
+    // `sort=status,order` och inte `sort=status`: sedan `sortering-ar-en-kedja` är ordningen
+    // en kedja, och det gamla läget `status` *var* den här kedjan skriven som ett ord.
+    // Migreringen är att skriva ut den — regeln står kvar, den syns bara nu. (`status` ensam
+    // är ett giltigt val och betyder status → titel; att det inte expanderar är vad som gör
+    // kedjan `status` skrivbar alls, se `LEGACY_SORT`.)
+    const p = await open("?layout=list&group=repo&done=1&sort=status,order", { data: ordnad });
+    const rader = await p.evaluate(() => {
+      const data = window.__ROADMAP__.items;
+      return [...document.querySelectorAll(".list-group")[0].querySelectorAll(".list-row")].map((r) => {
+        const it = data.find((i) => i.id === r.getAttribute("data-id"));
+        return it.status + ":" + it.slug + ":" + it.order;
+      });
+    });
+    const stege = ["now", "next", "later", "inbox", "done", "cancelled"];
+    const iOrdning = rader.every((r, i) =>
+      i === 0 || stege.indexOf(rader[i - 1].split(":")[0]) <= stege.indexOf(r.split(":")[0]));
+    ok(iOrdning, `statusarna kommer i stegens ordning: ${JSON.stringify(rader)}`);
+    // Och inom en status avgör den manuella rangen — inte titeln, inte `updated`. Det är
+    // det som gör den till *brädans* ordning och inte bara en gruppering till.
+    const nu = rader.filter((r) => r.startsWith("now:"));
+    eq(nu, ["now:a-now-2:10", "now:a-now:30", "now:a-parent:40"],
+      `inom en status avgör manuell rank: ${JSON.stringify(nu)}`);
+  }
+
+  group("en status stegen inte känner hamnar sist, inte först");
+  {
+    // `DATA.statuses.indexOf` svarar -1 för en status nyttolastens egen lista inte nämner,
+    // och -1 sorterar *först* — före `now`. Inte hypotetiskt: repots incheckade snapshot
+    // har fem statusar mot den live-tavlans sex, så en avbruten puck hade lett listan.
+    const okänd = (d) => {
+      d.statuses = ["now", "next", "later", "inbox", "done"];   // stegen utan `cancelled`
+      d.items.find((i) => i.slug === "a-now").status = "cancelled";
+      return d;
+    };
+    const p = await open("?layout=list&group=repo&done=1&sort=status", { data: okänd });
+    const först = await p.evaluate(() => {
+      const data = window.__ROADMAP__.items;
+      const r = document.querySelectorAll(".list-group")[0].querySelector(".list-row");
+      return data.find((i) => i.id === r.getAttribute("data-id")).status;
+    });
+    eq(först, "now", `okänd status leder inte listan: första raden är ${först}`);
+  }
+
   group("list-layouten har inget fack");
   {
     const p = await open("?done=1&layout=list&q=-status%3Alater");
@@ -81,7 +183,7 @@ export async function run({ open }) {
   group("gömd av både term och arkivet");
   {
     const p = await open("?q=-status%3Adone");
-    eq((await snapshot(p)).tray, ["Done3", "Cancelled1"], "facket listar den ändå");
+    eq((await snapshot(p)).tray, ["Done3 archived", "Cancelled1 archived"], "facket listar den ändå");
     await trayEye(p, "Done");
     const s = await snapshot(p);
     eq(s.columns.includes("Done"), true, "ETT klick räcker — växeln och termen lagas ihop");
@@ -139,13 +241,22 @@ export async function run({ open }) {
       kort: document.querySelectorAll(".card").length,
       kvar: document.querySelectorAll(".col-archived").length,
       url: location.search,
-      lagrat: localStorage.getItem("roadmap-done"),
+      // Tolkat och inte som sträng: butiken bär också migreringsstämpeln `__v`, och en
+      // strängjämförelse hade gjort kontrollen känslig för nyckelordningen i JSON.
+      lagrat: JSON.parse(localStorage.getItem("roadmap-display") || "null"),
     }));
     eq(before, 7, "sju kort med arkivet av");
     eq(after.kort, 11, "elva efter ett klick");
     eq(after.kvar, 0, "och inga märken kvar att trycka på");
     eq(after.url, "?group=repo&done=1", "växeln syns i URL:en");
-    eq(after.lagrat, "1", "och skrivs till samma localStorage-nyckel som Display-menyn");
+    // Written to the same place the Display menu writes, which is now the *view's*
+    // memory rather than one flat key. And written whole: the board arrived with
+    // `group=repo` in a link, and pressing the mark adopted it. That is deliberate and it
+    // is the line between the two rules — a link you only look at writes nothing, a knob
+    // you turn adopts the board you turned it on. Storing just the key that moved would
+    // store a board that never existed, since the settings decide each other.
+    eq(after.lagrat, { __v: 2, all: { group: "repo", done: "1" } },
+      "och skrivs som hela brädan, in i den vy man står i");
   }
 
   group("listläget var tyst i varje gruppering");

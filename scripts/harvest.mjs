@@ -235,12 +235,28 @@ function resolveHierarchy(items) {
     child.parentRef = p.id;
     p.children.push(child.id);
   }
+  for (const it of items) it.children.sort(); // stable output — the board sorts them for display
+  // `progress` counts **direct** children, and the composition is the reason. A
+  // sub-parent carries its own count and answers for its own subtree, so the numbers
+  // stay readable at every depth: a reader who sees `3/5` can descend into the member
+  // that says `1/3` and the arithmetic is visible.
+  //
+  // Counting the whole subtree was tried and reverted, because it broke three things at
+  // once. The `Contains` list on a puck page shows direct members, so a badge counting
+  // the subtree sat above a list it disagreed with — five rows under `3/8`. And the
+  // drift signals got *less* precise, which was the opposite of the intent: measured on
+  // `root done → mid done → grandchild next`, direct counting flags `mid` alone, which
+  // is the puck whose own claim is false. The subtree count flags `root` as well, for a
+  // lie it did not tell — it said its one part was done, and that part says so itself.
+  //
+  // The case that motivated the attempt — a root reporting `0/1` while three pucks sit
+  // under its one child — is not a silence. It is the drift landing on the member that
+  // owns it, one level down, where the fix belongs.
   for (const it of items) {
     if (!it.children.length) continue;
-    it.children.sort(); // stable output — the board sorts them for display itself
-    const kids = it.children.map((id) => byId.get(id));
+    const kids = it.children.map((id) => byId.get(id)).filter(Boolean);
     it.progress = {
-      done: kids.filter((k) => k && TERMINAL.has(k.status)).length,
+      done: kids.filter((k) => TERMINAL.has(k.status)).length,
       total: kids.length,
     };
   }

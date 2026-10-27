@@ -1,5 +1,5 @@
 /* Roadmap aggregator — theme-aware, no dependencies. */
-/* Etapp identity — warm "map-paper" light, warm "ink" dark; trail-orange accent
+/* Parent identity — warm "map-paper" light, warm "ink" dark; trail-orange accent
    (#cf551b/#e2622a), forest-green as the go/ready semantic. Chrome uses --mono. */
 
 /* Self-hosted typefaces (woff2, latin subset, font-display: swap):
@@ -224,11 +224,22 @@ html, body { margin: 0; }
    says so. This only takes away the disfigurement, so the next such bug reads as one
    symptom instead of two. */
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+/* The fixed height lives here, not on `.app`, because `.app` is not always the only
+   thing on the page: the config-driven ribbon is inserted as its *sibling*. With
+   `height: 100dvh` on `.app` the document came out ribbon-tall plus a full viewport —
+   an outer page scroll back again, the bottom of `.work` below the fold, and a page
+   that could still move while a sheet locked only `.work`. As a column, the ribbon
+   takes what it needs and the shell takes the rest, whatever the ribbon's height is
+   and whether or not there is one. */
 body {
   background: var(--bg);
   color: var(--ink);
   font: var(--fw-normal) var(--fs-xl)/var(--lh-body) var(--sans);
   -webkit-font-smoothing: antialiased;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
 }
 
 .topbar {
@@ -393,11 +404,27 @@ body {
   grid-auto-flow: column;
   grid-auto-columns: minmax(280px, 1fr);
   gap: 16px;
-  padding: 18px var(--pad) 40px;
+  /* No padding at the top, and that is about the pinned head rather than about spacing.
+     A sticky box pins against the scrollport's *content* box, so the board's own 18px
+     gutter was a band above the head that belonged to neither: the cards scrolled up
+     through it and a strip of the one behind stood above `PIA 6` — measured at 390px,
+     `elementFromPoint` in that band answering `card` with the head pinned 18px lower
+     than the port's edge. It is the list's leak (two frozen cells with a 14px gap
+     between them) one layout over, and the same repair: give the space to the box that
+     travels. On the column it scrolls away with the column's own first screen. */
+  padding: 0 var(--pad) 40px;
   overflow-x: auto;
-  align-items: start;
+  /* Lika höga banor, inte innehållshöga kolumner. En sticky-box kan bara färdas inuti
+     sitt containing block, så en kort kolumn tar sin egen rubrik med sig ut ur rutan när
+     den tar slut: rapporterat från en telefon som "Now försvinner upp", och mätt — vid
+     scroll 380 stod `Now` på 106 med portens kant på 113, alltså avklippt mitt i ordet,
+     medan grannarna stod kvar. `start` gav varje kolumn dess egen höjd, vilket är rätt
+     för en lista av kort och fel för en bana man läser tvärs över. Stretchade är alla
+     banor den längstas höjd, ingen rubrik kan tryckas ut, och en tom kolumns släppyta
+     blir hela banan i stället för fyrtio pixlar. */
+  align-items: stretch;
 }
-.column { min-width: 0; border-radius: var(--r-lg); }
+.column { min-width: 0; border-radius: var(--r-lg); padding-top: 18px; }
 /* drag-to-restatus */
 .card[draggable="true"] { cursor: grab; }
 .card.dragging { opacity: .5; }
@@ -426,11 +453,33 @@ body {
 
 /* The hidden-columns tray — a column-shaped place at the end of the board holding the
    ones the filter took away. It is not a column: nothing drops into it, and it carries
-   rows rather than cards, so it sets itself apart by weight — a dashed edge and a
-   quieter head — instead of by size. The count on each row is the reason it exists:
+   rows rather than cards, so it sets itself apart by weight — a quieter head, and rows that
+   look nothing like cards — instead of by size. The count on each row is the reason it exists:
    the chip row can say *what* is hidden, never how much is behind it. */
-.hidden-cols { border: 1px dashed var(--line); border-radius: var(--r-lg); padding: 10px; align-self: start; }
+/* The tray lines up with the columns beside it, and the alignment is now a matter of
+   having nothing to align: the dashed edge is gone at the user's request, and with it the
+   1px border and 10px side padding that inset everything inside it. Measured before:
+   the tray's title 11px from its own left edge against a column's 18px, and its rows 11px
+   in where the cards beside them start at 0 — a seven-pixel and an eleven-pixel drift,
+   both of them paid for by a box that no longer exists. What is left is `align-self:
+   start` (a list of four rows should not be column-tall) — `.column`'s own `padding-top`
+   and `border-radius` say the rest, which is the point: the tray is a column.
+   It sets itself apart by its head and its rows now, not by a line around it. */
+.hidden-cols { align-self: start; }
+/* The head's height is set by the tallest thing it may hold — the `⋯` button at 27px — so a
+   head carrying none is 7px shorter, and its centred title rides up with it. Stated so every
+   head is the same height whatever controls it happens to have, which is what puts the
+   titles on one line. 41 = the button's 27 plus this rule's own `padding-block: 4px 10px`;
+   `box-sizing` is border-box here, so the padding is inside the number. */
+.col-head { min-height: 41px; }
 .hidden-cols .col-head { position: static; background: none; color: var(--ink-3); }
+/* The tray keeps the column head's *shape* without its mark: a swatch is a colour, and a
+   tray of four columns has no one colour to show. Blank, it is the slot rather than the
+   mark — and the slot is what puts `HIDDEN` on the same line as `NOW` and `NEXT`. Stated
+   as an absent background rather than as a left padding of 18px, so the width stays owned
+   by `.col-head .swatch` and the gap by the head: a padding would be those two numbers
+   written down a second time, in the one place nothing would keep them in step. */
+.hidden-cols .col-head .swatch { background: none; }
 .hidden-cols .col-head h2 { color: var(--ink-3); }
 .hidden-col { gap: 8px; font-size: var(--fs-md); }
 .hidden-col .swatch { width: 10px; height: 10px; border-radius: var(--r-xs); flex: none; background: var(--ink-3); }
@@ -463,29 +512,52 @@ body {
 @media (hover: none) { .col-more { opacity: 1; } }
 /* in-column "+" — add a puck already in this column */
 .col-add {
-  margin-top: 10px; width: 100%; display: flex; align-items: center; justify-content: center;
+  /* No top margin: it sits inside `.cards`, whose own `gap` already spaces it from the last
+     card. The margin dates from when it was the column's sibling and doubled the gap once
+     it moved in. */
+  width: 100%; display: flex; align-items: center; justify-content: center;
   padding: 7px; opacity: 0; transition: opacity .12s;
 }
 .column:hover .col-add, .col-add:focus-visible { opacity: 1; }
 .col-add:hover { color: var(--accent); border-color: var(--accent); }
 .col-add svg { width: 15px; height: 15px; }
 @media (hover: none) { .col-add { opacity: 1; } }
+/* Not pinned, and no longer needing to be. The head sits *outside* the box that scrolls —
+   `.cards` is the scroller, the head is its sibling — so the whole apparatus a pin
+   requires is gone rather than tuned: no `position: sticky`, no `top: 0` resolving against
+   a port's content box, no `z-index` ranking it over the cards, and no opaque background
+   bleeding 8px past the column to cover the `0 2px 8px` shadow of a card passing beneath
+   it. That shadow was a real report from a phone — "a small edge/shadow behind the other
+   titles" — and the repair is that nothing passes beneath any more.
+   (The list's heading is `.list-head` and is still pinned: `.work` is its scrollport and
+   the heading travels inside it.) */
 .col-head {
   display: flex;
   align-items: center;
   gap: 8px;
-  position: sticky;
-  /* The kanban .board is its own scroll container (overflow-x: auto forces
-     overflow-y: auto too), so this sticks relative to the board, not the page —
-     top: 0 keeps it at the column top. (The list view scrolls with the viewport
-     and offsets below the topbar via --topbar-h; see .list-head.) */
-  top: 0;
-  padding: 4px 2px 10px;
-  background: var(--bg);
-  z-index: 1;
+  padding-block: 4px 10px;
 }
 .col-head .swatch { width: 10px; height: 10px; border-radius: var(--r-xs); }
+/* Two kinds of head, and until parent grouping arrived there was only one. A category
+   label (`NOW`, `ETAPP SITE`) is short by construction and wears the eyebrow. A head
+   named after a puck carries an arbitrary title, so it keeps the puck's own casing —
+   uppercase plus letter-spacing costs 15–20% of the width and legibility both — and it
+   truncates, which `min-width: 0` is what allows: a flex item defaults to never being
+   narrower than its content, so the title wrapped to three lines and left the count and
+   the rollup badge centred against it. */
+.col-head h2, .list-head h2 { min-width: 0; }
 .col-head h2 { margin: 0; font-size: var(--fs-md); text-transform: uppercase; letter-spacing: var(--tr-eyebrow); }
+.col-head h2:not(.named) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.col-head h2.named, .list-head h2.named { text-transform: none; letter-spacing: normal; }
+/* The button *is* the title: no chrome of its own, and it truncates rather than the
+   `h2` around it, because the text it has to cut is inside it. */
+.head-open {
+  font: inherit; text-transform: inherit; letter-spacing: inherit; color: inherit;
+  background: none; border: 0; padding: 0; margin: 0; cursor: pointer; text-align: left;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block;
+}
+@media (hover: hover) { .head-open:hover { color: var(--accent); } }
+.head-open:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-xs); }
 .col-head .count { color: var(--ink-3); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
 /* "N archived" — what the archive is holding back from *this* column, in the head of
    the column that is short of it. Shaped like the tray's row rather than like a chip:
@@ -512,24 +584,123 @@ body {
 
 /* ── list view ── a full-width table grouped by status. #board gets .as-list. */
 .board.as-list {
-  display: block;
+  /* One column, sized to the widest group. Every group is stretched to it, which is what
+     lets an archive stub — a heading with no rows, and therefore no width of its own —
+     keep its heading pinned when the list is scrolled right. As `display: block` each
+     group was only as wide as its own content, so the short ones slid off the left edge
+     entirely: a sticky box cannot be held outside its own containing block. */
+  display: grid;
+  /* At least what the rows need, and all of the box when there is more. `min-content`,
+     not `max-content`: the latter reads the longest *title*, which is how a single long
+     puck name came to set the scroll width for every row in the list — and, worse, to
+     widen the frozen name cell past the screen. Each row's own `min-width` is the number
+     that belongs here, and that is exactly its min-content.
+     `1fr` and not bare `min-content`: without it the column stopped at the content and
+     left 214px of nothing to the right of the date on a 1400px screen. */
+  grid-template-columns: minmax(min-content, 1fr);
+  /* `.board` sets `grid-auto-flow: column` for the kanban columns; without this the
+     groups laid themselves out side by side. */
+  grid-auto-flow: row;
   overflow-x: visible;
   max-width: none;
-  padding: 12px 24px 40px;
+  /* The board's own gutter, and a token because three other rules have to agree with it:
+     the frozen cells pin *at* it (so they do not travel), and their background bleeds
+     across it (so the scrolled metadata does not appear inside it). */
+  --list-pad: 24px;
+  padding: 12px var(--list-pad) 40px;
+  /* Wide content scrolls in its own box; the page stays put. The same rule the code
+     blocks and the tables already follow, and the reason the document no longer comes
+     out 652px wide on a 390px phone with the topbar sized to the viewport sitting in
+     60% of it. `min-width: 0` is kept as belt and braces: a scroll container's
+     automatic minimum is already 0, but the declaration is what makes that independent
+     of whichever overflow value this rule ends up carrying. */
+  /* No scroller of its own: `.work` is the one scrollport, and that is what buys the
+     heading its vertical stickiness back — a box that scrolls sideways is a scroll
+     container in both axes, and the heading was sticking to a port that never moved. */
+  overflow-x: visible;
+  min-width: 0;
+  /* Not for queries any more — the tiers are gone — but `cqw` in `.lh-inner` needs a
+     container to measure against, and "the board's width" is exactly the number it
+     wants. */
+  container-type: inline-size;
 }
 .list-group { margin-bottom: 20px; }
+/* The heading is two boxes. The outer one spans the group so its background reaches
+   across the scrolled width; the inner one is only as wide as its content, which is what
+   lets `left: 0` pin it — a sticky box cannot be offset inside a containing block it
+   fills completely, and a full-width heading in a scrolled row simply slid away to the
+   left (measured: −376px at scrollLeft 400).
+   `100cqw` caps the inner box at the *board's* width, so a long parent name still
+   ellipsises instead of widening every row's scroll range. That is the one thing
+   `container-type` is still here for; the tiers it used to serve are gone. */
+/* One sticky box per axis, nested, because the two axes want opposite shapes: a sticky
+   box can only travel *inside* its containing block, so vertical stickiness needs an
+   element shorter than its container (the heading inside the tall group) and horizontal
+   stickiness one narrower than its container (the inner box inside the full-width
+   heading). Measured with only the inner one sticky: it pinned sideways and slid straight
+   off the top, −469px after scrolling 600. */
 .list-head {
+  position: sticky;
+  top: 0;
+  /* A token for the same reason the row's are: `.lh-inner` pins at the gutter *plus*
+     this, so the heading does not travel either. */
+  --head-pad: 2px;
+  padding: 6px var(--head-pad) 8px;
+  background: var(--bg);
+  /* Above the rows' own frozen cells (z-index 2). Same level and later in the document
+     meant the scrolled row's title painted over the pinned heading — two things claiming
+     the same 30 pixels at the top of the port. */
+  z-index: 4;
+}
+.lh-inner {
   display: flex;
   align-items: center;
   gap: 8px;
   position: sticky;
-  top: var(--topbar-h, 0px); /* sit below the sticky topbar, not under it */
-  padding: 6px 2px 8px;
+  /* Sideways only — the outer `.list-head` carries the vertical axis. The old
+     `top: var(--topbar-h)` arithmetic went with the page scroll: the topbar sits above
+     the scrollport now rather than over it. Sideways the offset is the heading's own
+     resting position — the board's gutter plus this box's padding — so it freezes
+     without travelling; `left: 0` slid it 26px first. */
+  left: calc(var(--list-pad) + var(--head-pad));
+  width: max-content;
+  max-width: 100cqw;
   background: var(--bg);
-  z-index: 1;
+  z-index: 3;
 }
 .list-head .swatch { width: 10px; height: 10px; border-radius: var(--r-xs); }
 .list-head h2 { margin: 0; font-size: var(--fs-md); text-transform: uppercase; letter-spacing: var(--tr-eyebrow); }
+.lh-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+/* A heading with two controls is a flex row of its own. The `!important`-free way to
+   keep the split invisible: the toggle drops its right bleed so the gap between caret
+   and name is the head's own 8px, not 8 plus the toggle's padding. */
+.list-head h2 { display: flex; align-items: center; gap: 8px; min-width: 0; }
+/* **Only the name gives.** Everything else in a group heading is a fixed mark — the
+   swatch, the count, the archive control, the rollup badge — and a flex item with a width
+   is still shrinkable, so a long parent name pressed against the heading's `100cqw` cap
+   squeezed them instead of ellipsising itself: measured at 393px, the swatch went from
+   10px to **0** (the colour dot simply gone) and the count from 16px to 7, clipping the
+   digit. The shrinkable boxes are named — and they are every box *on the way down to the
+   name*, which is the part the first version got wrong. It named the `h2` and the name
+   itself and stopped; between them sit `.lh-stub` and `.lh-toggle`, children of the `h2`
+   and therefore caught by the blanket rule. Rigid, they kept their content width inside a
+   shrunk parent and simply overflowed it: measured on live data at 390px, a stub 359px
+   wide inside a 246px `h2`, its name running **89px** under the archive mark. The
+   stylesheet already carried a comment saying this exact overlap had been fixed once — it
+   had, one box further in, and this rule re-broke it from one box further out. Each
+   exception is written more specifically than the blanket rule, since source order is the
+   only thing deciding them. */
+.list-head .lh-inner > *, .list-head h2 > *, .list-head .lh-toggle > *, .list-head .lh-stub > * { flex: none; }
+.list-head .lh-inner > h2 { flex: 0 1 auto; min-width: 0; }
+/* A box may give only if the name is *inside* it. `.lh-toggle--split` is the toggle of a
+   heading whose name is its own sibling button, so it holds nothing but the caret and the
+   swatch — letting it shrink squeezed it to 28px around 39px of content and pushed the
+   swatch out of its own box onto the first letter of the title (measured: swatch at
+   47–57, name starting at 46). Which is the blanket rule's own point, one level in. */
+.list-head h2 > .lh-stub, .list-head h2 > .lh-toggle:not(.lh-toggle--split) { flex: 0 1 auto; min-width: 0; }
+.list-head .lh-label { flex: 0 1 auto; min-width: 0; }
+.lh-toggle--split { margin-right: 0; padding-right: 0; }
+.list-head .head-open { font: inherit; text-transform: inherit; letter-spacing: inherit; }
 .list-head .count { color: var(--ink-3); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
 /* The whole heading is the fold control, so it carries the row's own spacing and
    reaches a little past the content line — a header you can click should look like
@@ -543,6 +714,11 @@ body {
    makes the claim checkable: a span cannot pick up an interaction it is not given. */
 .lh-toggle, .lh-stub {
   display: inline-flex; align-items: center; gap: 8px;
+  /* Both are flex items of the heading, and both hold the label that is supposed to
+     ellipsize. Without this the shrink stops at the item and the name runs under the
+     archive mark — which is what a fully archived parent with a long title did on a
+     phone, the two texts overlapping in the same 30 pixels. */
+  min-width: 0;
   font: inherit; color: inherit; background: none; border: 0;
   margin: -4px -8px; padding: 4px 8px; border-radius: var(--r-sm);
   /* `font: inherit` does not cover these two, and the UA sheet *declares* them on
@@ -553,7 +729,16 @@ body {
 }
 /* Only the control behaves like one. */
 .lh-toggle { cursor: pointer; }
-.lh-toggle:hover { background: var(--panel-2); }
+/* Bakom guarden, som elva andra regler i den här filen — och de här fyra hade missat den.
+   På en telefon finns ingen pekare som lämnar: `:hover` fastnar efter ett tapp och står
+   kvar tills man rör något annat. För de flesta hover-reglerna spelar det ingen roll (de
+   sitter i ytor som stängs av tappet, eller flyttar bara en textfärg), men listans egna
+   fäll- och arkivkontroller *står kvar under fingret* och målar en bakgrund — så det syns
+   som en mörk ruta runt precis det man nyss tryckte på. Rapporterat från en telefon, en
+   bild per kontroll. Mätt med `(hover: hover)` falskt och framtvingad `:hover`:
+   `.lh-toggle` och `.list-fold` målade `--panel-2`, medan `.list-row` — som redan hade
+   guarden — inte gjorde det. */
+@media (hover: hover) { .lh-toggle:hover { background: var(--panel-2); } }
 /* The stub has no caret, so it pays the caret's width in padding instead and its label
    lands where every other label in the list does. There is nothing under it to expand
    until the archive toggle lifts, so it offers no cursor and no hover.
@@ -570,19 +755,109 @@ body {
    stylesheet said otherwise. The caret only ever appears inside a toggle, so nothing is
    narrowed by qualifying it. */
 .lh-toggle .lh-caret { width: 13px; height: 13px; color: var(--ink-3); }
-.lh-toggle:hover .lh-caret { color: var(--ink-2); }
+@media (hover: hover) { .lh-toggle:hover .lh-caret { color: var(--ink-2); } }
 /* A folded group keeps its heading and loses its bottom margin — the gap belonged to
    the rows that are no longer there. */
 .list-group.shut { margin-bottom: 4px; }
+/* The row keeps every column and scrolls when they do not fit. What stood here before
+   was the opposite — tiers that dropped agent, then repo, as the *board* narrowed — and
+   the numbers were the problem: 560/720 for a flat row, then 652/812 once the tree's
+   indent turned out to shrink the row the container query could not see. Two rounds of
+   arithmetic, one of them wrong, for a rule whose whole purpose was deciding what to
+   throw away.
+   A row that may scroll needs nobody to know what fits. The title never scrolls out from
+   under you (see the frozen cells below), so the thing that was being protected is
+   protected by construction instead of by a breakpoint. */
 .list-row {
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) 44px 108px 148px 92px;
+  /* The name gets a floor and not only a ceiling: `1fr` alone collapses to nothing once
+     the fixed tracks fill the box, and the title is the one thing a row is for. Wider
+     than the box, the row scrolls; narrower, `min-width` keeps it filling the box so the
+     borders still reach the edge. */
+  /* Tokens because `--list-fixed` below sums them, and a track widened in one place and
+     not the other is a row whose declared minimum is not its actual one. */
+  --glyph-w: 18px;
+  --row-gap: 14px;
+  --row-pad: 12px;
+  /* Only the two the chooser never asks about are written here. Everything after the name
+     is `--list-tracks`, set on the list by `applyListTracks()` from the same walk over
+     FIELDS that builds the cells — so a property that is switched off takes its column
+     with it, and a track can never outlive the cell that filled it. The fallbacks are the
+     shipped set, so a row rendered before the variable lands is still the old row rather
+     than a two-column one. */
+  grid-template-columns: var(--glyph-w) minmax(220px, 1fr) var(--list-tracks, 44px 108px 148px 92px);
+  /* The minimum comes from the *columns*, never from the content. `min-width: max-content`
+     read the longest title instead, and on a phone that is a disaster rather than a
+     nicety: measured with one 120-character title, the name cell came out 851px wide on a
+     390px screen, which set the scroll width of every row in the list from one puck's
+     name. (It was worse while the cell was frozen — opaque and wider than the screen, it
+     covered the metadata rather than pushing it along — and that is gone with the freeze;
+     the floor stays because the row's minimum should come from its columns either way.)
+     The sum is the tracks it must not squeeze: five gaps and the row's own padding, plus
+     the name's floor. The title ellipsises inside that floor, which is what it has always
+     been specified to do. */
+  --list-fixed: calc(var(--glyph-w) + var(--list-track-px, 392px) + var(--list-gaps, 5) * var(--row-gap) + var(--row-pad) + 6px);
+  min-width: calc(var(--list-fixed) + 220px);
   align-items: center;
-  gap: 14px;
-  padding: 8px 6px 8px 12px;
+  gap: var(--row-gap);
+  padding: 8px 6px 8px var(--row-pad);
   border-bottom: 1px solid var(--line);
   cursor: pointer;
 }
+/* The tree's indent. Capped, because the format caps nothing: `parent:` goes as deep as
+   anyone writes it, and on a 390px screen the fifth level is a staircase out of the
+   viewport. Past the cap the rows stop stepping and the caret keeps saying what nests
+   inside what.
+   On the *name*, not on the row: it puts every row's metadata on the same x whatever its
+   depth, which padding on the row could not. (It was also what kept the structure on
+   screen while the name was frozen — and the indent inside a frozen cell is exactly what
+   took that block to 368 of 390 pixels, which is why the freeze is gone.) */
+/* The indent lives inside the name cell, so a nested row needs that much more before its
+   title reaches the same floor a flat row has. The cap is what makes it a number: 16px of
+   gutter plus the 64px the indent stops at. */
+.is-tree .list-row { min-width: calc(var(--list-fixed) + 220px + 80px); }
+.is-tree .list-name {
+  position: relative; /* the caret sits in this cell's own indent, see .list-fold */
+  padding-left: calc(16px + min(var(--depth, 0) * 16px, 64px));
+}
+.is-tree .list-empty {
+  padding-left: calc(28px + min(var(--depth, 0) * 16px, 64px));
+}
+/* Reserved on every row in a tree, taken by only some: a caret in a grid track of its
+   own would have to exist on the leaves too, to keep the five columns in register, and
+   a leaf that reserves a control it never gets is a target that answers nothing. In the
+   gutter, both rows put their glyph in the same place and only the parents have a
+   caret. */
+.list-fold {
+  position: absolute;
+  /* Inside the name cell now, which is what keeps it on screen when the row is scrolled.
+     The indent is that cell's padding, so the caret only has to sit inside it. */
+  left: calc(min(var(--depth, 0) * 16px, 64px) - 4px);
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; padding: 0;
+  background: none; border: 0; border-radius: var(--r-sm);
+  color: var(--ink-3); cursor: pointer;
+}
+@media (hover: hover) { .list-fold:hover { background: var(--panel-2); color: var(--ink-2); } }
+.list-fold .lh-caret { width: 13px; height: 13px; }
+/* A parent whose parts the filter took. Not a row: there is nothing to open, and the
+   line exists to stop the parent above it from drawing exactly like a leaf. */
+.list-empty {
+  display: flex; align-items: center; gap: 6px;
+  width: 100%;
+  padding: 6px 6px 6px 12px;
+  background: none; border: 0; border-bottom: 1px solid var(--line);
+  text-align: left;
+  color: var(--ink-3);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  font-style: italic;
+}
+.list-archived { cursor: pointer; font-style: normal; }
+@media (hover: hover) { .list-archived:hover { background: var(--panel-2); color: var(--ink-2); } }
+.list-archived .icn { width: 13px; height: 13px; }
 @media (hover: hover) { .list-row:hover { background: var(--panel-2); } }
 .list-name { min-width: 0; display: flex; align-items: center; gap: 8px; }
 .list-title {
@@ -594,13 +869,128 @@ body {
 .list-repo { color: var(--ink-2); font-size: var(--fs-md); }
 .list-repo .repo-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .list-repo .repo-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
-.list-dt { justify-content: flex-end; }
-.list-date { color: var(--ink-3); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
-/* Mobile: drop to Name · Priority · Updated so the row stays legible when narrow. */
-@media (max-width: 640px) {
-  .list-row { grid-template-columns: 18px minmax(0, 1fr) auto auto; gap: 10px; }
-  .list-agent, .list-repo { display: none; }
+.list-dt { justify-content: flex-end; gap: 8px; }
+.list-status { justify-content: flex-start; }
+.list-owner { justify-content: center; }
+.list-owner .owner-avatar { width: 20px; height: 20px; }
+.list-tags { gap: 4px; overflow: hidden; }
+/* The width `fitTagCells` reserves for the `+N` badge — a reservation and not the rendered
+   badge's own width, because how wide `+N` is depends on N, which depends on how many
+   pills fit, which depends on the badge. A fixed number cuts that circle; `min-width` is
+   what makes the badge keep to it. On the board, not on the cell, so the pass reads it
+   once for the whole list. */
+.board.as-list { --more-w: 30px; }
+.list-more { min-width: var(--more-w); justify-content: center; color: var(--ink-3); }
+/* Where `fitTagCells` measures the widest badge a cell could need. Out of flow so it adds
+   no grid item, `visibility: hidden` rather than `display: none` because a box that is not
+   laid out cannot be measured, and off to the left because negative offsets do not extend
+   the scroll width. It carries the badge's own classes, so what is measured is what the
+   cell will actually get — the `min-width` floor included. */
+.tag-probe { position: absolute; visibility: hidden; left: -9999px; top: 0; display: flex; }
+/* The field's name, drawn only when a view shows more than one date — see dateEl(). Small
+   and quiet: it is there so two numbers are not ambiguous, not to compete with them. */
+.date-tag {
+  margin-right: 4px;
+  color: var(--ink-3); opacity: .8;
+  font-size: var(--fs-xs); font-weight: var(--fw-semibold);
+  text-transform: uppercase; letter-spacing: .04em;
 }
+.list-date { color: var(--ink-3); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* ── an empty property draws a mark ──────────────────────────────────────────
+   A column with holes in it does not read as a column, so a cell with no value draws the
+   same em dash the rail already uses rather than nothing. Two shapes behind one class:
+   plain text for a reader who cannot write, and the picker's own chip for one who can —
+   the split `emptyMark()` makes, and the same one `targetValue()` has made in the rail
+   since it was written.
+
+   **The mark is visible at rest, and only the box waits for a pointer.** Linear reveals
+   the whole placeholder on hover; the board cannot, because `:hover` is a state you
+   cannot leave on touch — the rule is written out eleven times in this file. So what
+   hover adds here is the affordance, never the information.
+
+   **`.list-empty` was taken** — it is the `No matching parts` stub, three sections up,
+   and it carries `display: flex; width: 100%; padding: 6px 6px 6px 12px`. Written as
+   `.list-empty` first, the mark inherited all of that: measured, the wrapper filled its
+   44px cell and stood 35px tall with the dash pushed 12px right of where a value sits.
+   Same mistake as `FIELDS` one file over, and the same cure: the name belongs to one
+   thing. This is `PROPS`' empty, so it is `.prop-empty`, beside `.prop-muted` and
+   `.prop-pick` it is drawn out of. */
+/* **The mark is the ghost of the value, and two of the three needed no rule at all.**
+   `.pri-none` is the priority badge with nothing lit: the bars already sit at
+   `opacity: .3` and `.on` is the only thing that raises them, so the empty form is what
+   the component has drawn all along — it cannot drift from the filled one, and it is the
+   `---` the reference draws. `.agent-none` borrows `.badge--dashed`, the stylesheet's own
+   placeholder shape since `.adapted-badge` was written: an agent handle is text, so there
+   is no faint value to show and the dashed outline is what says a handle belongs here.
+   Only the two colours are new, and they are the same colour every empty mark has had. */
+.agent-badge.agent-none, .target-date.target-none { color: var(--ink-3); }
+/* The glyph is `--accent` wherever an agent *is* routed — that is the routing mark, and it
+   is meant to catch the eye. An empty mark must not: measured on the dark theme, the badge
+   and its dashed border came out at `--ink-3` and `--line` as intended while the robot
+   inside stayed `#c17985`, so the quietest of the three cells was the loudest thing in the
+   row. `inherit`, so it follows the badge rather than naming a second colour. */
+.agent-badge.agent-none .icn.agent-glyph { color: inherit; }
+.prop-empty { color: var(--ink-3); font-size: var(--fs-md); }
+.list-dt .prop-empty { font-size: var(--fs-sm); }
+/* The date mark's control is `datePicker`'s trigger, and its styling lives under `.prop` —
+   the rail's scope — so in a row it got nothing but the global button reset. Measured with
+   the rule deleted: 13px in a column of 11px dates, in a 12×20 box. It takes the chip's
+   shape here instead, and the two halves answer different things: the padding is the touch
+   target (26×25) and the negative margin pays it back, so the dash still sits on the
+   column's own line rather than 7px in from it — the mark's text right edge at 1369
+   against a real date's 1370. */
+.prop-empty .prop-trigger {
+  font: inherit; font-size: inherit; color: var(--ink-3); background: none;
+  border: 1px solid transparent; border-radius: var(--r-md);
+  padding: 3px 7px; margin: -3px -7px; cursor: pointer;
+}
+/* `.pick-chip.editable:hover` is the rail's, and it is unguarded — which was right while
+   the chip only ever stood in a surface. In a row it paints a background and then stays
+   under your finger: a tap leaves a dark box drawn around the cell you just pressed and
+   nothing takes it away. Neutralised here, restored where a pointer exists. */
+.prop-empty .pick-chip.editable:hover { background: none; border-color: transparent; }
+@media (hover: hover) {
+  .prop-empty .pick-chip.editable:hover,
+  .prop-empty .prop-trigger:hover { background: var(--panel-2); border-color: var(--line); color: var(--ink); }
+}
+.prop-empty .pick-chip.editable:focus-visible,
+.prop-empty .prop-trigger:focus-visible,
+.prop-empty .pick-chip.editable:active,
+.prop-empty .prop-trigger:active { background: var(--panel-2); border-color: var(--line); color: var(--ink); }
+/* The columns the tiers used to drop. They are all here, always — the row is as wide as
+   its columns need and the box scrolls, so nothing has to be dropped and nothing has to
+   be computed. What went with them: `@container list (min-width: 560px|720px)` for flat
+   rows and 652|812 for nested ones, four rules whose numbers were hand-derived twice and
+   wrong once. A row that may scroll needs no one to know what fits.
+
+   **The whole row scrolls, the title included.** Freezing the glyph and the name was the
+   first answer, and the measurement retired it: on a 390px phone the frozen block was
+   288px flat and 368px once the tree's indent was in it, leaving 102px and *22px* of
+   window onto the metadata the scroll exists to reach. A frozen column that leaves 6% of
+   the screen to scroll in is not keeping your place, it is taking the screen.
+
+   It leaked as well, and the leak was structural rather than a missing background: two
+   frozen cells with a grid gap between them are two opaque boxes and one 14px slot that
+   belongs to neither, so the priority bars and agent chips slid through it and sat beside
+   the glyph. A single frozen box would have fixed that and not the 22px.
+
+   What the group heading keeps: it stays pinned in both axes. It names the group you are
+   inside, one line per group rather than one per row, and it costs the rows nothing.
+   A pinned box only covers its own bounds, so the heading's background bleeds across the
+   gutter to its left — `background: inherit`, not a colour, so there is one place to
+   change it. It is one box, so it has no gap of its own to leak through. */
+.lh-inner::before {
+  content: "";
+  position: absolute;
+  left: calc(-1 * (var(--list-pad) + var(--head-pad)));
+  top: 0; bottom: 0;
+  width: calc(var(--list-pad) + var(--head-pad));
+  background: inherit;
+}
+/* The heading is frozen sideways, or it slides out to the left and the group loses its
+   name at exactly the moment you are furthest from it. */
+
 .card {
   background: var(--panel);
   border: 1px solid var(--line);
@@ -625,10 +1015,40 @@ body {
 .card h3 { margin: 0; font-size: var(--fs-xl); line-height: var(--lh-tight); font-weight: var(--fw-semibold); }
 .repo-name { font-size: var(--fs-sm); color: var(--repo, var(--ink-3)); font-weight: var(--fw-semibold); white-space: nowrap; }
 /* Row 2 — repo (colored dot + name) left, ⚠/date right. */
+/* The repo cell is what gives, and it is the only child here that can. Every other one is a
+   fixed mark — a date, a badge, a warning — and each is `nowrap` by design, so with nothing
+   able to shrink the row simply grew: measured at 280px with a long organisation name and
+   every property ticked, 149px of overflow in the row and the date block pushed 135px past
+   the card's right edge. That used to be reachable by scrolling sideways, which was the
+   two-axis bug; with `overflow-x: clip` on the column it is merely hidden, which is worse.
+   Codex found the pair (#54).
+   **Sabotage had to be run three times to say what bears it, and the answer is neither
+   declaration alone.** A flex item's automatic minimum is its content *only while its
+   `overflow` is `visible`* — so `min-width: 0` and `overflow: hidden` each lower it to zero
+   by themselves, and removing either one changes nothing. Only removing both brings the
+   overflow back. That is belt and braces rather than a mechanism, and it is kept for the
+   reason `.board.as-list` keeps the same pair: the declaration is what makes the behaviour
+   independent of whichever `overflow` this rule ends up carrying, and `overflow: hidden` is
+   here for the ellipsis in any case.
+   **What was removed is the one that never applied**: `min-width: 0` on `.card-meta`, where
+   `.card` is a block, so the row is not a flex item and has no automatic minimum to lower.
+   A declaration that cannot apply is not a guard, it is a claim. */
 .card-meta { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: var(--fs-sm); color: var(--ink-3); }
-.card-repo { display: inline-flex; align-items: center; gap: 5px; color: var(--ink-2); font-weight: var(--fw-semibold); white-space: nowrap; }
+/* `inline-block`, not `inline-flex`: the card's repo cell holds one text node (the dot
+   belongs to the list's `.repo-name` variant), so `align-items` and `gap` decided nothing —
+   and `text-overflow` needs a block container. As a flex box it clipped mid-letter instead
+   of ellipsising. */
+.card-repo { display: inline-block; color: var(--ink-2); font-weight: var(--fw-semibold); white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .repo-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
 .card-date { margin-left: auto; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* Two or three dates, kept inside the card. `min-width: 0` is what lets the box be
+   narrower than the dates it holds — a flex item defaults to its content width, which is
+   how a nowrap row came to paint outside the card in the first place — and the wrap then
+   has somewhere to go. The auto margin moves here from `.card-date`, so the single-date
+   card is laid out by exactly the rule it always was; the inner one is cancelled, or each
+   date would push the next one to a line of its own. */
+.card-dates { margin-left: auto; min-width: 0; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 2px 8px; }
+.card-dates .card-date { margin-left: 0; }
 /* Row 3 — tags. Badges are STATIC (flat, rounded-rect, no border, default cursor);
    the round bordered pills in the filter bar (.chip) are the CLICKABLE ones. */
 .card-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
@@ -646,6 +1066,18 @@ body {
   border-radius: var(--r-sm); padding: 1px 7px;
 }
 .badge--pill, .status-pill, .rollup, .agent-badge { border-radius: var(--r-pill); }
+/* The agent handle gives, in the one place a card has to fit it. Measured at 1000px with a
+   long handle and four properties ticked: the badge stood 325px wide at `flex: none` while
+   `.card-repo` had already shrunk to nothing, and the row overflowed its card by 159px —
+   which `overflow-x: clip` on the column then hides rather than lets you reach. Codex found
+   it (#54), as the sequel to the repo name.
+   Scoped to the card's row on purpose: the list gives the agent its own 108px track and
+   answers this question there, and widening the rule into it would be a sweep nobody
+   measured. And `flex: 0 1 auto`, not `min-width` alone: the shared badge rule says
+   `flex: none`, which is `flex-shrink: 0` — a box that may not shrink does not care what
+   its minimum is. Measured with only the minimum lowered: 325px, unchanged. */
+.card-meta > .agent-badge { flex: 0 1 auto; min-width: 0; }
+.agent-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 /* Takes its colour from the value it stands for, so the border follows the text. */
 .badge--outline, .status-pill, .issue-state { background: none; border-color: currentColor; }
 .badge--mono, .rollup, .agent-badge { font-family: var(--mono); }
@@ -766,8 +1198,30 @@ body {
 .status-pill.status-inbox { color: var(--inbox); }
 .status-pill.status-done { color: var(--done); }
 .status-pill.status-cancelled { color: var(--cancelled); text-decoration: line-through; }
-.modal-body { margin-top: 14px; font-size: var(--fs-lg); line-height: var(--lh-prose); color: var(--ink-2); overflow-wrap: anywhere; }
-.modal-body :is(h2, h3, h4) { font-size: var(--fs-lg); margin: 16px 0 6px; color: var(--ink); }
+/* ── prose in a puck: one size, and the phone sets it ──────────────────────── */
+/* 16px on a phone, 14px above it — and it is not a taste call. iOS demands 16px of
+   anything focused and editable (measured: a 14px editor zoomed the page by 1.147,
+   and 16/14 is 1.143), so the editor cannot go below it there. That left two ways to
+   close the jump between reading a puck and editing it, and lifting the reading is
+   the one that does not fight the platform: 16px is right for body text on a phone
+   anyway. It is only on a desktop that 14px is.
+   One pair of variables rather than a media override per element, so everything whose
+   size was expressed against the block's own follows it — including `.body-editor`,
+   which sits *inside* `.modal-body` and therefore cannot drift from the text it
+   replaces. `--prose-sm` is the step below, for code blocks and table cells. */
+.modal-body, .disc-body { --prose: var(--fs-lg); --prose-sm: var(--fs-md); }
+/* Touch *or* narrow, and the touch half is the one that matters: an iPad, or a phone
+   in landscape, is wider than 640px and still zooms a focused field under 16px — which
+   would put the editor back in the zoom this whole rule exists to avoid, and reopen the
+   jump on the one device class where reading and editing were finally the same text.
+   Width alone answered for a phone in portrait and nothing else. */
+@media (max-width: 640px), (pointer: coarse) {
+  .modal-body, .disc-body { --prose: var(--fs-2xl); --prose-sm: var(--fs-lg); }
+}
+.modal-body { margin-top: 14px; font-size: var(--prose); line-height: var(--lh-prose); color: var(--ink-2); overflow-wrap: anywhere; }
+/* Headings carry the body's size and are told apart by weight — so one variable does
+   both, and a heading can never end up smaller than the text under it. */
+.modal-body :is(h2, h3, h4) { font-size: var(--prose); margin: 16px 0 6px; color: var(--ink); }
 .modal-body :is(h2, h3, h4):first-child { margin-top: 0; }
 .modal-body p { margin: 0 0 10px; }
 .modal-body ul, .modal-body ol { margin: 6px 0 10px; padding-left: 22px; }
@@ -776,13 +1230,50 @@ body {
 .modal-body li { margin: 3px 0; }
 .modal-body code { background: var(--panel-2); padding: 1px 5px; border-radius: var(--r-xs); font-size: 0.92em; }
 .modal-body pre { background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r-md); padding: 10px 12px; margin: 0 0 10px; overflow-x: auto; }
-.modal-body pre code { background: none; padding: 0; font-size: var(--fs-md); line-height: var(--lh-snug); }
+.modal-body pre code { background: none; padding: 0; font-size: var(--prose-sm); line-height: var(--lh-snug); }
 .modal-body a { color: var(--accent); }
+/* Tables and blockquotes — the two block types a puck body gained. Written once for
+   both markdown surfaces: Overview renders into `.modal-body`, Discussion into
+   `.disc-body`, and both come out of the same `renderMd`.
+   `.md-table` is a scroll container for the same reason `pre` is one: a wide table
+   must scroll in its own box and never make the page wider than the phone. The
+   permission that makes that work is `min-width: 0` on `.detail-pane` — already there,
+   and the whole finding of `en-bred-kodrad-drog-ut-hela-puckvyn`. */
+.modal-body .md-table, .disc-body .md-table { overflow-x: auto; margin: 0 0 10px; }
+.modal-body table, .disc-body table { border-collapse: collapse; font-size: var(--prose-sm); }
+.modal-body :is(th, td), .disc-body :is(th, td) {
+  border: 1px solid var(--line); padding: 5px 9px; text-align: left; vertical-align: top;
+  /* `.modal-body` breaks anywhere, which is right for prose and wrong here: a cell
+     that shatters mid-word turns a table into a column of syllables rather than
+     letting the table be too wide and scroll. Same call as the code block's. */
+  overflow-wrap: normal;
+}
+.modal-body th, .disc-body th { background: var(--panel-2); color: var(--ink); font-weight: var(--fw-semibold); }
+.modal-body blockquote, .disc-body blockquote {
+  margin: 0 0 10px; padding: 2px 0 2px 12px;
+  border-left: 2px solid var(--line); color: var(--ink-3);
+}
 .modal .card-links { padding-top: 4px; }
 body.modal-open { overflow: hidden; }
 /* Pinned rather than merely `overflow: hidden`, which iOS ignores: the body keeps
    its place at a negative offset and is put back when the last layer closes. */
-body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: hidden; }
+/* The body-pinning lock is gone with the page scroll it was written for: the shell is a
+   fixed-height column, so the body never scrolls and `.work` is locked directly (see
+   `lockScroll`). The rule is kept as a no-op guard for anything that still adds the
+   class — a fixed body with nothing to scroll is harmless, and its absence would be a
+   silent behaviour change rather than a loud one. */
+body.scroll-locked { overflow: hidden; }
+/* The board's vertical scroll lives in the columns, so that is what a surface has to hold
+   still. Written as a selector and not as a set of elements on purpose: the surface that
+   locks is also the one that redraws the board, so any node the lock had remembered would
+   be detached by the time it was unlocked. See `lockScroll`.
+
+   The two `:not(.x)` are specificity, not logic, and they are load-bearing: the rule that
+   makes a column scroll is `body:not(.viewing-puck) .port > .board:not(.as-list) > .column
+   > .cards`, and a `:not()` counts as what is inside it — four classes to this rule's two.
+   Without them the lock computed `overflow-y: auto` and did nothing, while the sheet's own
+   scrim happened to swallow the wheel and made it look like it worked. */
+body.board-locked:not(.x) .port > .board:not(.x) > .column > .cards { overflow: hidden; }
 @media (max-width: 600px) {
   .modal-backdrop { padding: 0; }
   .modal { max-width: none; max-height: 100vh; height: 100%; border-radius: 0; border: none; border-left: none; }
@@ -809,21 +1300,50 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 }
 
 .empty { color: var(--ink-3); font-size: var(--fs-md); padding: 8px 2px; }
-.foot {
-  padding: 16px var(--pad) 28px;
+/* The sidebar's foot: where the board's footer went, and what it stopped being. It was a
+   horizontal row in the one place vertical space is scarce — 114px of an 844px phone,
+   three wrapped lines with an orphaned "·" on the last — and it had to be pinned sideways
+   (`position: sticky; left: 0`) because the port scrolls horizontally and the row is only
+   port-wide: read to the right, then to the bottom, and the harvest time, `sync now` and
+   every link stood parked off screen. Measured at 390px: `left: -800`.
+
+   None of that survives the move, because the box it was true of is gone. The list's own
+   footer had the same sideways fault (`left: -488`, since the day the list was written)
+   and it goes with it — one repair for a defect that had two homes.
+
+   Sticky against the bottom is `.side-brand`'s rule mirrored, and the reasoning beside
+   that band applies unchanged: this sits *inside* the sidebar's own scroller, so "last"
+   holds only at the end of the scroll. `margin-top: auto` puts it at the bottom while the
+   sections above are short enough not to fill the column. */
+.side-foot {
+  margin-top: auto;
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background: var(--sidebar-bg);
   border-top: 1px solid var(--line);
+  padding: 10px 8px 14px;
   color: var(--ink-3);
-  font-size: var(--fs-md);
+  font-size: var(--fs-sm);
   display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 4px;
 }
-.foot a { color: var(--ink-2); }
-/* The footer dates the harvest, so the control that refreshes it belongs in the same
+/* The date is one token however many hyphens are in it — and *only* the date. The words
+   around it wrap, or the whole 29-character stamp becomes unbreakable and a sidebar dragged
+   to its 190px minimum gets 41px of horizontal overflow in a box that only scrolls
+   vertically. See `footmeta` for the measurement. */
+.fm-stamp { white-space: nowrap; }
+/* The links wrap among themselves rather than stretching the band: at 240px "flat digest ·
+   roadmap.json · source" is two lines, and that is the shape it should take. */
+.side-foot-links { display: flex; flex-wrap: wrap; gap: 6px; }
+.side-foot a { color: var(--ink-2); }
+/* The band dates the harvest, so the control that refreshes it belongs in the same
    sentence — not in a menu two clicks away from the number it answers for. It is a
    button and not a link (it starts a workflow run; it does not go anywhere), but it
-   wears the footer's type: this row is prose, and one control shaped like a control
-   would read as chrome that wandered in. */
+   wears the band's type: this row is prose, and one control shaped like a control
+   would read as chrome that wandered in. The name is the board footer's, kept because
+   the thing it names did not change when its home did. */
 .foot-sync {
   font: inherit;
   color: var(--ink-2);
@@ -839,13 +1359,13 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
    as well as the colour is what stops it reading as a link you may press again. */
 .foot-sync:disabled { cursor: default; color: var(--ink-3); text-decoration: none; }
 /* The wrapper holds the button *and* the separator after it, so hiding one hides both
-   — the alternative leaves a stray "·" on a logged-out board. It needs the footer's own
-   gap repeated inside it: `.foot`'s gap reaches between flex items and not into one, so
-   a plain space here set this separator tighter than the three beside it.
+   — the alternative leaves a stray "·" on a logged-out board. It needs the link row's own
+   gap repeated inside it: `.side-foot-links`' gap reaches between flex items and not into
+   one, so a plain space here set this separator tighter than the three beside it.
    Safe against `hidden` only because `[hidden]` above is `!important` — a bare
    `display: flex` would otherwise beat the browser's `[hidden] { display: none }` and
    put the button back on a board with no token. */
-#syncWrap { display: flex; gap: 10px; }
+#syncWrap { display: flex; gap: 6px; }
 .banner {
   margin: 24px;
   padding: 16px 18px;
@@ -1038,16 +1558,28 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 
 /* body editing */
 .body-edit { margin-top: 8px; }
+/* The editor wears the text it replaces: same family, same size, same line-height, so
+   pressing Edit changes the box and nothing else. `--prose` rather than a number is
+   what makes that true by construction — the textarea sits inside `.modal-body` and
+   inherits it, so the two cannot be changed apart. On a phone that resolves to 16px,
+   which is also the floor iOS demands of anything editable (see the note above
+   `.modal-body`); above 640px it is 14px, and the fallback here is the floor for the
+   day this box is used somewhere that does not set `--prose`.
+   Mono was the other half of the jump. Markdown source is code-ish, but mono measures
+   wider per character than sans at the same size, so the same text arrived both bigger
+   *and* wider — and at 16px on a 390px screen that is what read as clumsy. Indentation
+   is what mono actually bought here, and `--lh-prose` with a 2-space list indent keeps
+   that legible without it. */
 .body-editor {
   width: 100%; box-sizing: border-box; min-height: 200px; resize: none; overflow: hidden;
-  font-family: var(--mono); font-size: var(--fs-2xl); line-height: var(--lh-prose);
+  font-family: var(--sans); font-size: var(--prose, var(--fs-2xl)); line-height: var(--lh-prose);
   padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r-lg);
   background: var(--bg); color: var(--ink);
 }
 .body-editor:focus { outline: none; border-color: var(--accent); }
 .body-edit-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
 
-/* Etapp identity — mono for chrome/data (counts, column labels, dates) */
+/* Parent identity — mono for chrome/data (counts, column labels, dates) */
 .col-head h2, .col-head .count, .list-head h2, .list-head .count,
 .card-date, .chip .n, #footmeta { font-family: var(--mono); }
 
@@ -1063,7 +1595,220 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
 .focusbtn:focus:not(:focus-visible) { outline: none; }
 
 /* ── Pass 3: work area = board + optional detail pane (desktop) ──────────── */
-.work { display: grid; grid-template-columns: 1fr; align-items: start; flex: 1; }
+/* The scrollport. `min-height: 0` is what lets a flex item be *shorter* than its content
+   — without it the box grows and the shell's height means nothing. */
+.work {
+  display: grid; grid-template-columns: 1fr; align-items: start;
+  /* The rows are sized by what is in them, said out loud — because with a scroll container
+     in one, `auto` does not mean that. `#board` carries `overflow-x: auto`, which makes it
+     a scroll container in *both* axes, and a scroll container contributes almost nothing to
+     its row's height: it can scroll, so it need not be tall. Left `auto`, row one took the
+     leftover space (573px) while the board itself, `align-self: start` and therefore its
+     own content height, stood 3019px tall — and the 2446px difference was painted straight
+     over the footer beneath it. Reported from a phone as the footer's text sitting among
+     the cards, mid-board.
+     It only became reachable when the shell gained a definite height: with none, the rows
+     had no free space to distribute and sized to their content by default. So this is the
+     one thing that change cost, and it costs it only in the kanban layout — the list's
+     board is short enough that its row and its content agreed. */
+  grid-auto-rows: max-content;
+  flex: 1; min-height: 0; overflow: auto;
+}
+/* …except in the kanban layout, where `.port` is the scrollport and therefore has to be
+   exactly as tall as this box. `max-content` is what the paragraph above needed while
+   `.work` was the only scrollport: a content-tall board in a row sized to the leftover
+   space painted over the footer. Stretched, the row *is* the port's height and there is
+   no leftover to get wrong — the port scrolls its own overflow instead of handing it
+   upwards, which is what `.col-head`'s `position: sticky` has claimed all along and what
+   puts the sideways scrollbar at the bottom of the window rather than at the bottom of
+   4700px of cards.
+   **The footer was inside the port, not beside it**, which is why `.port` came to exist
+   rather than the board being the scroller itself: the board lays its children out
+   `grid-auto-flow: column`, so a footer in there would be one more column — and a footer
+   *outside* the scroller is a footer that never scrolls away. (The footer has since moved
+   to the sidebar and the port holds only the board; the box stays for the other reason
+   below — a sticky column head must not resolve against the board.) It was one, for exactly one
+   commit: 114px of permanent furniture on a 390px phone, reported from the device.
+   `body:not(.viewing-puck)` for the reason the three rules below already give: a hidden
+   `#board` keeps its layout class, so without it a puck page would size its only row to
+   the port and clip its own content — the detail pane is `.work`'s other row, and it is
+   the one that has to stay content-tall and scroll. And `min-height: 0`, because a grid
+   item's automatic minimum is its content: without it the stretch is undone by the
+   columns' own height and the port grows straight back. */
+body:not(.viewing-puck) .work:has(> .port > .board:not(.as-list)) { grid-auto-rows: auto; }
+body:not(.viewing-puck) .work > .port:has(> .board:not(.as-list)) {
+  align-self: stretch; min-height: 0;
+  /* One axis, and that is the whole of this change. The port used to be `overflow: auto`
+     — both axes in one box — and a box that can pan two ways is one the browser will pan
+     two ways: measured with a 42° drag on a phone, `left 299` *and* `top 337` from a
+     gesture meant as a read downwards. Before the board had a port at all the axes sat on
+     two boxes (`.work` scrolled y, `#board` scrolled x) and the browser picked one; the
+     port merged them and there was nothing left to pick between.
+     Sideways is the port's; downwards belongs to a column, one box further in.
+
+     **And this declaration is not what fixes it — the column being a scroller is.**
+     Sabotage says so: put `overflow: auto` back here and the drift check still passes,
+     because the gesture now targets the innermost scroller and that is the column. Take
+     `overflow-y` off `.cards` instead and the sideways drift returns at once (measured:
+     `portX: 514`), with or without this line. It stays as a statement of intent and as
+     the guard for the day something gives the board a vertical overflow again — the same
+     standing as the wheel forwarder's containment guard, which first refusal holds. */
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+/* And the board stops being a scroll container, or it — not the port — is what a sticky
+   column head would resolve against, and it has no height of its own to travel in. This
+   is the list's arrangement exactly: `.board.as-list` has turned its own `overflow-x` off
+   since the day the list was written, for the same reason. `min-width: 0` comes with it:
+   a grid item's automatic minimum is its min-content, and it was only 0 here because
+   `overflow-x: auto` made the box a scroll container. Without it the widest unbreakable
+   thing on the page decides the document's width again — measured at 652px on a 390px
+   phone the last time that happened. */
+body:not(.viewing-puck) .port > .board:not(.as-list) {
+  overflow: visible; min-width: 0;
+  /* The board fills the port rather than standing at its content height, because that is
+     what gives a column a definite height to scroll inside. Without it the board is as
+     tall as its tallest column (measured: 1833px in a 731px port), every column is
+     content-tall, and `.cards` has nothing to overflow — the rule below then does nothing
+     at all, silently. It is the least obvious line here and the one everything rests on. */
+  flex: 1; min-height: 0;
+  /* The bottom gutter was air after the last card, in a box that scrolled past it. The
+     port does not scroll downwards any more, so it would be dead space under every
+     column instead. Each column keeps its own. */
+  padding-bottom: 0;
+}
+/* A column is a head that stays and a list that moves. The head needs no `position:
+   sticky` — it is outside the box that scrolls, which is what dissolves the question
+   rather than answering it: no z-index against the cards, no pin resolving against a
+   port's content box, and no background bleeding to cover a card's shadow passing
+   underneath, because nothing passes underneath. */
+body:not(.viewing-puck) .port > .board:not(.as-list) > .column {
+  display: flex; flex-direction: column; min-height: 0;
+}
+/* The tray hugs its content — `align-self: start`, because a dashed box around four rows
+   should not be column-tall — and that left it the one box on the board with no ceiling.
+   With the port no longer scrolling downwards there is no ancestor to reach a clipped row
+   through, so a tray taller than the port simply loses its lower eyes: measured at 240px
+   with a single hidden column, already 89px of tray in an 80px port. Codex found it (#54).
+   A ceiling rather than a stretch: short stays short, tall stops at the port and its own
+   list takes over the scrolling — which it can, because `.cards` above is already a
+   scroller and only ever lacked a definite height to scroll within. */
+body:not(.viewing-puck) .port > .board:not(.as-list) > .column.hidden-cols { max-height: 100%; }
+body:not(.viewing-puck) .port > .board:not(.as-list) > .column > .cards {
+  overflow-y: auto; min-height: 0; flex: 1;
+  /* The scrollbar gets a lane of its own, beside the cards rather than on them. A scroller
+     exactly as wide as its content leaves an overlay bar nowhere to go but on top of it —
+     reported from a phone, the bar drawn across the right edge of every card in the column
+     being read. Linear's scroller is simply wider than its cards; this is that, borrowed
+     from the 16px the board already keeps between columns.
+     The bleed and the inset are the same number, so the cards' own box is unchanged: they
+     stay exactly column-wide and in line with `.col-head`, which is a sibling and does not
+     move. What lands in the borrowed strip is the bar and nothing else. Half the gap, so
+     the neighbouring column keeps the other half; the last column bleeds into the board's
+     own `--pad`, which is wider still. */
+  --bar-lane: 8px;
+  margin-right: calc(-1 * var(--bar-lane));
+  padding-right: var(--bar-lane);
+  /* And the bar drawn in that lane is the sidebar's, which has been the board's one
+     self-effacing scrollbar since it was written: a thin thumb in `--line`, no track, and
+     `--ink-3` while the pointer is over the box. Both themes are already answered, because
+     both tokens are — `--line` is a hairline on the page's own ground in each. The standard
+     properties only, deliberately no `::-webkit-scrollbar`: a width there is what turns an
+     overlay bar into a classic one, and a classic bar takes its width out of `clientWidth`,
+     which would shrink the cards by 8px and walk them out of line with `.col-head` — the
+     exact register the lane exists to keep. Measured in the test browser: `clientWidth` 288
+     before and after, the card's right edge 302 against the head's 302, both ways. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+  /* The card's shadow needs somewhere to fall on the left, and a scrollport clips at its
+     padding box. With no left padding the card's left edge *was* the clip edge — measured,
+     scroller and card both at 262 — so `0 2px 8px` fell softly into the lane on the right
+     and was cut flat on the left. One card, two different edges. Four pixels is the blur's
+     own reach (half of 8), bled and re-inset exactly like the lane above it, so the card's
+     box does not move: it stays column-wide and in register with the head. */
+  --card-bleed: 4px;
+  margin-left: calc(-1 * var(--card-bleed));
+  padding-left: var(--card-bleed);
+  /* One axis, said out loud, because CSS will not leave it alone otherwise: an `overflow`
+     of `visible` on one axis computes to `auto` when the other is not `visible`. This is
+     the rule the board already knows from the other direction — `overflow-x: auto` forcing
+     `overflow-y: auto` too, which is why `#board` must not be a scroll container — and it
+     bites here the moment a card holds something unbreakable. Measured with one URL in a
+     title: 414px of horizontal scroll beside 1337 of vertical, in the very box this whole
+     arrangement exists to keep to a single axis. Codex found it (#54).
+
+     `clip` states the intent — this axis is not a scroll axis — but be clear that it buys
+     nothing over `hidden` *here*: when the other axis scrolls, `clip` is specified to
+     compute to `hidden`, and it does (measured: `overflowX` reads `hidden`, and
+     `scrollLeft = 50` sticks at 50 under both). What either one buys is the half that
+     matters — neither can be *dragged* sideways, so the gesture stays on one axis. The
+     word is kept for the day the other axis stops scrolling and `clip` becomes literal.
+
+     **And this is the guarantee, not the fix.** With overflow still present it hides the
+     text instead of scrolling to it — measured, 414px of a title out of reach — which is
+     worse for a reader than the bug. The rule below is what removes the overflow; this one
+     is what stops anything *else* that overflows from re-opening a second axis. */
+  overflow-x: clip;
+}
+/* Findable when you reach for it, invisible when you are not. Guarded, because `:hover` is
+   a state a finger cannot leave — the convention the list's own controls already follow. */
+@media (hover: hover) {
+  body:not(.viewing-puck) .port > .board:not(.as-list) > .column > .cards:hover { scrollbar-color: var(--ink-3) transparent; }
+}
+/* The content shrinks instead of overflowing, and that is the actual repair. A title is
+   the one field holding arbitrary text — a pasted URL is the ordinary case — and
+   `anywhere` is what lets an unbreakable token break at all. Measured against the clip
+   above: with the wrap the column's horizontal overflow is 0; without it, 414px, clipped.
+   The metadata row is `nowrap` by design and already has `min-width: 0` to shrink inside
+   the card; the title was the one with no way out. */
+.card h3 { overflow-wrap: anywhere; }
+/* In the list the port is `.work`, so this box is structure and nothing else. */
+.port { min-width: 0; display: flex; flex-direction: column; }
+/* The scrollports are tab stops (see `markPort` and `renderColumns`), so a click on the
+   empty space beside the columns — or on a column's own background — lands on one. The
+   ring belongs to the keyboard route only, the same rule the focus buttons follow.
+   All three, because "the scrollport" stopped being one box: `.work` in the list and on a
+   puck page, `.port` in kanban, and every `.cards` since the columns took the vertical
+   axis. Written for `.work` alone it covered the layout that was, and in kanban a mouse
+   click landed a ring on the port or on the column it was aimed at — measured, `.work`
+   holding no `tabindex` at all there while `.port` and the columns hold theirs. */
+.work:focus:not(:focus-visible),
+.port:focus:not(:focus-visible),
+.cards:focus:not(:focus-visible) { outline: none; }
+/* One axis per drag, decided before the gesture rather than corrected after it: the
+   browser is told it may not pan this box sideways, and `armAxisLock` drives `scrollLeft`
+   itself when a drag turns out to be a sideways one. `pinch-zoom` stays, or the board
+   could not be zoomed. Scoped to the list by the class the renderer already sets — the
+   kanban board is its own sideways scroller, and `pan-y` on an ancestor forbids it. */
+/* `body:not(.viewing-puck)`, because a hidden `#board` keeps its `as-list` class: a puck
+   opened from the list would otherwise carry the list's lock through a page that is not a
+   list at all, and forbid sideways panning inside its own code blocks and tables. The same
+   puck reached from the board layout had none — an asymmetry with no reason behind it. */
+body:not(.viewing-puck) .work:has(> .port > .board.as-list) { touch-action: pan-y pinch-zoom; }
+/* And no rubber band sideways. `touch-action` stops the browser *starting* a horizontal
+   pan; it does not re-decide a scroll already under way, which is why chaining a swipe
+   down straight into a swipe right moves both axes on iOS (measured on the device: 1 of 9
+   touchmoves cancelable, we refused none and wrote nothing, and x still travelled 138 with
+   y 318). The half we cannot take back is the browser's. The half we can is what it does
+   at the *edge*: with a bounce, that gesture drags the whole list past its own left edge —
+   headings and rows shifted ~180px right of where they belong, the sticky boxes riding
+   along with the compositor while `scrollLeft` sits at 0 and cannot say so.
+   `-x` only, and `none` rather than `contain`: the vertical rubber band is the one a long
+   list is actually read with, and it stays. The property is not new here — the sheet has
+   used it since `overscroll-behavior: none` was what removed *its* bounce, so it is known
+   to land on the device this is for. */
+body:not(.viewing-puck) .work:has(> .port > .board.as-list) { overscroll-behavior-x: none; }
+/* No native scroll indicators on a phone, and the reason is that a two-axis port draws
+   two of them badly. Reported from a real device, three symptoms of one cause: the
+   vertical bar is painted *under* the sticky group headings, it travels with the sideways
+   scroll instead of standing at the port's edge, and a plain flick down flashes the
+   horizontal one as well — an indicator for an axis the browser is not even scrolling,
+   since `armAxisLock` drives that one. Touch only: on a desktop the bar is how you learn
+   the list scrolls sideways at all, and it is not transient there. */
+@media (pointer: coarse) {
+  body:not(.viewing-puck) .work:has(> .port > .board.as-list) { scrollbar-width: none; }
+  body:not(.viewing-puck) .work:has(> .port > .board.as-list)::-webkit-scrollbar { display: none; }
+}
 /* A puck opens as a full-width page (same on desktop + mobile): the board and the
    view-header hide, and the detail fills the content area as a centered,
    document-width column. The breadcrumb "← All pucks" is the back action. */
@@ -1079,7 +1824,6 @@ body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: 
    One flag for content, one for which page you are on; folding them together would let
    a render while a puck is open put the row back. */
 body.viewing-puck #board,
-body.viewing-puck .foot,
 body.viewing-puck .chiprow,
 body.viewing-puck .vhead { display: none; }
 .detail-pane {
@@ -1104,8 +1848,27 @@ body.viewing-puck .vhead { display: none; }
 .card.sel, .list-row.sel { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
 
 /* ── Pass 4: app shell — left sidebar + thin topbar ───────────────────────── */
-.app { display: grid; grid-template-columns: var(--sidebar-w, 240px) minmax(0, 1fr); min-height: 100vh; }
-.maincol { min-width: 0; display: flex; flex-direction: column; min-height: 100vh; position: relative; }
+/* A fixed-height shell with one scrollport inside it (`.work`), rather than a page that
+   grows and scrolls as a whole. Two things needed it:
+   the list scrolls sideways, and a box that scrolls horizontally is a scroll container in
+   *both* axes — so a group heading's `top: sticky` resolved against a box with no vertical
+   travel and stopped sticking entirely. Inside a real scrollport it sticks again, in both
+   axes at once.
+   And `100vh` was already wrong here: on iOS it is the *large* viewport (toolbar
+   retracted) while the visible one at load is the small one, so every page was taller
+   than its own window by exactly the toolbar's height — a ghost scroll on a board with
+   one card. `100dvh` is the same number the sheets already use, with `100vh` left in
+   front of it for anything that does not know the unit. */
+.app {
+  display: grid; grid-template-columns: var(--sidebar-w, 240px) minmax(0, 1fr);
+  /* The rest of the column after any ribbon — see `body`. `min-height: 0` is what lets
+     a flex item be shorter than its content; without it the shell grows and its height
+     means nothing. */
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.maincol { min-width: 0; display: flex; flex-direction: column; min-height: 0; position: relative; }
 
 /* drag handle straddling the sidebar/main seam — desktop only (mobile is a drawer) */
 .col-resizer { position: absolute; left: -3px; top: 0; width: 6px; height: 100%; cursor: col-resize; z-index: 30; }
@@ -1116,10 +1879,14 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 
 .sidebar {
   background: var(--sidebar-bg); border-right: 1px solid var(--line);
-  padding: 0 12px 16px; display: flex; flex-direction: column; gap: 18px;
+  /* No bottom padding: `.side-foot` is the last thing in here and owns that air. The
+     16px that used to keep the last repo row off the edge put a stripe *below* the
+     band, and a `bottom: 0` sticky box that stops 16px short looks stuck rather than
+     pinned. */
+  padding: 0 12px; display: flex; flex-direction: column; gap: 18px;
   /* minimal, self-effacing scrollbar */
   scrollbar-width: thin; scrollbar-color: var(--line) transparent;
-  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  position: sticky; top: 0; height: 100%; overflow-y: auto;
 }
 .sidebar::-webkit-scrollbar { width: 8px; }
 .sidebar::-webkit-scrollbar-track { background: transparent; }
@@ -1235,6 +2002,12 @@ body.preload * { transition: none !important; }
 .issue-cell { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .issue-link { color: var(--accent); text-decoration: none; font-family: var(--mono); font-size: var(--fs-md); }
 .issue-link:hover { text-decoration: underline; }
+/* The repo row's value: the mark first, then the name it belongs to. `--ink` rather
+   than the accent — it is a fact about the puck like the ones under it, not a link out
+   of the page; the press scopes the board, which is navigation *within* the app. */
+.repo-cell { display: inline-flex; align-items: center; gap: 7px; color: var(--ink); }
+.repo-cell .repo-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+@media (hover: hover) { .repo-cell:hover { color: var(--accent); } }
 .issue-cell .linklike { background: none; border: 0; padding: 0; font: inherit; font-size: var(--fs-md); color: var(--accent); cursor: pointer; }
 .issue-cell .linklike:hover { text-decoration: underline; }
 .issue-editbtn { font-size: var(--fs-base); color: var(--ink-3); }
@@ -1331,7 +2104,35 @@ body.preload * { transition: none !important; }
    `.filter-count` stays out of this and should: it counts *filters*, not cards, and it
    is a solid pill rather than a mark beside a label. */
 .view-count { font-family: var(--mono); font-size: var(--fs-sm); color: var(--ink-3); font-variant-numeric: tabular-nums; }
-.vopts { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+/* `min-width: 0` is the load-bearing half: a flex item's automatic minimum is its
+   *content*, so without it `.vacts`' own shrinking has nothing to shrink inside — the
+   ellipsis rule below did nothing and the Update button ran 250px past a 390px window,
+   clipped by `.app` and genuinely unreachable. Capping the text is two rules, one per
+   level, and only the pair works. */
+.vopts { margin-left: auto; display: flex; align-items: center; gap: 8px; min-width: 0; }
+/* Pushed to the far end of the row it shares with Filter and Display. On a wide board
+   `.vopts` is already shrink-to-fit at the right, so this decides nothing there; in the
+   vhead, where `.vopts` spans (`margin-left: 0` below), it is what puts the actions
+   opposite the two openers instead of crowding them. */
+.vacts { margin-left: auto; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.vacts:empty { display: none; }
+/* A saved view's name is unbounded — neither the save nor the rename path caps it — and
+   `Update “<name>”` carries it. Left to wrap, a long one turned a toolbar button into a
+   six-line balloon 130px tall that pushed the row out of shape (measured at 390px with a
+   52-character name). It ellipsises instead: the *visible* text is cut, while the button's
+   own text node keeps the whole name, so a screen reader still announces which view it
+   updates. `min-width: 0` on both the container and the buttons is what lets a flex item be
+   narrower than its content at all. */
+/* **Only the button carrying the unbounded name may shrink**, and `min-width: 0` is the
+   whole mechanism: a flex item's automatic minimum is its content, so every sibling without
+   it already refuses to lose a character. The first version also wrote `flex: none` on the
+   parts — the shape the list heading landed on — and sabotage showed it changed nothing
+   here, so it is gone. `Reset` keeps its word because nothing told it not to. */
+.vacts .fchip-save { flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Filter and Display keep their size; the squeeze goes to the actions, which are the part
+   that can lose characters without losing meaning. Direct children only — Save view's own
+   `.filter-wrap` (the popover's anchor) lives inside `.vacts`. */
+.vopts > .filter-wrap { flex: none; }
 .newbtn { gap: 5px; background: var(--panel-2); }
 .newbtn:hover { border-color: var(--ink-3); }
 /* filter popover: no empty band when closed (padding/border live on the chips) */
@@ -1514,6 +2315,72 @@ body.preload * { transition: none !important; }
    way, or the two autos would split the free space and park the value mid-row. */
 .fp-cur { margin-left: auto; color: var(--ink-3); }
 .dp-rule { height: 1px; background: var(--line); margin: 2px 0; }
+/* ── the ordering chain ─────────────────────────────────────────────────────── */
+/* One row per key — `[↑] Field  direction  ✕` — at the same rhythm as a `.row`, but a
+   <div>: the row is not the target, its three controls are. There is no meaning to
+   invent for "press the key you are already sorting by".
+   The row's *position* is the setting — it says this key is asked third — which is
+   why there are no ordinals any more: with one list instead of two, the order is
+   readable from the stack itself, and a number was a second way of saying it. */
+.dp-sort { display: flex; align-items: center; gap: 6px; padding: 5px 9px; font-size: var(--fs-md); }
+/* The field name gives first and the direction second: a name is what the row is
+   *about*, a direction is what it does. Both may ellipsise — `soonest → latest` is
+   the longest thing in here — but neither may squeeze the two icon controls, which
+   are fixed marks. That is the list headings' rule, one surface over. */
+.dp-sort-field, .dp-sort-dir {
+  display: inline-flex; align-items: center; gap: 4px; min-width: 0;
+  padding: 3px 6px; border: 0; border-radius: var(--r-sm);
+  background: none; font: inherit; text-align: left; cursor: pointer;
+}
+/* Pulled back by its own padding, so the *label* starts on the content line and the hover
+   wash still has room around it. Without this the field name sat 15px right of every other
+   value label in the surface — the picker's rows one level down begin exactly there. */
+.dp-sort-field { flex: 1 1 auto; color: var(--ink); margin-left: -6px; }
+.dp-sort-dir { flex: 0 1 auto; color: var(--ink-3); }
+.dp-sort-field > span, .dp-sort-dir > span {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.dp-sort-chev { flex: none; width: 11px; height: 11px; color: var(--ink-3); }
+.dp-sort-act {
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; padding: 0; border: 0; border-radius: var(--r-sm);
+  background: none; color: var(--ink-3); cursor: pointer;
+}
+/* The first row has no `↑`, so it gets this instead — the same width, no target.
+   Without it the field names stepped 24px left on row one and the column read as a
+   mistake rather than as a control that is missing on purpose. Its own class, not the
+   control's: sharing one put a <span> into every set that asks a row what controls it
+   has. */
+.dp-sort-gap { flex: none; width: 24px; }
+/* `(hover: hover)` because on a phone a tap leaves the state stuck under your finger
+   — the rule the list's own controls were swept into. */
+@media (hover: hover) {
+  .dp-sort-act:hover, .dp-sort-field:hover, .dp-sort-dir:hover {
+    background: var(--panel-2); color: var(--ink);
+  }
+}
+.dp-sort-act .icn { width: 13px; height: 13px; }
+/* `＋ Add a key` and `🗑 Reset ordering` are ordinary rows — they belong to the list
+   rather than to any key in it, and drawing them as anything else would have made
+   them read as a third kind of thing in a surface that just got down to one. */
+.dp-sort-add { color: var(--ink-3); }
+.dp-sort-add .icn { width: 13px; height: 13px; flex: none; }
+@media (max-width: 639px) {
+  /* A sheet is a thumb surface: the controls grow with its rows, like every other
+     target in here. */
+  /* Bled to the scroller's clip edge and re-inset, exactly like `.sheet .row` — the same
+     two edges for the same reason: the text is content and belongs on the content line,
+     while the box may reach further out. Without it the chain rows kept a 9px inset the
+     rows above and below them do not take, and the surface had three text columns. */
+  .sheet .dp-sort {
+    font-size: var(--fs-xl); min-height: 40px;
+    margin-inline: calc(var(--sheet-gap) - var(--pad));
+    padding-inline: calc(var(--pad) - var(--sheet-gap));
+  }
+  .sheet .dp-sort-act { width: 34px; height: 34px; }
+  .sheet .dp-sort-gap { width: 34px; }
+  .sheet .dp-sort-field, .sheet .dp-sort-dir { padding: 6px; }
+}
 /* ── .resetbtn — put this back the way it was ───────────────────────────────── */
 /* There were two of these and they wore different colours: the Display menu's in
    `--ink-3`, Settings' sidebar-width one in the accent red. Neither is destructive —
@@ -1563,9 +2430,24 @@ body.preload * { transition: none !important; }
    1px rule — which is not air this row owns. Every layout that hides or shrinks
    the header (mobile puts the title in the topbar) left the chips hard against
    the rule with 10px hanging below them. */
+/* Capped, because the chrome above the scrollport is the one thing that can push the
+   scrollport out of the shell. A long enough query wraps this row over several lines, and
+   with a fixed-height shell there is no page left to scroll: measured at 390×360 with 20
+   predicates the row was 295px tall, `.work` collapsed to *zero*, and the last chips —
+   including the ones that remove the terms — sat 24px below the screen with nothing to
+   scroll them into view. It scrolls itself instead, so the board always keeps its share
+   and no control is ever unreachable. */
 .chiprow {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
   padding: 10px var(--pad); border-bottom: 1px solid var(--line);
+  /* Two declarations, and the first is the load-bearing one: a browser without dynamic
+     viewport units throws the `dvh` line away entirely, and an uncapped chip row is the
+     collapse this cap exists to prevent — back in a browser that has no page scroll to
+     rescue it either. The shell's height is written the same way, one line above the
+     other, for the same reason. */
+  max-height: 30vh;
+  max-height: 30dvh;
+  overflow-y: auto;
 }
 .fchip {
   display: inline-flex; align-items: center; gap: 6px;
@@ -1628,6 +2510,15 @@ body.preload * { transition: none !important; }
 .fp-vlabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fp-row .fp-n { color: var(--accent); font-family: var(--mono); font-size: var(--fs-xs); }
 .fp-toggle { display: flex; align-items: center; gap: 10px; font-size: var(--fs-md); color: var(--ink); cursor: pointer; }
+/* `flex-start` only where there are two lines — a one-line row centres against its box the
+   way every other control in this menu does, and switching all of them to top-alignment to
+   serve the two-line case would move a row nobody asked about. */
+.fp-toggle:has(.fp-toggle-hint) { align-items: flex-start; }
+.fp-toggle:has(.fp-toggle-hint) input { margin-top: 1px; }
+.fp-toggle-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+/* The definition, not a second name: one step down the type scale and one step out of the
+   ink, so the eye reads the row as a control with a footnote rather than two controls. */
+.fp-toggle-hint { font-size: var(--fs-sm); color: var(--ink-3); }
 /* A checkbox and not a switch, on purpose. A switch says "turn this feature on"; a
    checkbox says "include this in the set" — and that is exactly what these two do,
    in a menu whose other controls also *choose* (a segmented control, two selects).
@@ -1787,7 +2678,11 @@ body.preload * { transition: none !important; }
 /* The title lives in the topbar on every width now, so the vhead carries only the
    view-options (filter / sort / layout) — the "body" toolbar. */
 .vhead .view-switch { display: none; }
-.vhead .vopts { margin-left: 0; }
+/* Spans, so `.vacts`' own auto-margin has somewhere to push to. Shrink-to-fit, the
+   actions sat hard against Display and read as a third opener rather than as the thing
+   you do *to* what the two of them changed. The h2 beside it is `display: none` here, so
+   growing costs nothing else on the row. */
+.vhead .vopts { margin-left: 0; flex: 1; }
 
 /* ── uniform control height across the topbar + view-header ─────────────────── */
 .topbar .ghost,
@@ -1871,8 +2766,8 @@ body.preload * { transition: none !important; }
 .disc-comment { padding: 12px 0; border-top: 1px solid var(--line); }
 .disc-comment:first-of-type { border-top: 0; }
 .disc-cmeta { font-family: var(--mono); font-size: var(--fs-base); color: var(--ink-3); margin-bottom: 4px; }
-.disc-body { font-size: var(--fs-lg); line-height: var(--lh-prose); color: var(--ink-2); overflow-wrap: anywhere; }
-.disc-body :is(h1,h2,h3,h4) { font-size: var(--fs-lg); margin: 12px 0 6px; color: var(--ink); }
+.disc-body { font-size: var(--prose); line-height: var(--lh-prose); color: var(--ink-2); overflow-wrap: anywhere; }
+.disc-body :is(h1,h2,h3,h4) { font-size: var(--prose); margin: 12px 0 6px; color: var(--ink); }
 .disc-body p { margin: 0 0 8px; }
 .disc-body code { background: var(--panel-2); padding: 1px 5px; border-radius: var(--r-xs); font-size: 0.92em; }
 .disc-body pre { background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r-md); padding: 10px 12px; overflow-x: auto; }
@@ -1893,6 +2788,12 @@ body.preload * { transition: none !important; }
 /* `.pop.` and not `.menu-right` alone: on a phone the same surface is a `.sheet`,
    which owns left/right itself — a bare class here would edge it off-screen. */
 .pop.menu-right { left: auto; right: -1px; }
+/* Which *side* a menu hangs from is authored (`menu-right`); which *end* is measured.
+   A rail control near the bottom of a puck page has no room below it at any width, so
+   `fitPop` flips the surface above its trigger rather than capping it to nothing. The
+   5px is the same gap the unflipped rule uses, and `fitPop` reads it rather than
+   restating it. */
+.pop.pop-flip { top: auto; bottom: calc(100% + 5px); }
 .menu-rule { height: 1px; background: var(--line); margin: 4px 6px; }
 /* A menu row's icon is the quiet half of the pair — except on a danger row, where
    the whole row is one colour and a grey glyph would read as disabled. */
@@ -1919,15 +2820,32 @@ body.preload * { transition: none !important; }
        bleed out with a negative margin — cannot work, because the scroll container
        clips at its padding box: the row laid out at 8 and painted at 22.
        The bottom is deliberately larger than the sides: the last control used to end
-       10px above the screen edge, where the home indicator is and a thumb isn't. */
-    padding: 6px var(--sheet-gap) calc(24px + env(safe-area-inset-bottom));
+       10px above the screen edge, where the home indicator is and a thumb isn't.
+       No padding at the *top*: those pixels belong to the grip, which needs them to be
+       part of a box the finger can land on. See `.sheet-grip`. */
+    padding: 0 var(--sheet-gap) calc(24px + env(safe-area-inset-bottom));
   }
   /* The grip is the handle: drag down to dismiss, up to go full height. The whole
      sheet listens, but only the chrome starts a drag unconditionally — from the
-     list, a downward drag only takes over once the list is already at the top. */
+     list, a downward drag only takes over once the list is already at the top.
+     **The handle is the band, and the pill is only its mark.** Written the obvious way —
+     a 40×5 box with `margin: 4px auto 14px` — the thing carrying `touch-action: none`
+     was 5px tall, and margins belong to no element: measured at 390px, the top 30px of
+     the sheet resolved as `.sheet` (`pan-y`) for 0–9 and 16–29, and as the grip for
+     **six pixels**. So a finger aimed at the handle landed on the browser's side of the
+     line four times out of five, and a downward drag there went to the page — reported
+     from a phone as the whole page coming down with iOS's own refresh spinner at the
+     top, and *"works when I drag further down"*, which is `.sheet-head` at 30px and
+     `none`. The band owns its pixels now: the old 6px of sheet padding and both margins
+     are padding here, so the geometry is unchanged (pill 10px down, 14px under it) and
+     the target is 29px tall and the full width. The pill is a `::before`, because a
+     background on the band would paint the whole strip. */
   .sheet-grip {
-    width: 40px; height: 5px; border-radius: var(--r-pill); background: var(--line);
-    margin: 4px auto 14px; flex: none; cursor: grab;
+    padding: 10px 0 14px; flex: none; cursor: grab;
+    display: flex; justify-content: center;
+  }
+  .sheet-grip::before {
+    content: ""; width: 40px; height: 5px; border-radius: var(--r-pill); background: var(--line);
   }
   .sheet {
     transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
@@ -1967,6 +2885,19 @@ body.preload * { transition: none !important; }
        --fs-xl and not --fs-lg: the rows inside a sheet step up to --fs-xl, and a
        heading that sets smaller than the list it heads is not a heading. */
   }
+  /* The way back sits *on the title line*, not in a row of its own below it — the shape
+     every native sheet uses, and the one a phone reported the absence of: a back row inside
+     the body is labelled with the level you are standing in, which reads "you are here",
+     and its label can never line up with the rows beneath it because it sits one chevron in.
+     Absolute like the `?`, so the title stays centred in the *head* rather than in whatever
+     space a flex sibling leaves it. */
+  .sheet-back {
+    position: absolute; left: 2px; width: 30px; height: 30px; padding: 0;
+    border: 0; background: none; color: var(--ink-2); cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: var(--r-sm);
+  }
+  .sheet-back .icn { width: 1.15em; height: 1.15em; }
   .sheet-help {
     position: absolute; left: 12px; width: 22px; height: 22px; border-radius: 50%;
     border: 1px solid var(--line); color: var(--ink-3); font-size: var(--fs-base);
@@ -2162,9 +3093,9 @@ body.preload * { transition: none !important; }
 @media (max-width: 640px) {
 }
 
-/* ── an etapp's members ────────────────────────────────────────────────────────
+/* ── a parent's members ────────────────────────────────────────────────────────
    A comma-separated line works for two pucks and collapses at eight. These are
-   rows, so the etapp page is where the etapp is run. */
+   rows, so the parent page is where the parent is run. */
 .sect-with-badge { display: flex; align-items: center; gap: 8px; }
 /* The rows pay their own padding back, so a member title lands on the page's content
    line (22px) with every heading and paragraph in the section, and the trailing pill
@@ -2201,8 +3132,8 @@ body.preload * { transition: none !important; }
 }
 @media (hover: hover) { .dep-x:hover { color: var(--ink); } }
 
-/* ── etapp: the level above a puck (rollup badge + membership chip) ─────────── */
-/* An etapp is a puck with children, so its marks live on the same card meta row
+/* ── parent: the level above a puck (rollup badge + membership chip) ─────────── */
+/* A parent is a puck with children, so its marks live on the same card meta row
    as every other badge — no second card type, no second visual language. */
 .rollup {
   cursor: help;
@@ -2225,27 +3156,27 @@ body.preload * { transition: none !important; }
    a fill. This rule used to darken that ring for the complete state, which made the
    only thing the eye caught "this one is outlined and that one isn't" — a fact the
    reader has to be told the meaning of. `--done` is the board's quieting colour
-   (2.9:1 against the fill where --ink-2 is 4.7); a finished etapp recedes here the
+   (2.9:1 against the fill where --ink-2 is 4.7); a finished parent recedes here the
    same way a done card does everywhere else, and the numbers carry the rest. */
 /* Complete: the fill is the whole chip, so it says "done" on its own and the text
    recedes with it — the same quieting `--done` every finished thing wears here. */
 .rollup.full { color: var(--done); }
 .rollup-n { font-variant-numeric: tabular-nums; }
-.etapp-chip {
+.parent-chip {
   display: inline-flex; align-items: center; gap: 3px; min-width: 0; flex: 0 1 auto;
   font: inherit; font-size: var(--fs-sm); background: none; border: 0; padding: 0;
   color: var(--ink-3); cursor: help;
 }
-.etapp-link { cursor: pointer; }
-@media (hover: hover) { .etapp-link:hover { color: var(--accent); } }
+.parent-link { cursor: pointer; }
+@media (hover: hover) { .parent-link:hover { color: var(--accent); } }
 /* On a card the repo name sits immediately before this, and in a repo that is itself
    called Etapp the two read as one phrase ("Etapp ⑂ GUI-hantverk"). The meta row
    separates its parts by gap alone, so the chip brings its own divider — the same one
    `.issue-newbtn` uses. Not in the list row, where the chip follows the title and the
    repo has a cell of its own. */
-.card-meta .etapp-chip::before { content: "·"; color: var(--ink-3); margin-right: 3px; }
-.etapp-chip .icn { width: 11px; height: 11px; flex: none; }
-.etapp-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card-meta .parent-chip::before { content: "·"; color: var(--ink-3); margin-right: 3px; }
+.parent-chip .icn { width: 11px; height: 11px; flex: none; }
+.parent-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .col-head .rollup, .list-head .rollup { margin-left: 4px; }
 /* These carried no colour outside the old modal's scope, so in the rail they fell
    back to the browser's blue underline — the only such link on the page. */
@@ -2267,7 +3198,7 @@ body.preload * { transition: none !important; }
    a sidebar row. One size for both left the badge wearing a glyph taller than its own
    text.
    12px and not 11: measured in real pixels, at 11 the two eyes start to merge into the
-   dome and the antenna loses its length, which is the same failure `etapp` avoids by
+   dome and the antenna loses its length, which is the same failure `parent` avoids by
    being dots instead of an outline. A face that has stopped having eyes is just a blob,
    and then the glyph says less than the arrow it replaced. */
 .icn.agent-glyph { width: 12px; height: 12px; color: var(--accent); }

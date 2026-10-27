@@ -26,6 +26,92 @@ async function openSheet(page, name) {
 }
 
 export async function run({ open }) {
+
+  group("en nivå säger vad den heter — och arket ritar det på titelraden");
+  {
+    // Rapporterat från en telefon, med marginalerna påritade. Vägen tillbaka var en *rad i
+    // kroppen* märkt med den nivå man stod i, vilket läses som "du är här" och inte som "gå
+    // tillbaka" — och dess etikett kunde aldrig linjera med raderna under, eftersom den
+    // sitter en chevron in. Nu säger nivån bara vad den heter och hur man lämnar den;
+    // *var* det ritas är skalets sak, vilket är löftet `openSurface` alltid gett.
+    const p = await open("", { token: true, viewport: PHONE, hasTouch: true });
+    await p.locator("#displayBtn").click();
+    await p.waitForSelector(".sheet .surface-body");
+    await p.waitForTimeout(200);
+    const läge = () => p.evaluate(() => ({
+      titel: document.querySelector(".sheet-title").textContent.trim(),
+      back: !!document.querySelector(".sheet-back"),
+      bakRadIKroppen: document.querySelectorAll(".sheet .surface-body .fp-back").length,
+    }));
+    eq(await läge(), { titel: "Display", back: false, bakRadIKroppen: 0 },
+      "nivå ett: ytans eget namn, ingen väg tillbaka");
+
+    await p.locator(".sheet").getByText("Ordering", { exact: true }).click();
+    await p.waitForTimeout(250);
+    eq(await läge(), { titel: "Ordering", back: true, bakRadIKroppen: 0 },
+      "nivå två: titeln är den nivå man står i, och vägen tillbaka står bredvid den");
+
+    await p.locator(".sheet").getByText("Add a key", { exact: true }).click();
+    await p.waitForTimeout(250);
+    eq((await läge()).titel, "Add a key", "nivå tre likaså");
+
+    // Och knappen fungerar. Den sitter i `.sheet-head`, som är draghandtagets zon
+    // (`touch-action: none`) — så att den *ritas* rätt bevisar inte att den svarar.
+    await p.locator(".sheet-back").click();
+    await p.waitForTimeout(250);
+    eq((await läge()).titel, "Ordering", "bakåt från nivå tre lämnar nivå två");
+    await p.locator(".sheet-back").click();
+    await p.waitForTimeout(250);
+    eq(await läge(), { titel: "Display", back: false, bakRadIKroppen: 0 },
+      "och därifrån hela vägen ut till ytans eget namn");
+
+    // Och namnet en skärmläsare hör är samma namn som syns. `aria-label` togs ur
+    // `opts.title` *en* gång medan rubriken skrivs om vid varje nivå, så ytan hette
+    // fortfarande "Display" när den visade "Add a key". Två skrivare för ett faktum är
+    // hur de kommer att säga emot varandra; `aria-labelledby` pekar på rubriken, så det
+    // finns bara ett.
+    const namn = () => p.evaluate(() => {
+      const sheet = document.querySelector(".sheet");
+      if (sheet.getAttribute("aria-label")) return "!aria-label: " + sheet.getAttribute("aria-label");
+      const id = sheet.getAttribute("aria-labelledby");
+      return id ? document.getElementById(id)?.textContent.trim() ?? "!ingen rubrik" : "!inget namn";
+    });
+    eq(await namn(), "Display", "tillbaka på nivå ett heter ytan sitt eget namn");
+    await p.locator(".sheet").getByText("Ordering", { exact: true }).click();
+    await p.waitForTimeout(250);
+    eq(await namn(), "Ordering", "och namnet följer nivån utan att skrivas en andra gång");
+    await p.locator(".sheet-back").click();
+    await p.waitForTimeout(250);
+
+    // Samma regel i den andra ytan som har nivåer, för det var "överallt" som rapporterades.
+    await p.keyboard.press("Escape");
+    await p.waitForTimeout(200);
+    await p.locator("#filterBtn").click();
+    await p.waitForSelector(".sheet .surface-body");
+    await p.waitForTimeout(200);
+    await p.locator(".sheet .row, .sheet .fp-row").first().click();
+    await p.waitForTimeout(250);
+    eq(await p.evaluate(() => ({
+      back: !!document.querySelector(".sheet-back"),
+      bakRadIKroppen: document.querySelectorAll(".sheet .surface-body .fp-back").length,
+    })), { back: true, bakRadIKroppen: 0 }, "filterpanelens nivå gör likadant");
+  }
+
+  group("popovern har inget huvud, så samma nivå blir en rad — och byggaren vet inte vilket");
+  {
+    // Halva poängen: byggaren skriver nivån *en* gång. Skepnaden avgör var den hamnar.
+    const p = await open("", { token: true, viewport: { width: 1400, height: 900 } });
+    await p.locator("#displayBtn").click();
+    await p.waitForSelector(".pop");
+    await p.locator(".pop").getByText("Ordering", { exact: true }).click();
+    await p.waitForTimeout(250);
+    eq(await p.evaluate(() => ({
+      sheet: document.querySelectorAll(".sheet").length,
+      bakRad: document.querySelectorAll(".pop .fp-back").length,
+      etikett: document.querySelector(".pop .fp-back span")?.textContent.trim(),
+    })), { sheet: 0, bakRad: 1, etikett: "Ordering" },
+      "i popovern står vägen tillbaka kvar som en rad, precis som förut");
+  }
   // Three variants deliberately, not two: Filter and Display are built from `.fp-*`
   // rows, and a first draft that measured only those never touched `.sheet .row` at
   // all — the rule those two sabotages were written for. The puck's ⋯ is the sheet
@@ -113,6 +199,39 @@ export async function run({ open }) {
       `botten lämnar plats för tummen (lägst: ${bottom.tag} på ${Math.round(bottom.gap)}px)`);
   }
 
+  group("arket låser rutan bakom sig, inte kroppen");
+  {
+    // Låset bytte låda när skalet blev en fast höjd: `body { position: fixed }` höll
+    // sidans scroll, och sidan scrollar inte längre — `.work` gör det. Ett lås på
+    // kroppen hade alltså inte hållit någonting, och tavlan bakom arket hade rört sig
+    // fritt medan man valde i det.
+    const p = await open("?layout=list", { viewport: { width: 390, height: 500 } });
+    await p.waitForSelector(".list-row");
+    await p.evaluate(() => { document.getElementById("work").scrollTop = 200; });
+    await p.locator("#displayBtn").click();
+    await p.waitForSelector(".sheet");
+    const under = await p.evaluate(async () => {
+      const w = document.getElementById("work");
+      const före = w.scrollTop;
+      w.dispatchEvent(new WheelEvent("wheel", { deltaY: 400, bubbles: true, cancelable: true }));
+      await new Promise((r) => setTimeout(r, 100));
+      return { överflöd: getComputedStyle(w).overflow, före, efter: w.scrollTop };
+    });
+    eq(under.överflöd, "hidden", "rutan är låst medan arket är uppe");
+    eq(under.efter, under.före, `och ett hjul flyttar den inte: ${JSON.stringify(under)}`);
+
+    await p.keyboard.press("Escape");
+    await p.waitForTimeout(300);
+    const efter = await p.evaluate(() => ({
+      överflöd: getComputedStyle(document.getElementById("work")).overflow,
+      top: document.getElementById("work").scrollTop,
+    }));
+    eq(efter.överflöd, "auto", "låset släpper när arket stängs");
+    // Att gömma överflödet nollar offseten, så den sätts tillbaka: arket stängs mot raden
+    // du öppnade det från, inte mot toppen av listan.
+    eq(efter.top, under.före, `och rutan står kvar där den stod: ${JSON.stringify(efter)}`);
+  }
+
   group("allt i ett ark är tumstort");
   // Across every variant, for the same reason the bleed is: the sheet that uses
   // `.sheet .row` is the puck's ⋯, and a check that only opened Display would never
@@ -131,5 +250,57 @@ export async function run({ open }) {
         .filter((e) => e.getBoundingClientRect().height > 0).length);
     ok(total > 0, `${variant.name}: det finns kontroller att mäta`);
     eq(small, [], `${variant.name}: ingen kontroll under 30px hög`);
+  }
+
+  group("handtaget är bandet, inte bara pillret");
+  {
+    // Rapporterat från en telefon: ett drag nedåt på handtaget drog *sidan* ner, med
+    // iOS egen uppdateringssnurra överst — och det fungerade "när jag drar längre ner".
+    // Orsaken är att marginaler inte tillhör något element. Ett 40×5-pillret med
+    // `margin: 4px auto 14px` gav en låda på fem pixlar som bar `touch-action: none`;
+    // resten av arkets översta 30px löste ut som `.sheet`, som måste vara `pan-y` för
+    // att listan under ska få panorera alls. Sex pixlar var våra, tjugofyra
+    // webbläsarens, och där den tar gesten finns ingen scrollruta att panorera — så
+    // den går till sidan.
+    //
+    // Kontrollen går den väg webbläsaren själv går: `touch-action` avgörs genom att
+    // skära värdena från träffpunktens element och uppåt, så en `auto` på `.sheet-title`
+    // är oskadlig medan dess förälder säger `none`. Att bara läsa elementets eget
+    // värde hade dömt ut titeln och friat pillret — precis fel båda gångerna.
+    const p = await open("", { viewport: PHONE, hasTouch: true });
+    await p.locator("#displayBtn").click();
+    await p.waitForSelector(".sheet .surface-body");
+    await p.waitForTimeout(200);
+    const m = await p.evaluate(() => {
+      const sheet = document.querySelector(".sheet");
+      const box = sheet.getBoundingClientRect();
+      const head = document.querySelector(".sheet-head").getBoundingClientRect();
+      const kanPanorera = (el) => {
+        for (let n = el; n; n = n.parentElement) {
+          if (getComputedStyle(n).touchAction === "none") return false;
+          if (n === sheet) return true;      // skärningen slutar vid arket
+        }
+        return true;
+      };
+      const släpper = [];
+      for (let y = Math.ceil(box.top) + 1; y < head.bottom; y += 2) {
+        const el = document.elementFromPoint(195, y);
+        if (el && kanPanorera(el)) släpper.push({ dy: Math.round(y - box.top), el: el.className });
+      }
+      const grip = document.querySelector(".sheet-grip");
+      const g = grip.getBoundingClientRect(), pill = getComputedStyle(grip, "::before");
+      return {
+        släpper, krom: Math.round(head.bottom - box.top),
+        band: { h: Math.round(g.height), w: Math.round(g.width) },
+        pill: { w: pill.width, h: pill.height, topp: Math.round(g.top - box.top) + parseFloat(getComputedStyle(grip).paddingTop) },
+      };
+    });
+    ok(m.krom > 60, `det finns ett krom att mäta: ${m.krom}px ner till huvudets underkant`);
+    eq(m.släpper, [], "ingen pixel i arkets krom lämnar gesten till webbläsaren");
+    // Bandet, och inte pillret, är det som ska ha vuxit: geometrin är oförändrad.
+    ok(m.band.h >= 24, `handtagets träffyta är ett band: ${m.band.h}px högt`);
+    ok(m.band.w > 300, `och hela arkets bredd: ${m.band.w}px`);
+    eq(m.pill.w + " " + m.pill.h, "40px 5px", "pillret är sig likt");
+    eq(m.pill.topp, 11, "och står kvar på sin pixel");
   }
 }

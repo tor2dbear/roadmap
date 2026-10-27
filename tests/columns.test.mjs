@@ -16,7 +16,7 @@ export async function run({ open }) {
     const s = await snapshot(p);
     eq(s.columns, ["Alpha", "Beta"], "arkivet av: repon med levande puckar");
     // Landed holds one puck and it is archived, so the toggle takes the whole column.
-    eq(s.tray, ["Landed1"], "ett helt arkiverat repo blir en gömd kolumn");
+    eq(s.tray, ["Landed1 archived"], "ett helt arkiverat repo blir en gömd kolumn");
     eq(s.chips, [], "och arkivet får inget chip");
   }
   {
@@ -61,13 +61,10 @@ export async function run({ open }) {
     eq(s.tray, ["Beta3"], "den andra står kvar gömd");
   }
 
-  group("etappens slug och dess id namnger samma kolumn");
-  for (const [spelling, label] of [["a-etapp", "bar slug"], ["alpha%2Fa-etapp", "fullt id"]]) {
-    const p = await open(`?group=parent&done=1&q=-parent%3A${spelling}`);
-    eq((await snapshot(p)).tray.length, 1, `${label}: etappen listas i facket`);
-    await trayEye(p, "An etapp");
-    eq((await snapshot(p)).query, null, `${label}: ögat tömmer termen`);
-  }
+  // Här stod samma stavningskontroll för `parent:` — fack, öga, tömt term. Den gick
+  // bort med `group=parent` på tavlan: facket är en plats på tavlan, och en hierarki
+  // grupperar inte längre kolumner. Regeln den vaktade ("fråga datan samma sak som
+  // matcharen frågar") är fortfarande vaktad av repo-fallet ovan, i sina tre stavningar.
 
   group("en tom kolumn erbjuds bara när ögat kan ge något");
   {
@@ -76,9 +73,10 @@ export async function run({ open }) {
     // column and then swallows it.
     const noCancelled = (p) => { p.items = p.items.filter((i) => i.status !== "cancelled"); return p; };
     const off = await open("?empty=0", { data: noCancelled });
-    eq((await snapshot(off)).tray, ["Done3"], "empty=0: ingen tom rad i facket");
+    eq((await snapshot(off)).tray, ["Done3 archived"], "empty=0: ingen tom rad i facket");
     const on = await open("?empty=1", { data: noCancelled });
-    eq((await snapshot(on)).tray, ["Done3", "Cancelled0"], "empty=1: raden står kvar, för klicket ger en kolumn");
+    eq((await snapshot(on)).tray, ["Done3 archived", "Cancelled0 archived"],
+      "empty=1: raden står kvar, för klicket ger en kolumn");
   }
 
   group("en arkivgömd målmånad behöver inget namn");
@@ -89,9 +87,172 @@ export async function run({ open }) {
     const p = await open("?group=target");
     const s = await snapshot(p);
     eq(s.columns.includes("Mar 2026"), false, "mars har bara arkiverade puckar och saknas");
-    eq(s.tray, ["Mar 20262"], "men listas i facket, med sina två");
+    eq(s.tray, ["Mar 20262 archived"], "men listas i facket, med sina två");
     await trayEye(p, "Mar 2026");
     const after = await snapshot(p);
     eq(after.columns.includes("Mar 2026"), true, "ögat tänder växeln och månaden kommer fram");
+  }
+
+  group("ett kolumnhuvud som namnger en puck är den pucken");
+  {
+    // Under `group=parent` är rubriken namnet på ett riktigt kort, men den var ren text.
+    // Överallt annars öppnar en pucks namn den — korttiteln, föräldrachippet,
+    // brödsmulan — och det här var det enda stället regeln bröts. Det är dessutom
+    // stället där pucken annars *inte finns på skärmen*: efter befordran är rubriken
+    // rotens enda representation.
+    //
+    // Mätt i listan sedan hierarkin blev listspecifik. Rubrikformen är densamma —
+    // `.col-head h2` och `.list-head h2` delar både `.named` och ögonbrynet — så det
+    // är samma regel, läst där grupperingen numera finns.
+    const långt = (d) => {
+      d.items.find((i) => i.slug === "a-parent").title = "Brand it + split product / instance";
+      return d;
+    };
+    const p = await open("?group=parent&layout=list", { data: långt });
+    const huvuden = await p.evaluate(() =>
+      [...document.querySelectorAll(".list-head h2")].map((e) => ({
+        text: (e.querySelector(".lh-label") || {}).textContent.trim(),
+        named: e.classList.contains("named"),
+        knapp: !!e.querySelector(".head-open"),
+        versaler: getComputedStyle(e).textTransform,
+        höjd: Math.round(e.getBoundingClientRect().height),
+      })));
+    // Läses ur en tom platshållare om filtret inte hittar något: en kontroll som
+    // *kastar* när den fäller tar resten av filen med sig, och då rapporteras nio
+    // andra grupper som körda när de inte var det.
+    const namngivet = huvuden.filter((h) => h.named)[0] || {};
+    const kategori = huvuden.filter((h) => !h.named)[0] || {};
+    eq(huvuden.filter((h) => h.named).length, 1, `en kolumn namnger en puck: ${JSON.stringify(huvuden.map((h) => h.text))}`);
+    eq(namngivet.knapp, true, "och dess namn är en knapp som öppnar den");
+    eq(kategori.knapp, false, "medan `No parent` inte namnger någon puck och inte är en knapp");
+
+    // Versalerna är rätt för en kategorietikett och fel för en titel: de kostar
+    // 15–20 % av bredden *och* läsbarheten.
+    eq(namngivet.versaler, "none", "en titel bär sin egen skiftläge");
+    eq(kategori.versaler, "uppercase", "en kategorietikett bär fortfarande ögonbrynet");
+
+    // Och det som faktiskt gick sönder i bilden: `.col-head` är en flex-rad utan
+    // `min-width: 0`, så en lång titel radbröt till tre rader och centrerade räknaren
+    // och rollup-brickan mot ett treradigt block.
+    eq(namngivet.höjd, kategori.höjd,
+      `ett långt namn är lika högt som ett kort: ${namngivet.höjd} mot ${kategori.höjd}`);
+
+    await p.locator(".head-open").click();
+    await p.waitForTimeout(300);
+    eq(await p.evaluate(() => (location.hash || "").slice(1)), "alpha/a-parent",
+      "och ett klick öppnar den puck rubriken namnger");
+  }
+
+  group("en förälder vars barn alla är arkiverade är fortfarande en titel");
+  {
+    // Hittat av Codex på PR #42. Listan ritar en grupp som arkivet tömt helt som en
+    // *stump* — rubrik utan hopfällning, med märket som säger hur många som hålls
+    // tillbaka — och den grenen returnerar. Klassificeringen låg efter den, så just den
+    // rubriken behöll kategorins versaler fast den bär ett godtyckligt lång puck-namn:
+    // precis fallet regeln finns för.
+    const arkiverat = (d) => {
+      d.items.find((i) => i.slug === "a-parent").title = "Brand it + split product / instance";
+      d.items = d.items.map((i) => (i.slug === "b-member" ? Object.assign({}, i, { status: "done" }) : i));
+      return d;
+    };
+    const p = await open("?group=parent&layout=list", { data: arkiverat });
+    const m = await p.evaluate(() => {
+      const stub = [...document.querySelectorAll(".list-head")]
+        .find((e) => e.querySelector(".lh-stub"));
+      return stub && {
+        text: stub.querySelector(".lh-label").textContent.trim(),
+        named: stub.querySelector("h2").classList.contains("named"),
+        versaler: getComputedStyle(stub.querySelector("h2")).textTransform,
+      };
+    });
+    eq(!!m, true, "gruppen ritas som en stump när arkivet tömt den");
+    eq(m && m.named, true, `stumpens rubrik är en titel: ${JSON.stringify(m)}`);
+    eq(m && m.versaler, "none", "och bär därför inte kategorins versaler");
+  }
+
+  group("ett långt kolumnnamn gör inte sidan bredare än telefonen");
+  {
+    // Samma klass som kodraden och tabellen: brett innehåll scrollar i sin egen låda,
+    // sidan står stilla. Bara `parent` producerar godtyckligt långa etiketter — status,
+    // repo, agent, priority och target är korta av konstruktion — så defekten kom med
+    // den grupperingen och blir värre med nästling.
+    const långt = (d) => {
+      d.items.find((i) => i.slug === "a-parent").title =
+        "Ett orimligt långt föräldranamn som ingen skulle skriva men som formatet tillåter";
+      return d;
+    };
+    const p = await open("?group=parent&layout=list", { data: långt, viewport: { width: 390, height: 844 } });
+    const m = await p.evaluate(() => {
+      const b = document.querySelector(".head-open");
+      return {
+        page: document.documentElement.scrollWidth,
+        view: window.innerWidth,
+        höjd: Math.round(b.getBoundingClientRect().height),
+        klippt: b.scrollWidth > b.clientWidth,
+      };
+    });
+    eq(m.page, m.view, `sidan är inte bredare än skärmen (${m.page} mot ${m.view})`);
+    eq(m.klippt, true, "namnet klipps i stället för att radbryta");
+  }
+
+  group("en arkivtömd förälder går fortfarande att öppna");
+  {
+    // Hittat av Codex på PR #44, och samma gren som på #42: en grupp arkivet tömt helt
+    // ritas som en *stump* och den grenen returnerar. Stumpen är med flit ingen
+    // kontroll — det finns inget att fälla ut förrän arkivväxeln lyfts — men namnet är
+    // fortfarande en puck, och under ett medlemsfilter kan rubriken vara den puckens
+    // enda representation på sidan.
+    const arkiverat = (d) => {
+      d.items.find((i) => i.slug === "a-parent").title = "Brand it + split product / instance";
+      d.items = d.items.map((i) => (i.slug === "b-member" ? Object.assign({}, i, { status: "done" }) : i));
+      return d;
+    };
+    const p = await open("?group=parent&layout=list", { data: arkiverat });
+    eq(await p.evaluate(() => !!document.querySelector(".lh-stub .head-open")), true,
+      "stumpens namn är en knapp");
+    await p.locator(".lh-stub .head-open").click();
+    await p.waitForTimeout(300);
+    eq(await p.evaluate(() => (location.hash || "").slice(1)), "alpha/a-parent",
+      "och den öppnar den puck rubriken namnger");
+  }
+
+  group("i listan fäller chevronen och namnet öppnar");
+  {
+    // Två saker att göra, så två kontroller — men bara där det *finns* två. En rubrik
+    // som namnger en puck fäller sin grupp och öppnar pucken; en som namnger en
+    // kategori har ingenting att öppna och behåller hela raden som ett fällmål i
+    // stället för att förlora det till en delning den inte har någon nytta av.
+    const långt = (d) => {
+      d.items.find((i) => i.slug === "a-parent").title = "Brand it + split product / instance";
+      return d;
+    };
+    const p = await open("?group=parent&layout=list", { data: långt });
+    const delat = await p.evaluate(() => [...document.querySelectorAll(".list-head")].map((e) => ({
+      text: (e.querySelector(".lh-label") || {}).textContent.trim(),
+      delad: !!e.querySelector(".lh-toggle--split"),
+      öppna: !!e.querySelector(".head-open"),
+    })));
+    const namngivet = delat.filter((x) => x.öppna)[0] || {};
+    eq(delat.filter((x) => x.öppna).length, 1,
+      `en rubrik namnger en puck: ${JSON.stringify(delat)}`);
+    eq(namngivet.delad, true, "och dess toggel är delad, så chevronen bara fäller");
+    eq(delat.filter((x) => !x.öppna)[0].delad, false,
+      "medan `No parent` behåller hela raden som ett fällmål");
+
+    // Fällningen ska fortfarande fungera från chevronen.
+    await p.locator(".lh-toggle--split").click();
+    await p.waitForTimeout(200);
+    eq(await p.evaluate(() => !!document.querySelector(".list-group.shut")), true,
+      "chevronen fäller gruppen");
+    await p.locator(".lh-toggle--split").click();
+    await p.waitForTimeout(200);
+
+    // …och namnet ska öppna pucken, inte fälla.
+    await p.locator(".head-open").click();
+    await p.waitForTimeout(300);
+    eq(await p.evaluate(() => (location.hash || "").slice(1)), "alpha/a-parent",
+      "och namnet öppnar den puck rubriken namnger");
+    eq(await p.evaluate(() => !!document.querySelector(".list-group.shut")), false,
+      "utan att fälla gruppen på vägen");
   }
 }

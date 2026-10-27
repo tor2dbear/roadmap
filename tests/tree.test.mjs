@@ -1,0 +1,593 @@
+// Listan som träd. `group=parent` är den enda gruppering där nästling betyder något —
+// ett träd spänner över statusar, så inuti en statuskolumn finns ingen nivå att rita —
+// och det här är den layout som har plats för indrag.
+//
+// Payloaden nedan lägger till det den delade fixturen saknar: ett barnbarn, och en rot
+// med ett namn som är för långt för en telefon. Bägge är fall som fanns i den riktiga
+// datan och i ingen kontroll.
+import { group, eq, ok } from "./assert.mjs";
+import { githubStub } from "./fixture.mjs";
+
+const LONG = "Hierarkin på riktigt: parent, nästling och ordning";
+
+// rot (A parent) → b-member → barnbarn. Roten får också det långa namnet, eftersom det
+// är rubriken som bär det på tavlan.
+const träd = (d) => {
+  const rot = d.items.find((i) => i.slug === "a-parent");
+  const mitten = d.items.find((i) => i.slug === "b-member");
+  rot.title = LONG;
+  rot.children = ["beta/b-member"];
+  rot.progress = { done: 0, total: 1 };
+  mitten.children = ["alpha/a-gc"];
+  mitten.progress = { done: 0, total: 1 };
+  d.items.push(Object.assign({}, mitten, {
+    id: "alpha/a-gc", slug: "a-gc", repo: "acme/alpha", repoName: "Alpha", repoColor: "#e07a5f",
+    title: "Barnbarnet", status: "next", parent: "acme/beta#b-member", parentRef: "beta/b-member",
+    children: [], progress: null, body: "Body of a-gc",
+  }));
+  return d;
+};
+
+// Ett arkiverat barnbarn i stället för ett öppet: det som håller tillbaka raden är då
+// arkivet, inte filtret, och de två har olika mening och olika reparation.
+const arkiveratBarnbarn = (d) => {
+  const t = träd(d);
+  t.items.find((i) => i.slug === "a-gc").status = "done";
+  return t;
+};
+
+// Sektionerna som text: rubrik, och raderna med sitt djup. Ett träd är en form, så
+// kontrollerna läser formen och inte enskilda noder.
+const form = (page) => page.evaluate(() =>
+  [...document.querySelectorAll(".list-group")].map((s) => ({
+    head: (s.querySelector(".lh-label") || {}).textContent,
+    mark: (s.querySelector(".col-archived") || {}).textContent,
+    warn: !!s.querySelector(".list-head .warn-badge"),
+    rows: [...s.querySelectorAll(".list-row, .list-empty")].map((r) => {
+      const d = +(getComputedStyle(r).getPropertyValue("--depth") || 0);
+      if (r.classList.contains("list-empty")) return d + ":[" + r.textContent.trim() + "]";
+      return d + ":" + (r.querySelector(".list-fold") ? "▾" : "·") + r.querySelector(".list-title").textContent;
+    }),
+  })));
+
+export async function run({ open }) {
+  group("barnbarnet står under sin förälder, och föräldern står på ett ställe");
+  {
+    const p = await open("?layout=list&group=parent", { data: träd });
+    const f = await form(p);
+    const rot = f.find((s) => s.head === LONG);
+    ok(rot, `roten är en rubrik: ${JSON.stringify(f.map((s) => s.head))}`);
+    eq(rot.rows, ["0:▾b-member", "1:·Barnbarnet"],
+      "mellanpucken är en rad med karet, och barnbarnet ligger ett indrag in under den");
+    // Det som *inte* står här är hela poängen: före den här ändringen var mellanpucken
+    // två saker på samma sida — en rad i förälderns grupp och en egen rubrik längre ner.
+    eq(f.filter((s) => s.head === "b-member").length, 0,
+      `mellanpucken har ingen egen rubrik längre: ${JSON.stringify(f.map((s) => s.head))}`);
+  }
+
+  group("en toppförälder är en rubrik, inte en rad under No parent");
+  {
+    const p = await open("?layout=list&group=parent", { data: träd });
+    const f = await form(p);
+    const none = f.find((s) => s.head === "No parent");
+    ok(none, "gruppen finns kvar");
+    eq(none.rows.some((r) => r.indexOf(LONG) !== -1), false,
+      `roten ritas inte också som en rad: ${JSON.stringify(none.rows)}`);
+    // …och den betyder nu det den säger: puckar som inte står i något träd alls.
+    ok(none.rows.length > 0, "men gruppen är inte tom — de fristående puckarna bor där");
+  }
+
+  group("en förälder vars delar filtret tog säger det");
+  {
+    // Frågan matchar rotens titel och ingenting under den.
+    const p = await open("?layout=list&group=parent&q=" + encodeURIComponent("ordning"), { data: träd });
+    const f = await form(p);
+    const rot = f.find((s) => s.head === LONG);
+    ok(rot, `rubriken står kvar: ${JSON.stringify(f.map((s) => s.head))}`);
+    eq(rot.rows, ["0:[No matching parts]"],
+      "med en rad som säger varför den ser ut som ett löv");
+  }
+
+  group("och en vars delar arkivet håller tillbaka säger något annat");
+  {
+    const p = await open("?layout=list&group=parent", { data: arkiveratBarnbarn });
+    const f = await form(p);
+    const rot = f.find((s) => s.head === LONG);
+    eq(rot.rows, ["0:·b-member", "1:[1 archived part]"],
+      `arkivet svarar för sitt eget hål, med sin egen reparation: ${JSON.stringify(rot.rows)}`);
+    // Och reparationen fungerar: ögat lyfter arkivet och barnbarnet kommer tillbaka.
+    await p.locator(".list-archived").first().click();
+    await p.waitForTimeout(200);
+    const efter = await form(p);
+    eq(efter.find((s) => s.head === LONG).rows, ["0:▾b-member", "1:·Barnbarnet"],
+      "ögat lyfter arkivet på plats");
+  }
+
+  group("en fälld nod tar bara sitt eget underträd");
+  {
+    const p = await open("?layout=list&group=parent", { data: träd });
+    await p.locator(".list-fold").first().click();
+    await p.waitForTimeout(200);
+    const f = await form(p);
+    eq(f.find((s) => s.head === LONG).rows, ["0:▾b-member"],
+      "barnbarnet försvinner och mellanpucken står kvar");
+    // En fälld nod säger heller inget om delar den *avsiktligt* döljer — annars hade
+    // "No matching parts" dykt upp i samma stund som man fällde ihop den.
+    eq(f.filter((s) => s.head === "No parent").length, 1, "resten av listan rörs inte");
+  }
+
+  group("arkivet räknar rader, och en lyft rot är ingen rad");
+  {
+    // Codex, #46. `archivedPerColumn` grupperar med samma `groupsOf` som tavlan — men
+    // trädet lyfter roten ur `No parent`, och märket räknar `count − synliga rader`. Den
+    // lyfta roten blev alltså en "arkiverad" puck som inte var arkiverad, och rubriken
+    // lovade ett gömt kort mer än den hade.
+    const p = await open("?layout=list&group=parent", { data: träd });
+    const none = (await form(p)).find((s) => s.head === "No parent");
+    eq(none.mark, "4 archived",
+      `bara de fyra som verkligen ligger i arkivet: ${JSON.stringify(none.mark)}`);
+    // Och siffran är kontrollerbar: ögat lyfter arkivet, och exakt fyra rader kommer till.
+    const före = none.rows.length;
+    await p.locator(".list-group").filter({ hasText: "No parent" }).locator(".col-archived").click();
+    await p.waitForTimeout(200);
+    const efter = (await form(p)).find((s) => s.head === "No parent").rows.length;
+    eq(efter - före, 4, `ögat ger tillbaka precis så många som märket lovade (${före} → ${efter})`);
+  }
+
+  group("en rot som bara finns i arkivet har fortfarande en dörr");
+  {
+    // Codex, #46, och en regression i fixen ovan: lyftet togs bort ur arkivräkningen
+    // *ovillkorligt*, men en rot lyfts ur `No parent` för att den redan står som rubrik.
+    // En arkiverad rot står ingenstans — arkivet gömmer själva pucken, inte dess delar —
+    // så att lyfta den ur räkningen tog bort det enda som kunde hämta tillbaka den.
+    // Mätt: tavlan blev *helt tom*. Inga rader, ingen stump, inget öga.
+    const arkiveradRot = (d) => {
+      const rot = d.items.find((i) => i.slug === "a-parent");
+      const mitten = d.items.find((i) => i.slug === "b-member");
+      rot.title = LONG; rot.status = "done"; rot.children = ["beta/b-member"];
+      rot.progress = { done: 0, total: 1 };
+      mitten.children = []; mitten.progress = null;
+      return d;
+    };
+    // Fångat, för det är just den tomma tavlan som är felet: `open()` väntar på att
+    // något ska ritas, och utan fixen väntar den ut sin timeout. Ett sabotage ska säga
+    // vad som saknades, inte lämna en stack trace efter tio sekunder.
+    const p = await open("?layout=list&group=parent&q=" + encodeURIComponent("ordning"), { data: arkiveradRot })
+      .catch(() => null);
+    if (!p) {
+      ok(false, "tavlan ritade ingenting alls — arkivet lämnade varken rad, stump eller öga");
+    } else {
+      const f = await form(p);
+      eq(f.map((s) => s.head + "|" + s.mark), ["No parent|1 archived"],
+        `arkivet svarar för den rot som ingen rubrik täcker: ${JSON.stringify(f)}`);
+      await p.locator(".col-archived").first().click();
+      await p.waitForTimeout(200);
+      const efter = await form(p);
+      eq(efter.map((s) => s.head), [LONG], "och ögat öppnar den som rubrik");
+      eq(efter[0].rows, ["0:[No matching parts]"], "med sina delar utanför frågan");
+    }
+  }
+
+  group("en arkiverad rot som redan har en rubrik räknas inte som en gömd rad");
+  {
+    // Codex, #46, och andra halvan av fallet ovan. En rot får sin rubrik på två sätt:
+    // lyftet tar den ur `No parent`, eller ett *barns* grupp levererar den. Det andra är
+    // hur en arkiverad rot med en öppen del ritas — arkivet tog själva pucken, så lyftet
+    // kan inte se den, men listan ritar rubriken från barnet ändå.
+    //
+    // Mätt före fixen: märket sa "5 archived", ögat gav tillbaka fyra rader och
+    // befordrade den femte till den rubrik den redan hade. Ett märke som lovar ett kort
+    // det inte kan leverera.
+    const arkiveradRotÖppetBarn = (d) => {
+      const rot = d.items.find((i) => i.slug === "a-parent");
+      rot.title = LONG; rot.status = "done";
+      rot.children = ["beta/b-member"]; rot.progress = { done: 0, total: 1 };
+      return d;
+    };
+    const p = await open("?layout=list&group=parent", { data: arkiveradRotÖppetBarn });
+    const f = await form(p);
+    ok(f.some((s) => s.head === LONG), `barnets grupp ritar rotens rubrik: ${JSON.stringify(f.map((s) => s.head))}`);
+    const none = f.find((s) => s.head === "No parent");
+    eq(none.mark, "4 archived", `roten räknas inte som en gömd rad: ${JSON.stringify(none.mark)}`);
+    // Och löftet hålls: ögat ger tillbaka precis så många rader som märket sa.
+    const före = none.rows.length;
+    await p.locator(".list-group").filter({ hasText: "No parent" }).locator(".col-archived").click();
+    await p.waitForTimeout(250);
+    const efter = (await form(p)).find((s) => s.head === "No parent").rows.length;
+    eq(efter - före, 4, `ögat levererar det märket lovade (${före} → ${efter})`);
+  }
+
+  group("arkiv hela vägen upp lämnar med arkivet");
+  {
+    // Rapporterat från en telefon: `Show done & cancelled` var av, och fyra av sex
+    // rubriker var pucker som själva var `done`. "Arkiverad" är ingen egen status —
+    // `TERMINAL` är `done` eller `cancelled`, vilket är precis vad växelns egen etikett
+    // säger — så en rubrik vars puck är done *är* en arkiverad puck ritad på en tavla som
+    // gömmer arkiverade pucker. Mätt på den riktiga tavlan: fyra av sex, och ingen av dem
+    // räknad i vyns egna 32.
+    //
+    // Samma regel som statusgrupperingen får gratis: en grupp som står kvar är en vars
+    // parent lever. Då är märket rätt — en levande parent, dess delar undanhållna.
+    const arkiveradHelaVägen = (d) => {
+      const rot = d.items.find((i) => i.slug === "a-parent");
+      const mitten = d.items.find((i) => i.slug === "b-member");
+      rot.title = LONG; rot.status = "done";
+      rot.children = ["beta/b-member"]; rot.progress = { done: 1, total: 1 };
+      mitten.status = "done";              // enda delen arkiverad → gruppen är bara arkiv
+      return d;
+    };
+    const av = await open("?layout=list&group=parent", { data: arkiveradHelaVägen });
+    const fAv = await form(av);
+    eq(fAv.filter((x) => x.head === LONG).length, 0,
+      `en arkiverad parent utan levande delar ritas inte alls: ${JSON.stringify(fAv.map((x) => x.head))}`);
+    // Och växeln är vägen tillbaka, precis som Done-kolumnen kommer tillbaka under
+    // statusgruppering. Ingen tyst borttagning: samma kontroll som redan finns.
+    const på = await open("?layout=list&group=parent&done=1", { data: arkiveradHelaVägen });
+    ok((await form(på)).some((x) => x.head === LONG),
+      "och växeln hämtar tillbaka den");
+
+    // Andra sidan av regeln, och den som gör den smal: en *levande* parent vars delar
+    // arkivet håller tillbaka behåller sin stump och sitt märke. Det är hela poängen med
+    // märket, och en regel som tog den med sig hade varit en tystnad i stället för en fix.
+    const levandeParent = (d) => {
+      const rot = d.items.find((i) => i.slug === "a-parent");
+      const mitten = d.items.find((i) => i.slug === "b-member");
+      rot.title = LONG; rot.status = "now";
+      rot.children = ["beta/b-member"]; rot.progress = { done: 1, total: 1 };
+      mitten.status = "done";
+      return d;
+    };
+    // Fångat, av samma skäl som "en rot som bara finns i arkivet" en bit upp: en regel som
+    // tar för mycket lämnar tavlan *tom*, och `open()` väntar då ut sin timeout i stället
+    // för att säga vad som saknades. Ett sabotage ska ge en mening, inte en stack trace.
+    const kvar = await open("?layout=list&group=parent", { data: levandeParent }).catch(() => null);
+    if (!kvar) {
+      ok(false, "tavlan ritade ingenting — regeln tog den levande parentens stump med sig");
+    } else {
+      const fKvar = await form(kvar);
+      const stump = fKvar.find((x) => x.head === LONG);
+      ok(stump, `en levande parent står kvar: ${JSON.stringify(fKvar.map((x) => x.head))}`);
+      eq(stump && stump.mark, "1 archived",
+        `med märket som säger vad den håller tillbaka: ${JSON.stringify(stump)}`);
+    }
+  }
+
+  group("en fällning som filtret sprang ifrån låser inte raden");
+  {
+    // Codex, #46. Fäll en förälder, filtrera sedan bort alla dess delar: `shut` står kvar
+    // i `state.collapsed` medan raden inte längre får något karet — så den enda kontroll
+    // som kunde lösa fällningen är borta, och raden ritade som ett löv för alltid i den
+    // vyn. En puck med delar är en förälder oavsett vilka delar filtret visar.
+    const p = await open("?layout=list&group=parent&q=member&collapsed=" + encodeURIComponent("beta/b-member"), { data: träd });
+    const f = await form(p);
+    eq(f[0].rows, ["0:·b-member", "1:[No matching parts]"],
+      `den fällda föräldern säger fortfarande att den har delar: ${JSON.stringify(f[0].rows)}`);
+  }
+
+  group("en befordrad rot behåller sin varning");
+  {
+    // Codex, #46. En rot som befordras till rubrik ritas *bara* som rubrik — raden under
+    // `No parent` är precis vad befordran tar bort — och rubriken kallade aldrig
+    // `signalMessages`. En `stale` eller `rollup-open` på en toppförälder försvann alltså
+    // ur listan medan pucken stod kvar på skärmen. ⚠ är det märke ingenting får dölja:
+    // det säger att puckens eget påstående är falskt.
+    const flaggadRot = (d) => {
+      const t = träd(d);
+      t.items.find((i) => i.slug === "a-parent").signals = [{ type: "stale" }];
+      return t;
+    };
+    const p = await open("?layout=list&group=parent", { data: flaggadRot });
+    const f = await form(p);
+    const rot = f.find((s) => s.head === LONG);
+    ok(rot.warn, "rubriken bär puckens flagga");
+    // Och det är den enda platsen den kan stå på: roten är ingen rad någonstans.
+    const somRad = await p.evaluate((t) => [...document.querySelectorAll(".list-row")]
+      .some((r) => (r.querySelector(".list-title") || {}).textContent === t), LONG);
+    eq(somRad, false, "roten står inte som rad — därför måste rubriken bära den");
+  }
+
+  group("tavlan grupperar inte på parent");
+  {
+    // Platta facetter grupperar tavlan, den enda hierarkin grupperar listan. Ett träd
+    // spänner över statusar, så det finns ingen nivå att rita inuti en kanban-kolumn —
+    // och mätt mot den riktiga tavlan var det inte nära: 19 av 173 puckar står i ett
+    // träd, så kolumnerna blev 2 och 3 kort bredvid ett `No parent` med 28, i ett
+    // rutnät som ger alla kolumner samma bredd.
+    const p = await open("?group=parent&layout=board", { data: träd });
+    const kolumner = await p.evaluate(() =>
+      [...document.querySelectorAll(".board > .column:not(.hidden-cols) .col-head h2")]
+        .map((h) => h.textContent.trim()));
+    eq(kolumner.some((k) => k === LONG || k === "No parent"), false,
+      `tavlan ritar statuskolumner, inte föräldrar: ${JSON.stringify(kolumner)}`);
+    // Och parametrarna säger det som ritas: en omöjlig kombination normaliseras bort
+    // i stället för att ligga kvar och få en orörd vy att läsa som ändrad.
+    eq(await p.evaluate(() => new URLSearchParams(location.search).get("group")), null,
+      "gruppen faller bort ur URL:en, den ritas ju inte");
+  }
+
+  group("att välja hierarkin väljer den layout som kan rita den");
+  {
+    // Alternativet — att falla tillbaka tyst — är misstaget filen redan namnger på ett
+    // annat ställe: en kontroll som påstår ett val som aldrig trädde i kraft. Så
+    // segmentet flyttar sig, synligt, och grupperingen gäller.
+    const p = await open("?layout=board", { data: träd });
+    await p.locator("#displayBtn").click();
+    await p.waitForSelector(".pop, .sheet");
+    await p.locator(".pop, .sheet").getByText("Grouping").click();
+    await p.locator(".pop, .sheet").getByText(/^Parent$/).first().click();
+    await p.waitForTimeout(300);
+    const efter = await p.evaluate(() => ({
+      layout: new URLSearchParams(location.search).get("layout"),
+      grupp: new URLSearchParams(location.search).get("group"),
+      lista: !!document.querySelector(".board.as-list"),
+    }));
+    eq(efter.lista, true, `layouten byter till list: ${JSON.stringify(efter)}`);
+    eq(efter.grupp, "parent", "och grupperingen är den man valde");
+  }
+
+  group("samma länk ritar samma kort");
+  {
+    // Codex, #46. Föräldrachippet göms under parent-gruppering, för rubriken säger redan
+    // samma sak — men villkoret läste `state.group`, den *sparade* preferensen. Den och
+    // den ritade grupperingen kom isär i samma stund som tavlan slutade rita
+    // föräldrakolumner: `state.group` behåller med flit ditt val medan `effectiveGroup()`
+    // faller tillbaka, så kortet gömde sin enda föräldraetikett utan att någon rubrik sa
+    // det i stället.
+    //
+    // Och eftersom fallbacken normaliseras bort ur URL:en är det samma länk: två läsare
+    // med olika sparad gruppering fick olika metadata på korten.
+    const chip = (p) => p.evaluate(() => ({
+      url: new URLSearchParams(location.search).get("group"),
+      chips: [...document.querySelectorAll(".card")]
+        .filter((c) => (c.querySelector(".card-title") || {}).textContent === "b-member")
+        .map((c) => !!c.querySelector(".parent-chip")),
+    }));
+    const rak = await chip(await open("?layout=board", { data: träd }));
+    const via = await chip(await open("?group=parent&layout=board", { data: träd }));
+    eq(via.url, rak.url, "bägge normaliseras till samma länk");
+    eq(via.chips, rak.chips, `och samma länk ritar samma kort: ${JSON.stringify([rak.chips, via.chips])}`);
+    eq(via.chips, [true], "föräldrachippet står kvar när ingen rubrik säger det");
+  }
+
+  group("indraget tar inte titelns plats");
+  {
+    // Här stod nivåernas indragskorrigering: trädet nådde varje kolumnnivå 92px senare,
+    // eftersom en nästlad rad betalade 28px ränna plus upp till 64px indrag av sin egen
+    // bredd. Den räkningen behövs inte längre — raden scrollar i stället för att droppa
+    // kolumner — men *indraget* måste fortfarande sluta äta titeln, och det gör det
+    // genom att bo i namncellen i stället för på raden: så hamnar varje rads metadata på
+    // samma x oavsett djup, och karetet följer sin egen titel i stället för att hänga
+    // kvar hos ett förfaderselement.
+    const kedja = (d) => {
+      const t = träd(d);
+      const mitten = t.items.find((i) => i.slug === "b-member");
+      mitten.children = ["alpha/d2"];
+      let förälder = "beta/b-member";
+      ["d2", "d3", "d4"].forEach((slug, i) => {
+        t.items.push(Object.assign({}, mitten, {
+          id: "alpha/" + slug, slug, repo: "acme/alpha", repoName: "Alpha", repoColor: "#e07a5f",
+          title: "Nivå " + (i + 2) + " med en titel som behöver plats", status: "next",
+          parentRef: förälder, parent: null, children: i < 2 ? ["alpha/d" + (i + 3)] : [],
+          progress: i < 2 ? { done: 0, total: 1 } : null,
+        }));
+        förälder = "alpha/" + slug;
+      });
+      return t;
+    };
+    const p = await open("?layout=list&group=parent", { data: kedja, viewport: { width: 390, height: 900 }, hasTouch: true });
+    const läs = () => p.evaluate(() => {
+      const rader = [...document.querySelectorAll(".is-tree .list-row")].map((r) => ({
+        djup: +(getComputedStyle(r).getPropertyValue("--depth") || 0),
+        karet: (() => { const k = r.querySelector(".list-fold"); return k ? Math.round(k.getBoundingClientRect().left) : null; })(),
+        titel: Math.round(r.querySelector(".list-title").getBoundingClientRect().left),
+      }));
+      // Den djupaste raden *med karet*: den allra djupaste är ett löv och har inget, och
+      // en kontroll som hoppar över sig själv när måttet saknas mäter ingenting.
+      return rader.filter((r) => r.karet != null).sort((a, b) => b.djup - a.djup)[0];
+    });
+    const före = await läs();
+    ok(före.djup >= 2, `kedjan når djupet den ska: ${JSON.stringify(före)}`);
+    // Utan att scrolla: den djupaste titeln börjar inne på skärmen. Det är vad indraget
+    // inte får äta upp — raden får ett bredare minimum för trädet just för att golvet
+    // under titeln ska överleva 64px trappa.
+    const vy = await p.evaluate(() => document.documentElement.clientWidth);
+    ok(före.titel > 0 && före.titel < vy,
+      `den djupaste radens titel börjar i bild utan att man scrollar: ${JSON.stringify({ före, vy })}`);
+    // Avståndet mellan karet och titel, inte karetets plats: bägge bor i namncellen, så de
+    // rör sig tillsammans. Som barn till *raden* hängde karetet kvar hos ett
+    // förfaderselement medan cellen rörde sig — samma bild, olika avstånd.
+    await p.evaluate(() => { document.getElementById("work").scrollLeft = 400; });
+    await p.waitForTimeout(150);
+    const efter = await läs();
+    eq(efter.titel - efter.karet, före.titel - före.karet,
+      `karetet följer sin titel: ${JSON.stringify({ före, efter })}`);
+    ok(efter.titel < före.titel, `och hela raden följer scrollen: ${före.titel} → ${efter.titel}`);
+  }
+
+  group("bara namnet ger med sig i rubriken");
+  {
+    // Rubrikens övriga delar är fasta märken — swatchen, räknaren, arkivkontrollen,
+    // rollup-brickan — men ett flex-objekt med en bredd är ändå krympbart, så ett långt
+    // parentnamn tryckt mot rubrikens `100cqw`-tak klämde dem i stället för att ellipsisa
+    // sig självt. Mätt på 393px: swatchen gick från 10px till **0** — färgpricken helt
+    // borta — medan namnet behöll sin fulla bredd.
+    const p = await open("?layout=list&group=parent", { data: träd, viewport: { width: 393, height: 840 }, hasTouch: true });
+    await p.waitForSelector(".list-head");
+    const m = await p.evaluate(() => {
+      const inner = [...document.querySelectorAll(".lh-inner")]
+        .map((e) => ({ e, w: e.getBoundingClientRect().width }))
+        .sort((a, b) => b.w - a.w)[0].e;
+      const bredd = (s) => { const q = inner.querySelector(s); return q ? +q.getBoundingClientRect().width.toFixed(1) : null; };
+      const label = inner.querySelector(".lh-label");
+      return {
+        inner: Math.round(inner.getBoundingClientRect().width),
+        tak: Math.round(parseFloat(getComputedStyle(inner).maxWidth)),
+        swatch: bredd(".swatch"),
+        label: bredd(".lh-label"),
+        labelInne: label ? label.scrollWidth : null,
+      };
+    });
+    eq(m.inner, m.tak, `rubriken ligger mot sitt tak, alltså trängs den: ${JSON.stringify(m)}`);
+    eq(m.swatch, 10, `men swatchen behåller sina 10px: ${JSON.stringify(m)}`);
+    ok(m.labelInne > m.label, `det är namnet som ger med sig i stället: ${JSON.stringify(m)}`);
+
+    // Varje rubrik, inte bara den trängsta. Krympningen är *gradvis* — mätt på den riktiga
+    // tavlan före fixen: 10 där namnet fick plats, sedan 9.3, 7.8, 7.0 och till slut 0.
+    // Ögat läser det som "en prick är borta", men fyra av fem var redan naggade, och en
+    // kontroll som bara ser ytterfallet hade sluppit igenom de andra fyra.
+    const alla = await p.evaluate(() => [...document.querySelectorAll(".lh-inner")].map((inner) => {
+      const sw = inner.querySelector(".swatch");
+      const lbl = inner.querySelector(".lh-label");
+      return { rubrik: (lbl ? lbl.textContent : "").trim().slice(0, 18),
+               swatch: sw ? +sw.getBoundingClientRect().width.toFixed(1) : null };
+    }).filter((x) => x.swatch !== null));
+    ok(alla.length > 1, `det finns flera rubriker att mäta: ${JSON.stringify(alla)}`);
+    eq(alla.filter((x) => x.swatch !== 10).length, 0,
+      `och ingen av dem har en naggad prick: ${JSON.stringify(alla)}`);
+
+    // Baksidan av samma regel, och det första försöket gick rakt i den: en toggle som
+    // *inte* håller namnet (`.lh-toggle--split`, där namnet är dess syskon) håller bara
+    // karetet och swatchen. Låter man den krympa pressas 39px innehåll in i 28px och
+    // swatchen hamnar utanför sin egen låda, ovanpå titelns första bokstav.
+    const utanför = await p.evaluate(() => [...document.querySelectorAll(".lh-toggle")].map((t) => {
+      const sw = t.querySelector(".swatch");
+      if (!sw) return null;
+      return { delad: t.classList.contains("lh-toggle--split"),
+               utstick: Math.round(sw.getBoundingClientRect().right - t.getBoundingClientRect().right) };
+    }).filter(Boolean));
+    ok(utanför.length > 0, `det finns en toggle att mäta: ${JSON.stringify(utanför)}`);
+    eq(utanför.filter((x) => x.utstick > 0).length, 0,
+      `ingen swatch sticker ut ur sin toggle: ${JSON.stringify(utanför)}`);
+  }
+
+  group("ett långt namn ellipsisar i stället för att gå in under märket");
+  {
+    // Rapporterat från en telefon. Regeln ovan gjorde *varje* del av rubriken styv och
+    // fångade därmed också lådorna som håller namnet: `.lh-stub` och `.lh-toggle` är barn
+    // till `h2`. Styva behöll de sin innehållsbredd inne i en krympt förälder och rann ur
+    // den — mätt på riktig data vid 390px: en stub 359px bred inne i ett 246px `h2`, med
+    // namnet 89px in under arkivmärket. Stylesheeten bar redan en kommentar om att precis
+    // det överlappet var fixat en gång; det var det, en låda längre in, och regeln
+    // ovanför bröt det igen en låda längre ut.
+    //
+    // Egen fixtur, för `träd` har ingen stub: den kräver en parent vars *alla* delar är
+    // arkiverade, alltså den ena grenen som ritar en rubrik utan kontroll. Utan den var
+    // kontrollen grön mot sitt eget sabotage — samma tomma kontroll som fallit ut ur den
+    // här filen två gånger förut.
+    const stub = (d) => {
+      const rot = d.items.find((i) => i.slug === "a-parent");
+      const mitten = d.items.find((i) => i.slug === "b-member");
+      rot.title = LONG;
+      rot.children = ["beta/b-member"];
+      rot.progress = { done: 1, total: 1 };
+      mitten.status = "done"; // enda delen, arkiverad → gruppen blir en stubbe
+      return d;
+    };
+    const p = await open("?layout=list&group=parent", { data: stub, viewport: { width: 390, height: 780 } });
+    // Kort väntan och sedan vidare: gruppen påstår själv att det finns en stubbe att mäta,
+    // och en obegränsad `waitForSelector` gör det påståendet till en trettio sekunders
+    // timeout i stället för en mening. (En regel som tar bort stubben ska falla här med
+    // "det finns en stubbe att mäta", inte hänga filen.)
+    await p.waitForSelector(".lh-stub", { timeout: 5000 }).catch(() => {});
+    const m = await p.evaluate(() => [...document.querySelectorAll(".lh-inner")].map((inner) => {
+      const lbl = inner.querySelector(".lh-label");
+      const mark = inner.querySelector(".col-archived");
+      if (!lbl || !mark) return null;
+      return { rubrik: lbl.textContent.trim().slice(0, 16), stub: !!inner.querySelector(".lh-stub"),
+               överlapp: Math.round(lbl.getBoundingClientRect().right - mark.getBoundingClientRect().left) };
+    }).filter(Boolean));
+    ok(m.some((x) => x.stub), `det finns en stubbe att mäta: ${JSON.stringify(m)}`);
+    eq(m.filter((x) => x.överlapp > 0).length, 0,
+      `och inget namn går in under sitt märke: ${JSON.stringify(m)} (styv stubbe: 175px in)`);
+  }
+
+  group("ingen av listans kontroller målar hover på en telefon");
+  {
+    // Rapporterat från en telefon, en bild per kontroll: en mörk ruta runt precis det man
+    // nyss tryckte på. På touch finns ingen pekare som *lämnar*, så `:hover` fastnar efter
+    // tappet. Filen har redan konventionen — elva regler bakom `@media (hover: hover)` —
+    // och listans fäll- och arkivkontroller hade missat den.
+    //
+    // Ett svep, inte fyra namngivna regler: en uppräkning är precis det som missade en låda
+    // i "bara namnet ger med sig" tidigare i dag. Men ett svep är bara så brett som det det
+    // fått att svepa över, så det säger också *vad det såg* — annars smalnar en ändrad
+    // fixtur tyst av kontrollen tills den inte kan falla. Två brädor behövs för att alla
+    // fyra kontrolltyperna ska finnas på skärmen samtidigt.
+    //
+    // `isMobile`, inte bara `hasTouch`: det förra är vad som får `(hover: hover)` att svara
+    // falskt. Med bara `hasTouch` mäter kontrollen en skrivbordsdator och kan inte falla.
+    //
+    // Den tredje brädan har en token, och det är inte en variant utan de enda två
+    // kontrollerna svepet annars aldrig ser: en tom egenskaps chip och datumcellens
+    // trigger ritas bara för den som får skriva. De är också precis det fallet regeln
+    // handlar om — de målar en bakgrund *och* står kvar under fingret — och `.pick-chip`s
+    // egen hover-regel är railens, skriven ovaktad när ett chip bara stod i en yta.
+    const sett = [], målar = [];
+    const gh = githubStub();
+    const brädor = [
+      [träd, {}],
+      [arkiveratBarnbarn, {}],
+      [träd, { token: true, github: gh.handler, query: "&props=priority,agent,target" }],
+    ];
+    for (const [data, extra] of brädor) {
+      const p = await open("?layout=list&group=parent" + (extra.query || ""),
+        { data, viewport: { width: 390, height: 800 }, hasTouch: true, isMobile: true,
+          token: extra.token, github: extra.github });
+      await p.waitForSelector(".lh-toggle");
+      // `loadWritableRepos` avgör om chipet ritas alls, och det svarar över nätet.
+      if (extra.token) await p.waitForSelector(".list-row .pick-chip", { timeout: 5000 });
+      eq(await p.evaluate(() => matchMedia("(hover: hover)").matches), false,
+        "mätningen görs i en vy utan pekare");
+      const cdp = await p.context().newCDPSession(p);
+      await cdp.send("DOM.enable");
+      await cdp.send("CSS.enable");
+      const { root } = await cdp.send("DOM.getDocument");
+      const { nodeIds } = await cdp.send("DOM.querySelectorAll", {
+        nodeId: root.nodeId, selector: ".list-group button, .list-group [role='button']",
+      });
+      for (let i = 0; i < nodeIds.length; i++) {
+        await cdp.send("DOM.setAttributeValue", { nodeId: nodeIds[i], name: "data-sweep", value: String(i) });
+        const läs = () => p.evaluate((m) => {
+          const e = document.querySelector('[data-sweep="' + m + '"]');
+          // Hela klasslistan, inte den första: arkivraden är `list-empty list-archived`,
+          // och den som bär hover-regeln är den andra.
+          return e ? { bg: getComputedStyle(e).backgroundColor, kl: e.className.trim() } : null;
+        }, i);
+        const före = await läs();
+        await cdp.send("CSS.forcePseudoState", { nodeId: nodeIds[i], forcedPseudoClasses: ["hover"] });
+        const efter = await läs();
+        await cdp.send("CSS.forcePseudoState", { nodeId: nodeIds[i], forcedPseudoClasses: [] });
+        if (!före || !efter) continue;
+        if (sett.indexOf(efter.kl) === -1) sett.push(efter.kl);
+        if (före.bg !== efter.bg) målar.push(efter.kl + ": " + före.bg + " → " + efter.bg);
+      }
+    }
+    // Vad svepet faktiskt fick syn på. Utan den här raden räckte det att en fixtur slutade
+    // rita en kontroll för att dess regel skulle sluta vara vaktad, tyst.
+    ["lh-toggle", "list-fold", "list-archived", "col-archived", "pick-chip", "prop-trigger"].forEach(function (k) {
+      ok(sett.some((c) => c.split(" ").indexOf(k) !== -1),
+        `svepet nådde .${k}: ${JSON.stringify(sett)}`);
+    });
+    eq(målar, [], `ingen av dem får en bakgrund av :hover: ${JSON.stringify(målar)}`);
+  }
+
+  group("listan spränger inte sidbredden på en telefon");
+  {
+    // Det här är felet som syntes som "sidbredden breakar": tavlan är ett rutnätsobjekt,
+    // och ett rutnätsobjekts automatiska minimum är dess min-content — vilket i
+    // kolumnläget är 0 bara därför att `overflow-x: auto` gör den till en scrollbehållare.
+    // Listan stänger av det, så det bredaste obrytbara på sidan började bestämma
+    // dokumentets bredd: 652px på en 390px-telefon, med topbaren i 60% av sidan.
+    const p = await open("?layout=list&group=parent", {
+      data: träd, viewport: { width: 390, height: 844 }, hasTouch: true,
+    });
+    const m = await p.evaluate(() => ({
+      doc: document.documentElement.scrollWidth,
+      vw: document.documentElement.clientWidth,
+      // Och ellipsen som alltid var specificerad har äntligen en bredd att arbeta mot.
+      klippt: [...document.querySelectorAll(".lh-label")].some((e) => e.scrollWidth > e.clientWidth + 1),
+    }));
+    eq(m.doc, m.vw, `dokumentet är precis så brett som skärmen (${m.doc} mot ${m.vw})`);
+    ok(m.klippt, "och det långa namnet trunkeras i stället för att skjuta ut sidan");
+  }
+}

@@ -76,7 +76,7 @@ order: 10
 | `tags`    | no       | Areas, e.g. `[editor]`, `[auth]`. Inline array. Used for filtering. |
 | `issue`   | no       | The working issue number in the repo, when the puck is in progress. |
 | `order`   | no       | Manual order **within** a status column (lower = higher up). Falls back to `updated`. |
-| `parent`  | no       | The etapp this puck belongs to: another puck's slug in the same repo, or `owner/repo#slug` anywhere on the board. One line pointing **up** — the level above is a puck with children, not a new file type. Set with `roadmap parent <slug> <parent-slug>` (`--clear` to take it out). |
+| `parent`  | no       | The parent this puck belongs to: another puck's slug in the same repo, or `owner/repo#slug` anywhere on the board. One line pointing **up** — the level above is a puck with children, not a new file type. Set with `roadmap parent <slug> <parent-slug>` (`--clear` to take it out). |
 | `depends` | no       | Inline array of the pucks this one is blocked by — a slug in the same repo, or `owner/repo#slug` anywhere on the board, e.g. `[deploy-simplification, tor2dbear/pia-terminal#vfs]`. The board shows ⛔ until every listed puck is settled. Set with `roadmap depends <slug> +<ref> -<ref>`. |
 | `owner`   | no       | GitHub handle of the owner, e.g. `octocat`. Renders as an avatar on the card and a profile link in the modal. A field, not an assignee database. |
 | `agent`   | no       | Discipline this puck is routed to (`backend`, `design`, `research`, …) — the PO-layer's routing state. A handle, not an orchestrator: a runner reads it from git and picks the matching `agents/<name>.md` profile. Set with `roadmap agent <slug> <name>`. |
@@ -105,6 +105,25 @@ What shipped, and what was consciously left out. (Fill this in when `status: don
 The point of one file per puck: **the research lives in the puck from day one**
 instead of cluttering a shared file. A puck can be as thick as it likes without
 disturbing any other.
+
+### What the board renders
+
+The file is markdown and is read as markdown by anything that opens it. The
+*board* renders a deliberate subset — enough for a puck, and small enough to stay
+escape-first, which is what lets one repo's body be shown safely on another repo's
+board:
+
+`##`–`####` headings · `**bold**` · `*italic*` (nested in each other too) ·
+`` `code` `` · fenced ``` blocks · bullet and numbered lists, **nested by
+indentation** · `[text](url)` and bare URLs · `>` blockquotes · GFM tables
+(a `|---|` delimiter row is required — one hyphen per cell is enough, as in GFM —
+and `:` alignment is honoured).
+
+Outside that subset — raw HTML, images, `---` rules, footnotes — nothing is
+interpreted: **the line is shown as you typed it, on its own line.** It is never
+folded into the paragraph around it, which is the one promise that matters when
+you write something the board does not know. `tests/markdown.fixture.md` is the
+text that holds all of this to it.
 
 ---
 
@@ -145,7 +164,7 @@ job, and it is the test to apply before creating a file:
 |---|---|
 | Found and fixed in the same session | **No puck.** The commit message and a code comment carry the reasoning, and they carry it to the people who will actually meet it. |
 | Found now, to be fixed later | **A puck**, `inbox` or `later`. This is the "log it for later" case, and the only reason a bug becomes one. |
-| A body of work with parts that need ordering | **A puck** — an etapp. The parts need status and sequence, which is what the board is for. |
+| A body of work with parts that need ordering | **A puck** — a parent. The parts need status and sequence, which is what the board is for. |
 
 A `done` puck is normal and belongs on the record — but it should have been a
 promise *first*. Closing something that was already planned is the lifecycle
@@ -221,7 +240,7 @@ nothing and holds nothing up, so its edges count in neither direction.
 A dependency that names nothing keeps blocking and is flagged `depends-missing`.
 That matters: dropping it would call the puck ready while its author believes it is
 blocked — an unknown blocker is not a finished one. A loop is flagged
-`dependency-cycle` on every puck in it; unlike an etapp parent, no single link can be
+`dependency-cycle` on every puck in it; unlike a parent parent, no single link can be
 cut to fix it, so the edges stand and a human decides. A puck depending on itself is
 the same error with one node, kept rather than quietly discarded.
 
@@ -233,7 +252,7 @@ begin with.
 ### The level above (`parent`)
 
 Linear has projects *and* issues; here there is one shape. A puck that other pucks
-point at **is** the etapp — the level above is a relationship, not a second record
+point at **is** the parent — the level above is a relationship, not a second record
 type. That keeps the rule intact: one file per item, and no field that has to agree
 with a field somewhere else.
 
@@ -246,17 +265,28 @@ parent: tor2dbear/pia-terminal#auth   # … or a puck anywhere on the board
 Only the child stores anything. `children` and the rollup ("3/7 done") are derived
 at harvest from the `parent:` lines pointing at a puck — a stored `children:` list
 could disagree with them, and two truths is the one thing this product doesn't do.
-The rollup counts children's real statuses, so an etapp can't claim progress its
+The rollup counts children's real statuses, so a parent can't claim progress its
 pucks don't have.
 
-Depth isn't limited, but two levels is the point: an etapp with its pucks. A link
-that names a puck that doesn't exist, or that closes a loop, is flagged (⚠) and
-ignored rather than half-applied — the board never rewrites your file to fix it.
+Depth isn't limited, and it isn't a special case either: a parent's parts can have
+parts of their own, and the list layout draws them nested one level further in.
+Two levels is still the ordinary shape, not the ceiling. A link that names a puck
+that doesn't exist, or that closes a loop, is flagged (⚠) and ignored rather than
+half-applied — the board never rewrites your file to fix it.
 
-On the board it's a grouping like any other: **Display → Grouping → Etapp** turns the
-columns into etapps, and dragging a card between them writes that one `parent:` line.
-The **Etapp** row picks from a searchable list rather than asking you to spell a slug;
-a puck that would close a loop is left out of it.
+The rollup counts **direct** parts, at every level, so the number over a list is the
+number of rows in it: a reader who sees `3/5` can open the part that says `1/3` and
+the arithmetic stays visible all the way down.
+
+**Display → Grouping → Parent** draws the tree, in the **list** layout — picking it
+switches the layout, because a tree spans statuses and a kanban column has no level
+inside it. Flat facets (status, repo, agent, priority, target) group the board; the one
+hierarchy groups the list.
+
+Membership is written from the **Parent** row in the puck's rail, which picks from a
+searchable list rather than asking you to spell a slug; a puck that would close a loop
+is left out of it. `＋ Add puck` on a parent writes the relation straight into the new
+file.
 
 ---
 
@@ -270,7 +300,7 @@ roadmap start|next|later|done <slug>
 roadmap tag <slug> +add -remove
 roadmap priority <slug> <level>    # urgent|high|medium|low (--clear to remove)
 roadmap target <slug> 2026-11      # the horizon; a month = its last day
-roadmap parent <slug> <etapp-slug> # put it in an etapp (--clear to take it out)
+roadmap parent <slug> <parent-slug> # put it in a parent (--clear to take it out)
 roadmap depends <slug> +a -b       # edit blockers (--clear to remove all)
 roadmap list                       # overview
 roadmap install-hook               # auto-bump `updated` on every commit

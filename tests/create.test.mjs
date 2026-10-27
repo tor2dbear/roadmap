@@ -7,7 +7,7 @@
 // is the thing worth pinning.
 import { githubStub } from "./fixture.mjs";
 import { readFile } from "node:fs/promises";
-import { group, eq, ok } from "./assert.mjs";
+import { group, eq, ok, near } from "./assert.mjs";
 
 const trigger = (page, text) => page.locator(".prop-trigger", { hasText: text });
 
@@ -23,7 +23,7 @@ export async function run({ open }) {
   {
     // The child is the thing being made, so the relation fits in the template.
     const gh = githubStub();
-    const p = await open("#alpha/a-etapp", { token: true, github: gh.handler });
+    const p = await open("#alpha/a-parent", { token: true, github: gh.handler });
     await trigger(p, "Add puck").click();
     await p.waitForTimeout(250);
     await typeIn(p, "Login flow");
@@ -34,10 +34,10 @@ export async function run({ open }) {
     eq(gh.writes.length, 1, "en commit, inte två");
     const w = gh.writes[0];
     eq(w.path, "acme/alpha:roadmap/login-flow.md", "slugen blir filnamnet");
-    ok(w.content.includes("parent: a-etapp"), `relationen står i filen den föds med:\n${w.content}`);
+    ok(w.content.includes("parent: a-parent"), `relationen står i filen den föds med:\n${w.content}`);
     ok(w.content.includes("status: later"),
       "later, inte inbox — att lägga en puck i en etapp *är* att sortera den");
-    eq(await p.evaluate(() => (location.hash || "").slice(1)), "alpha/a-etapp",
+    eq(await p.evaluate(() => (location.hash || "").slice(1)), "alpha/a-parent",
       "och man står kvar där man var");
   }
 
@@ -47,7 +47,7 @@ export async function run({ open }) {
     // are standing in — a second file, and therefore a second write.
     const gh = githubStub();
     const p = await open("#alpha/a-now", { token: true, github: gh.handler });
-    await trigger(p, "Set etapp").click();
+    await trigger(p, "Set parent").click();
     await p.waitForTimeout(250);
     await typeIn(p, "Auth");
     await p.locator(".pick-create").click();
@@ -56,22 +56,22 @@ export async function run({ open }) {
     eq(gh.writes.length, 2, "två commits");
     eq(gh.writes[0].path, "acme/alpha:roadmap/auth.md", "etappen skapas först");
     eq(gh.writes[1].path, "acme/alpha:roadmap/a-now.md", "och länken skrivs på pucken vi stod i");
-    ok(gh.writes[1].content.includes("parent: auth"), `länken pekar på den nya etappen:\n${gh.writes[1].content}`);
+    ok(gh.writes[1].content.includes("parent: auth"), `länken pekar på den nya föräldern:\n${gh.writes[1].content}`);
     ok(!gh.writes[0].content.includes("parent:"),
-      "den nya etappen får ingen förälder — den *är* föräldern");
+      "den nya föräldern får ingen förälder — den *är* föräldern");
     eq(await p.evaluate(() => (location.hash || "").slice(1)), "alpha/a-now", "man står kvar");
   }
 
   group("en titel som redan finns erbjuds inte som ny");
   {
-    // A row that would make a second "An etapp" beside the "An etapp" listed above it
+    // A row that would make a second "A parent" beside the "A parent" listed above it
     // is an invitation to a duplicate, not a shortcut.
     const gh = githubStub();
     const p = await open("#alpha/a-now", { token: true, github: gh.handler });
-    await trigger(p, "Set etapp").click();
+    await trigger(p, "Set parent").click();
     await p.waitForTimeout(250);
-    await typeIn(p, "An etapp");
-    eq(await rows(p), ["An etapp"], "bara den befintliga");
+    await typeIn(p, "A parent");
+    eq(await rows(p), ["A parent"], "bara den befintliga");
     eq(await p.locator(".pick-create").count(), 0, "ingen skaparad");
 
     // And the guard is about an exact title, not about having found something.
@@ -84,7 +84,7 @@ export async function run({ open }) {
     // Every write path re-asks for the token, so nothing breaks without one — but a
     // control that only fails when you press it is decoration, not a gate.
     const p = await open("#alpha/a-now");
-    eq(await trigger(p, "Set etapp").count(), 0, "skenan är inte ens redigerbar");
+    eq(await trigger(p, "Set parent").count(), 0, "skenan är inte ens redigerbar");
   }
 
   group("dubbletten mäts där filen ska ligga");
@@ -94,7 +94,7 @@ export async function run({ open }) {
     // the whole cross-repo pool and hid the row for exactly that case.
     const gh = githubStub();
     const p = await open("#alpha/a-now", { token: true, github: gh.handler });
-    await trigger(p, "Set etapp").click();
+    await trigger(p, "Set parent").click();
     await p.waitForTimeout(250);
     await typeIn(p, "b-later");
     ok((await rows(p)).some((r) => r.startsWith("b-later")), "den finns i listan, från beta");
@@ -107,7 +107,7 @@ export async function run({ open }) {
     // to an etapp in a repo one cannot write. Creating always writes to the etapp's own
     // repo, so the row would promise a commit that is rejected on arrival.
     const gh = githubStub({ readOnly: ["acme/alpha"] });
-    const p = await open("#alpha/a-etapp", { token: true, github: gh.handler });
+    const p = await open("#alpha/a-parent", { token: true, github: gh.handler });
     await p.waitForTimeout(700); // the permissions probe is a fetch; before it lands, unknown means writable
     eq(await trigger(p, "Add puck").count(), 1, "väljaren står kvar — ett barn i beta går att lägga till");
     await trigger(p, "Add puck").click();
@@ -121,9 +121,9 @@ export async function run({ open }) {
   {
     // The old condition needed an existing candidate, so an etapp with none had no
     // picker — and therefore no way to make the very first one.
-    const only = (d) => { d.items = d.items.filter((i) => i.slug === "a-etapp"); d.items[0].children = []; d.total = 1; return d; };
+    const only = (d) => { d.items = d.items.filter((i) => i.slug === "a-parent"); d.items[0].children = []; d.total = 1; return d; };
     const gh = githubStub();
-    const p = await open("#alpha/a-etapp", { token: true, github: gh.handler, data: only });
+    const p = await open("#alpha/a-parent", { token: true, github: gh.handler, data: only });
     eq(await trigger(p, "Add puck").count(), 1, "väljaren finns fast ingen kandidat gör det");
     await trigger(p, "Add puck").click();
     await p.waitForTimeout(250);
@@ -132,7 +132,7 @@ export async function run({ open }) {
     await p.locator(".pick-create").click();
     await p.waitForTimeout(600);
     eq(gh.writes.length, 1, "en commit");
-    ok(gh.writes[0].content.includes("parent: a-etapp"), "med relationen i filen");
+    ok(gh.writes[0].content.includes("parent: a-parent"), "med relationen i filen");
   }
 
   group("etappen man står kvar på ritas om");
@@ -142,7 +142,7 @@ export async function run({ open }) {
     // the board left its Contains list and its rollup describing the state from before
     // the click. The card behind it updated; the page in front of it did not.
     const gh = githubStub();
-    const p = await open("#alpha/a-etapp", { token: true, github: gh.handler });
+    const p = await open("#alpha/a-parent", { token: true, github: gh.handler });
     const page = () => p.evaluate(() => ({
       contains: [...document.querySelectorAll(".members .row, .members a, .member-row")]
         .map((e) => e.textContent.replace(/\s+/g, " ").trim()),
@@ -167,7 +167,7 @@ export async function run({ open }) {
   {
     // The rollback is as visible as the addition was, and only a rejected write shows it.
     const gh = githubStub({ failWrites: true });
-    const p = await open("#alpha/a-etapp", { token: true, github: gh.handler });
+    const p = await open("#alpha/a-parent", { token: true, github: gh.handler });
     // A failed write must not also be a thrown one. `＋ Add puck` fires and forgets, so
     // a rejecting promise would land in the console as an uncaught error on top of the
     // toast — this group ran green through exactly that, because it never looked.
@@ -187,7 +187,7 @@ export async function run({ open }) {
     }));
     eq(after.contains.length, 1, `Contains är tillbaka: ${JSON.stringify(after.contains)}`);
     ok(after.rollup.every((r) => r === "0/1"), `och siffran med: ${JSON.stringify(after.rollup)}`);
-    eq(after.still, "alpha/a-etapp", "och etappen är fortfarande öppen — inte stängd av felvägen");
+    eq(after.still, "alpha/a-parent", "och etappen är fortfarande öppen — inte stängd av felvägen");
     eq(loud, [], "och ingenting kastades obehandlat");
   }
 
@@ -204,7 +204,7 @@ export async function run({ open }) {
       return d;
     };
     const gh = githubStub();
-    const p = await open("#alpha/a-etapp", { token: true, github: gh.handler, data: adapted });
+    const p = await open("#alpha/a-parent", { token: true, github: gh.handler, data: adapted });
     eq(await trigger(p, "Add puck").count(), 1, "väljaren står kvar — ett barn i beta går att lägga till");
     await trigger(p, "Add puck").click();
     await p.waitForTimeout(250);
@@ -320,7 +320,7 @@ export async function run({ open }) {
       document.body.innerText.split("\n").filter((l) => l.includes("doesn’t exist")).map((l) => l.trim()));
     eq((await said()).length, 1, "klagan står där först");
 
-    await trigger(p, /^⋯$|^Set etapp$/).click();
+    await trigger(p, /^⋯$|^Set parent$/).click();
     await p.waitForTimeout(250);
     await typeIn(p, "Foo");
     await p.locator(".pick-create").click();
@@ -336,13 +336,13 @@ export async function run({ open }) {
     // controls that had just proved they do not work.
     const gh = githubStub({ failWrites: true });
     const p = await open("#alpha/a-now", { token: true, github: gh.handler });
-    eq(await trigger(p, /^Set etapp$/).count(), 1, "skenan är redigerbar till att börja med");
-    await trigger(p, /^Set etapp$/).click();
+    eq(await trigger(p, /^Set parent$/).count(), 1, "skenan är redigerbar till att börja med");
+    await trigger(p, /^Set parent$/).click();
     await p.waitForTimeout(250);
     await typeIn(p, "Doomed");
     await p.locator(".pick-create").click();
     await p.waitForTimeout(1200);
-    eq(await trigger(p, /^Set etapp$/).count(), 0,
+    eq(await trigger(p, /^Set parent$/).count(), 0,
       "och kontrollerna är borta när repot visat sig skrivskyddat");
   }
 
@@ -368,9 +368,9 @@ export async function run({ open }) {
 
     // Pick the existing etapp rather than creating one: the create would fail on its own
     // first write, and the flag we are chasing is restored by the *link's* rollback.
-    await trigger(p, /^⋯$|^Set etapp$/).click();
+    await trigger(p, /^⋯$|^Set parent$/).click();
     await p.waitForTimeout(250);
-    await typeIn(p, "An etapp");
+    await typeIn(p, "A parent");
     await p.locator(".pick-mi").first().click();
     await p.waitForTimeout(1000);
     eq(await flagged(), ["parent-missing"], "och står kvar när skrivningen nekats");
@@ -449,8 +449,10 @@ export async function run({ open }) {
       return d;
     };
     const gh = githubStub();
-    const p = await open("", { data: demoIssue, github: gh.handler });
-    await p.locator(".card").first().click();
+    // Named rather than "the first card": which puck lands first depends on the
+    // fixture's titles sorting against each other, so renaming an unrelated one used
+    // to open a different puck here and the failure read as a missing Discussion tab.
+    const p = await open("#alpha/a-now", { data: demoIssue, github: gh.handler });
     await p.waitForSelector(".tab-btn");
 
     const tabs = await p.$$eval(".tab-btn", (n) => n.map((b) => b.textContent.trim()));
@@ -481,7 +483,9 @@ export async function run({ open }) {
     await p.keyboard.press("Escape");
     await p.waitForTimeout(300);
     p.on("dialog", (d) => d.accept());
-    await p.locator(".card").nth(1).click();
+    // Named, for the same reason as above: this half needs a puck *without* an issue,
+    // and "the second card" only happened to be one.
+    await p.locator(".card").filter({ hasText: "a-now-2" }).first().click();
     await p.waitForSelector('.prop[data-field="issue"]');
     await p.locator('.prop[data-field="issue"] button').first().click();
     await p.waitForSelector(".pop, .sheet");
@@ -540,5 +544,165 @@ export async function run({ open }) {
     const kvitto = await p2.evaluate(() => ((document.querySelector(".toast") || {}).textContent || "").trim());
     ok(/in this browser only/.test(kvitto), `raderingens kvitto lovar inget mer: ${JSON.stringify(kvitto)}`);
     eq(gh2.writes, [], `och ingenting nådde GitHub (${gh2.writes.length})`);
+  }
+
+  group("kroppseditorn lämnar ifrån sig exakt det som öppnades");
+  {
+    // Den här gruppen bytte innehåll efter ett fynd på enhet, och bytet är poängen.
+    //
+    // Editorn var en `contenteditable="plaintext-only"` ett tag, för att komma undan
+    // iOS 16px-golv. Mätt på telefonen zoomade en 14px editable div sidan med 1,147 —
+    // 16/14 är 1,143 — så golvet gäller det fokuserade *redigerbara elementet*, inte
+    // taggen. Den ändringen är återställd.
+    //
+    // Vad den kostade under tiden är den egentliga lärdomen: i Safari stod kroppen som
+    // en enda hopklistrad klump, eftersom `white-space: pre-wrap` togs bort efter att
+    // ha mätts som verkningslös i Chromium — där sätter motorns egen stilmall den, i
+    // Safari inte. Ett Save hade skrivit den klumpen till .md-filen.
+    //
+    // Den gamla gruppen kunde inte fånga det. Den skrev *ny* text med tangentbordet
+    // och kollade en beräknad `white-space`. Det som gick sönder var att öppna en
+    // *befintlig* flerradig kropp och spara den orörd — så det är vad som mäts nu,
+    // genom commiten. Ett påstående om utfallet överlever ett byte av mekanism; ett
+    // påstående om mekanismen gör det inte.
+    const gh = githubStub();
+    const kropp = "## Goal\nFörsta stycket.\n\n- Punkt\n  - Under, med två inledande blanksteg\n\n## Research\nSista stycket.";
+    const data = (d) => { d.items.find((i) => i.slug === "a-now").body = kropp; return d; };
+    const p = await open("#alpha/a-now", { token: true, github: gh.handler, data });
+    await p.locator(".body-edit").click();
+    await p.waitForSelector(".body-editor");
+
+    // Kontraktet är inte ett tal utan en likhet: editorn ska bära texten den ersätter.
+    // Mätt mot en riktig `.modal-body` i samma pane, inte mot en hårdkodad siffra —
+    // annars mäter kontrollen att någon skrev 16 på två ställen, inte att de hör ihop.
+    const mät = (page) => page.evaluate(() => {
+      const e = document.querySelector(".body-editor");
+      const läst = document.createElement("div");
+      läst.className = "modal-body";
+      läst.style.position = "absolute";
+      document.querySelector(".detail-content").appendChild(läst);
+      const r = getComputedStyle(läst);
+      const ut = {
+        tagg: e.tagName.toLowerCase(),
+        storlek: getComputedStyle(e).fontSize,
+        familj: getComputedStyle(e).fontFamily,
+        radhöjd: getComputedStyle(e).lineHeight,
+        rStorlek: r.fontSize, rFamilj: r.fontFamily, rRadhöjd: r.lineHeight,
+      };
+      läst.remove();
+      return ut;
+    });
+
+    const box = await mät(p);
+    eq(box.tagg, "textarea", "en textarea, som bevarar radbrytningar utan hjälp av CSS");
+    eq(box.storlek, box.rStorlek, `samma storlek som texten den ersätter (${box.storlek})`);
+    eq(box.familj, box.rFamilj, "och samma typsnitt — mono var andra halvan av hoppet");
+    eq(box.radhöjd, box.rRadhöjd, "och samma radhöjd, så texten inte ens flyttar sig");
+
+    // Rör ingenting. Att öppna och spara ska vara en nulloperation.
+    await p.locator(".body-edit-actions .primary").click();
+    await p.waitForTimeout(600);
+    eq(gh.writes.length, 1, "en commit");
+    const skrivet = gh.writes[0].content;
+    ok(skrivet.includes(kropp),
+      `en orörd kropp kommer ut tecken för tecken som den gick in:\n${JSON.stringify(skrivet)}`);
+    ok(!/Goal Första/.test(skrivet),
+      `raderna klistras inte ihop — det var precis vad Safari gjorde med contenteditable-varianten:\n${JSON.stringify(skrivet)}`);
+
+    // Och på telefon, där hela frågan uppstod. Kroppen är lång här med flit: det är en
+    // lång kropp som avslöjar bägge felen nedan, och en kort som döljer dem.
+    const lång = Array.from({ length: 40 }, (_, i) => `Stycke ${i + 1} i en puck som är för lång för en skärm.`).join("\n\n");
+    const långData = (d) => { d.items.find((i) => i.slug === "a-now").body = lång; return d; };
+    const mobil = await open("#alpha/a-now", { token: true, github: gh.handler, data: långData, viewport: { width: 390, height: 844 } });
+    await mobil.locator(".body-edit").click();
+    await mobil.waitForSelector(".body-editor");
+    await mobil.waitForTimeout(200);
+
+    // Likheten ska hålla här också, men *vilket* tal den landar på är inte fritt: iOS
+    // zoomar in allt redigerbart under 16px, så det är läsningen som lyfts dit och
+    // inte skrivandet som sänks.
+    const m = await mät(mobil);
+    eq(m.storlek, "16px", "på telefon är editorn 16px — golvet iOS kräver av allt redigerbart");
+    eq(m.rStorlek, "16px", "och läsningen är lyft dit, så det inte finns något hopp kvar");
+    eq(m.familj, m.rFamilj, "fortfarande samma typsnitt");
+
+    // Och på en bred pekskärm — en iPad, eller en telefon i landskap. Golvet gäller
+    // *fokuserad redigering*, inte en viewportbredd, så en regel som bara frågar efter
+    // bredd svarar för en telefon i porträtt och för ingenting annat: editorn hade
+    // fallit till 14px och zoomat igen, på precis den enhetsklass där läsning och
+    // skrivande just blivit samma text. Hittat av Codex på PR #40.
+    const platta = await open("#alpha/a-now", {
+      token: true, github: gh.handler, data: långData,
+      viewport: { width: 1024, height: 768 }, hasTouch: true,
+    });
+    await platta.locator(".body-edit").click();
+    await platta.waitForSelector(".body-editor");
+    const t = await mät(platta);
+    eq(t.storlek, "16px", "en bred pekskärm får golvet, inte 14px");
+    eq(t.rStorlek, t.storlek, "och läsningen följer med, så hoppet inte kommer tillbaka där");
+
+    // Och var den hamnar. Att fokusera ett fält scrollar det i sikte mot *layout*-vyn,
+    // som inte vet att ett tangentbord täcker nedre halvan — och autoGrow gör lådan
+    // tusentals pixlar hög efter den scrollen. Mätt före fixen: toppen landade 498px
+    // ner på en 844px-vy, alltså helt under tangentbordet. Ingen webbläsare här har ett
+    // tangentbord, så kontrollen mäter det som *går* att mäta: att toppen står i det
+    // översta bandet i stället för långt ner på sidan.
+    const plats = await mobil.evaluate(() => ({
+      topp: Math.round(document.querySelector(".body-editor").getBoundingClientRect().top),
+      barH: Math.round(document.querySelector(".topbar").getBoundingClientRect().height),
+      höjd: Math.round(document.querySelector(".body-editor").getBoundingClientRect().height),
+    }));
+    ok(plats.höjd > 844, `lådan är längre än skärmen, annars mäter kontrollen ingenting (${plats.höjd})`);
+    near(plats.topp, plats.barH + 8, 12,
+      `editorns topp står strax under topbaren, inte nedanför tangentbordet (${plats.topp})`);
+  }
+
+  group("en ändring på ett barnbarn stannar hos dess egen förälder");
+  {
+    // `progress` räknas på två ställen — i skördaren och optimistiskt här i tavlan — och
+    // det som gör kopian farlig är att den kan råka mäta något *annat* utan att någon
+    // märker det förrän nästa skörd rättar tavlan en timme senare. Så måttet mäts här:
+    // direkta barn, en nod. Ett barnbarn som blir klart flyttar mellannodens tal, för
+    // det är mellannodens barn; roten står stilla, för det roten räknar är mellannodens
+    // status, och den rörde sig inte.
+    //
+    // Sabotaget som fäller den här: låt kopian räkna underträdet i stället, så blir
+    // roten 1/2 — ett tal som inte går att härleda ur raden under den.
+    const träd = (d) => {
+      const rot = d.items.find((i) => i.slug === "a-parent");
+      const mitten = d.items.find((i) => i.slug === "b-member");
+      const barnbarn = Object.assign({}, mitten, {
+        id: "alpha/a-gc", slug: "a-gc", repo: "acme/alpha", repoName: "Alpha", title: "Barnbarnet",
+        status: "next", parent: "acme/beta#b-member", parentRef: "beta/b-member",
+        children: [], progress: null, order: 10,
+      });
+      mitten.children = ["alpha/a-gc"];
+      mitten.progress = { done: 0, total: 1 };
+      rot.children = ["beta/b-member"];
+      rot.progress = { done: 0, total: 1 }; // ett direkt barn: mitten
+      d.items.push(barnbarn);
+      return d;
+    };
+    const gh = githubStub();
+    const p = await open("#alpha/a-gc", { token: true, github: gh.handler, data: träd });
+    await p.waitForSelector('.prop[data-field="status"]');
+    await p.locator('.prop[data-field="status"] button').first().click();
+    await p.waitForSelector(".pop, .sheet");
+    await p.locator(".pop, .sheet").getByText(/^Done$/).first().click();
+    await p.waitForTimeout(700);
+
+    const tal = await p.evaluate(() => {
+      const ut = {};
+      document.querySelectorAll(".card").forEach((c) => {
+        const t = (c.querySelector("h3") || {}).textContent.trim();
+        const r = c.querySelector(".rollup");
+        if (r) ut[t] = r.textContent.trim();
+      });
+      return ut;
+    });
+    eq(tal["b-member"], "1/1",
+      `mellannoden räknar om när dess eget barn blir klart: ${JSON.stringify(tal)}`);
+    eq(tal["A parent"], "0/1",
+      "och roten står stilla — dess enda del är fortfarande öppen, och säger det själv");
   }
 }

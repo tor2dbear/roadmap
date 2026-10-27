@@ -9,7 +9,12 @@ const acts = (p) => p.evaluate(() => {
   const row = document.getElementById("chipRow");
   return {
     hidden: row.hidden,
-    acts: [...row.querySelectorAll(".fchip-acts button")].map((e) => e.textContent.trim()),
+    // Åtgärderna ligger på Filter/Display-raden sedan en vy kan vara enbart en display;
+    // `Clear all` stannar hos chipsen. Kontrollerna frågar *vilka* åtgärder brädan
+    // erbjuder, inte var de står, så läsaren tar bägge platserna i skärmens ordning —
+    // placeringen har en egen kontroll i `chrome.test.mjs`.
+    acts: [...document.querySelectorAll("#viewActs button, #chipRow .fchip-acts button")]
+      .map((e) => e.textContent.trim()),
   };
 });
 
@@ -33,6 +38,96 @@ async function saveFromTitle(p) {
 }
 
 export async function run({ open }) {
+  group("vyns åtgärder står på Filter/Display-raden, chipsraden bär bara chips");
+  {
+    // Rapporterat från en telefon, med en pil ritad från `Save view` upp till den tomma
+    // ytan bredvid Display: en vy kan vara enbart en display nu, och då höll chipsraden
+    // en högerställd knapp och ingenting annat. Kodens egen kommentar hade redan skrivit
+    // ner varför den inte kunde gömma sig — den bar Reset och Update åt just den vyn — så
+    // flytten är vad som släpper den fri.
+    const las = (p) => p.evaluate(() => {
+      const r = document.getElementById("chipRow");
+      return {
+        pa_raden: [...document.querySelectorAll("#viewActs button")].map((e) => e.textContent.trim()),
+        i_chipsraden: [...document.querySelectorAll("#chipRow .fchip-acts button")].map((e) => e.textContent.trim()),
+        bandet: r && !r.hidden ? Math.round(r.getBoundingClientRect().height) : 0,
+      };
+    });
+    const telefon = { token: true, viewport: { width: 390, height: 780 }, hasTouch: true };
+
+    // Enbart en layout är ingen vy att erbjuda. Det var den rapporterade halvan: när
+    // layouten slutade räknas som en display-ändring sa pricken "ingenting ändrat" medan
+    // chipsraden erbjöd att spara — två ytor, en fråga, olika svar.
+    const l = await open("?layout=list", telefon);
+    eq(await las(l), { pa_raden: [], i_chipsraden: [], bandet: 0 },
+      "en bräda som bara läses som lista erbjuder ingenting att namnge");
+
+    // Enbart en gruppering: erbjudandet finns, bandet gör det inte.
+    const g = await open("?layout=list&group=repo", telefon);
+    eq(await las(g), { pa_raden: ["Save view"], i_chipsraden: [], bandet: 0 },
+      "en display-ändring: knappen på raden, ingen chipsrad alls");
+
+    // `Clear all` är chipsens egen bulk-✕ och stannar där de står.
+    const f = await open("?q=priority%3Ahigh%20status%3Anow", telefon);
+    const tva = await las(f);
+    eq(tva.pa_raden, ["Save view"], "Save view står kvar på raden med två filter");
+    eq(tva.i_chipsraden, ["Clear all"], "men Clear all stannar hos chipsen");
+    ok(tva.bandet > 0, "och då finns chipsraden, för den har chips: " + tva.bandet);
+  }
+
+  group("ett långt vynamn kapas, det klämmer inte ut raden");
+  {
+    // Codex P2 om raden åtgärderna nyss flyttade till. Ett vynamn är obundet — varken
+    // spar- eller döpvägen kapar det — och `Update “<namn>”` bär det. Orsaken de pekar ut
+    // stämmer; utfallet blev ett annat och värre: knappen radbröt till en sexradig ballong
+    // som sprängde raden. Med `nowrap` men utan `min-width: 0` sprang den i stället 250px
+    // förbi ett 390px-fönster och blev oåtkomlig bakom `.app`s klippning — alltså precis
+    // det de förutsåg. Bägge nivåerna behövs: en flexitems automatiska minimum är dess
+    // innehåll, så `.vacts` kan inte krympa inuti en `.vopts` som inte heller får det.
+    const langt = "Allt som blockerar release och behöver granskas först";
+    const stall = async (namn) => {
+      const p = await open("", { token: true, viewport: { width: 1000, height: 780 },
+        data: (d) => { d.config.views = [{ name: namn, q: "priority:high" }]; return d; } });
+      await p.getByRole("button", { name: new RegExp("^" + namn.slice(0, 10)) }).first().click();
+      await p.waitForTimeout(300);
+      // Gör vyn "ändrad" utan att röra filtret — det är just den vyn åtgärderna flyttade
+      // för, den vars alla ändringar är display-ändringar.
+      await p.locator("#displayBtn").click();
+      await p.waitForSelector(".pop, .sheet");
+      await p.locator(".pop, .sheet").getByText("Grouping", { exact: true }).click();
+      await p.locator(".pop, .sheet").getByText("Repo", { exact: true }).first().click();
+      await p.waitForTimeout(300);
+      await p.keyboard.press("Escape");
+      await p.waitForTimeout(150);
+      await p.setViewportSize({ width: 390, height: 780 });
+      await p.waitForTimeout(400);
+      return p.evaluate(() => {
+        const u = document.querySelector("#viewActs .fchip-save");
+        const r = document.querySelector("#viewActs .fchip-clear");
+        const b = u.getBoundingClientRect();
+        return {
+          helText: u.textContent.trim(),
+          kapad: u.scrollWidth > u.clientWidth + 1,
+          enRad: Math.round(b.height) <= 34,
+          inomFonstret: Math.round(b.right) <= window.innerWidth,
+          resetBredd: Math.round(r.getBoundingClientRect().width),
+        };
+      });
+    };
+
+    const l = await stall(langt);
+    eq({ kapad: l.kapad, enRad: l.enRad, inom: l.inomFonstret }, { kapad: true, enRad: true, inom: true },
+      "långt namn: kapat, en rad, innanför fönstret");
+    eq(l.helText, "Update “" + langt + "”",
+      "men hela namnet står kvar i DOM:en, så en skärmläsare vet vilken vy den uppdaterar");
+    ok(l.resetBredd > 35, `och Reset behåller sitt ord — bara namnet ger: ${l.resetBredd}px`);
+
+    // Och inget kapas när det finns plats.
+    const k = await stall("High");
+    eq({ kapad: k.kapad, text: k.helText }, { kapad: false, text: "Update “High”" },
+      "kort namn kapas inte");
+  }
+
   group("en orörd inbyggd vy erbjuder inget att spara");
   {
     // Reported from a phone, with a red arrow at the button: standing in "Ready to
@@ -43,11 +138,17 @@ export async function run({ open }) {
     const cases = [
       ["", { hidden: true, acts: [] }, "standardbrädan"],
       ["?view=ready", { hidden: true, acts: [] }, "Ready, orörd"],
-      ["?view=etapps", { hidden: true, acts: [] }, "Etapps, orörd"],
+      ["?view=parents", { hidden: true, acts: [] }, "Etapps, orörd"],
       // A refinement on top of a built-in view *is* yours, and every kind counts —
       // a view can be nothing but a grouping or a sort.
-      ["?view=ready&group=repo", { hidden: false, acts: ["Save view"] }, "Ready + gruppering"],
-      ["?view=ready&sort=title", { hidden: false, acts: ["Save view"] }, "Ready + sortering"],
+      //
+      // `hidden: true` with an action offered is not a contradiction any more: the
+      // actions moved to the Filter/Display row, so the chip row means what it is named
+      // after again. It used to have to stay open to carry them, which is the compromise
+      // its own comment described — a 49px band on a 390px phone holding one
+      // right-aligned button and nothing else.
+      ["?view=ready&group=repo", { hidden: true, acts: ["Save view"] }, "Ready + gruppering"],
+      ["?view=ready&sort=title", { hidden: true, acts: ["Save view"] }, "Ready + sortering"],
       ["?view=ready&q=priority%3Ahigh", { hidden: false, acts: ["Save view"] }, "Ready + filter"],
       ["?q=priority%3Ahigh", { hidden: false, acts: ["Save view"] }, "filter utan vy"],
     ];
@@ -123,15 +224,29 @@ export async function run({ open }) {
     eq(new URL(p.url()).search, "?view=ready",
       `och den skrivs inte till URL:en där den inte gör något (${new URL(p.url()).search})`);
 
-    // Dropping it from the URL must not drop the setting, or the fix trades a false
-    // "changed" for a real lost preference. `state.showDone` is what carries it through
-    // a navigation, so stepping back has to bring the archive with you.
-    // (localStorage is *not* what does it here: `roadmap-done` is written when you flip
-    // the switch, not when a link sets it — which is why this asserts the round trip
-    // rather than the stored key.)
+    // Att den försvinner ur URL:en får inte betyda att inställningen är borta — annars
+    // byter fixen en falsk "ändrad" mot en verklig förlorad preferens. Vad som *bär*
+    // den genom en navigering skrevs om av `vyn-minns-sin-egen-display`: `state` gjorde
+    // det förr, för alla vyer på en gång, vilket var precis den smittan. Nu är det vyns
+    // eget minne — och en flagga som kom från en länk står inte i det, för en länk
+    // skriver aldrig ditt minne ("someone else's view shouldn't quietly become yours").
     await p.getByRole("button", { name: /^All pucks/ }).first().click();
     await p.waitForTimeout(250);
-    eq(new URL(p.url()).search, "?done=1", "och den kommer tillbaka i en vy som kan använda den");
+    eq(new URL(p.url()).search, "", "en flagga man bara fick i en länk följer inte med tillbaka");
+
+    // Fälld i Display-menyn är den din, och då kommer den tillbaka. Det är den halvan
+    // som säger att den fortfarande är en *inställning* och inte ett filter.
+    await p.getByRole("button", { name: /Display/ }).first().click();
+    await p.waitForTimeout(200);
+    await p.locator('label.fp-toggle[data-key="showDone"]').click();
+    await p.waitForTimeout(250);
+    await p.keyboard.press("Escape");
+    eq(new URL(p.url()).search, "?done=1", "växeln slår igenom på All pucks");
+    await p.getByRole("button", { name: /^Ready/ }).first().click();
+    await p.waitForTimeout(250);
+    await p.getByRole("button", { name: /^All pucks/ }).first().click();
+    await p.waitForTimeout(250);
+    eq(new URL(p.url()).search, "?done=1", "och den kommer tillbaka i den vy den gjordes i");
     eq((await acts(p)).acts, ["Save view"], "med sin knapp igen");
   }
 
@@ -241,11 +356,74 @@ export async function run({ open }) {
     await p.waitForTimeout(300);
     const seen = await p.evaluate(() => ({
       url: location.search,
-      acts: [...document.querySelectorAll("#chipRow .fchip-acts button")].map((e) => e.textContent.trim()),
+      acts: [...document.querySelectorAll("#viewActs button, #chipRow .fchip-acts button")].map((e) => e.textContent.trim()),
       title: (document.querySelector("#viewTitleBtn, #topTitleBtn") || {}).textContent.replace(/\s+/g, " ").trim(),
     }));
     eq(seen.acts, [], "en orörd sparad vy erbjuder varken Reset eller Update");
     ok(!/edited/.test(seen.title), `och titeln säger inte att den är ändrad: ${JSON.stringify(seen.title)}`);
     eq(seen.url, "?view=inbox", "den redundanta nyckeln normaliseras bort ur URL:en också");
+  }
+
+  group("namnbytet bryter inte det som redan är skrivet");
+  {
+    // "Etapp" var samma ord som produkten heter, och namnet dolde funktionen: det gick
+    // att gruppera på parent hela tiden, men ingen hittade grupperingen. Bytet är
+    // ytligt — filformatet sa redan `parent:` — men två stavningar ligger i länkar
+    // folk redan skickat och i sparade vyer som redan är committade, och det är dem
+    // det här håller vid liv.
+    const p = await open("?view=etapps");
+    const vy = await p.evaluate(() => ({
+      titel: (document.getElementById("viewTitle") || {}).textContent.trim(),
+      rader: [...document.querySelectorAll(".side-views .focus-label")].map((e) => e.textContent.trim()),
+    }));
+    eq(vy.titel, "Parents", `?view=etapps landar i den rad som ersatte den: ${JSON.stringify(vy.titel)}`);
+    ok(vy.rader.indexOf("Parents") !== -1 && vy.rader.indexOf("Etapps") === -1,
+      `sidofältet säger Parents och inte Etapps: ${JSON.stringify(vy.rader)}`);
+
+    // `is:etapp` kanoniseras vid parsning i stället för att registreras som ett andra
+    // predikat — annars fungerar termen men facetten kan inte kryssa raden den valde,
+    // för panelen slår upp sina värden på namn. Det var precis vad `is:orphan` gjorde,
+    // och den ligger i samma tabell nu.
+    for (const [gammal, ny] of [["is:etapp", "is:parent"], ["is:orphan", "is:standalone"]]) {
+      const q = await open("?q=" + encodeURIComponent(gammal));
+      const ut = await q.evaluate(() => ({
+        url: new URLSearchParams(location.search).get("q"),
+        kort: document.querySelectorAll(".card").length,
+      }));
+      eq(ut.url, ny, `${gammal} skrivs om till ${ny} i URL:en`);
+      ok(ut.kort > 0, `${gammal} matchar fortfarande kort (${ut.kort})`);
+    }
+
+    // En sparad vy är den svårare halvan av samma löfte, och den var trasig när det
+    // här skrevs första gången: `paramsOf()` normaliserar en sparad vys parametrar
+    // genom `effectiveParams()`, som körde *före* omskrivningen. Ett lagrat `etapps`
+    // jämfördes alltså mot det levande `parents` och läste som ändrat i samma stund
+    // vyn öppnades — och tappade sin arkivflagga på vägen, för `ARCHIVABLE` har inget
+    // `etapps` längre. Omskrivningen ligger i normaliseraren nu, som bägge går genom.
+    const gammalVy = (d) => {
+      d.config = d.config || {};
+      d.config.views = [{ name: "Gamla etapper", view: "etapps", done: "1" }];
+      return d;
+    };
+    const sv = await open("", { token: true, data: gammalVy });
+    await sv.getByRole("button", { name: /Gamla etapper/ }).first().click();
+    await sv.waitForTimeout(300);
+    const sedd = await sv.evaluate(() => ({
+      url: location.search,
+      acts: [...document.querySelectorAll("#viewActs button, #chipRow .fchip-acts button")].map((e) => e.textContent.trim()),
+      titel: (document.querySelector("#viewTitleBtn, #topTitleBtn") || {}).textContent.replace(/\s+/g, " ").trim(),
+    }));
+    eq(sedd.acts, [], "en sparad vy med det gamla namnet läser inte som ändrad");
+    ok(!/edited/.test(sedd.titel), `och titeln säger inte att den är ändrad: ${JSON.stringify(sedd.titel)}`);
+    ok(/done=1/.test(sedd.url), `arkivflaggan överlever omskrivningen: ${JSON.stringify(sedd.url)}`);
+    ok(/view=parents/.test(sedd.url), `och vyn är den nya: ${JSON.stringify(sedd.url)}`);
+
+    // Och etiketterna, som är hela poängen: kolumnen som höll alla föräldrar hette
+    // "No etapp", vilket läste bakvänt — en förälder *har* ingen förälder.
+    const g = await open("?group=parent&layout=list");
+    const rubriker = await g.evaluate(() =>
+      [...document.querySelectorAll(".list-head .lh-label")].map((e) => e.textContent.trim()));
+    ok(rubriker.indexOf("No parent") !== -1,
+      `kolumnen för de föräldralösa heter No parent: ${JSON.stringify(rubriker)}`);
   }
 }

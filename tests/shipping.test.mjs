@@ -31,6 +31,36 @@ export async function run() {
     eq(a.looseOnDisk, b.looseOnDisk, "och samma läsning av arbetskatalogen");
   }
 
+  group("skalets höjder har en vh-tvilling");
+  {
+    // Codex, #49. Två deklarationer håller scrollporten inne i skalet: `body`s höjd och
+    // chipparadens tak. Bägge är skrivna i dynamiska vyportenheter, och en webbläsare som
+    // inte kan `dvh` slänger *hela* deklarationen — alltså är fallbacken inte artighet
+    // utan själva regeln, i en webbläsare som inte heller har någon sidscroll att räddas
+    // av. Läst ur filen, inte ur en renderad sida: det som saknas syns bara i källan.
+    const css = await readFile(ROOT + "styles.css", "utf8");
+    // Radbunden, så `body {` inte träffar `body.scroll-locked {` eller ett `.chiprow`
+    // inuti en media-fråga före det riktiga.
+    const regel = (sel) => {
+      const i = css.indexOf("\n" + sel + " {");
+      return i < 0 ? null : css.slice(i, css.indexOf("}", i));
+    };
+    for (const [sel, prop] of [["body", "height"], [".chiprow", "max-height"]]) {
+      const kropp = regel(sel);
+      ok(kropp, `regeln ${sel} finns att läsa`);
+      if (!kropp) continue;
+      const rader = kropp.split("\n").map((l) => l.trim())
+        .filter((l) => l.startsWith(prop + ":")).map((l) => l.replace(/\s+/g, " "));
+      // `\d+vh` matchar inte `30dvh` — siffran måste stå direkt före `vh` — vilket är
+      // precis vad som skiljer tvillingen från originalet.
+      const dyn = (l) => /\d+dvh\b/.test(l), stat = (l) => /\d+vh\b/.test(l);
+      ok(rader.some(dyn), `${sel} { ${prop} } är skriven i dvh: ${JSON.stringify(rader)}`);
+      ok(rader.some(stat), `och har en vh-tvilling: ${JSON.stringify(rader)}`);
+      // Ordningen är hela mekanismen: tvillingen måste stå *före*, annars vinner den.
+      ok(rader.findIndex(stat) < rader.findIndex(dyn), `och står före den: ${JSON.stringify(rader)}`);
+    }
+  }
+
   group("ingenting oavsiktligt skeppas");
   {
     // Three readings, because the git index and the directory wrangler uploads are
