@@ -42,6 +42,13 @@ function actionsStub(opts = {}) {
 }
 
 const syncBtn = (page) => page.locator("#syncNow");
+// `syncWorkflow` defaults to the *product's* workflow, so a board that runs a different
+// one says so in its own board.config.json. Both halves are asserted below: the default
+// a fork gets, and the override the workshop needs.
+const withWorkflow = (name) => (payload) => {
+  payload.config = { ...payload.config, syncWorkflow: name };
+  return payload;
+};
 // Measured, not read off the property. The wrapper carries `display: flex` so its
 // button and its separator keep the footer's rhythm, and a `display` set in CSS beats
 // the browser's own `[hidden] { display: none }` — the board's `!important` override is
@@ -69,10 +76,34 @@ export async function run({ open }) {
     eq((await syncBtn(q).textContent()).trim(), "sync now", "och säger vad den gör");
   }
 
+  group("vilket arbetsflöde som dispatchas: default vs. konfigurerat");
+  {
+    // The bug this pins: the default used to be the workshop's `sync.yml`, so every fork
+    // dispatched a workflow that does not exist there and got GitHub's 404 reported as a
+    // missing token permission. The correction was first written into the product's
+    // generated board.config.json — which the mirror excludes by design, so it was
+    // deleted on arrival and reached nobody. The default has to carry it.
+    const dflt = actionsStub({ stayRunning: true });
+    const a = await open("", { token: true, github: dflt.handler });
+    await syncBtn(a).click();
+    await a.waitForTimeout(600);
+    eq(dflt.calls.filter((c) => c.method === "POST")[0].path,
+      "/repos/acme/alpha/actions/workflows/pages.yml/dispatches",
+      "utan konfiguration: produktens arbetsflöde, som är det en fork faktiskt har");
+
+    const named = actionsStub({ stayRunning: true });
+    const b = await open("", { token: true, github: named.handler, data: withWorkflow("sync.yml") });
+    await syncBtn(b).click();
+    await b.waitForTimeout(600);
+    eq(named.calls.filter((c) => c.method === "POST")[0].path,
+      "/repos/acme/alpha/actions/workflows/sync.yml/dispatches",
+      "med syncWorkflow satt: instansen som avviker deklarerar sig själv");
+  }
+
   group("den skickar EN dispatch, till arbetsflödet i aggregatorrepot");
   {
     const gh = actionsStub({ stayRunning: true });
-    const p = await open("", { token: true, github: gh.handler });
+    const p = await open("", { token: true, github: gh.handler, data: withWorkflow("sync.yml") });
     await syncBtn(p).click();
     await p.waitForTimeout(600);
 
