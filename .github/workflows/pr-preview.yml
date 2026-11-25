@@ -108,13 +108,19 @@ jobs:
 
       - name: Clone source repos (treeless, read-only)
         env:
-          SOURCES_TOKEN: ${{ secrets.SOURCES_TOKEN }}
+          # Owner PRs only, the same gate as the Cloudflare preview below: the harvest
+          # runs this PR's own scripts, so a token handed to a branch pusher's PR is a
+          # token that PR can print — and this one reads private repos.
+          SOURCES_TOKEN: ${{ steps.pr.outputs.author == github.repository_owner && secrets.SOURCES_TOKEN || '' }}
           SELF_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/sources"
-          # Same credentials as sync.yml, for private sources. Not skipped on failure
-          # here: this is the gate, and a source that cannot be read should fail it.
+          : > "$RUNNER_TEMP/skipped-sources"
+          # Same credentials as sync.yml, for private sources. With the token, a source
+          # that cannot be cloned fails the gate. Without it (a non-owner PR), a private
+          # source is unreadable by design: it is skipped and listed, so the validation
+          # below still holds every *other* source to account.
           auth=()
           if [ -n "${SOURCES_TOKEN:-}" ]; then
             echo "::add-mask::$SOURCES_TOKEN"
@@ -135,24 +141,30 @@ jobs:
             echo "Cloning $repo@$branch"
             git clone "${auth[@]}" --filter=blob:none --branch "$branch" \
               "https://github.com/$repo" "$RUNNER_TEMP/sources/$repo" \
-              || git clone "${auth[@]}" --filter=blob:none "https://github.com/$repo" "$RUNNER_TEMP/sources/$repo"
+              || git clone "${auth[@]}" --filter=blob:none "https://github.com/$repo" "$RUNNER_TEMP/sources/$repo" \
+              || {
+                [ ${#auth[@]} -eq 0 ] || exit 1
+                echo "::notice::Skipped $repo — not readable without SOURCES_TOKEN, which only owner PRs receive."
+                echo "$repo" >> "$RUNNER_TEMP/skipped-sources"
+              }
           done <<< "$repos"
 
       - name: Harvest (build data/ fresh — the build gate)
         env:
           ROADMAP_LOCAL_ROOT: ${{ runner.temp }}/sources
-          GITHUB_TOKEN: ${{ secrets.SOURCES_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.pr.outputs.author == github.repository_owner && secrets.SOURCES_TOKEN || secrets.GITHUB_TOKEN }}
         run: node scripts/harvest.mjs
 
       - name: Validate the generated payload
         run: |
           node -e "
           const d = require('./data/roadmap.json');
+          const skipped = new Set(require('fs').readFileSync(process.env.RUNNER_TEMP + '/skipped-sources', 'utf8').split('\\n').filter(Boolean));
           if (!Array.isArray(d.items) || !d.items.length) throw new Error('roadmap.json has no items');
           // The harvester records per-source failures instead of throwing, so a PR that
           // breaks a source (e.g. an unknown adapter) would still exit 0 and silently drop
           // it. Fail the gate so the source markdown stays authoritative.
-          const bad = (d.sources || []).filter(s => s && s.error);
+          const bad = (d.sources || []).filter(s => s && s.error && !skipped.has(s.repo));
           if (bad.length) throw new Error('source(s) failed to harvest: ' + bad.map(s => s.repo + ' — ' + s.error).join('; '));
           console.log('✓ items:', d.items.length, '· sources ok:', (d.sources || []).length);
           "
